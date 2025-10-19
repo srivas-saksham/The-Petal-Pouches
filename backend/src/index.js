@@ -1,3 +1,4 @@
+// backend/src/index.js
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
+app.use('/api/categories', require('./routes/categories')); // ✅ Category routes (public + admin)
 app.use('/api/admin', require('./routes/admin')); // Admin routes
 app.use('/api/products', require('./routes/products')); // Public routes
 
@@ -50,6 +52,7 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV}`);
+  console.log(`✅ Category routes available at /api/categories`);
 });
 
 module.exports = app;
