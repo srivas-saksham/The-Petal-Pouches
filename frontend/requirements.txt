@@ -1,0 +1,253 @@
+# The Petal Pouches - Frontend Dependencies
+
+
+# ============================================
+# COMPLETE SINGLE COMMAND
+# ============================================
+
+# Copy and paste this to install everything:
+#npm install react-router-dom@^6.20.0 zustand@^4.4.7 axios@^1.6.2 @supabase/supabase-js@^2.38.4 react-hook-form@^7.48.2 yup@^1.3.3 lucide-react@^0.294.0 framer-motion@^10.16.5 @react-three/fiber@^8.15.11 three@^0.159.0 @react-three/drei@^9.88.17 lottie-react@^2.4.0 dayjs@^1.11.10 uuid@^9.0.1 prop-types@^15.8.1 && npm install -D tailwindcss@^3.3.5 postcss@^8.4.32 autoprefixer@^10.4.16 eslint-plugin-react@^7.33.2 eslint-plugin-react-hooks@^4.6.0 eslint-plugin-react-refresh@^0.4.4 prettier@^3.1.0 eslint-config-prettier@^9.0.0
+
+
+# Install all at once: npm install
+# ============================================
+# PRODUCTION DEPENDENCIES
+# ============================================
+
+# Core React & React DOM
+react@^18.2.0
+react-dom@^18.2.0
+
+# Routing
+react-router-dom@^6.20.0
+
+# State Management
+zustand@^4.4.7
+
+# API Client
+axios@^1.6.2
+@supabase/supabase-js@^2.38.4
+
+# Form Handling & Validation
+react-hook-form@^7.48.2
+yup@^1.3.3
+
+# UI & Styling
+tailwindcss@^3.3.5
+
+# Icons
+lucide-react@^0.294.0
+
+# Animations
+framer-motion@^10.16.5
+
+# 3D Graphics & Visualization
+react-three-fiber@^8.15.11
+three@^0.159.0
+@react-three/drei@^9.88.17
+
+# Lottie Animations
+lottie-react@^2.4.0
+
+# Utilities
+dayjs@^1.11.10
+uuid@^9.0.1
+
+# PropTypes for Type Checking
+prop-types@^15.8.1
+
+# ============================================
+# DEVELOPMENT DEPENDENCIES
+# ============================================
+
+# Build Tool
+@vitejs/plugin-react@^4.2.0
+
+# CSS Processing
+postcss@^8.4.32
+autoprefixer@^10.4.16
+
+# Code Quality
+eslint@^8.54.0
+eslint-plugin-react@^7.33.2
+eslint-plugin-react-hooks@^4.6.0
+eslint-plugin-react-refresh@^0.4.4
+prettier@^3.1.0
+eslint-config-prettier@^9.0.0
+
+# ============================================
+# OPTIONAL DEPENDENCIES (Install as needed)
+# ============================================
+
+# Recharts (Data Visualization for Analytics)
+# recharts@^2.10.3
+
+# React Query (Advanced Data Fetching)
+# @tanstack/react-query@^5.12.2
+
+# React Hot Toast (Notifications)
+# react-hot-toast@^2.4.1
+
+# React Confetti (Celebrations)
+# react-confetti@^6.1.0
+
+# Swiper (Image Carousels)
+# swiper@^11.0.5
+
+# React Intersection Observer (Lazy Loading)
+# react-intersection-observer@^9.5.3
+
+# React Helmet (SEO Meta Tags)
+# react-helmet-async@^2.0.4
+
+# React Share (Social Sharing)
+# react-share@^5.1.0
+
+# React Image Gallery
+# react-image-gallery@^1.3.0
+
+# Embla Carousel (Alternative Carousel)
+# embla-carousel-react@^8.0.0
+
+# React Select (Advanced Dropdowns)
+# react-select@^5.8.0
+
+# React Date Picker
+# react-datepicker@^4.21.0
+
+# QR Code Generation
+# qrcode.react@^3.1.0
+
+# React PDF (PDF Generation/Viewing)
+# @react-pdf/renderer@^3.1.14
+
+# ============================================
+# VITE CONFIGURATION
+# ============================================
+
+# Vite is already included when you create project with:
+# npm create vite@latest frontend -- --template react
+
+# Core Vite package (comes with template)
+# vite@^5.0.0
+
+# ============================================
+# INSTALLATION INSTRUCTIONS
+# ============================================
+
+# Step 1: Create Vite React Project (if not already created)
+# npm create vite@latest frontend -- --template react
+# cd frontend
+
+# Step 2: Install all production dependencies
+# npm install react-router-dom zustand axios @supabase/supabase-js react-hook-form yup lucide-react framer-motion react-three-fiber three @react-three/drei lottie-react dayjs uuid prop-types
+
+# Step 3: Install Tailwind CSS
+# npm install -D tailwindcss postcss autoprefixer
+# npx tailwindcss init -p
+
+# Step 4: Install additional dev dependencies
+# npm install -D eslint-plugin-react eslint-plugin-react-hooks eslint-plugin-react-refresh prettier eslint-config-prettier
+
+# ============================================
+# ENVIRONMENT SETUP
+# ============================================
+
+# Required Node.js Version: >= 18.0.0
+# Check your version: node --version
+
+# ============================================
+# POST-INSTALLATION STEPS
+# ============================================
+
+# 1. Configure Tailwind CSS
+# Add to tailwind.config.js:
+# content: ["./index.html", "./src/**/*.{js,jsx}"]
+
+# 2. Add Tailwind directives to src/index.css:
+# @tailwind base;
+# @tailwind components;
+# @tailwind utilities;
+
+# 3. Create .env file
+# VITE_SUPABASE_URL=your_supabase_url
+# VITE_SUPABASE_ANON_KEY=your_anon_key
+# VITE_API_BASE_URL=http://localhost:5000
+
+# 4. Start development server
+# npm run dev
+
+# ============================================
+# QUICK INSTALL COMMAND (All at Once)
+# ============================================
+
+# Production dependencies:
+npm install react-router-dom@^6.20.0 zustand@^4.4.7 axios@^1.6.2 @supabase/supabase-js@^2.38.4 react-hook-form@^7.48.2 yup@^1.3.3 lucide-react@^0.294.0 framer-motion@^10.16.5 @react-three/fiber@^8.15.11 three@^0.159.0 @react-three/drei@^9.88.17 lottie-react@^2.4.0 dayjs@^1.11.10 uuid@^9.0.1 prop-types@^15.8.1
+
+# Tailwind CSS:
+npm install -D tailwindcss@^3.3.5 postcss@^8.4.32 autoprefixer@^10.4.16
+
+# ESLint & Prettier:
+npm install -D eslint-plugin-react@^7.33.2 eslint-plugin-react-hooks@^4.6.0 eslint-plugin-react-refresh@^0.4.4 prettier@^3.1.0 eslint-config-prettier@^9.0.0
+
+# ============================================
+# PACKAGE DETAILS
+# ============================================
+
+# react-router-dom: Client-side routing for React
+# zustand: Lightweight state management (alternative to Redux)
+# axios: Promise-based HTTP client
+# @supabase/supabase-js: Supabase client for database/auth
+# react-hook-form: Performant form library
+# yup: Schema validation library
+# lucide-react: Beautiful & consistent icon set
+# framer-motion: Animation library for React
+# @react-three/fiber: React renderer for Three.js (3D graphics)
+# three: JavaScript 3D library
+# @react-three/drei: Useful helpers for react-three-fiber
+# lottie-react: Render Lottie animations
+# dayjs: Lightweight date library
+# uuid: Generate unique IDs
+# prop-types: Runtime type checking for React props
+# tailwindcss: Utility-first CSS framework
+# postcss: CSS transformation tool
+# autoprefixer: PostCSS plugin for vendor prefixes
+
+# ============================================
+# BUNDLE SIZE CONSIDERATIONS
+# ============================================
+
+# Heavy packages (consider lazy loading):
+# - three.js (~600KB)
+# - @react-three/fiber
+# - @react-three/drei
+# 
+# Recommended: Load 3D components only when needed using React.lazy()
+
+# ============================================
+# ALTERNATIVE LIGHTER OPTIONS
+# ============================================
+
+# If 3D is not immediately needed:
+# - Skip three, @react-three/fiber, @react-three/drei
+# - Save ~800KB in bundle size
+# - Add later when implementing 3D features
+
+# Lighter animation alternative to Framer Motion:
+# - react-spring@^9.7.3 (smaller bundle size)
+
+# ============================================
+# RECOMMENDED ADDITIONAL PACKAGES
+# ============================================
+
+# For better UX:
+npm install react-hot-toast@^2.4.1
+
+# For SEO:
+npm install react-helmet-async@^2.0.4
+
+# For image carousels:
+npm install swiper@^11.0.5
+
+# For lazy loading images:
+npm install react-intersection-observer@^9.5.3
