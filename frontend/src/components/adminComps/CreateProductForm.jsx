@@ -13,6 +13,7 @@ const CreateProductForm = ({ onSuccess }) => {
   });
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [hasVariants, setHasVariants] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   
@@ -129,6 +130,8 @@ const CreateProductForm = ({ onSuccess }) => {
       data.append('price', formData.price);
       data.append('stock', formData.stock);
       data.append('sku', formData.sku);
+      data.append('has_variants', hasVariants);
+      
       if (formData.category_id) {
         data.append('category_id', formData.category_id);
       }
@@ -156,6 +159,7 @@ const CreateProductForm = ({ onSuccess }) => {
       });
       setImage(null);
       setImagePreview(null);
+      setHasVariants(false);
 
       if (onSuccess) {
         setTimeout(() => onSuccess(response.data.data), 1500);
@@ -458,6 +462,47 @@ const CreateProductForm = ({ onSuccess }) => {
               >
                 Create Category
               </button>
+            </div>
+          )}
+        </div>
+
+        {/* Has Variants Checkbox */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            cursor: 'pointer',
+            padding: '12px',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '4px',
+            border: '1px solid #dee2e6'
+          }}>
+            <input
+              type="checkbox"
+              checked={hasVariants}
+              onChange={(e) => setHasVariants(e.target.checked)}
+              style={{ marginRight: '10px', width: '18px', height: '18px', cursor: 'pointer' }}
+            />
+            <div>
+              <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>
+                This product has variants
+              </span>
+              <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '4px' }}>
+                (e.g., different colors, sizes, metals, etc.)
+              </div>
+            </div>
+          </label>
+          {hasVariants && (
+            <div style={{
+              marginTop: '10px',
+              padding: '12px',
+              backgroundColor: '#e7f3ff',
+              border: '1px solid #b3d9ff',
+              borderRadius: '4px'
+            }}>
+              <p style={{ margin: 0, fontSize: '0.875rem', color: '#004085' }}>
+                ℹ️ <strong>Note:</strong> After creating this product, click the "Variants" button to add different options like colors, sizes, metals, etc.
+              </p>
             </div>
           )}
         </div>

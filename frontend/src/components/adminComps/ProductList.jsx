@@ -1,6 +1,7 @@
 // frontend/src/components/adminComps/ProductList.jsx
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import VariantManager from './VariantManager';
 
 const ProductList = ({ onEdit }) => {
   const [products, setProducts] = useState([]);
@@ -17,6 +18,7 @@ const ProductList = ({ onEdit }) => {
     limit: 20
   });
   const [metadata, setMetadata] = useState(null);
+  const [variantManagerProduct, setVariantManagerProduct] = useState(null);
 
   useEffect(() => {
     fetchProducts();
@@ -170,6 +172,7 @@ const ProductList = ({ onEdit }) => {
                   <th style={{ padding: '12px', textAlign: 'right' }}>Price</th>
                   <th style={{ padding: '12px', textAlign: 'right' }}>Stock</th>
                   <th style={{ padding: '12px', textAlign: 'left' }}>Category</th>
+                  <th style={{ padding: '12px', textAlign: 'center' }}>Variants</th>
                   <th style={{ padding: '12px', textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
@@ -210,11 +213,26 @@ const ProductList = ({ onEdit }) => {
                       {product.Categories?.name || 'N/A'}
                     </td>
                     <td style={{ padding: '12px', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                      {product.has_variants ? (
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          backgroundColor: '#e7f3ff',
+                          color: '#0056b3',
+                          fontSize: '0.75rem',
+                          fontWeight: '600'
+                        }}>
+                          ✓ Has Variants
+                        </span>
+                      ) : (
+                        <span style={{ color: '#999', fontSize: '0.875rem' }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
                         <button
                           onClick={() => {
                             console.log('✏️ Editing product:', product.id);
-                            console.log('✏️ Product object:', product);
                             onEdit(product.id);
                           }}
                           style={{
@@ -229,6 +247,23 @@ const ProductList = ({ onEdit }) => {
                         >
                           Edit
                         </button>
+                        {product.has_variants && (
+                          <button
+                            onClick={() => setVariantManagerProduct(product.id)}
+                            style={{
+                              padding: '6px 12px',
+                              backgroundColor: '#6f42c1',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.875rem'
+                            }}
+                            title="Manage Variants"
+                          >
+                            Variants
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDelete(product.id, product.title)}
                           style={{
@@ -299,6 +334,17 @@ const ProductList = ({ onEdit }) => {
             </div>
           )}
         </>
+      )}
+
+      {/* Variant Manager Modal */}
+      {variantManagerProduct && (
+        <VariantManager
+          productId={variantManagerProduct}
+          onClose={() => {
+            setVariantManagerProduct(null);
+            fetchProducts(); // Refresh products after managing variants
+          }}
+        />
       )}
     </div>
   );

@@ -14,6 +14,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [currentImage, setCurrentImage] = useState(null);
+  const [hasVariants, setHasVariants] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -49,6 +50,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         category_id: product.category_id || ''
       });
       setCurrentImage(product.img_url);
+      setHasVariants(product.has_variants || false);
       setLoadingProduct(false);
     } catch (error) {
       console.error('Error fetching product:', error);
@@ -160,6 +162,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
       } else {
         data.append('category_id', '');
       }
+      data.append('has_variants', hasVariants);
       if (image) data.append('image', image);
 
       const response = await axios.put(
@@ -482,6 +485,47 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
               >
                 Create Category
               </button>
+            </div>
+          )}
+        </div>
+
+        {/* Has Variants Toggle */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            cursor: 'pointer',
+            padding: '12px',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '4px',
+            border: '1px solid #dee2e6'
+          }}>
+            <input
+              type="checkbox"
+              checked={hasVariants}
+              onChange={(e) => setHasVariants(e.target.checked)}
+              style={{ marginRight: '10px', width: '18px', height: '18px', cursor: 'pointer' }}
+            />
+            <div>
+              <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>
+                This product has variants
+              </span>
+              <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '4px' }}>
+                (e.g., different colors, sizes, metals, etc.)
+              </div>
+            </div>
+          </label>
+          {hasVariants && (
+            <div style={{
+              marginTop: '10px',
+              padding: '12px',
+              backgroundColor: '#e7f3ff',
+              border: '1px solid #b3d9ff',
+              borderRadius: '4px'
+            }}>
+              <p style={{ margin: 0, fontSize: '0.875rem', color: '#004085' }}>
+                ℹ️ <strong>Note:</strong> Click the "Variants" button in the product list to manage variants for this product.
+              </p>
             </div>
           )}
         </div>

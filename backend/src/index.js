@@ -39,6 +39,9 @@ app.use('/api/admin', require('./routes/admin'));
 // 3. Public product routes (must come AFTER admin routes)
 app.use('/api/products', require('./routes/products'));
 
+// 4. Public product variants routes
+app.use('/api/variants', require('./routes/variants'));
+
 // ============================================
 // HEALTH CHECK & ERROR HANDLERS
 // ============================================

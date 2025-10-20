@@ -3,20 +3,72 @@ const supabase = require('../config/supabaseClient');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../services/cloudinaryService');
 const { extractPublicIdFromUrl } = require('../utils/cloudinaryHelpers');
 
-// Task 2.1: Get Product by ID
+// CREATE PRODUCT
+const createProduct = async (req, res) => {
+  try {
+    const { title, description, price, category_id, stock, sku, has_variants } = req.body;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Product image is required'
+      });
+    }
+
+    // Upload image to Cloudinary
+    const cloudinaryResult = await uploadToCloudinary(req.file.buffer, 'products');
+
+    const productData = {
+      title,
+      description,
+      price: parseInt(price),
+      stock: parseInt(stock),
+      sku,
+      img_url: cloudinaryResult.url,
+      has_variants: has_variants === 'true' || has_variants === true || false
+    };
+
+    if (category_id && category_id.trim() !== '') {
+      productData.category_id = category_id;
+    }
+
+    const { data, error } = await supabase
+      .from('Products')
+      .insert([productData])
+      .select()
+      .single();
+
+    if (error) {
+      await deleteFromCloudinary(cloudinaryResult.public_id);
+      throw error;
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Product created successfully',
+      data
+    });
+  } catch (error) {
+    console.error('Create product error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create product',
+      error: error.message
+    });
+  }
+};
+
+// GET PRODUCT BY ID (with variants if applicable)
 const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabase
+    // Get product
+    const { data: product, error } = await supabase
       .from('Products')
       .select(`
-        *,
-        Categories (
-          id,
-          name,
-          description
-        )
+        *, 
+        Categories (id, name, description)
       `)
       .eq('id', id)
       .single();
@@ -31,12 +83,29 @@ const getProductById = async (req, res) => {
       throw error;
     }
 
-    res.status(200).json({
-      success: true,
-      data
+    // If product has variants, fetch them
+    if (product.has_variants) {
+      const { data: variants, error: variantsError } = await supabase
+        .from('product_variants')
+        .select('*')
+        .eq('product_id', id)
+        .order('is_default', { ascending: false })
+        .order('created_at', { ascending: true });
+
+      if (variantsError) {
+        console.error('Error fetching variants:', variantsError);
+        product.variants = [];
+      } else {
+        product.variants = variants;
+      }
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      data: product 
     });
   } catch (error) {
-    console.error('Get product by ID error:', error);
+    console.error('Get product error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch product',
@@ -45,16 +114,15 @@ const getProductById = async (req, res) => {
   }
 };
 
-// Task 2.2: Update Product (with optional image)
+// UPDATE PRODUCT
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, price, stock, category_id, sku } = req.body;
+    const { title, description, price, stock, category_id, sku, has_variants } = req.body;
 
-    // Check if product exists
     const { data: existingProduct, error: fetchError } = await supabase
       .from('Products')
-      .select('img_url')
+      .select('img_url, has_variants')
       .eq('id', id)
       .single();
 
@@ -65,29 +133,29 @@ const updateProduct = async (req, res) => {
       });
     }
 
-    // Prepare update data
     const updateData = {};
+
     if (title) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (price) updateData.price = parseInt(price);
     if (stock !== undefined) updateData.stock = parseInt(stock);
     if (sku) updateData.sku = sku;
-    
-    // Handle category_id
-    if (category_id && category_id.trim() !== '' && category_id.toUpperCase() !== 'NULL') {
+    if (has_variants !== undefined) {
+      updateData.has_variants = has_variants === 'true' || has_variants === true;
+    }
+
+    if (category_id && category_id.trim() !== '') {
       updateData.category_id = category_id;
-    } else if (category_id === null || category_id === '' || category_id.toUpperCase() === 'NULL') {
+    } else if (category_id === null || category_id === '') {
       updateData.category_id = null;
     }
 
-    // Handle new image upload
+    // Handle image upload
     if (req.file) {
       try {
-        // Upload new image
         const cloudinaryResult = await uploadToCloudinary(req.file.buffer, 'products');
         updateData.img_url = cloudinaryResult.url;
 
-        // Delete old image from Cloudinary
         if (existingProduct.img_url) {
           const oldPublicId = extractPublicIdFromUrl(existingProduct.img_url);
           if (oldPublicId) {
@@ -103,7 +171,6 @@ const updateProduct = async (req, res) => {
       }
     }
 
-    // Update product
     const { data, error } = await supabase
       .from('Products')
       .update(updateData)
@@ -128,12 +195,11 @@ const updateProduct = async (req, res) => {
   }
 };
 
-// Task 2.3: Delete Product
+// DELETE PRODUCT
 const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Fetch product to get image URL
     const { data: product, error: fetchError } = await supabase
       .from('Products')
       .select('img_url')
@@ -150,7 +216,6 @@ const deleteProduct = async (req, res) => {
       throw fetchError;
     }
 
-    // Delete from database
     const { error: deleteError } = await supabase
       .from('Products')
       .delete()
@@ -158,7 +223,6 @@ const deleteProduct = async (req, res) => {
 
     if (deleteError) throw deleteError;
 
-    // Delete image from Cloudinary
     if (product.img_url) {
       try {
         const publicId = extractPublicIdFromUrl(product.img_url);
@@ -167,7 +231,6 @@ const deleteProduct = async (req, res) => {
         }
       } catch (cloudinaryError) {
         console.error('Cloudinary delete error:', cloudinaryError);
-        // Don't fail the request if Cloudinary delete fails
       }
     }
 
@@ -185,7 +248,7 @@ const deleteProduct = async (req, res) => {
   }
 };
 
-// Task 2.4: Get All Products with Advanced Filtering
+// GET ALL PRODUCTS
 const getAllProducts = async (req, res) => {
   try {
     const {
@@ -199,35 +262,16 @@ const getAllProducts = async (req, res) => {
       in_stock
     } = req.query;
 
-    // Build query
     let query = supabase
       .from('Products')
       .select('*, Categories(id, name)', { count: 'exact' });
 
-    // Category filter
-    if (category_id) {
-      query = query.eq('category_id', category_id);
-    }
+    if (category_id) query = query.eq('category_id', category_id);
+    if (min_price) query = query.gte('price', parseInt(min_price));
+    if (max_price) query = query.lte('price', parseInt(max_price));
+    if (search) query = query.ilike('title', `%${search}%`);
+    if (in_stock === 'true') query = query.gt('stock', 0);
 
-    // Price range filter
-    if (min_price) {
-      query = query.gte('price', parseInt(min_price));
-    }
-    if (max_price) {
-      query = query.lte('price', parseInt(max_price));
-    }
-
-    // Search by title
-    if (search) {
-      query = query.ilike('title', `%${search}%`);
-    }
-
-    // Stock filter
-    if (in_stock === 'true') {
-      query = query.gt('stock', 0);
-    }
-
-    // Sorting
     switch (sort) {
       case 'price_asc':
         query = query.order('price', { ascending: true });
@@ -235,13 +279,10 @@ const getAllProducts = async (req, res) => {
       case 'price_desc':
         query = query.order('price', { ascending: false });
         break;
-      case 'created_at':
       default:
         query = query.order('created_at', { ascending: false });
-        break;
     }
 
-    // Pagination
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const from = (pageNum - 1) * limitNum;
@@ -249,7 +290,6 @@ const getAllProducts = async (req, res) => {
 
     query = query.range(from, to);
 
-    // Execute query
     const { data, error, count } = await query;
 
     if (error) throw error;
@@ -272,60 +312,6 @@ const getAllProducts = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch products',
-      error: error.message
-    });
-  }
-};
-
-// Create Product (already implemented)
-const createProduct = async (req, res) => {
-  try {
-    const { title, description, price, category_id, stock, sku } = req.body;
-
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'Product image is required'
-      });
-    }
-
-    const cloudinaryResult = await uploadToCloudinary(req.file.buffer, 'products');
-
-    const productData = {
-      title,
-      description,
-      price: parseInt(price),
-      stock: parseInt(stock),
-      sku,
-      img_url: cloudinaryResult.url,
-      has_variants: false
-    };
-
-    if (category_id && category_id.trim() !== '' && category_id.toUpperCase() !== 'NULL') {
-      productData.category_id = category_id;
-    }
-
-    const { data, error } = await supabase
-      .from('Products')
-      .insert([productData])
-      .select()
-      .single();
-
-    if (error) {
-      await deleteFromCloudinary(cloudinaryResult.publicId);
-      throw error;
-    }
-
-    res.status(201).json({
-      success: true,
-      message: 'Product created successfully',
-      data
-    });
-  } catch (error) {
-    console.error('Create product error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create product',
       error: error.message
     });
   }
