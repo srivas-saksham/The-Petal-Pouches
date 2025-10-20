@@ -1,8 +1,8 @@
-// frontend/src/components/adminComps/CreateProductForm.jsx
+// frontend/src/components/adminComps/UpdateProductForm.jsx
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const CreateProductForm = ({ onSuccess }) => {
+const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -13,9 +13,11 @@ const CreateProductForm = ({ onSuccess }) => {
   });
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [currentImage, setCurrentImage] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadingProduct, setLoadingProduct] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
-  
+
   // Category management
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
@@ -26,10 +28,34 @@ const CreateProductForm = ({ onSuccess }) => {
   });
   const [categoryMessage, setCategoryMessage] = useState({ type: '', text: '' });
 
-  // Fetch categories on component mount
   useEffect(() => {
+    fetchProduct();
     fetchCategories();
-  }, []);
+  }, [productId]);
+
+  const fetchProduct = async () => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}`
+      );
+      const product = response.data.data;
+      
+      setFormData({
+        title: product.title || '',
+        description: product.description || '',
+        price: product.price || '',
+        stock: product.stock || '',
+        sku: product.sku || '',
+        category_id: product.category_id || ''
+      });
+      setCurrentImage(product.img_url);
+      setLoadingProduct(false);
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      setMessage({ type: 'error', text: 'Failed to load product' });
+      setLoadingProduct(false);
+    }
+  };
 
   const fetchCategories = async () => {
     setLoadingCategories(true);
@@ -46,7 +72,7 @@ const CreateProductForm = ({ onSuccess }) => {
     }
   };
 
-  const handleInputChange = (e) => {
+  const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
@@ -123,18 +149,21 @@ const CreateProductForm = ({ onSuccess }) => {
 
     try {
       const data = new FormData();
-      data.append('image', image);
-      data.append('title', formData.title);
-      data.append('description', formData.description);
-      data.append('price', formData.price);
-      data.append('stock', formData.stock);
-      data.append('sku', formData.sku);
+      
+      if (formData.title) data.append('title', formData.title);
+      if (formData.description) data.append('description', formData.description);
+      if (formData.price) data.append('price', formData.price);
+      if (formData.stock !== '') data.append('stock', formData.stock);
+      if (formData.sku) data.append('sku', formData.sku);
       if (formData.category_id) {
         data.append('category_id', formData.category_id);
+      } else {
+        data.append('category_id', '');
       }
+      if (image) data.append('image', image);
 
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL}/api/admin/products`,
+      const response = await axios.put(
+        `${import.meta.env.VITE_API_BASE_URL}/api/admin/products/${productId}`,
         data,
         {
           headers: {
@@ -143,39 +172,30 @@ const CreateProductForm = ({ onSuccess }) => {
         }
       );
 
-      setMessage({ type: 'success', text: 'Product created successfully!' });
-
-      // Reset form
-      setFormData({
-        title: '',
-        description: '',
-        price: '',
-        stock: '',
-        sku: '',
-        category_id: ''
-      });
-      setImage(null);
-      setImagePreview(null);
-
+      setMessage({ type: 'success', text: response.data.message });
+      
       if (onSuccess) {
         setTimeout(() => onSuccess(response.data.data), 1500);
       }
-
     } catch (error) {
-      console.error('Error creating product:', error);
+      console.error('Error updating product:', error);
       setMessage({
         type: 'error',
-        text: error.response?.data?.message || 'Failed to create product'
+        text: error.response?.data?.message || 'Failed to update product'
       });
     } finally {
       setLoading(false);
     }
   };
 
+  if (loadingProduct) {
+    return <div style={{ padding: '20px' }}>Loading product...</div>;
+  }
+
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px' }}>
-      <h2 style={{ marginBottom: '20px' }}>Create New Product</h2>
-
+      <h2 style={{ marginBottom: '20px' }}>Update Product</h2>
+      
       {message.text && (
         <div style={{
           padding: '10px',
@@ -190,17 +210,30 @@ const CreateProductForm = ({ onSuccess }) => {
       )}
 
       <form onSubmit={handleSubmit}>
-        {/* Image Upload */}
+        {/* Current Image */}
+        {currentImage && !imagePreview && (
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+              Current Image:
+            </label>
+            <img 
+              src={currentImage} 
+              alt="Current product" 
+              style={{ width: '150px', height: '150px', objectFit: 'cover', borderRadius: '4px' }}
+            />
+          </div>
+        )}
+
+        {/* New Image Upload */}
         <div style={{ marginBottom: '15px' }}>
           <label htmlFor="image" style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-            Product Image *
+            New Image (optional):
           </label>
           <input
             type="file"
             id="image"
             accept="image/*"
             onChange={handleImageChange}
-            required
             style={{
               width: '100%',
               padding: '8px',
@@ -220,16 +253,14 @@ const CreateProductForm = ({ onSuccess }) => {
         {/* Title */}
         <div style={{ marginBottom: '15px' }}>
           <label htmlFor="title" style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-            Product Title *
+            Product Title:
           </label>
           <input
             type="text"
             id="title"
             name="title"
             value={formData.title}
-            onChange={handleInputChange}
-            required
-            placeholder="Pink Heart Necklace"
+            onChange={handleChange}
             style={{
               width: '100%',
               padding: '8px',
@@ -242,15 +273,14 @@ const CreateProductForm = ({ onSuccess }) => {
         {/* Description */}
         <div style={{ marginBottom: '15px' }}>
           <label htmlFor="description" style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-            Description
+            Description:
           </label>
           <textarea
             id="description"
             name="description"
             value={formData.description}
-            onChange={handleInputChange}
+            onChange={handleChange}
             rows="4"
-            placeholder="Beautiful heart-shaped necklace..."
             style={{
               width: '100%',
               padding: '8px',
@@ -263,16 +293,14 @@ const CreateProductForm = ({ onSuccess }) => {
         {/* Price */}
         <div style={{ marginBottom: '15px' }}>
           <label htmlFor="price" style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-            Price (₹) *
+            Price (₹):
           </label>
           <input
             type="number"
             id="price"
             name="price"
             value={formData.price}
-            onChange={handleInputChange}
-            required
-            placeholder="999"
+            onChange={handleChange}
             style={{
               width: '100%',
               padding: '8px',
@@ -285,16 +313,14 @@ const CreateProductForm = ({ onSuccess }) => {
         {/* Stock */}
         <div style={{ marginBottom: '15px' }}>
           <label htmlFor="stock" style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-            Stock Quantity *
+            Stock Quantity:
           </label>
           <input
             type="number"
             id="stock"
             name="stock"
             value={formData.stock}
-            onChange={handleInputChange}
-            required
-            placeholder="50"
+            onChange={handleChange}
             style={{
               width: '100%',
               padding: '8px',
@@ -307,16 +333,14 @@ const CreateProductForm = ({ onSuccess }) => {
         {/* SKU */}
         <div style={{ marginBottom: '15px' }}>
           <label htmlFor="sku" style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-            SKU *
+            SKU:
           </label>
           <input
             type="text"
             id="sku"
             name="sku"
             value={formData.sku}
-            onChange={handleInputChange}
-            required
-            placeholder="NECKLACE-001"
+            onChange={handleChange}
             style={{
               width: '100%',
               padding: '8px',
@@ -337,7 +361,7 @@ const CreateProductForm = ({ onSuccess }) => {
               id="category_id"
               name="category_id"
               value={formData.category_id}
-              onChange={handleInputChange}
+              onChange={handleChange}
               disabled={loadingCategories}
               style={{
                 flex: 1,
@@ -462,27 +486,46 @@ const CreateProductForm = ({ onSuccess }) => {
           )}
         </div>
 
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            width: '100%',
-            padding: '12px',
-            backgroundColor: loading ? '#ccc' : '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            fontWeight: '600',
-            fontSize: '1rem'
-          }}
-        >
-          {loading ? 'Creating Product...' : 'Create Product'}
-        </button>
+        {/* Buttons */}
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              flex: 1,
+              padding: '10px',
+              backgroundColor: loading ? '#ccc' : '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontWeight: '600'
+            }}
+          >
+            {loading ? 'Updating...' : 'Update Product'}
+          </button>
+          
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );
 };
 
-export default CreateProductForm;
+export default UpdateProductForm;

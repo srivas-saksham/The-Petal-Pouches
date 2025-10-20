@@ -1,3 +1,4 @@
+// backend/src/routes/admin.js
 const express = require('express');
 const router = express.Router();
 const upload = require('../config/multer');
@@ -6,7 +7,6 @@ const {
   updateProduct,
   deleteProduct
 } = require('../controllers/productController');
-// const { authenticateAdmin } = require('../middlewares/auth'); // TODO: Add later
 
 // Admin product routes
 router.post('/products', upload.single('image'), createProduct);

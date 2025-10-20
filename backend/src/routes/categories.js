@@ -2,9 +2,9 @@
 const express = require('express');
 const router = express.Router();
 const {
-  createCategory,
   getAllCategories,
   getCategoryById,
+  createCategory,
   updateCategory,
   deleteCategory
 } = require('../controllers/categoryController');
@@ -13,7 +13,7 @@ const {
 router.get('/', getAllCategories);
 router.get('/:id', getCategoryById);
 
-// Admin routes (you'll add auth middleware later)
+// Admin routes (no multer needed - categories don't have images)
 router.post('/admin', createCategory);
 router.put('/admin/:id', updateCategory);
 router.delete('/admin/:id', deleteCategory);
