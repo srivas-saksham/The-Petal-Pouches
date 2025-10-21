@@ -3,6 +3,53 @@ const supabase = require('../config/supabaseClient');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../services/cloudinaryService');
 const { extractPublicIdFromUrl } = require('../utils/cloudinaryHelpers');
 
+// Helper function to delete all variants for a product
+const deleteAllVariantsForProduct = async (productId) => {
+  try {
+    // Fetch all variants for this product
+    const { data: variants, error: fetchError } = await supabase
+      .from('Product_variants')
+      .select('id, img_url')
+      .eq('product_id', productId);
+
+    if (fetchError) throw fetchError;
+
+    if (variants && variants.length > 0) {
+      console.log(`🗑️ Deleting ${variants.length} variants for product ${productId}`);
+
+      // Delete images from Cloudinary
+      for (const variant of variants) {
+        if (variant.img_url) {
+          try {
+            const publicId = extractPublicIdFromUrl(variant.img_url);
+            if (publicId) {
+              await deleteFromCloudinary(publicId);
+            }
+          } catch (cloudinaryError) {
+            console.error('Cloudinary delete error for variant:', cloudinaryError);
+          }
+        }
+      }
+
+      // Delete all variants from database
+      const { error: deleteError } = await supabase
+        .from('Product_variants')
+        .delete()
+        .eq('product_id', productId);
+
+      if (deleteError) throw deleteError;
+
+      console.log(`✅ Successfully deleted ${variants.length} variants`);
+      return { success: true, deletedCount: variants.length };
+    }
+
+    return { success: true, deletedCount: 0 };
+  } catch (error) {
+    console.error('Error deleting variants:', error);
+    throw error;
+  }
+};
+
 // CREATE PRODUCT
 const createProduct = async (req, res) => {
   try {
@@ -15,7 +62,6 @@ const createProduct = async (req, res) => {
       });
     }
 
-    // Upload image to Cloudinary
     const cloudinaryResult = await uploadToCloudinary(req.file.buffer, 'products');
 
     const productData = {
@@ -63,7 +109,6 @@ const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Get product
     const { data: product, error } = await supabase
       .from('Products')
       .select(`
@@ -86,7 +131,7 @@ const getProductById = async (req, res) => {
     // If product has variants, fetch them
     if (product.has_variants) {
       const { data: variants, error: variantsError } = await supabase
-        .from('product_variants')
+        .from('Product_variants')
         .select('*')
         .eq('product_id', id)
         .order('is_default', { ascending: false })
@@ -114,12 +159,13 @@ const getProductById = async (req, res) => {
   }
 };
 
-// UPDATE PRODUCT
+// UPDATE PRODUCT (with variant cascade logic)
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, price, stock, category_id, sku, has_variants } = req.body;
 
+    // Fetch existing product to check current state
     const { data: existingProduct, error: fetchError } = await supabase
       .from('Products')
       .select('img_url, has_variants')
@@ -140,10 +186,30 @@ const updateProduct = async (req, res) => {
     if (price) updateData.price = parseInt(price);
     if (stock !== undefined) updateData.stock = parseInt(stock);
     if (sku) updateData.sku = sku;
-    if (has_variants !== undefined) {
-      updateData.has_variants = has_variants === 'true' || has_variants === true;
+
+    // CRITICAL: Handle has_variants change
+    const newHasVariants = has_variants === 'true' || has_variants === true;
+    
+    // If changing from true to false, delete all variants
+    if (existingProduct.has_variants && !newHasVariants) {
+      console.log('⚠️ has_variants changed from true to false - deleting all variants');
+      
+      try {
+        const result = await deleteAllVariantsForProduct(id);
+        console.log(`✅ Deleted ${result.deletedCount} variants for product ${id}`);
+      } catch (variantDeleteError) {
+        console.error('Failed to delete variants:', variantDeleteError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to delete existing variants. Update aborted.',
+          error: variantDeleteError.message
+        });
+      }
     }
 
+    updateData.has_variants = newHasVariants;
+
+    // Handle category
     if (category_id && category_id.trim() !== '') {
       updateData.category_id = category_id;
     } else if (category_id === null || category_id === '') {
@@ -171,6 +237,7 @@ const updateProduct = async (req, res) => {
       }
     }
 
+    // Update product
     const { data, error } = await supabase
       .from('Products')
       .update(updateData)
@@ -183,7 +250,8 @@ const updateProduct = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Product updated successfully',
-      data
+      data,
+      variantsDeleted: existingProduct.has_variants && !newHasVariants
     });
   } catch (error) {
     console.error('Update product error:', error);
@@ -195,14 +263,15 @@ const updateProduct = async (req, res) => {
   }
 };
 
-// DELETE PRODUCT
+// DELETE PRODUCT (with cascade variant deletion)
 const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Fetch product details
     const { data: product, error: fetchError } = await supabase
       .from('Products')
-      .select('img_url')
+      .select('img_url, has_variants')
       .eq('id', id)
       .single();
 
@@ -216,6 +285,24 @@ const deleteProduct = async (req, res) => {
       throw fetchError;
     }
 
+    // If product has variants, delete them first
+    if (product.has_variants) {
+      console.log('⚠️ Product has variants - deleting all variants first');
+      
+      try {
+        const result = await deleteAllVariantsForProduct(id);
+        console.log(`✅ Deleted ${result.deletedCount} variants before deleting product`);
+      } catch (variantDeleteError) {
+        console.error('Failed to delete variants:', variantDeleteError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to delete product variants. Deletion aborted.',
+          error: variantDeleteError.message
+        });
+      }
+    }
+
+    // Delete product from database
     const { error: deleteError } = await supabase
       .from('Products')
       .delete()
@@ -223,6 +310,7 @@ const deleteProduct = async (req, res) => {
 
     if (deleteError) throw deleteError;
 
+    // Delete product main image from Cloudinary
     if (product.img_url) {
       try {
         const publicId = extractPublicIdFromUrl(product.img_url);
@@ -236,7 +324,7 @@ const deleteProduct = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Product deleted successfully'
+      message: 'Product and all associated variants deleted successfully'
     });
   } catch (error) {
     console.error('Delete product error:', error);

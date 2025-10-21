@@ -15,6 +15,9 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
   const [imagePreview, setImagePreview] = useState(null);
   const [currentImage, setCurrentImage] = useState(null);
   const [hasVariants, setHasVariants] = useState(false);
+  const [originalHasVariants, setOriginalHasVariants] = useState(false);
+  const [variantCount, setVariantCount] = useState(0);
+  const [showVariantWarning, setShowVariantWarning] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -51,6 +54,13 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
       });
       setCurrentImage(product.img_url);
       setHasVariants(product.has_variants || false);
+      setOriginalHasVariants(product.has_variants || false);
+      
+      // Check variant count if has_variants is true
+      if (product.has_variants && product.variants) {
+        setVariantCount(product.variants.length);
+      }
+      
       setLoadingProduct(false);
     } catch (error) {
       console.error('Error fetching product:', error);
@@ -93,6 +103,19 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     }
   };
 
+  // Handle has_variants checkbox change
+  const handleHasVariantsChange = (e) => {
+    const newValue = e.target.checked;
+    setHasVariants(newValue);
+    
+    // Show warning if unchecking and product originally had variants
+    if (originalHasVariants && !newValue && variantCount > 0) {
+      setShowVariantWarning(true);
+    } else {
+      setShowVariantWarning(false);
+    }
+  };
+
   // Handle new category input
   const handleNewCategoryChange = (e) => {
     setNewCategory({
@@ -119,17 +142,12 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
 
       setCategoryMessage({ type: 'success', text: 'Category created successfully!' });
       
-      // Reset form
       setNewCategory({ name: '', description: '' });
-      
-      // Refresh categories list
       await fetchCategories();
       
-      // Auto-select the newly created category
       const newCategoryData = response.data.data;
       setFormData({ ...formData, category_id: newCategoryData.id });
       
-      // Close the add category section after a short delay
       setTimeout(() => {
         setShowAddCategory(false);
         setCategoryMessage({ type: '', text: '' });
@@ -146,6 +164,20 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Final confirmation if deleting variants
+    if (showVariantWarning) {
+      const confirmed = window.confirm(
+        `⚠️ WARNING: You are about to delete ${variantCount} variant(s) for this product!\n\n` +
+        `This action cannot be undone. All variant images and data will be permanently deleted.\n\n` +
+        `Are you absolutely sure you want to proceed?`
+      );
+      
+      if (!confirmed) {
+        return;
+      }
+    }
+    
     setLoading(true);
     setMessage({ type: '', text: '' });
 
@@ -175,7 +207,11 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         }
       );
 
-      setMessage({ type: 'success', text: response.data.message });
+      const successMessage = response.data.variantsDeleted
+        ? `${response.data.message} (${variantCount} variants deleted)`
+        : response.data.message;
+
+      setMessage({ type: 'success', text: successMessage });
       
       if (onSuccess) {
         setTimeout(() => onSuccess(response.data.data), 1500);
@@ -489,7 +525,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
           )}
         </div>
 
-        {/* Has Variants Toggle */}
+        {/* Has Variants Toggle with WARNING */}
         <div style={{ marginBottom: '20px' }}>
           <label style={{ 
             display: 'flex', 
@@ -503,7 +539,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
             <input
               type="checkbox"
               checked={hasVariants}
-              onChange={(e) => setHasVariants(e.target.checked)}
+              onChange={handleHasVariantsChange}
               style={{ marginRight: '10px', width: '18px', height: '18px', cursor: 'pointer' }}
             />
             <div>
@@ -515,7 +551,40 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
               </div>
             </div>
           </label>
-          {hasVariants && (
+
+          {/* Variant Warning - Shows when unchecking has_variants */}
+          {showVariantWarning && (
+            <div style={{
+              marginTop: '15px',
+              padding: '15px',
+              backgroundColor: '#fff3cd',
+              border: '2px solid #ffc107',
+              borderRadius: '8px',
+              animation: 'pulse 2s infinite'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'start', gap: '10px' }}>
+                <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+                <div>
+                  <h4 style={{ margin: '0 0 10px 0', color: '#856404', fontSize: '1rem', fontWeight: '700' }}>
+                    DANGER: Variant Deletion Warning
+                  </h4>
+                  <p style={{ margin: '0 0 10px 0', color: '#856404', fontSize: '0.9rem', fontWeight: '600' }}>
+                    Unchecking this box will permanently delete all {variantCount} variant(s) associated with this product!
+                  </p>
+                  <ul style={{ margin: '10px 0', paddingLeft: '20px', color: '#856404', fontSize: '0.85rem' }}>
+                    <li>All variant data will be lost</li>
+                    <li>All variant images will be deleted from Cloudinary</li>
+                    <li>This action CANNOT be undone</li>
+                  </ul>
+                  <p style={{ margin: '10px 0 0 0', color: '#d32f2f', fontSize: '0.9rem', fontWeight: '700' }}>
+                    💡 Alternative: Keep the checkbox checked and manage variants individually.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {hasVariants && !showVariantWarning && (
             <div style={{
               marginTop: '10px',
               padding: '12px',
@@ -525,6 +594,11 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
             }}>
               <p style={{ margin: 0, fontSize: '0.875rem', color: '#004085' }}>
                 ℹ️ <strong>Note:</strong> Click the "Variants" button in the product list to manage variants for this product.
+                {variantCount > 0 && (
+                  <span style={{ display: 'block', marginTop: '5px', fontWeight: '600' }}>
+                    Current variants: {variantCount}
+                  </span>
+                )}
               </p>
             </div>
           )}
@@ -538,7 +612,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
             style={{
               flex: 1,
               padding: '10px',
-              backgroundColor: loading ? '#ccc' : '#007bff',
+              backgroundColor: loading ? '#ccc' : (showVariantWarning ? '#dc3545' : '#007bff'),
               color: 'white',
               border: 'none',
               borderRadius: '4px',
@@ -546,7 +620,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
               fontWeight: '600'
             }}
           >
-            {loading ? 'Updating...' : 'Update Product'}
+            {loading ? 'Updating...' : (showVariantWarning ? '⚠️ Update & Delete Variants' : 'Update Product')}
           </button>
           
           {onCancel && (
@@ -568,6 +642,18 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
           )}
         </div>
       </form>
+
+      {/* CSS Animation for Warning Pulse */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% {
+            box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+          }
+          50% {
+            box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+          }
+        }
+      `}</style>
     </div>
   );
 };
