@@ -84,6 +84,24 @@ const ProductList = ({ onEdit }) => {
     setFilters(prev => ({ ...prev, page: newPage }));
   };
 
+  // Helper function to get the display image for a product
+  const getProductDisplayImage = (product) => {
+    // If product has variants, try to get the default variant's image
+    if (product.has_variants && product.variants && product.variants.length > 0) {
+      const defaultVariant = product.variants.find(v => v.is_default);
+      if (defaultVariant && defaultVariant.img_url) {
+        return defaultVariant.img_url;
+      }
+      // If no default variant has an image, use the first variant's image
+      const variantWithImage = product.variants.find(v => v.img_url);
+      if (variantWithImage) {
+        return variantWithImage.img_url;
+      }
+    }
+    // Fall back to product's main image
+    return product.img_url;
+  };
+
   if (loading && products.length === 0) {
     return <div style={{ padding: '20px' }}>Loading products...</div>;
   }
@@ -177,111 +195,141 @@ const ProductList = ({ onEdit }) => {
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => (
-                  <tr key={product.id} style={{ borderBottom: '1px solid #dee2e6' }}>
-                    <td style={{ padding: '12px' }}>
-                      <img 
-                        src={product.img_url} 
-                        alt={product.title}
-                        style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px' }}
-                      />
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <div style={{ fontWeight: '600' }}>{product.title}</div>
-                      {product.description && (
-                        <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '4px' }}>
-                          {product.description.substring(0, 60)}...
+                {products.map((product) => {
+                  const displayImage = getProductDisplayImage(product);
+                  const hasDefaultVariant = product.has_variants && product.variants?.some(v => v.is_default);
+                  
+                  return (
+                    <tr key={product.id} style={{ borderBottom: '1px solid #dee2e6' }}>
+                      <td style={{ padding: '12px' }}>
+                        <div style={{ position: 'relative' }}>
+                          <img 
+                            src={displayImage} 
+                            alt={product.title}
+                            style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px' }}
+                          />
+                          {hasDefaultVariant && (
+                            <div style={{
+                              position: 'absolute',
+                              bottom: '-4px',
+                              right: '-4px',
+                              backgroundColor: '#007bff',
+                              color: 'white',
+                              fontSize: '0.6rem',
+                              padding: '2px 4px',
+                              borderRadius: '3px',
+                              fontWeight: '600',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                            }}>
+                              DEFAULT
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </td>
-                    <td style={{ padding: '12px', fontFamily: 'monospace' }}>{product.sku}</td>
-                    <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>
-                      ₹{product.price}
-                    </td>
-                    <td style={{ padding: '12px', textAlign: 'right' }}>
-                      <span style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        backgroundColor: product.stock > 0 ? '#d4edda' : '#f8d7da',
-                        color: product.stock > 0 ? '#155724' : '#721c24',
-                        fontSize: '0.875rem'
-                      }}>
-                        {product.stock}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      {product.Categories?.name || 'N/A'}
-                    </td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>
-                      {product.has_variants ? (
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <div style={{ fontWeight: '600' }}>{product.title}</div>
+                        {product.description && (
+                          <div style={{ fontSize: '0.875rem', color: '#666', marginTop: '4px' }}>
+                            {product.description.substring(0, 60)}...
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px', fontFamily: 'monospace' }}>{product.sku}</td>
+                      <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>
+                        ₹{product.price}
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'right' }}>
                         <span style={{
                           padding: '4px 8px',
                           borderRadius: '4px',
-                          backgroundColor: '#e7f3ff',
-                          color: '#0056b3',
-                          fontSize: '0.75rem',
-                          fontWeight: '600'
+                          backgroundColor: product.stock > 0 ? '#d4edda' : '#f8d7da',
+                          color: product.stock > 0 ? '#155724' : '#721c24',
+                          fontSize: '0.875rem'
                         }}>
-                          ✓ Has Variants
+                          {product.stock}
                         </span>
-                      ) : (
-                        <span style={{ color: '#999', fontSize: '0.875rem' }}>—</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                        <button
-                          onClick={() => {
-                            console.log('✏️ Editing product:', product.id);
-                            onEdit(product.id);
-                          }}
-                          style={{
-                            padding: '6px 12px',
-                            backgroundColor: '#007bff',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '0.875rem'
-                          }}
-                        >
-                          Edit
-                        </button>
-                        {product.has_variants && (
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        {product.Categories?.name || 'N/A'}
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'center' }}>
+                        {product.has_variants ? (
+                          <div>
+                            <span style={{
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: '#e7f3ff',
+                              color: '#0056b3',
+                              fontSize: '0.75rem',
+                              fontWeight: '600'
+                            }}>
+                              ✓ Has Variants
+                            </span>
+                            {product.variants && product.variants.length > 0 && (
+                              <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '4px' }}>
+                                ({product.variants.length} variant{product.variants.length > 1 ? 's' : ''})
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ color: '#999', fontSize: '0.875rem' }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
                           <button
-                            onClick={() => setVariantManagerProduct(product.id)}
+                            onClick={() => {
+                              console.log('✏️ Editing product:', product.id);
+                              onEdit(product.id);
+                            }}
                             style={{
                               padding: '6px 12px',
-                              backgroundColor: '#6f42c1',
+                              backgroundColor: '#007bff',
                               color: 'white',
                               border: 'none',
                               borderRadius: '4px',
                               cursor: 'pointer',
                               fontSize: '0.875rem'
                             }}
-                            title="Manage Variants"
                           >
-                            Variants
+                            Edit
                           </button>
-                        )}
-                        <button
-                          onClick={() => handleDelete(product.id, product.title)}
-                          style={{
-                            padding: '6px 12px',
-                            backgroundColor: '#dc3545',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '0.875rem'
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {product.has_variants && (
+                            <button
+                              onClick={() => setVariantManagerProduct(product.id)}
+                              style={{
+                                padding: '6px 12px',
+                                backgroundColor: '#6f42c1',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '0.875rem'
+                              }}
+                              title="Manage Variants"
+                            >
+                              Variants
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(product.id, product.title)}
+                            style={{
+                              padding: '6px 12px',
+                              backgroundColor: '#dc3545',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

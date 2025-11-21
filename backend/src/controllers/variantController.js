@@ -1,6 +1,30 @@
+// backend/src/controllers/variantController.js
 const supabase = require('../config/supabaseClient');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../services/cloudinaryService');
 const { extractPublicIdFromUrl } = require('../utils/cloudinaryHelpers');
+
+// Helper function to unset other default variants for a product
+const unsetOtherDefaultVariants = async (productId, excludeVariantId = null) => {
+  try {
+    let query = supabase
+      .from('Product_variants')
+      .update({ is_default: false })
+      .eq('product_id', productId)
+      .eq('is_default', true);
+    
+    if (excludeVariantId) {
+      query = query.neq('id', excludeVariantId);
+    }
+    
+    const { error } = await query;
+    if (error) throw error;
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error unsetting default variants:', error);
+    throw error;
+  }
+};
 
 // 1. CREATE VARIANT
 const createVariant = async (req, res) => {
@@ -64,13 +88,20 @@ const createVariant = async (req, res) => {
       });
     }
 
+    // If this variant is set as default, unset other defaults
+    const shouldBeDefault = is_default === 'true' || is_default === true || false;
+    
+    if (shouldBeDefault) {
+      await unsetOtherDefaultVariants(productId);
+    }
+
     // Create variant data
     const variantData = {
       product_id: productId,
       sku,
       attributes: parsedAttributes,
       stock: parseInt(stock),
-      is_default: is_default === 'true' || is_default === true || false
+      is_default: shouldBeDefault
     };
 
     // Add optional fields
@@ -174,7 +205,7 @@ const updateVariant = async (req, res) => {
     // Check if variant exists
     const { data: existingVariant, error: fetchError } = await supabase
       .from('Product_variants')
-      .select('*')
+      .select('product_id')
       .eq('id', variantId)
       .single();
 
@@ -224,8 +255,16 @@ const updateVariant = async (req, res) => {
     if (price !== undefined) updateData.price = price ? parseInt(price) : null;
     if (stock !== undefined) updateData.stock = parseInt(stock);
     if (weight !== undefined) updateData.weight = weight ? parseFloat(weight) : null;
+    
+    // Handle is_default flag
     if (is_default !== undefined) {
-      updateData.is_default = is_default === 'true' || is_default === true;
+      const shouldBeDefault = is_default === 'true' || is_default === true;
+      updateData.is_default = shouldBeDefault;
+      
+      // If setting this as default, unset others
+      if (shouldBeDefault) {
+        await unsetOtherDefaultVariants(existingVariant.product_id, variantId);
+      }
     }
 
     // Update variant
@@ -284,9 +323,6 @@ const deleteVariant = async (req, res) => {
         message: 'Cannot delete the last variant. Product must have at least one variant.'
       });
     }
-
-    // TODO: Check if variant is in active orders (implement when order system is ready)
-    // For now, we'll skip this check
 
     // Delete variant image from Cloudinary if exists
     if (variant.img_url) {
