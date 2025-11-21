@@ -4,6 +4,7 @@ import CreateProductForm from '../components/adminComps/CreateProductForm';
 import UpdateProductForm from '../components/adminComps/UpdateProductForm';
 import ProductList from '../components/adminComps/ProductList';
 import CategoriesForm from '../components/adminComps/CategoriesForm';
+import BundleBuilder from '../components/adminComps/BundleBuilder';
 
 const Admin = () => {
   const [activeView, setActiveView] = useState('list');
@@ -65,7 +66,8 @@ const Admin = () => {
           display: 'flex', 
           gap: '10px', 
           marginBottom: '20px',
-          borderBottom: '2px solid #dee2e6'
+          borderBottom: '2px solid #dee2e6',
+          flexWrap: 'wrap'
         }}>
           <button
             onClick={() => {
@@ -124,6 +126,25 @@ const Admin = () => {
           >
             Manage Categories
           </button>
+          <button
+            onClick={() => {
+              setActiveView('bundles');
+              setSelectedProductId(null);
+            }}
+            style={{
+              padding: '12px 24px',
+              backgroundColor: 'transparent',
+              border: 'none',
+              borderBottom: activeView === 'bundles' ? '3px solid #007bff' : '3px solid transparent',
+              color: activeView === 'bundles' ? '#007bff' : '#6c757d',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '1rem',
+              marginBottom: '-2px'
+            }}
+          >
+            Manage Bundles
+          </button>
         </div>
 
         {/* Content Area */}
@@ -143,6 +164,10 @@ const Admin = () => {
           
           {activeView === 'categories' && (
             <CategoriesForm />
+          )}
+
+          {activeView === 'bundles' && (
+            <BundleBuilder />
           )}
           
           {activeView === 'edit' && selectedProductId && (

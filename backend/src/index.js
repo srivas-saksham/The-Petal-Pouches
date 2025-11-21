@@ -41,6 +41,10 @@ app.use('/api/products', require('./routes/products'));
 
 // 4. Public product variants routes
 app.use('/api/variants', require('./routes/variants'));
+app.use('/api', require('./routes/variants'));
+
+// ✨ 5. Bundle routes (NEW - both public and admin)
+app.use('/api/bundles', require('./routes/bundles'));
 
 // ============================================
 // HEALTH CHECK & ERROR HANDLERS
@@ -77,6 +81,17 @@ app.get('/', (req, res) => {
         create: 'POST /api/categories/admin',
         update: 'PUT /api/categories/admin/:id',
         delete: 'DELETE /api/categories/admin/:id'
+      },
+      // ✨ NEW: Bundle endpoints
+      bundles: {
+        getAll: 'GET /api/bundles',
+        getById: 'GET /api/bundles/:id',
+        checkStock: 'GET /api/bundles/:id/stock',
+        create: 'POST /api/bundles/admin',
+        update: 'PUT /api/bundles/admin/:id',
+        delete: 'DELETE /api/bundles/admin/:id',
+        toggle: 'PATCH /api/bundles/admin/:id/toggle',
+        duplicate: 'POST /api/bundles/admin/:id/duplicate'
       }
     }
   });
@@ -101,7 +116,8 @@ app.use((req, res) => {
     availableRoutes: {
       products: '/api/products',
       admin: '/api/admin',
-      categories: '/api/categories'
+      categories: '/api/categories',
+      bundles: '/api/bundles'  // ✨ ADDED
     }
   });
 });
@@ -123,6 +139,8 @@ app.listen(PORT, () => {
   console.log(`   📦 Products (Public): http://localhost:${PORT}/api/products`);
   console.log(`   🔑 Admin (Products): http://localhost:${PORT}/api/admin/products`);
   console.log(`   📂 Categories: http://localhost:${PORT}/api/categories`);
+  console.log(`   🎁 Bundles (Public): http://localhost:${PORT}/api/bundles`);  // ✨ ADDED
+  console.log(`   🔑 Admin (Bundles): http://localhost:${PORT}/api/bundles/admin`);  // ✨ ADDED
   console.log('\n✨ Server is ready to accept requests!\n');
 });
 
