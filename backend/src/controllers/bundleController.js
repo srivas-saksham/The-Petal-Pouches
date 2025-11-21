@@ -6,6 +6,7 @@ const { extractPublicIdFromUrl } = require('../utils/cloudinaryHelpers');
 const {
   calculateBundlePrice,
   calculateDiscount,
+  calculateDiscountAndMarkup,
   validateBundleStock,
   validateBundleItems
 } = require('../services/bundleHelpers');
@@ -57,16 +58,16 @@ const createBundle = async (req, res) => {
     // Calculate original price from items
     const { original_price, items_with_prices } = await calculateBundlePrice(bundleItems);
 
-    // Validate bundle price is less than original
-    if (parseInt(price) >= original_price) {
-      return res.status(400).json({
-        success: false,
-        message: `Bundle price (₹${price}) must be less than original price (₹${original_price})`
-      });
-    }
+    // ❌ REMOVED: Validation that bundle price must be less than original
+    // if (parseInt(price) >= original_price) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: `Bundle price (₹${price}) must be less than original price (₹${original_price})`
+    //   });
+    // }
 
-    // Calculate discount percentage
-    const discount_percent = calculateDiscount(original_price, parseInt(price));
+    // Calculate discount percentage (can be 0 or even negative now)
+    const { discount_percent, markup_percent } = calculateDiscountAndMarkup(original_price, parseInt(price));
 
     // Validate stock availability
     const stockCheck = await validateBundleStock(bundleItems);
@@ -91,14 +92,15 @@ const createBundle = async (req, res) => {
       description: description?.trim() || null,
       price: parseInt(price),
       original_price,
-      discount_percent,
+      discount_percent: Math.round(discount_percent),
+      markup_percent: Math.round(markup_percent),
       img_url,
       stock_limit: stock_limit ? parseInt(stock_limit) : null,
       is_active: true
     };
 
     const { data: bundle, error: bundleError } = await supabase
-      .from('Bundles')  // Changed: bundles → Bundles
+      .from('Bundles')
       .insert([bundleData])
       .select()
       .single();
@@ -121,13 +123,13 @@ const createBundle = async (req, res) => {
     }));
 
     const { data: insertedItems, error: itemsError } = await supabase
-      .from('Bundle_items')  // Keep lowercase (junction table)
+      .from('Bundle_items')
       .insert(bundleItemsData)
       .select();
 
     if (itemsError) {
       // Rollback: Delete bundle and image if items insertion fails
-      await supabase.from('Bundles').delete().eq('id', bundle.id);  // Changed
+      await supabase.from('Bundles').delete().eq('id', bundle.id);
       if (img_url) {
         const publicId = extractPublicIdFromUrl(img_url);
         if (publicId) await deleteFromCloudinary(publicId);
@@ -340,61 +342,60 @@ const updateBundle = async (req, res) => {
 
     // Handle items update if provided
     if (items) {
-      let bundleItems;
-      try {
+    let bundleItems;
+    try {
         bundleItems = typeof items === 'string' ? JSON.parse(items) : items;
-      } catch (error) {
+    } catch (error) {
         return res.status(400).json({
-          success: false,
-          message: 'Invalid items format'
+        success: false,
+        message: 'Invalid items format'
         });
-      }
+    }
 
-      // Validate items
-      const validation = validateBundleItems(bundleItems);
-      if (!validation.valid) {
+    // Validate items
+    const validation = validateBundleItems(bundleItems);
+    if (!validation.valid) {
         return res.status(400).json({
-          success: false,
-          message: 'Bundle validation failed',
-          errors: validation.errors
+        success: false,
+        message: 'Bundle validation failed',
+        errors: validation.errors
         });
-      }
+    }
 
-      // Recalculate prices
-      const { original_price } = await calculateBundlePrice(bundleItems);
-      updateData.original_price = original_price;
+    // Recalculate prices
+    const { original_price } = await calculateBundlePrice(bundleItems);
+    updateData.original_price = original_price;
 
-      // If price is provided, validate and calculate discount
-      if (price) {
-        const bundlePrice = parseInt(price);
-        if (bundlePrice >= original_price) {
-          return res.status(400).json({
-            success: false,
-            message: `Bundle price (₹${bundlePrice}) must be less than original price (₹${original_price})`
-          });
-        }
+    // If price is provided, validate and calculate discount
+    if (price) {
+        const bundlePrice = parseInt(price); // ✅ ADDED THIS LINE
+        const { discount_percent, markup_percent } = calculateDiscountAndMarkup(original_price, bundlePrice);
+
         updateData.price = bundlePrice;
-        updateData.discount_percent = calculateDiscount(original_price, bundlePrice);
-      }
+        updateData.discount_percent = discount_percent;
+        updateData.markup_percent = markup_percent;
+    }
 
-      // Delete old bundle items
-      await supabase.from('Bundle_items').delete().eq('bundle_id', id);
+    // Delete old bundle items
+    await supabase.from('Bundle_items').delete().eq('bundle_id', id);
 
-      // Insert new bundle items
-      const bundleItemsData = bundleItems.map(item => ({
+    // Insert new bundle items
+    const bundleItemsData = bundleItems.map(item => ({
         bundle_id: id,
         product_id: item.product_id,
         product_variant_id: item.variant_id || null,
         quantity: item.quantity || 1
-      }));
+    }));
 
-      await supabase.from('Bundle_items').insert(bundleItemsData);
+    await supabase.from('Bundle_items').insert(bundleItemsData);
 
     } else if (price) {
-      // Only price updated, recalculate discount
-      const bundlePrice = parseInt(price);
-      updateData.price = bundlePrice;
-      updateData.discount_percent = calculateDiscount(existingBundle.original_price || bundlePrice, bundlePrice);
+        // Only price updated, recalculate discount
+        const bundlePrice = parseInt(price);
+        const { discount_percent, markup_percent } = calculateDiscountAndMarkup(existingBundle.original_price || bundlePrice, bundlePrice);
+        updateData.price = bundlePrice;
+        updateData.discount_percent = discount_percent;
+        updateData.markup_percent = markup_percent;
     }
 
     // Handle image upload
@@ -451,7 +452,7 @@ const deleteBundle = async (req, res) => {
 
     // Fetch bundle to get image URL
     const { data: bundle, error: fetchError } = await supabase
-      .from('Bundles')  // Changed: bundles → Bundles
+      .from('Bundles')
       .select('img_url')
       .eq('id', id)
       .single();
@@ -466,9 +467,19 @@ const deleteBundle = async (req, res) => {
       throw fetchError;
     }
 
-    // Delete bundle (CASCADE will delete Bundle_items)
+    // ✅ FIRST: Delete all bundle items (foreign key references)
+    const { error: itemsDeleteError } = await supabase
+      .from('Bundle_items')
+      .delete()
+      .eq('bundle_id', id);
+
+    if (itemsDeleteError) {
+      throw itemsDeleteError;
+    }
+
+    // ✅ THEN: Delete the bundle itself
     const { error: deleteError } = await supabase
-      .from('Bundles')  // Changed: bundles → Bundles
+      .from('Bundles')
       .delete()
       .eq('id', id);
 

@@ -62,18 +62,38 @@ const calculateBundlePrice = async (items) => {
 };
 
 /**
- * Calculate discount percentage
+ * Calculate discount or markup percentage
  * 
  * @param {number} originalPrice - Sum of individual item prices
- * @param {number} bundlePrice - Discounted bundle price
- * @returns {number} - Discount percentage (rounded to 2 decimals)
+ * @param {number} bundlePrice - Bundle selling price
+ * @returns {Object} - {discount_percent: number|null, markup_percent: number|null}
  */
-const calculateDiscount = (originalPrice, bundlePrice) => {
-  if (originalPrice <= 0) return 0;
-  if (bundlePrice >= originalPrice) return 0;
+const calculateDiscountAndMarkup = (originalPrice, bundlePrice) => {
+  if (originalPrice <= 0) {
+    return { discount_percent: null, markup_percent: null };
+  }
   
-  const discount = ((originalPrice - bundlePrice) / originalPrice) * 100;
-  return Math.round(discount * 100) / 100; // Round to 2 decimals
+  if (bundlePrice < originalPrice) {
+    // Customer gets a discount
+    const discount = ((originalPrice - bundlePrice) / originalPrice) * 100;
+    return {
+      discount_percent: Math.round(discount),
+      markup_percent: null
+    };
+  } else if (bundlePrice > originalPrice) {
+    // Premium bundle - markup
+    const markup = ((bundlePrice - originalPrice) / originalPrice) * 100;
+    return {
+      discount_percent: null,
+      markup_percent: Math.round(markup)
+    };
+  } else {
+    // Equal price - no discount or markup
+    return {
+      discount_percent: 0,
+      markup_percent: null
+    };
+  }
 };
 
 /**
@@ -207,9 +227,11 @@ const validateBundleItems = (items) => {
   };
 };
 
+// Update exports
 module.exports = {
   calculateBundlePrice,
-  calculateDiscount,
+//   calculateDiscount, // Keep for backward compatibility if needed
+  calculateDiscountAndMarkup, // New function
   validateBundleStock,
   validateBundleItems
 };

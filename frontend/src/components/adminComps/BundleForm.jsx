@@ -35,10 +35,10 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
   const fetchBundleData = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/bundles/${bundleId}`);
-      const data = await response.json();
+        const response = await fetch(`${API_URL}/api/bundles/${bundleId}`);
+        const data = await response.json();
 
-      if (response.ok && data.data) {
+        if (response.ok && data.data) {
         const bundle = data.data;
         setTitle(bundle.title);
         setDescription(bundle.description || '');
@@ -46,22 +46,30 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
         setStockLimit(bundle.stock_limit ? bundle.stock_limit.toString() : '');
         setImagePreview(bundle.img_url || '');
 
-        // Map bundle items
-        const mappedItems = bundle.bundle_items.map(item => ({
-          product_id: item.product_id,
-          variant_id: item.product_variant_id,
-          quantity: item.quantity,
-          product: item.Products,
-          variant: item.Product_variants
-        }));
-        setItems(mappedItems);
-      }
+        // ✅ FIX: Check if Bundle_items exists and is an array
+        if (bundle.Bundle_items && Array.isArray(bundle.Bundle_items)) {
+            const mappedItems = bundle.Bundle_items.map(item => ({
+            product_id: item.product_id,
+            variant_id: item.product_variant_id,
+            quantity: item.quantity,
+            product: item.Products,
+            variant: item.Product_variants
+            }));
+            setItems(mappedItems);
+        } else {
+            // If no items, set empty array
+            console.warn('No Bundle_items found or invalid format');
+            setItems([]);
+        }
+        } else {
+        setError(data.message || 'Failed to load bundle');
+        }
     } catch (err) {
-      setError('Failed to load bundle: ' + err.message);
+        setError('Failed to load bundle: ' + err.message);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+    };
 
   // Handle image selection
   const handleImageChange = (e) => {
@@ -122,13 +130,24 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
     }, 0);
   };
 
-  // Calculate discount
-  const calculateDiscount = () => {
+  // Calculate discount OR markup percent
+    const calculateDiscount = () => {
     const original = calculateOriginalPrice();
     const bundle = parseInt(bundlePrice) || 0;
-    if (original === 0 || bundle >= original) return 0;
-    return Math.round(((original - bundle) / original) * 100);
-  };
+
+    if (original === 0) return 0; // avoid divide-by-zero
+
+    // If bundle < original -> customer discount %
+    if (bundle < original) {
+        return Math.round(((original - bundle) / original) * 100);
+    }
+
+    // If bundle >= original -> markup %
+    // Example: CP 100 / SP 125 => markup = 25%
+    const markupPercent = Math.round(((bundle - original) / original) * 100);
+    return -markupPercent; // keep negative for UI logic
+    };
+
 
   const originalPrice = calculateOriginalPrice();
   const discount = calculateDiscount();
@@ -139,9 +158,6 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
     if (!title.trim()) return 'Bundle title is required';
     if (items.length < 2) return 'Bundle must have at least 2 products';
     if (!bundlePrice || parseInt(bundlePrice) <= 0) return 'Bundle price is required';
-    if (parseInt(bundlePrice) >= originalPrice) {
-      return `Bundle price (₹${bundlePrice}) must be less than original price (₹${originalPrice})`;
-    }
     
     // Check all items have variants selected (if product has variants)
     for (let i = 0; i < items.length; i++) {
@@ -355,34 +371,53 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
 
           {/* Bundle Price */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Bundle Price * (must be less than ₹{originalPrice})
-            </label>
-            <input
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+              Bundle Price * {/* ✅ Removed the restriction text */}
+          </label>
+          <input
               type="number"
               value={bundlePrice}
               onChange={(e) => setBundlePrice(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-              placeholder="Discounted price"
+              placeholder="Enter bundle price"
               min="1"
               required
-            />
+          />
           </div>
 
           {/* Discount Display */}
-          {bundlePrice && parseInt(bundlePrice) > 0 && parseInt(bundlePrice) < originalPrice && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded">
+          {bundlePrice && parseInt(bundlePrice) > 0 && (
+          <div className={`p-4 border rounded ${
+              parseInt(bundlePrice) < originalPrice 
+              ? 'bg-yellow-50 border-yellow-200' 
+              : 'bg-green-50 border-green-200'
+          }`}>
               <div className="flex justify-between items-center">
-                <div>
-                  <div className="text-sm text-gray-600">Customer Saves</div>
-                  <div className="text-xl font-bold text-green-700">₹{savings}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-gray-600">Discount</div>
-                  <div className="text-xl font-bold text-green-700">{discount}% OFF</div>
-                </div>
+              <div>
+                  <div className="text-sm text-gray-600">
+                  {parseInt(bundlePrice) < originalPrice ? 'Customer Saves' : 'Premium Bundle'}
+                  </div>
+                  <div className={`text-xl font-bold ${
+                  parseInt(bundlePrice) < originalPrice ? 'text-yellow-700' : 'text-green-700'
+                  }`}>
+                  {parseInt(bundlePrice) < originalPrice 
+                      ? `₹${savings}` 
+                      : `+₹${Math.abs(savings)}`
+                  }
+                  </div>
               </div>
-            </div>
+              <div className="text-right">
+                  <div className="text-sm text-gray-600">
+                  {parseInt(bundlePrice) < originalPrice ? 'Discount' : 'Premium'}
+                  </div>
+                  <div className={`text-xl font-bold ${
+                  parseInt(bundlePrice) < originalPrice ? 'text-yellow-700' : 'text-green-700'
+                  }`}>
+                  {discount > 0 ? `${discount}% OFF` : `${Math.abs(discount)}% Margin`}
+                  </div>
+              </div>
+              </div>
+          </div>
           )}
         </div>
 
