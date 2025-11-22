@@ -5,28 +5,525 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 2) Your global styles and overrides below */
+/* 2) CSS Custom Properties (Color Palette) */
 :root {
+  /* Admin Color Palette */
+  --admin-pink: #EDAFB8;
+  --admin-peach: #F7E1D7;
+  --admin-grey: #DEDBD2;
+  --admin-mint: #B0C4B1;
+  --admin-slate: #4A5759;
+  
+  /* Semantic Colors */
+  --color-primary: var(--admin-pink);
+  --color-secondary: var(--admin-mint);
+  --color-surface: var(--admin-peach);
+  --color-border: var(--admin-grey);
+  --color-text-primary: var(--admin-slate);
+  --color-text-secondary: #6B7280;
+  --color-text-muted: #9CA3AF;
+  
+  /* Spacing */
+  --sidebar-width: 16rem;
+  --topbar-height: 4rem;
+  
+  /* Shadows */
+  --shadow-soft: 0 2px 8px rgba(74, 87, 89, 0.08);
+  --shadow-card: 0 4px 12px rgba(74, 87, 89, 0.06);
+  --shadow-hover: 0 8px 16px rgba(74, 87, 89, 0.12);
+  
+  /* Transitions */
+  --transition-base: 150ms ease-in-out;
+  --transition-slow: 300ms ease-in-out;
+  
+  /* Customer-facing colors (keep existing) */
   --tpp-pink: #FF6FA3;
   --tpp-accent: #7C4DFF;
+  --tpp-pastel: #FFF1F6;
 }
 
+/* 3) Base Styles */
 html, body, #root {
   height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-  background-color: var(--tpp-pastel, #FFF1F6);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #FFFFFF;
+  color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-/* Small utility helpers you might want immediately */
+* {
+  box-sizing: border-box;
+}
+
+/* 4) Admin Layout Styles */
+.admin-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #F9FAFB;
+}
+
+.admin-sidebar {
+  width: var(--sidebar-width);
+  background-color: var(--admin-slate);
+  color: white;
+  flex-shrink: 0;
+  overflow-y: auto;
+  transition: transform var(--transition-slow);
+}
+
+.admin-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.admin-topbar {
+  height: var(--topbar-height);
+  background-color: white;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.admin-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+  background-color: #F9FAFB;
+}
+
+/* 5) Custom Scrollbar Styles */
+.scrollbar-custom {
+  scrollbar-width: thin;
+  scrollbar-color: var(--admin-grey) transparent;
+}
+
+.scrollbar-custom::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb {
+  background-color: var(--admin-grey);
+  border-radius: 10px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb:hover {
+  background-color: var(--admin-slate);
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* 6) Typography Utilities */
+.text-heading {
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.text-subheading {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+}
+
+.text-body {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.text-small {
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.text-tiny {
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+/* 7) Card Styles */
+.card {
+  background-color: white;
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--transition-base);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+.card-surface {
+  background-color: var(--color-surface);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-soft);
+}
+
+/* 8) Button Base Styles */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  transition: all var(--transition-base);
+  cursor: pointer;
+  border: none;
+  outline: none;
+  font-size: 0.875rem;
+  gap: 0.5rem;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #E39BA5;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
+.btn-secondary {
+  background-color: var(--color-secondary);
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #9FB89F;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background-color: var(--color-surface);
+  border-color: var(--color-primary);
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--color-text-primary);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background-color: var(--color-surface);
+}
+
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.btn-lg {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
+/* 9) Badge Styles */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.badge-success {
+  background-color: var(--admin-mint);
+  color: white;
+}
+
+.badge-warning {
+  background-color: var(--admin-pink);
+  color: white;
+}
+
+.badge-neutral {
+  background-color: var(--admin-grey);
+  color: var(--color-text-primary);
+}
+
+.badge-danger {
+  background-color: #EF4444;
+  color: white;
+}
+
+/* 10) Table Styles */
+.table-wrapper {
+  background-color: white;
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table thead {
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-table th {
+  padding: 0.875rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.admin-table td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.admin-table tbody tr {
+  transition: background-color var(--transition-base);
+}
+
+.admin-table tbody tr:hover {
+  background-color: var(--color-surface);
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tbody tr.selected {
+  background-color: rgba(237, 175, 184, 0.1);
+}
+
+/* 11) Form Styles */
+.form-input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background-color: white;
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  transition: all var(--transition-base);
+  outline: none;
+}
+
+.form-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(237, 175, 184, 0.1);
+}
+
+.form-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.form-input:disabled {
+  background-color: var(--color-surface);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+}
+
+.form-error {
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+  color: #EF4444;
+}
+
+/* 12) Animation Classes */
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 13) Skeleton Loading */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 0%,
+    var(--color-border) 50%,
+    var(--color-surface) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 0.5rem;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* 14) Utility Classes */
 .container-wide {
-  max-width: 1200px;
+  max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
   padding-left: 1rem;
   padding-right: 1rem;
+}
+
+.glass-effect {
+  background: rgba(247, 225, 215, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 15) Responsive Utilities */
+@media (max-width: 1024px) {
+  .admin-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+  }
+  
+  .admin-sidebar.mobile-open {
+    transform: translateX(0);
+  }
+  
+  .admin-content {
+    padding: 1.5rem 1rem;
+  }
+  
+  :root {
+    --sidebar-width: 14rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-content {
+    padding: 1rem;
+  }
+  
+  .admin-table th,
+  .admin-table td {
+    padding: 0.625rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+}
+
+/* 16) Print Styles */
+@media print {
+  .admin-sidebar,
+  .admin-topbar,
+  .no-print {
+    display: none !important;
+  }
+  
+  .admin-content {
+    padding: 0;
+  }
 }

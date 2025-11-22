@@ -7,17 +7,97 @@ export default {
   theme: {
     extend: {
       colors: {
+        // DELETE LATER
         "tpp-pink": "#FF6FA3",
         "tpp-pastel": "#FFF1F6",
-        "tpp-accent": "#7C4DFF"
+        "tpp-accent": "#7C4DFF",
+
+        // The Petal Pouches Admin Color Palette
+        'admin': {
+          'pink': '#EDAFB8',           // Primary accents, buttons, active states
+          'peach': '#F7E1D7',          // Backgrounds, card surfaces
+          'grey': '#DEDBD2',           // Table rows, dividers, borders
+          'mint': '#B0C4B1',           // Success badges, positive indicators
+          'slate': '#4A5759',          // Text, sidebar background
+        },
+        // Semantic color mappings for easier use
+        'primary': '#EDAFB8',          // Pink
+        'secondary': '#B0C4B1',        // Mint
+        'surface': '#F7E1D7',          // Peach
+        'border': '#DEDBD2',           // Grey
+        'text': {
+          'primary': '#4A5759',        // Slate
+          'secondary': '#6B7280',      // Slightly lighter for less important text
+          'muted': '#9CA3AF',          // For placeholders
+        },
+        'success': '#B0C4B1',          // Mint
+        'warning': '#EDAFB8',          // Pink (soft warning)
+        'danger': '#EF4444',           // Keep red for critical actions
       },
       fontFamily: {
-        sans: ["Inter", "ui-sans-serif", "system-ui"],
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+      },
+      boxShadow: {
+        'soft': '0 2px 8px rgba(74, 87, 89, 0.08)',
+        'card': '0 4px 12px rgba(74, 87, 89, 0.06)',
+        'hover': '0 8px 16px rgba(74, 87, 89, 0.12)',
       },
       borderRadius: {
-        "lg-soft": "1.25rem"
-      }
+        'DEFAULT': '0.5rem',
+        'card': '0.75rem',
+        'pill': '9999px',
+      },
+      spacing: {
+        'sidebar': '16rem',      // 256px sidebar width
+        'topbar': '4rem',        // 64px topbar height
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.2s ease-in-out',
+        'slide-in': 'slideIn 0.3s ease-out',
+        'scale-in': 'scaleIn 0.2s ease-out',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideIn: {
+          '0%': { transform: 'translateY(-10px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        scaleIn: {
+          '0%': { transform: 'scale(0.95)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+      },
+      transitionProperty: {
+        'width': 'width',
+        'spacing': 'margin, padding',
+      },
     },
   },
-  plugins: [],
+  plugins: [
+    // Custom utilities plugin
+    function({ addUtilities }) {
+      const newUtilities = {
+        '.scrollbar-thin': {
+          'scrollbar-width': 'thin',
+          'scrollbar-color': '#DEDBD2 transparent',
+        },
+        '.scrollbar-none': {
+          'scrollbar-width': 'none',
+          '-ms-overflow-style': 'none',
+          '&::-webkit-scrollbar': {
+            display: 'none',
+          },
+        },
+        '.glass': {
+          'background': 'rgba(247, 225, 215, 0.8)',
+          'backdrop-filter': 'blur(10px)',
+          '-webkit-backdrop-filter': 'blur(10px)',
+        },
+      };
+      addUtilities(newUtilities);
+    },
+  ],
 }
