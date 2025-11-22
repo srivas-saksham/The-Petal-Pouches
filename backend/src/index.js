@@ -27,24 +27,23 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // ============================================
-// ROUTES - ORDER MATTERS!
+// ROUTES - ORDER MATTERS! (Most specific first)
 // ============================================
 
 // 1. Categories routes (both public and admin)
 app.use('/api/categories', require('./routes/categories'));
 
-// 2. Admin routes (must come BEFORE general product routes)
+// 2. Bundle routes (must come BEFORE product routes to avoid conflicts)
+app.use('/api/bundles', require('./routes/bundles'));
+
+// 3. Admin routes (must come BEFORE general product routes)
 app.use('/api/admin', require('./routes/admin'));
 
-// 3. Public product routes (must come AFTER admin routes)
+// 4. Public product routes (must come AFTER admin routes)
 app.use('/api/products', require('./routes/products'));
 
-// 4. Public product variants routes
+// 5. Variant routes - SPECIFIC PATHS ONLY
 app.use('/api/variants', require('./routes/variants'));
-app.use('/api', require('./routes/variants'));
-
-// ✨ 5. Bundle routes (NEW - both public and admin)
-app.use('/api/bundles', require('./routes/bundles'));
 
 // ============================================
 // HEALTH CHECK & ERROR HANDLERS
@@ -82,7 +81,6 @@ app.get('/', (req, res) => {
         update: 'PUT /api/categories/admin/:id',
         delete: 'DELETE /api/categories/admin/:id'
       },
-      // ✨ NEW: Bundle endpoints
       bundles: {
         getAll: 'GET /api/bundles',
         getById: 'GET /api/bundles/:id',
@@ -92,6 +90,13 @@ app.get('/', (req, res) => {
         delete: 'DELETE /api/bundles/admin/:id',
         toggle: 'PATCH /api/bundles/admin/:id/toggle',
         duplicate: 'POST /api/bundles/admin/:id/duplicate'
+      },
+      variants: {
+        getByProduct: 'GET /api/variants/products/:productId/variants',
+        getById: 'GET /api/variants/:variantId',
+        create: 'POST /api/variants/admin/products/:productId/variants',
+        update: 'PUT /api/variants/admin/:variantId',
+        delete: 'DELETE /api/variants/admin/:variantId'
       }
     }
   });
@@ -117,7 +122,8 @@ app.use((req, res) => {
       products: '/api/products',
       admin: '/api/admin',
       categories: '/api/categories',
-      bundles: '/api/bundles'  // ✨ ADDED
+      bundles: '/api/bundles',
+      variants: '/api/variants'
     }
   });
 });
@@ -139,8 +145,9 @@ app.listen(PORT, () => {
   console.log(`   📦 Products (Public): http://localhost:${PORT}/api/products`);
   console.log(`   🔑 Admin (Products): http://localhost:${PORT}/api/admin/products`);
   console.log(`   📂 Categories: http://localhost:${PORT}/api/categories`);
-  console.log(`   🎁 Bundles (Public): http://localhost:${PORT}/api/bundles`);  // ✨ ADDED
-  console.log(`   🔑 Admin (Bundles): http://localhost:${PORT}/api/bundles/admin`);  // ✨ ADDED
+  console.log(`   🎁 Bundles (Public): http://localhost:${PORT}/api/bundles`);
+  console.log(`   🔑 Admin (Bundles): http://localhost:${PORT}/api/bundles/admin`);
+  console.log(`   🎨 Variants: http://localhost:${PORT}/api/variants`);
   console.log('\n✨ Server is ready to accept requests!\n');
 });
 

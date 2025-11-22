@@ -18,7 +18,8 @@ export default function BundleItemCard({ item, onVariantChange, onQuantityChange
   const fetchVariants = async () => {
     setLoadingVariants(true);
     try {
-      const response = await fetch(`${API_URL}/api/products/${item.product.id}/variants`);
+      // ✅ UPDATED: Use the correct variants endpoint
+      const response = await fetch(`${API_URL}/api/variants/products/${item.product.id}/variants`);
       const data = await response.json();
       
       if (response.ok) {
@@ -38,6 +39,7 @@ export default function BundleItemCard({ item, onVariantChange, onQuantityChange
     }
   };
 
+  // ... rest of the component remains the same
   const handleVariantSelect = (e) => {
     const variantId = e.target.value;
     const variant = variants.find(v => v.id === variantId);
