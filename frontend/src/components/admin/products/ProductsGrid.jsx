@@ -1,6 +1,6 @@
 // frontend/src/components/admin/products/ProductsGrid.jsx
 
-import { Edit, Trash2, Copy, Package, Check, AlertTriangle, AlertCircle } from 'lucide-react';
+import { Edit, Trash2, Copy, Package, Check, AlertTriangle, AlertCircle, DiamondPercent } from 'lucide-react';
 import { STOCK_THRESHOLDS } from '../../../utils/constants';
 
 export default function ProductsGrid({
@@ -55,9 +55,9 @@ export default function ProductsGrid({
       };
     }
     return {
-      color: 'text-tppmint',
-      bgColor: 'bg-tppmint/20',
-      icon: null,
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+      icon: <DiamondPercent className="w-3.5 h-3.5" />,
       label: `${stock} in stock`,
       inStock: true
     };
@@ -77,6 +77,9 @@ export default function ProductsGrid({
           const displayImage = product.has_variants && product.variants?.length > 0
             ? product.variants.find(v => v.is_default)?.img_url || product.variants[0]?.img_url || product.img_url
             : product.img_url;
+
+          // ✅ FIX: Get variant count from either variants array or variant_count field
+          const variantCount = product.variants?.length || product.variant_count || 0;
 
           return (
             <div
@@ -111,16 +114,21 @@ export default function ProductsGrid({
                 </label>
               </div>
 
-              {/* ✅ ENHANCED: Stock Badge with icons and better colors */}
-              <div className="absolute top-3 right-3 z-10">
-                <span className={`
-                  flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full
-                  ${stockInfo.bgColor} ${stockInfo.color}
-                `}>
-                  {stockInfo.icon}
-                  {stockInfo.label}
-                </span>
-              </div>
+              {/* ✅ MOVED: Warning icons to top-right */}
+              {(stock === 0 || stock <= STOCK_THRESHOLDS.LOW_STOCK) && (
+                <div className="absolute top-3 right-3 z-10">
+                  <div className={`
+                    rounded-full p-1.5 shadow-lg
+                    ${stock === 0 ? 'bg-red-500' : 'bg-yellow-500'}
+                  `}>
+                    {stock === 0 ? (
+                      <AlertCircle className="w-4 h-4 text-white" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-white" />
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Product Image */}
               <div className="relative aspect-square bg-tpppeach/20 rounded-t-lg overflow-hidden">
@@ -133,18 +141,11 @@ export default function ProductsGrid({
                   }}
                 />
                 
-                {/* ✅ NEW: Variant badge on image */}
-                {product.has_variants && (
+                {/* ✅ FIXED: Variant badge on image with correct count */}
+                {product.has_variants && variantCount > 0 && (
                   <div className="absolute bottom-2 left-2 bg-tppslate text-white text-xs px-2 py-1 rounded-full font-semibold flex items-center gap-1">
                     <Package className="w-3 h-3" />
-                    {product.variants?.length || 0} Variants
-                  </div>
-                )}
-
-                {/* ✅ NEW: Low stock warning overlay on image */}
-                {stock > 0 && stock <= STOCK_THRESHOLDS.LOW_STOCK && (
-                  <div className="absolute top-2 left-2 bg-yellow-500 rounded-full p-1.5 shadow-lg">
-                    <AlertTriangle className="w-4 h-4 text-white" />
+                    {variantCount} Variant{variantCount !== 1 ? 's' : ''}
                   </div>
                 )}
 
@@ -161,14 +162,25 @@ export default function ProductsGrid({
 
               {/* Product Info */}
               <div className="p-4 space-y-3">
-                {/* Title & SKU */}
-                <div>
-                  <h3 className="font-semibold text-tppslate text-sm line-clamp-2 mb-1">
-                    {product.title}
-                  </h3>
-                  {product.sku && (
-                    <p className="text-xs text-tppgrey">SKU: {product.sku}</p>
-                  )}
+                {/* ✅ ENHANCED: Title with Stock Status on the right */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-tppslate text-sm line-clamp-2 mb-1">
+                      {product.title}
+                    </h3>
+                    {product.sku && (
+                      <p className="text-xs text-tppslate/50">SKU: {product.sku}</p>
+                    )}
+                  </div>
+                  
+                  {/* ✅ MOVED: Stock badge next to title */}
+                  <span className={`
+                    flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap flex-shrink-0
+                    ${stockInfo.bgColor} ${stockInfo.color}
+                  `}>
+                    {stockInfo.icon}
+                    {stock === 0 ? 'Out' : stock <= STOCK_THRESHOLDS.LOW_STOCK ? `Low (${stock})` : `In ${stock}`}
+                  </span>
                 </div>
 
                 {/* Price & Category */}
@@ -184,29 +196,30 @@ export default function ProductsGrid({
                   )}
                 </div>
 
-                {/* ✅ ENHANCED: Variants Info with better styling */}
-                {product.has_variants && product.variants && product.variants.length > 0 && (
+                {/* ✅ FIXED: Variants Info with correct count */}
+                {product.has_variants && variantCount > 0 && (
                   <div className="flex items-center gap-1 text-xs text-tppslate bg-tpppeach/20 px-2 py-1 rounded">
                     <Package className="w-3 h-3" />
                     <span>
-                      {product.variants.length} variant{product.variants.length !== 1 ? 's' : ''}
+                      {variantCount} variant{variantCount !== 1 ? 's' : ''}
                     </span>
                   </div>
                 )}
 
                 {/* Action Buttons */}
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-tppgrey/20">
+                  {/* ✅ CHANGED: Edit button now matches other action buttons */}
                   <button
                     onClick={() => onEdit(product.id)}
                     className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs
-                             bg-tppmint/10 text-tppmint rounded-lg hover:bg-tppmint/20 
+                             bg-tpppeach/40 text-tppslate rounded-lg hover:bg-tpppeach/60 
                              transition-colors"
                   >
                     <Edit className="w-3.5 h-3.5" />
                     Edit
                   </button>
                   
-                  {/* ✅ ENHANCED: Only show Variants button if product has variants */}
+                  {/* ✅ CHANGED: Variants/No Variants buttons with swapped styling */}
                   {product.has_variants ? (
                     <button
                       onClick={() => onManageVariants(product.id)}
@@ -219,27 +232,24 @@ export default function ProductsGrid({
                     </button>
                   ) : (
                     <button
-                      onClick={() => onDuplicate(product.id)}
+                      disabled
                       className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs
-                               bg-tpppeach/40 text-tppslate rounded-lg hover:bg-tpppeach/60 
-                               transition-colors"
+                               bg-tppmint/20 text-tppslate/60 rounded-lg cursor-not-allowed"
                     >
-                      <Copy className="w-3.5 h-3.5" />
-                      Duplicate
+                      <Package className="w-3.5 h-3.5" />
+                      No Variants
                     </button>
                   )}
                   
-                  {product.has_variants && (
-                    <button
-                      onClick={() => onDuplicate(product.id)}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs
-                               bg-tpppeach/40 text-tppslate rounded-lg hover:bg-tpppeach/60 
-                               transition-colors"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                      Duplicate
-                    </button>
-                  )}
+                  <button
+                    onClick={() => onDuplicate(product.id)}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs
+                             bg-tpppeach/40 text-tppslate rounded-lg hover:bg-tpppeach/60 
+                             transition-colors"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Duplicate
+                  </button>
                   
                   <button
                     onClick={() => onDelete(product.id, product.title)}

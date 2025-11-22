@@ -334,7 +334,7 @@ export default function ProductsPage() {
               className={`p-2 rounded transition-all ${
                 viewMode === 'list'
                   ? 'bg-white text-tppslate shadow-sm'
-                  : 'text-tppgrey hover:text-tppslate'
+                  : 'text-tppslate/50 hover:text-tppslate'
               }`}
               title="List View"
             >
@@ -345,7 +345,7 @@ export default function ProductsPage() {
               className={`p-2 rounded transition-all ${
                 viewMode === 'grid'
                   ? 'bg-white text-tppslate shadow-sm'
-                  : 'text-tppgrey hover:text-tppslate'
+                  : 'text-tppslate/50 hover:text-tppslate'
               }`}
               title="Grid View"
             >
