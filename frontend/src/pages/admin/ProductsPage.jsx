@@ -311,9 +311,6 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Stats */}
-      <ProductStats stats={stats} loading={statsLoading} />
-
       {/* Search & Filters Section */}
       <div className="bg-white rounded-lg p-5 border border-tppgrey shadow-sm space-y-4">
         {/* Search Bar with View Toggle */}
@@ -420,6 +417,9 @@ export default function ProductsPage() {
         </div>
       )}
 
+      {/* Stats */}
+      <ProductStats stats={stats} loading={statsLoading} />
+      
       {/* Create Product Modal */}
       {showCreateModal && (
         <Modal

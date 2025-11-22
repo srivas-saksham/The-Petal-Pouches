@@ -385,7 +385,70 @@ body {
   color: #EF4444;
 }
 
-/* 12) Animation Classes */
+/* 12) Custom Checkbox Styles - Peach/Pink Theme */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #d1d5db;
+  border-radius: 0.25rem;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  flex-shrink: 0;
+}
+
+input[type="checkbox"]:hover:not(:disabled) {
+  border-color: #FF9999;
+}
+
+input[type="checkbox"]:checked {
+  background-color: #FFB5A0;
+  border-color: #FFB5A0;
+}
+
+input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+  width: 0.3rem;
+  height: 0.5rem;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+}
+
+input[type="checkbox"]:indeterminate {
+  background-color: #FFB5A0;
+  border-color: #FFB5A0;
+}
+
+input[type="checkbox"]:indeterminate::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 0.5rem;
+  height: 2px;
+  background-color: white;
+}
+
+input[type="checkbox"]:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 181, 160, 0.3);
+}
+
+input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 13) Animation Classes */
 .animate-fade-in {
   animation: fadeIn 0.2s ease-in-out;
 }
@@ -429,7 +492,7 @@ body {
   }
 }
 
-/* 13) Skeleton Loading */
+/* 14) Skeleton Loading */
 .skeleton {
   background: linear-gradient(
     90deg,
@@ -451,7 +514,7 @@ body {
   }
 }
 
-/* 14) Utility Classes */
+/* 15) Utility Classes */
 .container-wide {
   max-width: 1400px;
   margin-left: auto;
@@ -479,7 +542,7 @@ body {
   overflow: hidden;
 }
 
-/* 15) Responsive Utilities */
+/* 16) Responsive Utilities */
 @media (max-width: 1024px) {
   .admin-sidebar {
     position: fixed;
@@ -515,7 +578,7 @@ body {
   }
 }
 
-/* 16) Print Styles */
+/* 17) Print Styles */
 @media print {
   .admin-sidebar,
   .admin-topbar,

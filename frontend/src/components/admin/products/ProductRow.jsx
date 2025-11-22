@@ -94,7 +94,7 @@ export default function ProductRow({
           type="checkbox"
           checked={isSelected}
           onChange={(e) => onSelect(product.id, e.target.checked)}
-          className="w-4 h-4 text-admin-pink rounded focus:ring-admin-pink cursor-pointer"
+          className="w-4 h-4 rounded border-gray-300 text-tpppeach focus:ring-tpppeach focus:ring-offset-0 cursor-pointer checked:bg-tpppeach checked:border-tpppeach hover:border-tpppink transition-colors"
         />
       </td>
 
