@@ -6,6 +6,7 @@ export const PRODUCT_STATUS = {
   DRAFT: 'draft',
   SCHEDULED: 'scheduled',
   OUT_OF_STOCK: 'out_of_stock',
+  LOW_STOCK: 'low_stock',
 };
 
 // Order Status Types
@@ -48,6 +49,7 @@ export const STATUS_COLORS = {
   draft: 'warning',
   scheduled: 'warning',
   out_of_stock: 'danger',
+  low_stock: 'warning',
   pending: 'warning',
   processing: 'warning',
   shipped: 'secondary',
@@ -65,6 +67,7 @@ export const STATUS_LABELS = {
   draft: 'Draft',
   scheduled: 'Scheduled',
   out_of_stock: 'Out of Stock',
+  low_stock: 'Low Stock',
   pending: 'Pending',
   processing: 'Processing',
   shipped: 'Shipped',
@@ -155,11 +158,12 @@ export const DATE_FORMATS = {
   TIME: 'hh:mm A',
 };
 
-// Sort Options for Products
+// ✅ UPDATED: Sort Options for Products (matches backend exactly)
 export const PRODUCT_SORT_OPTIONS = [
   { value: 'created_at', label: 'Newest First' },
-  { value: 'title_asc', label: 'Name: A to Z' },
-  { value: 'title_desc', label: 'Name: Z to A' },
+  { value: 'created_at_asc', label: 'Oldest First' },
+  { value: 'title_asc', label: 'Title: A to Z' },
+  { value: 'title_desc', label: 'Title: Z to A' },
   { value: 'price_asc', label: 'Price: Low to High' },
   { value: 'price_desc', label: 'Price: High to Low' },
   { value: 'stock_asc', label: 'Stock: Low to High' },
@@ -174,7 +178,7 @@ export const ORDER_SORT_OPTIONS = [
   { value: 'total_asc', label: 'Amount: Low to High' },
 ];
 
-// Filter Options for Products
+// ✅ UPDATED: Filter Options for Products with comprehensive stock levels
 export const PRODUCT_FILTERS = {
   status: [
     { value: '', label: 'All Status' },
@@ -182,11 +186,16 @@ export const PRODUCT_FILTERS = {
     { value: 'draft', label: 'Draft' },
     { value: 'out_of_stock', label: 'Out of Stock' },
   ],
-  stock: [
-    { value: '', label: 'All Stock' },
+  stock_level: [
+    { value: '', label: 'All Products' },
     { value: 'in_stock', label: 'In Stock' },
-    { value: 'low_stock', label: 'Low Stock (< 10)' },
+    { value: 'low_stock', label: 'Low Stock (≤10)' },
     { value: 'out_of_stock', label: 'Out of Stock' },
+  ],
+  has_variants: [
+    { value: '', label: 'All Products' },
+    { value: 'true', label: 'With Variants' },
+    { value: 'false', label: 'Without Variants' },
   ],
 };
 
@@ -215,6 +224,7 @@ export const BULK_ACTIONS = {
     { value: 'deactivate', label: 'Mark as Inactive' },
     { value: 'delete', label: 'Delete Selected' },
     { value: 'duplicate', label: 'Duplicate' },
+    { value: 'export', label: 'Export to CSV' },
   ],
   orders: [
     { value: 'mark_processing', label: 'Mark as Processing' },
@@ -291,6 +301,12 @@ export const PAGINATION_DEFAULTS = {
   limit: 20,
 };
 
+// ✅ NEW: Stock Level Thresholds
+export const STOCK_THRESHOLDS = {
+  LOW_STOCK: 10,
+  OUT_OF_STOCK: 0,
+};
+
 // API Response Messages
 export const API_MESSAGES = {
   SUCCESS: {
@@ -354,6 +370,7 @@ export default {
   CURRENCY,
   IMAGE_UPLOAD,
   PAGINATION_DEFAULTS,
+  STOCK_THRESHOLDS,
   API_MESSAGES,
   VALIDATION,
 };

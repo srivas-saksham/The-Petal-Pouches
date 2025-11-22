@@ -12,7 +12,7 @@ import ProductFilters from '../../components/admin/products/ProductFilters';
 import BulkActions from '../../components/admin/products/BulkActions';
 import Pagination from '../../components/admin/ui/Pagination';
 import Modal from '../../components/admin/ui/Modal';
-import { BULK_ACTIONS } from '../../utils/constants';
+import { BULK_ACTIONS, PRODUCT_SORT_OPTIONS } from '../../utils/constants';
 
 // Import existing working components
 import CreateProductForm from '../../components/adminComps/CreateProductForm';
@@ -29,6 +29,7 @@ import {
 import { getCategories } from '../../services/categoryService';
 
 export default function ProductsPage() {
+  // State declarations
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [stats, setStats] = useState(null);
@@ -46,13 +47,16 @@ export default function ProductsPage() {
   const [editingProductId, setEditingProductId] = useState(null);
   const [variantManagerProduct, setVariantManagerProduct] = useState(null);
   
-  // Filters
+  // Search term - must be declared before filters
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Filters with new stock_level and has_variants
   const [filters, setFilters] = useState({
     category_id: '',
     min_price: '',
     max_price: '',
-    in_stock: '',
+    stock_level: '',
+    has_variants: '',
     sort: 'created_at',
   });
   
@@ -96,12 +100,40 @@ export default function ProductsPage() {
     };
 
     // Add filters only if they have values
-    if (filters.category_id) params.category_id = filters.category_id;
-    if (filters.min_price) params.min_price = parseFloat(filters.min_price);
-    if (filters.max_price) params.max_price = parseFloat(filters.max_price);
-    if (filters.in_stock !== '') params.in_stock = filters.in_stock === 'true';
-    if (filters.sort) params.sort = filters.sort;
-    if (searchTerm.trim()) params.search = searchTerm.trim();
+    if (filters.category_id) {
+      params.category_id = filters.category_id;
+    }
+    
+    if (filters.min_price) {
+      params.min_price = parseFloat(filters.min_price);
+    }
+    
+    if (filters.max_price) {
+      params.max_price = parseFloat(filters.max_price);
+    }
+    
+    // Handle stock_level filter (comprehensive)
+    if (filters.stock_level && filters.stock_level !== '') {
+      params.stock_level = filters.stock_level;
+    }
+    
+    // Handle has_variants filter
+    if (filters.has_variants && filters.has_variants !== '') {
+      params.has_variants = filters.has_variants;
+    }
+    
+    // Validate and send sort parameter (only valid options)
+    const validSortValues = PRODUCT_SORT_OPTIONS.map(opt => opt.value);
+    if (filters.sort && validSortValues.includes(filters.sort)) {
+      params.sort = filters.sort;
+    } else {
+      params.sort = 'created_at';
+    }
+    
+    // Search query (backend searches title, description, and SKU)
+    if (searchTerm && searchTerm.trim()) {
+      params.search = searchTerm.trim();
+    }
 
     const result = await getProducts(params);
     
@@ -130,7 +162,8 @@ export default function ProductsPage() {
       category_id: '',
       min_price: '',
       max_price: '',
-      in_stock: '',
+      stock_level: '',
+      has_variants: '',
       sort: 'created_at',
     });
     setSearchTerm('');
@@ -142,7 +175,8 @@ export default function ProductsPage() {
            filters.category_id || 
            filters.min_price || 
            filters.max_price || 
-           filters.in_stock !== '';
+           filters.stock_level !== '' ||
+           filters.has_variants !== '';
   };
 
   const handleSelectAll = (checked) => {
@@ -283,7 +317,7 @@ export default function ProductsPage() {
             <SearchBar
               value={searchTerm}
               onChange={handleSearch}
-              placeholder="Search products by title, SKU, or description..."
+              placeholder="Search products by title, description, or SKU..."
               className="w-full"
             />
           </div>

@@ -1,6 +1,7 @@
 // frontend/src/components/admin/products/ProductFilters.jsx
 
 import { X, SlidersHorizontal } from 'lucide-react';
+import { PRODUCT_SORT_OPTIONS, PRODUCT_FILTERS } from '../../../utils/constants';
 
 export default function ProductFilters({
   categories = [],
@@ -34,15 +35,15 @@ export default function ProductFilters({
         )}
       </div>
 
-      {/* Horizontal Filters Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+      {/* Horizontal Filters Grid - ✅ UPDATED: 6 columns for new filter */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
         {/* Category Filter */}
         <div className="space-y-1.5">
           <label className="block text-xs font-medium text-tppslate">
             Category
           </label>
           <select
-            value={activeFilters.category_id}
+            value={activeFilters.category_id || ''}
             onChange={(e) => onFilterChange('category_id', e.target.value)}
             className="w-full px-3 py-2 text-sm bg-white border border-tppgrey rounded-lg 
                      focus:outline-none focus:ring-2 focus:ring-tppmint focus:border-transparent
@@ -64,7 +65,7 @@ export default function ProductFilters({
           </label>
           <input
             type="number"
-            value={activeFilters.min_price}
+            value={activeFilters.min_price || ''}
             onChange={(e) => onFilterChange('min_price', e.target.value)}
             placeholder="0.00"
             min="0"
@@ -82,7 +83,7 @@ export default function ProductFilters({
           </label>
           <input
             type="number"
-            value={activeFilters.max_price}
+            value={activeFilters.max_price || ''}
             onChange={(e) => onFilterChange('max_price', e.target.value)}
             placeholder="999.99"
             min="0"
@@ -93,49 +94,68 @@ export default function ProductFilters({
           />
         </div>
 
-        {/* Stock Status Filter */}
+        {/* ✅ UPDATED: Stock Level Filter (comprehensive with low stock option) */}
         <div className="space-y-1.5">
           <label className="block text-xs font-medium text-tppslate">
-            Stock Status
+            Stock Level
           </label>
           <select
-            value={activeFilters.in_stock}
-            onChange={(e) => onFilterChange('in_stock', e.target.value)}
+            value={activeFilters.stock_level || ''}
+            onChange={(e) => onFilterChange('stock_level', e.target.value)}
             className="w-full px-3 py-2 text-sm bg-white border border-tppgrey rounded-lg 
                      focus:outline-none focus:ring-2 focus:ring-tppmint focus:border-transparent
                      transition-all text-tppslate"
           >
-            <option value="">All Products</option>
-            <option value="true">In Stock</option>
-            <option value="false">Out of Stock</option>
+            {PRODUCT_FILTERS.stock_level.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
 
-        {/* Sort Filter */}
+        {/* ✅ NEW: Has Variants Filter */}
+        <div className="space-y-1.5">
+          <label className="block text-xs font-medium text-tppslate">
+            Product Type
+          </label>
+          <select
+            value={activeFilters.has_variants || ''}
+            onChange={(e) => onFilterChange('has_variants', e.target.value)}
+            className="w-full px-3 py-2 text-sm bg-white border border-tppgrey rounded-lg 
+                     focus:outline-none focus:ring-2 focus:ring-tppmint focus:border-transparent
+                     transition-all text-tppslate"
+          >
+            {PRODUCT_FILTERS.has_variants.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* ✅ UPDATED: Sort Filter with all 8 options */}
         <div className="space-y-1.5">
           <label className="block text-xs font-medium text-tppslate">
             Sort By
           </label>
           <select
-            value={activeFilters.sort}
+            value={activeFilters.sort || 'created_at'}
             onChange={(e) => onFilterChange('sort', e.target.value)}
             className="w-full px-3 py-2 text-sm bg-white border border-tppgrey rounded-lg 
                      focus:outline-none focus:ring-2 focus:ring-tppmint focus:border-transparent
                      transition-all text-tppslate"
           >
-            <option value="created_at">Newest First</option>
-            <option value="-created_at">Oldest First</option>
-            <option value="title">Title A-Z</option>
-            <option value="-title">Title Z-A</option>
-            <option value="price">Price Low-High</option>
-            <option value="-price">Price High-Low</option>
-            <option value="stock_quantity">Stock Low-High</option>
-            <option value="-stock_quantity">Stock High-Low</option>
+            {PRODUCT_SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>
 
-      {/* Active Filters Pills */}
+      {/* ✅ UPDATED: Active Filters Pills with better labels */}
       {hasActiveFilters && (
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-tppgrey/30">
           <span className="text-xs text-tppgrey">Active:</span>
@@ -154,7 +174,7 @@ export default function ProductFilters({
           
           {activeFilters.min_price && (
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-tppmint/10 text-tppmint rounded-full text-xs">
-              Min: ${activeFilters.min_price}
+              Min: ₹{activeFilters.min_price}
               <button
                 onClick={() => onFilterChange('min_price', '')}
                 className="hover:bg-tppmint/20 rounded-full p-0.5 transition-colors"
@@ -166,7 +186,7 @@ export default function ProductFilters({
           
           {activeFilters.max_price && (
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-tppmint/10 text-tppmint rounded-full text-xs">
-              Max: ${activeFilters.max_price}
+              Max: ₹{activeFilters.max_price}
               <button
                 onClick={() => onFilterChange('max_price', '')}
                 className="hover:bg-tppmint/20 rounded-full p-0.5 transition-colors"
@@ -176,12 +196,39 @@ export default function ProductFilters({
             </span>
           )}
           
-          {activeFilters.in_stock !== '' && (
+          {/* ✅ UPDATED: Stock level pill with better labels */}
+          {activeFilters.stock_level && (
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-tppmint/10 text-tppmint rounded-full text-xs">
-              {activeFilters.in_stock === 'true' ? 'In Stock' : 'Out of Stock'}
+              {PRODUCT_FILTERS.stock_level.find(opt => opt.value === activeFilters.stock_level)?.label || 'Stock Filter'}
               <button
-                onClick={() => onFilterChange('in_stock', '')}
+                onClick={() => onFilterChange('stock_level', '')}
                 className="hover:bg-tppmint/20 rounded-full p-0.5 transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+
+          {/* ✅ NEW: Has variants pill */}
+          {activeFilters.has_variants && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-tppmint/10 text-tppmint rounded-full text-xs">
+              {PRODUCT_FILTERS.has_variants.find(opt => opt.value === activeFilters.has_variants)?.label || 'Type Filter'}
+              <button
+                onClick={() => onFilterChange('has_variants', '')}
+                className="hover:bg-tppmint/20 rounded-full p-0.5 transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+
+          {/* ✅ UPDATED: Sort pill with better label */}
+          {activeFilters.sort && activeFilters.sort !== 'created_at' && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-tppslate/10 text-tppslate rounded-full text-xs">
+              {PRODUCT_SORT_OPTIONS.find(opt => opt.value === activeFilters.sort)?.label || 'Custom Sort'}
+              <button
+                onClick={() => onFilterChange('sort', 'created_at')}
+                className="hover:bg-tppslate/20 rounded-full p-0.5 transition-colors"
               >
                 <X className="w-3 h-3" />
               </button>

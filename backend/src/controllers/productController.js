@@ -336,7 +336,7 @@ const deleteProduct = async (req, res) => {
   }
 };
 
-// GET ALL PRODUCTS
+// GET ALL PRODUCTS - ✅ ENHANCED WITH ALL FILTERS AND SORTING
 const getAllProducts = async (req, res) => {
   try {
     const {
@@ -347,30 +347,92 @@ const getAllProducts = async (req, res) => {
       sort = 'created_at',
       page = 1,
       limit = 20,
-      in_stock
+      in_stock,
+      has_variants,
+      stock_level // 'all', 'in_stock', 'low_stock', 'out_of_stock'
     } = req.query;
 
     let query = supabase
       .from('Products')
       .select('*, Categories(id, name)', { count: 'exact' });
 
-    if (category_id) query = query.eq('category_id', category_id);
-    if (min_price) query = query.gte('price', parseInt(min_price));
-    if (max_price) query = query.lte('price', parseInt(max_price));
-    if (search) query = query.ilike('title', `%${search}%`);
-    if (in_stock === 'true') query = query.gt('stock', 0);
+    // Category filter
+    if (category_id) {
+      query = query.eq('category_id', category_id);
+    }
 
+    // Price range filters
+    if (min_price) {
+      query = query.gte('price', parseInt(min_price));
+    }
+    if (max_price) {
+      query = query.lte('price', parseInt(max_price));
+    }
+
+    // ✅ ENHANCED SEARCH: Search in title, description, and SKU
+    if (search) {
+      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,sku.ilike.%${search}%`);
+    }
+
+    // ✅ FIX: Stock level filter (comprehensive)
+    if (stock_level) {
+      switch (stock_level) {
+        case 'in_stock':
+          query = query.gt('stock', 0);
+          break;
+        case 'low_stock':
+          query = query.gt('stock', 0).lte('stock', 10);
+          break;
+        case 'out_of_stock':
+          query = query.eq('stock', 0);
+          break;
+        // 'all' - no filter
+      }
+    } else if (in_stock !== undefined) {
+      // Legacy support for in_stock parameter
+      if (in_stock === 'true') {
+        query = query.gt('stock', 0);
+      } else if (in_stock === 'false') {
+        query = query.eq('stock', 0);
+      }
+    }
+
+    // ✅ NEW: Has variants filter
+    if (has_variants !== undefined) {
+      const hasVariantsBool = has_variants === 'true';
+      query = query.eq('has_variants', hasVariantsBool);
+    }
+
+    // ✅ ENHANCED: Comprehensive sorting options
     switch (sort) {
+      case 'title_asc':
+        query = query.order('title', { ascending: true });
+        break;
+      case 'title_desc':
+        query = query.order('title', { ascending: false });
+        break;
       case 'price_asc':
         query = query.order('price', { ascending: true });
         break;
       case 'price_desc':
         query = query.order('price', { ascending: false });
         break;
+      case 'stock_asc':
+        query = query.order('stock', { ascending: true });
+        break;
+      case 'stock_desc':
+        query = query.order('stock', { ascending: false });
+        break;
+      case 'created_at_asc':
+        query = query.order('created_at', { ascending: true });
+        break;
+      case 'created_at':
+      case 'created_at_desc':
       default:
         query = query.order('created_at', { ascending: false });
     }
 
+    // Pagination
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const from = (pageNum - 1) * limitNum;
