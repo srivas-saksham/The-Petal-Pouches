@@ -82,7 +82,7 @@ const CompactStatCard = ({ icon: Icon, label, value, subValue, variant = 'defaul
       case 'danger':
         return 'text-red-900';
       default:
-        return 'text-slate-900';
+        return 'text-slate';
     }
   };
 
@@ -110,7 +110,7 @@ const ProgressBar = ({ label, value, total, icon: Icon }) => {
           <span className="text-xs font-medium text-slate-700">{label}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-semibold text-slate-900">{formatNumber(value)}</span>
+          <span className="text-xs font-semibold text-slate">{formatNumber(value)}</span>
           <span className="text-xs text-slate-500">({formatPercentage(percentage)})</span>
         </div>
       </div>
@@ -299,7 +299,7 @@ export default function EnhancedProductStats() {
       <div className="space-y-4">
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 className="w-5 h-5 text-slate-600" />
-          <h2 className="text-lg font-semibold text-slate-900">Product Analytics</h2>
+          <h2 className="text-lg font-semibold text-slate">Product Analytics</h2>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[...Array(8)].map((_, i) => <StatCardSkeleton key={i} />)}
@@ -313,7 +313,7 @@ export default function EnhancedProductStats() {
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <BarChart3 className="w-5 h-5 text-slate-600" />
-          <h2 className="text-lg font-semibold text-slate-900">Product Analytics</h2>
+          <h2 className="text-lg font-semibold text-slate">Product Analytics</h2>
         </div>
         <div className="bg-slate-50 border border-dashed border-slate-300 rounded p-8 text-center">
           <Package className="w-12 h-12 text-slate-400 mx-auto mb-3" />
@@ -329,7 +329,7 @@ export default function EnhancedProductStats() {
       {/* Title */}
       <div className="flex items-center gap-2">
         <BarChart3 className="w-5 h-5 text-slate-600" />
-        <h2 className="text-lg font-semibold text-slate-900">Product Analytics</h2>
+        <h2 className="text-lg font-semibold text-slate">Product Analytics</h2>
       </div>
 
       {/* Compact Overview - Always Visible */}
@@ -442,7 +442,7 @@ export default function EnhancedProductStats() {
             <div className="bg-white rounded border border-slate-200 p-4">
               <div className="flex items-center gap-2 mb-4">
                 <PieChart className="w-4 h-4 text-slate-600" />
-                <h3 className="text-sm font-semibold text-slate-900">Stock Distribution</h3>
+                <h3 className="text-sm font-semibold text-slate">Stock Distribution</h3>
               </div>
               <div className="space-y-3">
                 <ProgressBar
@@ -468,11 +468,11 @@ export default function EnhancedProductStats() {
                 <div className="text-xs text-slate-600 space-y-1">
                   <div className="flex justify-between">
                     <span>Avg Stock per Product:</span>
-                    <span className="font-semibold text-slate-900">{stats.avgStock.toFixed(1)} units</span>
+                    <span className="font-semibold text-slate">{stats.avgStock.toFixed(1)} units</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Total Stock Units:</span>
-                    <span className="font-semibold text-slate-900">{formatNumber(stats.totalStockUnits)}</span>
+                    <span className="font-semibold text-slate">{formatNumber(stats.totalStockUnits)}</span>
                   </div>
                 </div>
               </div>
@@ -482,7 +482,7 @@ export default function EnhancedProductStats() {
             <div className="bg-white rounded border border-slate-200 p-4">
               <div className="flex items-center gap-2 mb-4">
                 <Tag className="w-4 h-4 text-slate-600" />
-                <h3 className="text-sm font-semibold text-slate-900">Category Distribution</h3>
+                <h3 className="text-sm font-semibold text-slate">Category Distribution</h3>
               </div>
               <div className="space-y-3">
                 {stats.categoryStats.slice(0, 5).map((cat) => (
@@ -506,7 +506,7 @@ export default function EnhancedProductStats() {
               <div className="bg-white rounded border border-slate-200 p-4">
                 <div className="flex items-center gap-2 mb-4">
                   <DollarSign className="w-4 h-4 text-slate-600" />
-                  <h3 className="text-sm font-semibold text-slate-900">Price Range Distribution</h3>
+                  <h3 className="text-sm font-semibold text-slate">Price Range Distribution</h3>
                 </div>
                 <div className="space-y-3">
                   {stats.priceRanges.map((range) => (
@@ -525,7 +525,7 @@ export default function EnhancedProductStats() {
             <div className="bg-white rounded border border-slate-200 p-4">
               <div className="flex items-center gap-2 mb-4">
                 <Layers className="w-4 h-4 text-slate-600" />
-                <h3 className="text-sm font-semibold text-slate-900">Product Type Distribution</h3>
+                <h3 className="text-sm font-semibold text-slate">Product Type Distribution</h3>
               </div>
               <div className="space-y-3">
                 <ProgressBar
@@ -543,11 +543,11 @@ export default function EnhancedProductStats() {
                 <div className="text-xs text-slate-600 space-y-1">
                   <div className="flex justify-between">
                     <span>Variant Products:</span>
-                    <span className="font-semibold text-slate-900">{formatPercentage(stats.withVariantsPercent)}</span>
+                    <span className="font-semibold text-slate">{formatPercentage(stats.withVariantsPercent)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Simple Products:</span>
-                    <span className="font-semibold text-slate-900">{formatPercentage(stats.withoutVariantsPercent)}</span>
+                    <span className="font-semibold text-slate">{formatPercentage(stats.withoutVariantsPercent)}</span>
                   </div>
                 </div>
               </div>
@@ -556,7 +556,7 @@ export default function EnhancedProductStats() {
 
           {/* Key Insights */}
           <div className="bg-slate-50 rounded border border-slate-200 p-4">
-            <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-slate mb-3 flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-slate-600" />
               Key Insights
             </h3>
