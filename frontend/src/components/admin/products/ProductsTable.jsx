@@ -1,6 +1,5 @@
 // frontend/src/components/admin/products/ProductsTable.jsx
 
-import { useState } from 'react';
 import ProductRow from './ProductRow';
 import { SkeletonTable } from '../ui/LoadingSkeleton';
 
@@ -14,26 +13,81 @@ export default function ProductsTable({
   onDelete,
   onDuplicate,
   onManageVariants,
+  currentSort = 'created_at',
+  onSortChange,
 }) {
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
-
-  const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-  };
-
-  const getSortIcon = (key) => {
-    if (sortConfig.key !== key) {
-      return '⇅';
-    }
-    return sortConfig.direction === 'asc' ? '↑' : '↓';
-  };
-
   const allSelected = products.length > 0 && selectedIds.length === products.length;
   const someSelected = selectedIds.length > 0 && !allSelected;
+
+  // Handle column header click with 3-way sorting (default → asc → desc → default)
+  const handleSort = (field) => {
+    if (!onSortChange) return;
+
+    let newSort;
+    
+    if (field === 'title') {
+      if (currentSort === 'title_asc') {
+        newSort = 'title_desc';
+      } else if (currentSort === 'title_desc') {
+        newSort = 'created_at'; // Reset to default
+      } else {
+        newSort = 'title_asc';
+      }
+    } else if (field === 'price') {
+      if (currentSort === 'price_asc') {
+        newSort = 'price_desc';
+      } else if (currentSort === 'price_desc') {
+        newSort = 'created_at'; // Reset to default
+      } else {
+        newSort = 'price_asc';
+      }
+    } else if (field === 'stock') {
+      if (currentSort === 'stock_asc') {
+        newSort = 'stock_desc';
+      } else if (currentSort === 'stock_desc') {
+        newSort = 'created_at'; // Reset to default
+      } else {
+        newSort = 'stock_asc';
+      }
+    } else if (field === 'created_at') {
+      if (currentSort === 'created_at') {
+        newSort = 'created_at_asc';
+      } else if (currentSort === 'created_at_asc') {
+        newSort = 'created_at'; // Reset to default (newest first)
+      } else {
+        newSort = 'created_at';
+      }
+    }
+    
+    onSortChange(newSort);
+  };
+
+  // Get sort icon for a field
+  const getSortIcon = (field) => {
+    if (field === 'title') {
+      if (currentSort === 'title_asc') return '↑';
+      if (currentSort === 'title_desc') return '↓';
+    } else if (field === 'price') {
+      if (currentSort === 'price_asc') return '↑';
+      if (currentSort === 'price_desc') return '↓';
+    } else if (field === 'stock') {
+      if (currentSort === 'stock_asc') return '↑';
+      if (currentSort === 'stock_desc') return '↓';
+    } else if (field === 'created_at') {
+      if (currentSort === 'created_at') return '↓';
+      if (currentSort === 'created_at_asc') return '↑';
+    }
+    return '⇅';
+  };
+
+  // Check if a field is currently sorted
+  const isSorted = (field) => {
+    if (field === 'title') return currentSort === 'title_asc' || currentSort === 'title_desc';
+    if (field === 'price') return currentSort === 'price_asc' || currentSort === 'price_desc';
+    if (field === 'stock') return currentSort === 'stock_asc' || currentSort === 'stock_desc';
+    if (field === 'created_at') return currentSort === 'created_at' || currentSort === 'created_at_asc';
+    return false;
+  };
 
   if (loading) {
     return <SkeletonTable rows={10} columns={9} />;
@@ -88,53 +142,69 @@ export default function ProductsTable({
             {/* Image */}
             <th className="w-20">Image</th>
 
-            {/* Product Info */}
+            {/* Product Info - Sortable */}
             <th 
-              className="cursor-pointer hover:bg-admin-peach hover:bg-opacity-30 transition-colors"
+              className={`cursor-pointer hover:bg-admin-peach hover:bg-opacity-30 transition-colors ${
+                isSorted('title') ? 'bg-admin-peach bg-opacity-20' : ''
+              }`}
               onClick={() => handleSort('title')}
             >
               <div className="flex items-center justify-between">
                 <span>Product</span>
-                <span className="text-text-muted">{getSortIcon('title')}</span>
+                <span className={`${isSorted('title') ? 'text-admin-pink' : 'text-text-muted'}`}>
+                  {getSortIcon('title')}
+                </span>
               </div>
             </th>
 
             {/* Category */}
             <th>Category</th>
 
-            {/* Price */}
+            {/* Price - Sortable */}
             <th 
-              className="cursor-pointer hover:bg-admin-peach hover:bg-opacity-30 transition-colors text-right"
+              className={`cursor-pointer hover:bg-admin-peach hover:bg-opacity-30 transition-colors text-right ${
+                isSorted('price') ? 'bg-admin-peach bg-opacity-20' : ''
+              }`}
               onClick={() => handleSort('price')}
             >
               <div className="flex items-center justify-end gap-2">
                 <span>Price</span>
-                <span className="text-text-muted">{getSortIcon('price')}</span>
+                <span className={`${isSorted('price') ? 'text-admin-pink' : 'text-text-muted'}`}>
+                  {getSortIcon('price')}
+                </span>
               </div>
             </th>
 
-            {/* Stock */}
+            {/* Stock - Sortable */}
             <th 
-              className="cursor-pointer hover:bg-admin-peach hover:bg-opacity-30 transition-colors text-center"
+              className={`cursor-pointer hover:bg-admin-peach hover:bg-opacity-30 transition-colors text-center ${
+                isSorted('stock') ? 'bg-admin-peach bg-opacity-20' : ''
+              }`}
               onClick={() => handleSort('stock')}
             >
               <div className="flex items-center justify-center gap-2">
                 <span>Stock</span>
-                <span className="text-text-muted">{getSortIcon('stock')}</span>
+                <span className={`${isSorted('stock') ? 'text-admin-pink' : 'text-text-muted'}`}>
+                  {getSortIcon('stock')}
+                </span>
               </div>
             </th>
 
             {/* Status */}
             <th>Status</th>
 
-            {/* Created */}
+            {/* Created - Sortable */}
             <th 
-              className="cursor-pointer hover:bg-admin-peach hover:bg-opacity-30 transition-colors"
+              className={`cursor-pointer hover:bg-admin-peach hover:bg-opacity-30 transition-colors ${
+                isSorted('created_at') ? 'bg-admin-peach bg-opacity-20' : ''
+              }`}
               onClick={() => handleSort('created_at')}
             >
               <div className="flex items-center justify-between">
                 <span>Created</span>
-                <span className="text-text-muted">{getSortIcon('created_at')}</span>
+                <span className={`${isSorted('created_at') ? 'text-admin-pink' : 'text-text-muted'}`}>
+                  {getSortIcon('created_at')}
+                </span>
               </div>
             </th>
 

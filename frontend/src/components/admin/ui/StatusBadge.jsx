@@ -1,31 +1,48 @@
 // frontend/src/components/admin/ui/StatusBadge.jsx
 
-import { getStatusColor, getStatusLabel } from '../../../utils/adminHelpers';
-
-export default function StatusBadge({ status, className = '' }) {
-  if (!status) return null;
-
-  const colorMap = {
-    success: 'bg-admin-mint text-white',
-    warning: 'bg-admin-pink text-white',
-    neutral: 'bg-admin-grey text-admin-slate',
-    danger: 'bg-red-500 text-white',
-    secondary: 'bg-admin-slate text-white',
+export default function StatusBadge({ status }) {
+  const statusConfig = {
+    active: {
+      label: 'In Stock',
+      bgColor: 'bg-green-100',
+      textColor: 'text-green-800',
+      dotColor: 'bg-green-500'
+    },
+    low_stock: {
+      label: 'Low Stock',
+      bgColor: 'bg-amber-100',
+      textColor: 'text-amber-800',
+      dotColor: 'bg-amber-500'
+    },
+    out_of_stock: {
+      label: 'Out of Stock',
+      bgColor: 'bg-red-100',
+      textColor: 'text-red-800',
+      dotColor: 'bg-red-500'
+    },
+    draft: {
+      label: 'Draft',
+      bgColor: 'bg-gray-100',
+      textColor: 'text-gray-800',
+      dotColor: 'bg-gray-500'
+    },
+    archived: {
+      label: 'Archived',
+      bgColor: 'bg-gray-100',
+      textColor: 'text-gray-600',
+      dotColor: 'bg-gray-400'
+    }
   };
 
-  const color = getStatusColor(status);
-  const label = getStatusLabel(status);
-  const colorClass = colorMap[color] || colorMap.neutral;
+  const config = statusConfig[status] || statusConfig.draft;
 
   return (
-    <span
-      className={`
-        badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
-        ${colorClass}
-        ${className}
-      `}
-    >
-      {label}
+    <span className={`
+      inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
+      ${config.bgColor} ${config.textColor}
+    `}>
+      <span className={`w-1.5 h-1.5 rounded-full ${config.dotColor}`} />
+      {config.label}
     </span>
   );
 }

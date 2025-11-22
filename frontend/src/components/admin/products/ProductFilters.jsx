@@ -72,7 +72,7 @@ export default function ProductFilters({
             step="0.01"
             className="w-full px-3 py-2 text-sm bg-white border border-tppgrey rounded-lg 
                      focus:outline-none focus:ring-2 focus:ring-tppmint focus:border-transparent
-                     transition-all text-tppslate placeholder:text-tppgrey/50"
+                     transition-all text-tppslate placeholder:text-tppgrey"
           />
         </div>
 
@@ -90,7 +90,7 @@ export default function ProductFilters({
             step="0.01"
             className="w-full px-3 py-2 text-sm bg-white border border-tppgrey rounded-lg 
                      focus:outline-none focus:ring-2 focus:ring-tppmint focus:border-transparent
-                     transition-all text-tppslate placeholder:text-tppgrey/50"
+                     transition-all text-tppslate placeholder:text-tppgrey"
           />
         </div>
 

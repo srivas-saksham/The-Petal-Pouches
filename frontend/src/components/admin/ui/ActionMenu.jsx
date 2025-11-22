@@ -1,32 +1,48 @@
 // frontend/src/components/admin/ui/ActionMenu.jsx
 
-import { MoreVertical } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { MoreVertical } from 'lucide-react';
 
 export default function ActionMenu({ actions = [], position = 'bottom-right' }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState('bottom');
   const menuRef = useRef(null);
+  const buttonRef = useRef(null);
+  const dropdownRef = useRef(null);
 
-  // Close dropdown when clicking outside
+  // Calculate if dropdown should open upward or downward
   useEffect(() => {
-    function handleClickOutside(event) {
+    if (isOpen && buttonRef.current && dropdownRef.current) {
+      const buttonRect = buttonRef.current.getBoundingClientRect();
+      const dropdownHeight = dropdownRef.current.offsetHeight;
+      const viewportHeight = window.innerHeight;
+      
+      // Calculate space below and above
+      const spaceBelow = viewportHeight - buttonRect.bottom;
+      const spaceAbove = buttonRect.top;
+      
+      // If not enough space below but enough space above, open upward
+      if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
+        setDropdownPosition('top');
+      } else {
+        setDropdownPosition('bottom');
+      }
+    }
+  }, [isOpen]);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsOpen(false);
       }
-    }
+    };
 
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isOpen]);
-
-  const positionClasses = {
-    'bottom-right': 'right-0 mt-2',
-    'bottom-left': 'left-0 mt-2',
-    'top-right': 'right-0 bottom-full mb-2',
-    'top-left': 'left-0 bottom-full mb-2',
-  };
 
   const handleActionClick = (action) => {
     if (action.onClick) {
@@ -36,53 +52,58 @@ export default function ActionMenu({ actions = [], position = 'bottom-right' }) 
   };
 
   return (
-    <div className="relative" ref={menuRef}>
-      {/* Trigger Button */}
+    <div className="relative inline-block" ref={menuRef}>
+      {/* Three dots button */}
       <button
+        ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="p-1 hover:bg-surface rounded transition-colors text-text-secondary hover:text-text-primary"
+        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         aria-label="Actions menu"
       >
-        <MoreVertical className="w-5 h-5" />
+        <MoreVertical className="w-5 h-5 text-gray-600" />
       </button>
 
-      {/* Dropdown Menu */}
+      {/* Dropdown menu */}
       {isOpen && (
         <div
+          ref={dropdownRef}
           className={`
-            absolute ${positionClasses[position]} z-50
-            min-w-[160px] bg-white rounded-lg shadow-hover border border-border
-            animate-scale-in py-1
+            absolute right-0 z-50 min-w-[180px] bg-white rounded-lg shadow-lg 
+            border border-gray-200 py-1 animate-in fade-in duration-100
+            ${dropdownPosition === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'}
           `}
         >
           {actions.map((action, index) => {
+            // Render divider
             if (action.divider) {
-              return <div key={index} className="my-1 border-t border-border" />;
+              return (
+                <div
+                  key={`divider-${index}`}
+                  className="h-px bg-gray-200 my-1"
+                />
+              );
             }
 
+            // Render action item
             return (
               <button
                 key={index}
                 onClick={() => handleActionClick(action)}
-                disabled={action.disabled}
                 className={`
-                  w-full flex items-center gap-3 px-4 py-2 text-sm text-left
+                  w-full px-4 py-2 text-left text-sm flex items-center gap-3
                   transition-colors
-                  ${
-                    action.danger
-                      ? 'text-red-600 hover:bg-red-50'
-                      : 'text-text-primary hover:bg-surface'
+                  ${action.danger 
+                    ? 'text-red-600 hover:bg-red-50' 
+                    : 'text-gray-700 hover:bg-gray-50'
                   }
-                  ${action.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                 `}
               >
-                {action.icon && <span className="flex-shrink-0">{action.icon}</span>}
-                <span className="flex-1">{action.label}</span>
-                {action.badge && (
-                  <span className="text-xs px-2 py-0.5 bg-admin-grey rounded-full">
-                    {action.badge}
+                {action.icon && (
+                  <span className={action.danger ? 'text-red-600' : 'text-gray-500'}>
+                    {action.icon}
                   </span>
                 )}
+                <span>{action.label}</span>
               </button>
             );
           })}

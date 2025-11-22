@@ -163,7 +163,7 @@ export default function BundlesPage() {
         description="Create and manage product bundles with discounted pricing"
         actions={
           <Button
-            variant="primary"
+            variant="slate"
             icon={<Plus className="w-5 h-5" />}
             onClick={() => setShowCreateModal(true)}
           >
@@ -244,7 +244,7 @@ export default function BundlesPage() {
             {searchTerm ? 'Try adjusting your search' : 'Create your first bundle to increase sales'}
           </p>
           {!searchTerm && (
-            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
+            <Button variant="slate" onClick={() => setShowCreateModal(true)}>
               Create Bundle
             </Button>
           )}

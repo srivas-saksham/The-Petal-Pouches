@@ -118,31 +118,12 @@ export const bulkDeleteProducts = async (productIds) => {
 };
 
 /**
- * Duplicate product
+ * Duplicate product - Server-side duplication
  */
 export const duplicateProduct = async (productId) => {
-  // Get original product
-  const original = await getProductById(productId);
-  
-  if (!original.success) {
-    return original;
-  }
-
-  const productData = original.data.data;
-  
-  // Create duplicate with modified title
-  const duplicateData = {
-    title: `${productData.title} (Copy)`,
-    description: productData.description,
-    price: productData.price,
-    stock: productData.stock,
-    sku: `${productData.sku}-COPY`,
-    category_id: productData.category_id,
-    has_variants: false, // Don't duplicate variants
-  };
-
-  // Note: Image won't be duplicated, would need separate handling
-  return createProduct(duplicateData);
+  return apiRequest(() => 
+    api.post(`/api/products/admin/${productId}/duplicate`)
+  );
 };
 
 /**

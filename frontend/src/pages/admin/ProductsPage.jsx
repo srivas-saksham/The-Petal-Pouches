@@ -275,6 +275,11 @@ export default function ProductsPage() {
     setEditingProductId(null);
   };
 
+  const handleSortChange = (sortValue) => {
+    setFilters(prev => ({ ...prev, sort: sortValue }));
+    setCurrentPage(1);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -283,7 +288,7 @@ export default function ProductsPage() {
         description="Manage your product catalog"
         actions={
           <Button
-            variant="primary"
+            variant="slate"
             icon={<Plus className="w-4 h-4" />}
             onClick={() => setShowCreateModal(true)}
             className="text-sm"
@@ -386,6 +391,8 @@ export default function ProductsPage() {
             onDelete={handleDelete}
             onDuplicate={handleDuplicate}
             onManageVariants={handleManageVariants}
+            currentSort={filters.sort}
+            onSortChange={handleSortChange}
           />
         ) : (
           <ProductsGrid

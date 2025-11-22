@@ -1,6 +1,6 @@
 // frontend/src/components/admin/products/ProductRow.jsx
 
-import { Edit, Trash2, Copy, MoreVertical, AlertTriangle, AlertCircle } from 'lucide-react';
+import { Edit, Trash2, Copy, MoreVertical, AlertTriangle, AlertCircle, DiamondPercent } from 'lucide-react';
 import StatusBadge from '../ui/StatusBadge';
 import ActionMenu from '../ui/ActionMenu';
 import { formatCurrency, getRelativeTime } from '../../../utils/adminHelpers';
@@ -15,14 +15,12 @@ export default function ProductRow({
   onDuplicate,
   onManageVariants 
 }) {
-  // ✅ ENHANCED: More comprehensive status logic
   const getProductStatus = () => {
     if (product.stock === 0) return 'out_of_stock';
     if (product.stock <= STOCK_THRESHOLDS.LOW_STOCK) return 'low_stock';
     return 'active';
   };
 
-  // ✅ ENHANCED: Get stock level info for display
   const getStockInfo = () => {
     if (product.stock === 0) {
       return {
@@ -43,7 +41,7 @@ export default function ProductRow({
     return {
       color: 'text-green-600',
       bgColor: 'bg-green-50',
-      icon: null,
+      icon: <DiamondPercent className="w-4 h-4" />,
       label: 'In Stock'
     };
   };
@@ -86,12 +84,12 @@ export default function ProductRow({
   return (
     <tr 
       className={`
-        border-b border-border hover:bg-surface transition-colors
-        ${isSelected ? 'bg-admin-peach bg-opacity-20' : ''}
+        transition-colors
+        ${isSelected ? 'bg-admin-peach bg-opacity-20' : 'hover:bg-surface'}
       `}
     >
       {/* Checkbox */}
-      <td className="px-4 py-3">
+      <td className="px-6 py-4">
         <input
           type="checkbox"
           checked={isSelected}
@@ -101,25 +99,23 @@ export default function ProductRow({
       </td>
 
       {/* Image */}
-      <td className="px-4 py-3">
-        <div className="relative">
+      <td className="px-6 py-4">
+        <div className="relative w-16 h-16">
           <img
             src={displayImage}
             alt={product.title}
-            className="w-16 h-16 object-cover rounded-lg"
+            className="w-full h-full object-cover rounded-lg"
           />
           {product.has_variants && (
             <div className="absolute -bottom-1 -right-1 bg-admin-pink text-white text-xs px-1.5 py-0.5 rounded-full font-semibold">
               V
             </div>
           )}
-          {/* ✅ NEW: Low stock indicator on image */}
           {product.stock > 0 && product.stock <= STOCK_THRESHOLDS.LOW_STOCK && (
             <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-1">
               <AlertTriangle className="w-3 h-3 text-white" />
             </div>
           )}
-          {/* ✅ NEW: Out of stock indicator on image */}
           {product.stock === 0 && (
             <div className="absolute -top-1 -right-1 bg-red-500 rounded-full p-1">
               <AlertCircle className="w-3 h-3 text-white" />
@@ -129,8 +125,8 @@ export default function ProductRow({
       </td>
 
       {/* Product Info */}
-      <td className="px-4 py-3">
-        <div className="min-w-0">
+      <td className="px-6 py-4">
+        <div className="min-w-[200px] max-w-md">
           <div className="font-medium text-text-primary truncate" title={product.title}>
             {product.title}
           </div>
@@ -146,25 +142,24 @@ export default function ProductRow({
       </td>
 
       {/* Category */}
-      <td className="px-4 py-3">
-        <span className="text-sm text-text-secondary">
+      <td className="px-6 py-4">
+        <span className="text-sm text-text-secondary whitespace-nowrap">
           {product.Categories?.name || 'Uncategorized'}
         </span>
       </td>
 
       {/* Price */}
-      <td className="px-4 py-3 text-right">
-        <span className="font-semibold text-text-primary">
+      <td className="px-6 py-4 text-right">
+        <span className="font-semibold text-text-primary whitespace-nowrap">
           {formatCurrency(product.price)}
         </span>
       </td>
 
-      {/* ✅ ENHANCED: Stock with visual indicators and tooltips */}
-      <td className="px-4 py-3">
-        <div className="flex items-center justify-center gap-2">
-          {/* Stock number with color and icon */}
+      {/* Stock */}
+      <td className="px-6 py-4">
+        <div className="flex items-center justify-center">
           <div className={`
-            flex items-center gap-1.5 px-2.5 py-1 rounded-full
+            flex items-center gap-1.5 px-3 py-1.5 rounded-full
             ${stockInfo.bgColor}
           `}>
             {stockInfo.icon && (
@@ -180,22 +175,20 @@ export default function ProductRow({
       </td>
 
       {/* Status */}
-      <td className="px-4 py-3">
+      <td className="px-6 py-4">
         <StatusBadge status={getProductStatus()} />
       </td>
 
       {/* Created */}
-      <td className="px-4 py-3">
-        <span className="text-sm text-text-muted">
+      <td className="px-6 py-4">
+        <span className="text-sm text-text-muted whitespace-nowrap">
           {getRelativeTime(product.created_at)}
         </span>
       </td>
 
       {/* Actions */}
-      <td className="px-4 py-3">
-        <div className="flex items-center justify-end">
-          <ActionMenu actions={actions} position="bottom-right" />
-        </div>
+      <td className="px-6 py-4 text-right">
+        <ActionMenu actions={actions} />
       </td>
     </tr>
   );
