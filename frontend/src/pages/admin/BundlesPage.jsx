@@ -2,30 +2,44 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Copy, Power, ChevronDown, ChevronUp } from 'lucide-react';
-import axios from 'axios';
 import PageHeader from '../../components/admin/ui/PageHeader';
 import Button from '../../components/admin/ui/Button';
 import SearchBar from '../../components/admin/ui/SearchBar';
 import StatusBadge from '../../components/admin/ui/StatusBadge';
 import ActionMenu from '../../components/admin/ui/ActionMenu';
+import Modal from '../../components/admin/ui/Modal';
 import { formatCurrency, formatDate } from '../../utils/adminHelpers';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+// Import existing working components
+import BundleForm from '../../components/adminComps/BundleForm';
+
+// Import services
+import {
+  getBundles,
+  deleteBundle,
+  toggleBundleStatus,
+  duplicateBundle,
+  getBundleStats,
+} from '../../services/bundleService';
 
 export default function BundlesPage() {
   const [bundles, setBundles] = useState([]);
   const [filteredBundles, setFilteredBundles] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedBundles, setExpandedBundles] = useState(new Set());
   
   // View state
-  const [view, setView] = useState('list'); // 'list' | 'create' | 'edit'
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [editingBundleId, setEditingBundleId] = useState(null);
 
   useEffect(() => {
     fetchBundles();
+    fetchStats();
   }, []);
 
   useEffect(() => {
@@ -42,15 +56,26 @@ export default function BundlesPage() {
 
   const fetchBundles = async () => {
     setLoading(true);
-    try {
-      const response = await axios.get(`${API_URL}/api/bundles?page=1&limit=50`);
-      setBundles(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching bundles:', error);
-      setMessage({ type: 'error', text: 'Failed to load bundles' });
-    } finally {
-      setLoading(false);
+    const result = await getBundles({ page: 1, limit: 100 });
+    
+    if (result.success) {
+      setBundles(result.data.data || []);
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Failed to load bundles' });
     }
+    
+    setLoading(false);
+  };
+
+  const fetchStats = async () => {
+    setStatsLoading(true);
+    const result = await getBundleStats();
+    
+    if (result.success) {
+      setStats(result.data);
+    }
+    
+    setStatsLoading(false);
   };
 
   const toggleBundleExpansion = (bundleId) => {
@@ -67,102 +92,69 @@ export default function BundlesPage() {
 
   const handleEdit = (bundleId) => {
     setEditingBundleId(bundleId);
-    setView('edit');
+    setShowEditModal(true);
   };
 
   const handleDelete = async (bundleId, bundleName) => {
     if (!confirm(`Delete bundle "${bundleName}"? This cannot be undone.`)) return;
 
-    setLoading(true);
-    try {
-      await axios.delete(`${API_URL}/api/bundles/admin/${bundleId}`);
+    const result = await deleteBundle(bundleId);
+    
+    if (result.success) {
       setMessage({ type: 'success', text: 'Bundle deleted successfully' });
       fetchBundles();
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } catch (error) {
-      console.error('Delete error:', error);
-      setMessage({ 
-        type: 'error', 
-        text: error.response?.data?.message || 'Failed to delete bundle' 
-      });
-    } finally {
-      setLoading(false);
+      fetchStats();
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Failed to delete bundle' });
     }
-  };
-
-  const handleToggle = async (bundleId) => {
-    setLoading(true);
-    try {
-      const response = await axios.patch(`${API_URL}/api/bundles/admin/${bundleId}/toggle`);
-      setMessage({ type: 'success', text: response.data.message });
-      fetchBundles();
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } catch (error) {
-      console.error('Toggle error:', error);
-      setMessage({ 
-        type: 'error', 
-        text: error.response?.data?.message || 'Failed to toggle status' 
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDuplicate = async (bundleId) => {
-    setLoading(true);
-    try {
-      const response = await axios.post(`${API_URL}/api/bundles/admin/${bundleId}/duplicate`);
-      setMessage({ type: 'success', text: 'Bundle duplicated successfully' });
-      fetchBundles();
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } catch (error) {
-      console.error('Duplicate error:', error);
-      setMessage({ 
-        type: 'error', 
-        text: error.response?.data?.message || 'Failed to duplicate bundle' 
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFormSuccess = (successMessage) => {
-    setMessage({ type: 'success', text: successMessage });
-    setView('list');
-    setEditingBundleId(null);
-    fetchBundles();
+    
     setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   };
 
-  const handleCancel = () => {
-    setView('list');
+  const handleToggle = async (bundleId) => {
+    const result = await toggleBundleStatus(bundleId);
+    
+    if (result.success) {
+      setMessage({ type: 'success', text: result.data.message || 'Status updated' });
+      fetchBundles();
+      fetchStats();
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Failed to toggle status' });
+    }
+    
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  };
+
+  const handleDuplicate = async (bundleId) => {
+    const result = await duplicateBundle(bundleId);
+    
+    if (result.success) {
+      setMessage({ type: 'success', text: 'Bundle duplicated successfully' });
+      fetchBundles();
+      fetchStats();
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Failed to duplicate bundle' });
+    }
+    
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  };
+
+  const handleFormSuccess = (successMessage) => {
+    setShowCreateModal(false);
+    setShowEditModal(false);
+    setEditingBundleId(null);
+    setMessage({ type: 'success', text: successMessage });
+    fetchBundles();
+    fetchStats();
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  };
+
+  const handleModalClose = () => {
+    setShowCreateModal(false);
+    setShowEditModal(false);
     setEditingBundleId(null);
   };
 
-  // If in create/edit view, show form (using existing BundleForm component)
-  if (view === 'create' || view === 'edit') {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          title={view === 'create' ? 'Create Bundle' : 'Edit Bundle'}
-          description={view === 'create' ? 'Create a new product bundle' : 'Update bundle details'}
-        />
-        <div className="card p-6">
-          <p className="text-text-secondary mb-4">
-            {/* TODO: Integrate BundleForm component here */}
-            Bundle form will be integrated here - using existing BundleForm logic
-          </p>
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={handleCancel}>
-              Back to List
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // List view
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -173,7 +165,7 @@ export default function BundlesPage() {
           <Button
             variant="primary"
             icon={<Plus className="w-5 h-5" />}
-            onClick={() => setView('create')}
+            onClick={() => setShowCreateModal(true)}
           >
             Create Bundle
           </Button>
@@ -193,6 +185,36 @@ export default function BundlesPage() {
         </div>
       )}
 
+      {/* Stats Cards */}
+      {!statsLoading && stats && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-text-muted">Total Bundles</span>
+              <span className="text-3xl font-bold text-admin-pink">{stats.total}</span>
+            </div>
+          </div>
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-text-muted">Active</span>
+              <span className="text-3xl font-bold text-admin-mint">{stats.active}</span>
+            </div>
+          </div>
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-text-muted">Inactive</span>
+              <span className="text-3xl font-bold text-admin-grey">{stats.inactive}</span>
+            </div>
+          </div>
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-text-muted">Avg Discount</span>
+              <span className="text-3xl font-bold text-text-primary">{stats.avg_discount}%</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Search */}
       <div className="card p-6">
         <SearchBar
@@ -203,7 +225,7 @@ export default function BundlesPage() {
       </div>
 
       {/* Bundles List */}
-      {loading && bundles.length === 0 ? (
+      {loading ? (
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-admin-pink mx-auto"></div>
           <p className="text-text-muted mt-4">Loading bundles...</p>
@@ -222,7 +244,7 @@ export default function BundlesPage() {
             {searchTerm ? 'Try adjusting your search' : 'Create your first bundle to increase sales'}
           </p>
           {!searchTerm && (
-            <Button variant="primary" onClick={() => setView('create')}>
+            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
               Create Bundle
             </Button>
           )}
@@ -429,6 +451,41 @@ export default function BundlesPage() {
             );
           })}
         </div>
+      )}
+
+      {/* Create Bundle Modal */}
+      {showCreateModal && (
+        <Modal
+          isOpen={showCreateModal}
+          onClose={handleModalClose}
+          title="Create New Bundle"
+          size="xl"
+        >
+          <div className="max-h-[75vh] overflow-y-auto scrollbar-custom">
+            <BundleForm
+              onSuccess={handleFormSuccess}
+              onCancel={handleModalClose}
+            />
+          </div>
+        </Modal>
+      )}
+
+      {/* Edit Bundle Modal */}
+      {showEditModal && editingBundleId && (
+        <Modal
+          isOpen={showEditModal}
+          onClose={handleModalClose}
+          title="Edit Bundle"
+          size="xl"
+        >
+          <div className="max-h-[75vh] overflow-y-auto scrollbar-custom">
+            <BundleForm
+              bundleId={editingBundleId}
+              onSuccess={handleFormSuccess}
+              onCancel={handleModalClose}
+            />
+          </div>
+        </Modal>
       )}
     </div>
   );

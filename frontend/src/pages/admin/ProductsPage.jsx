@@ -6,19 +6,33 @@ import PageHeader from '../../components/admin/ui/PageHeader';
 import SearchBar from '../../components/admin/ui/SearchBar';
 import Button from '../../components/admin/ui/Button';
 import ProductsTable from '../../components/admin/products/ProductsTable';
+import ProductStats from '../../components/admin/products/ProductStats';
 import ProductFilters from '../../components/admin/products/ProductFilters';
 import BulkActions from '../../components/admin/products/BulkActions';
 import Pagination from '../../components/admin/ui/Pagination';
 import Modal from '../../components/admin/ui/Modal';
 import { BULK_ACTIONS } from '../../utils/constants';
-import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+// Import existing working components
+import CreateProductForm from '../../components/adminComps/CreateProductForm';
+import UpdateProductForm from '../../components/adminComps/UpdateProductForm';
+import VariantManager from '../../components/adminComps/VariantManager';
+
+// Import services
+import { 
+  getProducts, 
+  getProductStats,
+  deleteProduct,
+  duplicateProduct,
+} from '../../services/productService';
+import { getCategories } from '../../services/categoryService';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState([]);
   const [message, setMessage] = useState({ type: '', text: '' });
   
@@ -43,47 +57,62 @@ export default function ProductsPage() {
   const [metadata, setMetadata] = useState(null);
   const itemsPerPage = 20;
 
+  // Fetch data on mount and when filters change
   useEffect(() => {
     fetchCategories();
+    fetchStats();
+  }, []);
+
+  useEffect(() => {
     fetchProducts();
   }, [currentPage, filters, searchTerm]);
 
   const fetchCategories = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/api/categories`);
-      const categoriesData = response.data.data || response.data.categories || response.data || [];
-      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
-    } catch (error) {
-      console.error('Failed to fetch categories:', error);
+    const result = await getCategories();
+    if (result.success) {
+      setCategories(result.data.data || []);
     }
+  };
+
+  const fetchStats = async () => {
+    setStatsLoading(true);
+    const result = await getProductStats();
+    if (result.success) {
+      setStats(result.data);
+    }
+    setStatsLoading(false);
   };
 
   const fetchProducts = async () => {
     setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: currentPage,
-        limit: itemsPerPage,
-        ...filters,
-        ...(searchTerm && { search: searchTerm }),
-      });
+    
+    const params = {
+      page: currentPage,
+      limit: itemsPerPage,
+      ...filters,
+    };
 
-      Object.keys(filters).forEach(key => {
-        if (filters[key]) {
-          params.set(key, filters[key]);
-        }
-      });
-
-      const response = await axios.get(`${API_URL}/api/products?${params.toString()}`);
-      
-      setProducts(response.data.data || []);
-      setMetadata(response.data.metadata || null);
-    } catch (error) {
-      console.error('Failed to fetch products:', error);
-      setMessage({ type: 'error', text: 'Failed to load products' });
-    } finally {
-      setLoading(false);
+    if (searchTerm) {
+      params.search = searchTerm;
     }
+
+    // Remove empty filters
+    Object.keys(params).forEach(key => {
+      if (params[key] === '' || params[key] === null || params[key] === undefined) {
+        delete params[key];
+      }
+    });
+
+    const result = await getProducts(params);
+    
+    if (result.success) {
+      setProducts(result.data.data || []);
+      setMetadata(result.data.metadata || null);
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Failed to load products' });
+    }
+    
+    setLoading(false);
   };
 
   const handleSearch = (e) => {
@@ -131,35 +160,19 @@ export default function ProductsPage() {
   const handleBulkAction = async (action) => {
     console.log('Bulk action:', action, 'on products:', selectedIds);
     
-    // TODO: Implement actual bulk actions
-    switch (action) {
-      case 'activate':
-        setMessage({ type: 'success', text: `Activating ${selectedIds.length} products` });
-        break;
-      case 'deactivate':
-        setMessage({ type: 'success', text: `Deactivating ${selectedIds.length} products` });
-        break;
-      case 'delete':
-        if (confirm(`Delete ${selectedIds.length} products? This cannot be undone.`)) {
-          setMessage({ type: 'success', text: `Deleting ${selectedIds.length} products` });
-        }
-        break;
-      case 'duplicate':
-        setMessage({ type: 'success', text: `Duplicating ${selectedIds.length} products` });
-        break;
-      default:
-        break;
-    }
+    // TODO: Implement bulk actions on backend
+    setMessage({ 
+      type: 'success', 
+      text: `Bulk action "${action}" on ${selectedIds.length} products - Coming soon!` 
+    });
     
     setTimeout(() => {
       setMessage({ type: '', text: '' });
       setSelectedIds([]);
-      fetchProducts();
-    }, 2000);
+    }, 3000);
   };
 
   const handleEdit = (productId) => {
-    console.log('✏️ Editing product:', productId);
     setEditingProductId(productId);
     setShowEditModal(true);
   };
@@ -167,24 +180,30 @@ export default function ProductsPage() {
   const handleDelete = async (productId, productTitle) => {
     if (!confirm(`Delete "${productTitle}"? This cannot be undone.`)) return;
 
-    try {
-      await axios.delete(`${API_URL}/api/admin/products/${productId}`);
+    const result = await deleteProduct(productId);
+    
+    if (result.success) {
       setMessage({ type: 'success', text: 'Product deleted successfully' });
       fetchProducts();
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } catch (error) {
-      console.error('Delete error:', error);
-      setMessage({ 
-        type: 'error', 
-        text: error.response?.data?.message || 'Failed to delete product' 
-      });
+      fetchStats();
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Failed to delete product' });
     }
+    
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   };
 
   const handleDuplicate = async (productId) => {
-    // TODO: Implement product duplication
-    console.log('Duplicate product:', productId);
-    setMessage({ type: 'success', text: 'Duplicate feature coming soon!' });
+    const result = await duplicateProduct(productId);
+    
+    if (result.success) {
+      setMessage({ type: 'success', text: 'Product duplicated successfully' });
+      fetchProducts();
+      fetchStats();
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Failed to duplicate product' });
+    }
+    
     setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   };
 
@@ -196,6 +215,7 @@ export default function ProductsPage() {
     setShowCreateModal(false);
     setMessage({ type: 'success', text: 'Product created successfully!' });
     fetchProducts();
+    fetchStats();
     setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   };
 
@@ -204,7 +224,13 @@ export default function ProductsPage() {
     setEditingProductId(null);
     setMessage({ type: 'success', text: 'Product updated successfully!' });
     fetchProducts();
+    fetchStats();
     setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  };
+
+  const handleModalClose = () => {
+    setShowEditModal(false);
+    setEditingProductId(null);
   };
 
   return (
@@ -236,6 +262,9 @@ export default function ProductsPage() {
           {message.text}
         </div>
       )}
+
+      {/* Stats */}
+      <ProductStats stats={stats} loading={statsLoading} />
 
       {/* Search Bar */}
       <div className="card p-6">
@@ -306,20 +335,8 @@ export default function ProductsPage() {
           title="Create New Product"
           size="lg"
         >
-          <div className="max-h-[70vh] overflow-y-auto">
-            {/* Use existing CreateProductForm but with new styling context */}
-            <div className="space-y-4">
-              <p className="text-text-secondary text-sm">
-                Fill in the product details below. All fields marked with * are required.
-              </p>
-              {/* The actual form will be rendered here - keeping existing logic */}
-              <iframe 
-                src="/admin-legacy/create-product" 
-                style={{ display: 'none' }}
-                title="Create Product Form"
-              />
-              {/* TODO: Integrate CreateProductForm component here */}
-            </div>
+          <div className="max-h-[70vh] overflow-y-auto scrollbar-custom">
+            <CreateProductForm onSuccess={handleCreateSuccess} />
           </div>
         </Modal>
       )}
@@ -328,31 +345,30 @@ export default function ProductsPage() {
       {showEditModal && editingProductId && (
         <Modal
           isOpen={showEditModal}
-          onClose={() => {
-            setShowEditModal(false);
-            setEditingProductId(null);
-          }}
+          onClose={handleModalClose}
           title="Edit Product"
           size="lg"
         >
-          <div className="max-h-[70vh] overflow-y-auto">
-            {/* Use existing UpdateProductForm but with new styling context */}
-            <div className="space-y-4">
-              <p className="text-text-secondary text-sm">
-                Update product details. Changes will be saved immediately.
-              </p>
-              {/* TODO: Integrate UpdateProductForm component here */}
-            </div>
+          <div className="max-h-[70vh] overflow-y-auto scrollbar-custom">
+            <UpdateProductForm
+              productId={editingProductId}
+              onSuccess={handleUpdateSuccess}
+              onCancel={handleModalClose}
+            />
           </div>
         </Modal>
       )}
 
       {/* Variant Manager Modal */}
       {variantManagerProduct && (
-        <div>
-          {/* Use existing VariantManager component */}
-          {/* TODO: Import and render VariantManager here */}
-        </div>
+        <VariantManager
+          productId={variantManagerProduct}
+          onClose={() => {
+            setVariantManagerProduct(null);
+            fetchProducts();
+            fetchStats();
+          }}
+        />
       )}
     </div>
   );

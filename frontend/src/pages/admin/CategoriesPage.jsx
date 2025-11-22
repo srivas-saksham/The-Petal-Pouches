@@ -2,19 +2,27 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
-import axios from 'axios';
 import PageHeader from '../../components/admin/ui/PageHeader';
 import Button from '../../components/admin/ui/Button';
 import Modal from '../../components/admin/ui/Modal';
 import SearchBar from '../../components/admin/ui/SearchBar';
 import { formatDate } from '../../utils/adminHelpers';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+// Import services
+import {
+  getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  getCategoryStats,
+} from '../../services/categoryService';
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState([]);
   const [filteredCategories, setFilteredCategories] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -25,9 +33,11 @@ export default function CategoriesPage() {
     name: '',
     description: ''
   });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchCategories();
+    fetchStats();
   }, []);
 
   useEffect(() => {
@@ -44,16 +54,27 @@ export default function CategoriesPage() {
 
   const fetchCategories = async () => {
     setLoading(true);
-    try {
-      const response = await axios.get(`${API_URL}/api/categories`);
-      const categoriesData = response.data.data || response.data.categories || response.data || [];
+    const result = await getCategories();
+    
+    if (result.success) {
+      const categoriesData = result.data.data || result.data.categories || result.data || [];
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      setMessage({ type: 'error', text: 'Failed to load categories' });
-    } finally {
-      setLoading(false);
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Failed to load categories' });
     }
+    
+    setLoading(false);
+  };
+
+  const fetchStats = async () => {
+    setStatsLoading(true);
+    const result = await getCategoryStats();
+    
+    if (result.success) {
+      setStats(result.data);
+    }
+    
+    setStatsLoading(false);
   };
 
   const handleInputChange = (e) => {
@@ -71,21 +92,22 @@ export default function CategoriesPage() {
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     setMessage({ type: '', text: '' });
 
-    try {
-      const url = editingId 
-        ? `${API_URL}/api/categories/admin/${editingId}`
-        : `${API_URL}/api/categories/admin`;
-      
-      const method = editingId ? 'put' : 'post';
+    const categoryData = {
+      name: formData.name.trim(),
+      description: formData.description.trim()
+    };
 
-      await axios[method](url, {
-        name: formData.name,
-        description: formData.description
-      });
+    let result;
+    if (editingId) {
+      result = await updateCategory(editingId, categoryData);
+    } else {
+      result = await createCategory(categoryData);
+    }
 
+    if (result.success) {
       setMessage({ 
         type: 'success', 
         text: editingId ? 'Category updated successfully!' : 'Category created successfully!' 
@@ -96,17 +118,16 @@ export default function CategoriesPage() {
       setShowModal(false);
       
       fetchCategories();
+      fetchStats();
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-
-    } catch (error) {
-      console.error('Error submitting category:', error);
+    } else {
       setMessage({
         type: 'error',
-        text: error.response?.data?.message || 'Failed to save category'
+        text: result.error || 'Failed to save category'
       });
-    } finally {
-      setLoading(false);
     }
+
+    setSubmitting(false);
   };
 
   const handleEdit = (category) => {
@@ -126,26 +147,34 @@ export default function CategoriesPage() {
     setLoading(true);
     setMessage({ type: '', text: '' });
     
-    try {
-      await axios.delete(`${API_URL}/api/categories/admin/${id}`);
+    const result = await deleteCategory(id);
+    
+    if (result.success) {
       setMessage({ type: 'success', text: 'Category deleted successfully!' });
       fetchCategories();
+      fetchStats();
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } catch (error) {
-      console.error('Error deleting category:', error);
+    } else {
       setMessage({
         type: 'error',
-        text: error.response?.data?.message || 'Failed to delete category'
+        text: result.error || 'Failed to delete category'
       });
-    } finally {
-      setLoading(false);
     }
+    
+    setLoading(false);
   };
 
   const handleCancel = () => {
     setFormData({ name: '', description: '' });
     setEditingId(null);
     setShowModal(false);
+    setMessage({ type: '', text: '' });
+  };
+
+  const handleOpenCreateModal = () => {
+    setFormData({ name: '', description: '' });
+    setEditingId(null);
+    setShowModal(true);
   };
 
   return (
@@ -158,11 +187,7 @@ export default function CategoriesPage() {
           <Button
             variant="primary"
             icon={<Plus className="w-5 h-5" />}
-            onClick={() => {
-              setFormData({ name: '', description: '' });
-              setEditingId(null);
-              setShowModal(true);
-            }}
+            onClick={handleOpenCreateModal}
           >
             Add Category
           </Button>
@@ -179,6 +204,30 @@ export default function CategoriesPage() {
           }
         `}>
           {message.text}
+        </div>
+      )}
+
+      {/* Stats Card */}
+      {!statsLoading && stats && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-text-muted">Total Categories</span>
+              <span className="text-3xl font-bold text-admin-pink">{stats.total}</span>
+            </div>
+          </div>
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-text-muted">With Products</span>
+              <span className="text-3xl font-bold text-admin-mint">{stats.withProducts}</span>
+            </div>
+          </div>
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-text-muted">Empty</span>
+              <span className="text-3xl font-bold text-admin-grey">{stats.empty}</span>
+            </div>
+          </div>
         </div>
       )}
 
@@ -211,7 +260,7 @@ export default function CategoriesPage() {
             {searchTerm ? 'Try adjusting your search' : 'Create your first category to organize products'}
           </p>
           {!searchTerm && (
-            <Button variant="primary" onClick={() => setShowModal(true)}>
+            <Button variant="primary" onClick={handleOpenCreateModal}>
               Create Category
             </Button>
           )}
@@ -273,13 +322,13 @@ export default function CategoriesPage() {
         title={editingId ? 'Edit Category' : 'Create Category'}
         footer={
           <>
-            <Button variant="outline" onClick={handleCancel}>
+            <Button variant="outline" onClick={handleCancel} disabled={submitting}>
               Cancel
             </Button>
             <Button 
               variant="primary" 
               onClick={handleSubmit}
-              loading={loading}
+              loading={submitting}
             >
               {editingId ? 'Update' : 'Create'}
             </Button>
@@ -300,6 +349,7 @@ export default function CategoriesPage() {
               className="form-input"
               required
               autoFocus
+              disabled={submitting}
             />
           </div>
 
@@ -314,6 +364,7 @@ export default function CategoriesPage() {
               rows={3}
               placeholder="Brief description of this category..."
               className="form-input"
+              disabled={submitting}
             />
           </div>
         </form>
