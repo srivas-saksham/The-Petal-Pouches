@@ -56,7 +56,7 @@ export default function AdminRoutes() {
                   href="/admin/dashboard" 
                   className="btn btn-primary"
                 >
-                  Back to Dashboard
+                  Back to Dashboard/admin
                 </a>
               </div>
             </div>

@@ -49,7 +49,7 @@ export default function ProductFormModal({
         </div>
       </div>
 
-      {/* Custom styles to adapt old form to new design */}
+      {/* Custom styles to adapt old form to new design */}a
       <style jsx>{`
         .product-form-modal-wrapper :global(.admin-form-container) {
           background: transparent;

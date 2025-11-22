@@ -1,11 +1,12 @@
 // frontend/src/pages/admin/ProductsPage.jsx
 
 import { useState, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, LayoutGrid, List } from 'lucide-react';
 import PageHeader from '../../components/admin/ui/PageHeader';
 import SearchBar from '../../components/admin/ui/SearchBar';
 import Button from '../../components/admin/ui/Button';
 import ProductsTable from '../../components/admin/products/ProductsTable';
+import ProductsGrid from '../../components/admin/products/ProductsGrid';
 import ProductStats from '../../components/admin/products/ProductStats';
 import ProductFilters from '../../components/admin/products/ProductFilters';
 import BulkActions from '../../components/admin/products/BulkActions';
@@ -35,6 +36,9 @@ export default function ProductsPage() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState([]);
   const [message, setMessage] = useState({ type: '', text: '' });
+  
+  // View mode: 'list' or 'grid'
+  const [viewMode, setViewMode] = useState('list');
   
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -89,19 +93,15 @@ export default function ProductsPage() {
     const params = {
       page: currentPage,
       limit: itemsPerPage,
-      ...filters,
     };
 
-    if (searchTerm) {
-      params.search = searchTerm;
-    }
-
-    // Remove empty filters
-    Object.keys(params).forEach(key => {
-      if (params[key] === '' || params[key] === null || params[key] === undefined) {
-        delete params[key];
-      }
-    });
+    // Add filters only if they have values
+    if (filters.category_id) params.category_id = filters.category_id;
+    if (filters.min_price) params.min_price = parseFloat(filters.min_price);
+    if (filters.max_price) params.max_price = parseFloat(filters.max_price);
+    if (filters.in_stock !== '') params.in_stock = filters.in_stock === 'true';
+    if (filters.sort) params.sort = filters.sort;
+    if (searchTerm.trim()) params.search = searchTerm.trim();
 
     const result = await getProducts(params);
     
@@ -135,6 +135,14 @@ export default function ProductsPage() {
     });
     setSearchTerm('');
     setCurrentPage(1);
+  };
+
+  const hasActiveFilters = () => {
+    return searchTerm || 
+           filters.category_id || 
+           filters.min_price || 
+           filters.max_price || 
+           filters.in_stock !== '';
   };
 
   const handleSelectAll = (checked) => {
@@ -242,8 +250,9 @@ export default function ProductsPage() {
         actions={
           <Button
             variant="primary"
-            icon={<Plus className="w-5 h-5" />}
+            icon={<Plus className="w-4 h-4" />}
             onClick={() => setShowCreateModal(true)}
+            className="text-sm"
           >
             Add Product
           </Button>
@@ -253,9 +262,9 @@ export default function ProductsPage() {
       {/* Messages */}
       {message.text && (
         <div className={`
-          p-4 rounded-lg border animate-slide-in
+          p-3 rounded-lg border animate-slide-in text-sm
           ${message.type === 'success' 
-            ? 'bg-green-50 border-green-200 text-green-800' 
+            ? 'bg-tppmint/20 border-tppmint text-tppslate' 
             : 'bg-red-50 border-red-200 text-red-800'
           }
         `}>
@@ -266,33 +275,59 @@ export default function ProductsPage() {
       {/* Stats */}
       <ProductStats stats={stats} loading={statsLoading} />
 
-      {/* Search Bar */}
-      <div className="card p-6">
-        <SearchBar
-          value={searchTerm}
-          onChange={handleSearch}
-          placeholder="Search products by title, SKU..."
-          className="w-full"
-        />
-      </div>
-
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Filters Sidebar */}
-        <div className="lg:col-span-1">
-          <div className="card p-6 sticky top-6">
-            <ProductFilters
-              categories={categories}
-              activeFilters={filters}
-              onFilterChange={handleFilterChange}
-              onClearFilters={handleClearFilters}
+      {/* Search & Filters Section */}
+      <div className="bg-white rounded-lg p-5 border border-tppgrey shadow-sm space-y-4">
+        {/* Search Bar with View Toggle */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <SearchBar
+              value={searchTerm}
+              onChange={handleSearch}
+              placeholder="Search products by title, SKU, or description..."
+              className="w-full"
             />
+          </div>
+          
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-1 bg-tpppeach/20 rounded-lg p-1 border border-tppgrey">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded transition-all ${
+                viewMode === 'list'
+                  ? 'bg-white text-tppslate shadow-sm'
+                  : 'text-tppgrey hover:text-tppslate'
+              }`}
+              title="List View"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded transition-all ${
+                viewMode === 'grid'
+                  ? 'bg-white text-tppslate shadow-sm'
+                  : 'text-tppgrey hover:text-tppslate'
+              }`}
+              title="Grid View"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        {/* Products Table */}
-        <div className="lg:col-span-3 space-y-4">
-          {/* Bulk Actions */}
+        {/* Horizontal Filters */}
+        <ProductFilters
+          categories={categories}
+          activeFilters={filters}
+          onFilterChange={handleFilterChange}
+          onClearFilters={handleClearFilters}
+          hasActiveFilters={hasActiveFilters()}
+        />
+      </div>
+
+      {/* Bulk Actions */}
+      {selectedIds.length > 0 && (
+        <div className="bg-tppmint/10 rounded-lg p-4 border border-tppmint">
           <BulkActions
             selectedCount={selectedIds.length}
             actions={BULK_ACTIONS.products.map(action => ({
@@ -301,8 +336,12 @@ export default function ProductsPage() {
             }))}
             onClearSelection={handleClearSelection}
           />
+        </div>
+      )}
 
-          {/* Table */}
+      {/* Products Display */}
+      <div className="bg-white rounded-lg border border-tppgrey shadow-sm overflow-hidden">
+        {viewMode === 'list' ? (
           <ProductsTable
             products={products}
             loading={loading}
@@ -314,18 +353,31 @@ export default function ProductsPage() {
             onDuplicate={handleDuplicate}
             onManageVariants={handleManageVariants}
           />
-
-          {/* Pagination */}
-          {!loading && metadata && metadata.totalPages > 1 && (
-            <Pagination
-              currentPage={currentPage}
-              totalItems={metadata.totalCount}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-            />
-          )}
-        </div>
+        ) : (
+          <ProductsGrid
+            products={products}
+            loading={loading}
+            selectedIds={selectedIds}
+            onSelectOne={handleSelectOne}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onDuplicate={handleDuplicate}
+            onManageVariants={handleManageVariants}
+          />
+        )}
       </div>
+
+      {/* Pagination */}
+      {!loading && metadata && metadata.totalPages > 1 && (
+        <div className="flex justify-center">
+          <Pagination
+            currentPage={currentPage}
+            totalItems={metadata.totalCount}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
+        </div>
+      )}
 
       {/* Create Product Modal */}
       {showCreateModal && (

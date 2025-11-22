@@ -32,16 +32,15 @@ export default function NavItem({ item, onClick }) {
     }
   `;
 
-  if (onClick) {
-    return (
-      <button onClick={onClick} className={`${classes} w-full text-left`}>
-        {content}
-      </button>
-    );
-  }
+  // ✅ FIX: Always use Link, but call onClick after navigation
+  const handleClick = () => {
+    if (onClick) {
+      onClick(); // Close sidebar on mobile after click
+    }
+  };
 
   return (
-    <Link to={item.path} className={classes}>
+    <Link to={item.path} className={classes} onClick={handleClick}>
       {content}
     </Link>
   );

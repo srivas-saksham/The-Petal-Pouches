@@ -37,7 +37,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
   return (
     <>
-      {/* Mobile Overlay */}
+      {/* Mobile Overlay - only show on mobile when open */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
@@ -45,7 +45,7 @@ export default function Sidebar({ isOpen, onClose }) {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Fixed: Removed onClick handler that was blocking navigation */}
       <aside
         className={`
           admin-sidebar fixed lg:sticky top-0 left-0 h-screen

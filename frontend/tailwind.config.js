@@ -7,32 +7,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        // DELETE LATER
-        "tpp-pink": "#FF6FA3",
-        "tpp-pastel": "#FFF1F6",
-        "tpp-accent": "#7C4DFF",
-
-        // The Petal Pouches Admin Color Palette
-        'admin': {
-          'pink': '#EDAFB8',           // Primary accents, buttons, active states
-          'peach': '#F7E1D7',          // Backgrounds, card surfaces
-          'grey': '#DEDBD2',           // Table rows, dividers, borders
-          'mint': '#B0C4B1',           // Success badges, positive indicators
-          'slate': '#4A5759',          // Text, sidebar background
-        },
-        // Semantic color mappings for easier use
-        'primary': '#EDAFB8',          // Pink
-        'secondary': '#B0C4B1',        // Mint
-        'surface': '#F7E1D7',          // Peach
-        'border': '#DEDBD2',           // Grey
-        'text': {
-          'primary': '#4A5759',        // Slate
-          'secondary': '#6B7280',      // Slightly lighter for less important text
-          'muted': '#9CA3AF',          // For placeholders
-        },
-        'success': '#B0C4B1',          // Mint
-        'warning': '#EDAFB8',          // Pink (soft warning)
-        'danger': '#EF4444',           // Keep red for critical actions
+        'tpppink': '#EDAFB8',           // Primary accents, buttons, active states
+        'tpppeach': '#F7E1D7',          // Backgrounds, card surfaces
+        'tppgrey': '#DEDBD2',           // Table rows, dividers, borders
+        'tppmint': '#B0C4B1',           // Success badges, positive indicators
+        'tppslate': '#4A5759'
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],

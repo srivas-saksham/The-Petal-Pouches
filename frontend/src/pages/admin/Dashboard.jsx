@@ -97,9 +97,6 @@ export default function Dashboard() {
       id: 'revenue',
       label: 'Total Revenue',
       icon: DollarSign,
-      color: 'bg-blue-500',
-      bgColor: 'bg-blue-50',
-      textColor: 'text-blue-600',
       current: stats.revenue.current,
       previous: stats.revenue.previous,
       change: calculateChange(stats.revenue.current, stats.revenue.previous),
@@ -108,9 +105,6 @@ export default function Dashboard() {
       id: 'orders',
       label: 'Total Orders',
       icon: ShoppingCart,
-      color: 'bg-admin-mint',
-      bgColor: 'bg-green-50',
-      textColor: 'text-green-600',
       current: stats.orders.current,
       previous: stats.orders.previous,
       change: calculateChange(stats.orders.current, stats.orders.previous),
@@ -119,9 +113,6 @@ export default function Dashboard() {
       id: 'products',
       label: 'Total Products',
       icon: Package,
-      color: 'bg-admin-pink',
-      bgColor: 'bg-pink-50',
-      textColor: 'text-pink-600',
       current: stats.products.current,
       previous: stats.products.previous,
       change: calculateChange(stats.products.current, stats.products.previous),
@@ -130,9 +121,6 @@ export default function Dashboard() {
       id: 'customers',
       label: 'Customers',
       icon: Users,
-      color: 'bg-purple-500',
-      bgColor: 'bg-purple-50',
-      textColor: 'text-purple-600',
       current: stats.customers.current,
       previous: stats.customers.previous,
       change: calculateChange(stats.customers.current, stats.customers.previous),
@@ -141,18 +129,18 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <PageHeader
           title="Dashboard"
           description="Welcome back! Here's what's happening with your store today."
         />
-        <div className="card p-12 text-center">
-          <div className="text-red-500 mb-4">⚠️</div>
-          <h3 className="text-lg font-semibold text-text-primary mb-2">Error Loading Dashboard</h3>
-          <p className="text-text-secondary text-sm mb-4">{error}</p>
+        <div className="card p-8 text-center">
+          <div className="text-red-500 mb-3 text-xl">⚠️</div>
+          <h3 className="text-base font-semibold text-tppslate mb-1">Error Loading Dashboard</h3>
+          <p className="text-tppslate/70 text-xs mb-3">{error}</p>
           <button
             onClick={fetchDashboardData}
-            className="btn btn-primary"
+            className="btn btn-primary text-sm"
           >
             Retry
           </button>
@@ -162,7 +150,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       {/* Header */}
       <PageHeader
         title="Dashboard"
@@ -173,30 +161,30 @@ export default function Dashboard() {
       {loading ? (
         <SkeletonStats />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {mainStats.map((stat) => {
             const Icon = stat.icon;
             const isPositive = stat.change > 0;
 
             return (
-              <div key={stat.id} className="card p-6 animate-fade-in">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`w-12 h-12 ${stat.bgColor} rounded-lg flex items-center justify-center`}>
-                    <Icon className={`w-6 h-6 ${stat.textColor}`} />
+              <div key={stat.id} className="bg-tpppeach/30 rounded-lg p-4 border border-tppgrey animate-fade-in">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-9 h-9 bg-white rounded-md flex items-center justify-center shadow-sm">
+                    <Icon className="w-5 h-5 text-tppslate" />
                   </div>
                   {stat.change !== 0 && (
-                    <div className={`flex items-center gap-1 text-xs font-semibold ${
-                      isPositive ? 'text-green-600' : 'text-red-600'
+                    <div className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                      isPositive ? 'bg-tppmint text-tppslate' : 'bg-red-100 text-red-700'
                     }`}>
-                      {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                      {isPositive ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
                       {Math.abs(stat.change)}%
                     </div>
                   )}
                 </div>
-                <div className="text-3xl font-bold text-text-primary mb-1">
+                <div className="text-2xl font-bold text-tppslate mb-0.5">
                   {stat.id === 'revenue' ? formatCurrency(stat.current) : stat.current.toLocaleString()}
                 </div>
-                <div className="text-sm text-text-muted">
+                <div className="text-xs text-tppslate/70">
                   {stat.label}
                 </div>
               </div>
@@ -206,55 +194,55 @@ export default function Dashboard() {
       )}
 
       {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Recent Orders */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-text-primary">Recent Orders</h3>
+        <div className="bg-tpppeach/30 rounded-lg p-4 border border-tppgrey">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-tppslate">Recent Orders</h3>
             <Link 
               to="/admin/orders"
-              className="text-sm text-admin-pink hover:underline flex items-center gap-1"
+              className="text-xs text-tppslate hover:text-tppslate/60 flex items-center gap-1 transition-colors"
             >
-              View all <ArrowRight className="w-4 h-4" />
+              View all <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
 
           {loading ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
                 <SkeletonCard key={i} />
               ))}
             </div>
           ) : recentOrders.length === 0 ? (
-            <div className="text-center py-8 text-text-muted">
+            <div className="text-center py-6 text-tppslate/50 text-xs">
               No recent orders
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-2">
               {recentOrders.map((order) => (
                 <div 
                   key={order.id}
-                  className="flex items-center justify-between p-4 bg-surface rounded-lg hover:shadow-soft transition-shadow"
+                  className="flex items-center justify-between p-3 bg-white rounded-md hover:shadow-sm transition-shadow border border-tppgrey/50"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="font-semibold text-text-primary text-sm">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-tppslate text-xs">
                         {order.id}
                       </span>
                       <StatusBadge status={order.status} />
                     </div>
-                    <div className="text-sm text-text-secondary">
+                    <div className="text-xs text-tppslate/70">
                       {order.customer_name || 'Guest'}
                     </div>
-                    <div className="text-xs text-text-muted mt-1">
+                    <div className="text-[10px] text-tppslate/50 mt-0.5">
                       {getRelativeTime(order.created_at)}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-text-primary">
+                    <div className="font-bold text-tppslate text-sm">
                       {formatCurrency(order.final_total || order.total)}
                     </div>
-                    <div className="text-xs text-text-muted">
+                    <div className="text-[10px] text-tppslate/60">
                       {order.order_items?.length || order.items || 0} item(s)
                     </div>
                   </div>
@@ -265,55 +253,55 @@ export default function Dashboard() {
         </div>
 
         {/* Top Products */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-text-primary">Top Products</h3>
+        <div className="bg-tpppeach/30 rounded-lg p-4 border border-tppgrey">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-tppslate">Top Products</h3>
             <Link 
               to="/admin/products"
-              className="text-sm text-admin-pink hover:underline flex items-center gap-1"
+              className="text-xs text-tppslate hover:text-tppslate/60 flex items-center gap-1 transition-colors"
             >
-              View all <ArrowRight className="w-4 h-4" />
+              View all <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
 
           {loading ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
                 <SkeletonCard key={i} />
               ))}
             </div>
           ) : topProducts.length === 0 ? (
-            <div className="text-center py-8 text-text-muted">
+            <div className="text-center py-6 text-tppslate/50 text-xs">
               No products available
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-2">
               {topProducts.map((product, index) => (
                 <div 
                   key={product.id}
-                  className="flex items-center gap-4 p-4 bg-surface rounded-lg hover:shadow-soft transition-shadow"
+                  className="flex items-center gap-3 p-3 bg-white rounded-md hover:shadow-sm transition-shadow border border-tppgrey/50"
                 >
-                  <div className="flex-shrink-0 w-8 h-8 bg-admin-pink text-white rounded-full flex items-center justify-center font-bold text-sm">
+                  <div className="flex-shrink-0 w-6 h-6 bg-tppslate text-white rounded-full flex items-center justify-center font-bold text-[10px]">
                     {index + 1}
                   </div>
                   <img
                     src={product.img_url}
                     alt={product.title}
-                    className="w-12 h-12 object-cover rounded"
+                    className="w-10 h-10 object-cover rounded border border-tppgrey"
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-text-primary truncate">
+                    <div className="font-medium text-tppslate truncate text-xs">
                       {product.title}
                     </div>
-                    <div className="text-sm text-text-secondary">
+                    <div className="text-[10px] text-tppslate/60">
                       {product.sales || 0} sold
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-text-primary">
+                    <div className="font-bold text-tppslate text-xs">
                       {formatCurrency(product.revenue || 0)}
                     </div>
-                    <div className="text-xs text-text-muted">
+                    <div className="text-[10px] text-tppslate/50">
                       revenue
                     </div>
                   </div>
@@ -324,16 +312,16 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Monthly Revenue Chart (Simple Display) */}
+      {/* Monthly Revenue Chart */}
       {!loading && monthlyRevenue.length > 0 && (
-        <div className="card p-6">
-          <h3 className="text-lg font-bold text-text-primary mb-6">Monthly Revenue</h3>
-          <div className="grid grid-cols-6 gap-4">
+        <div className="bg-tpppeach/30 rounded-lg p-4 border border-tppgrey">
+          <h3 className="text-sm font-bold text-tppslate mb-4">Monthly Revenue</h3>
+          <div className="grid grid-cols-6 gap-3">
             {monthlyRevenue.map((data, index) => (
-              <div key={index} className="text-center">
-                <div className="text-xs text-text-muted mb-2">{data.month}</div>
-                <div className="font-bold text-text-primary">{formatCurrency(data.revenue, false)}</div>
-                <div className="text-xs text-text-secondary mt-1">{data.orders} orders</div>
+              <div key={index} className="text-center p-3 bg-white rounded-md border border-tppgrey/50">
+                <div className="text-[10px] text-tppslate/60 mb-1 font-medium">{data.month}</div>
+                <div className="font-bold text-tppslate text-xs">{formatCurrency(data.revenue, false)}</div>
+                <div className="text-[10px] text-tppslate/50 mt-1">{data.orders} orders</div>
               </div>
             ))}
           </div>
@@ -342,83 +330,25 @@ export default function Dashboard() {
 
       {/* Category Distribution */}
       {!loading && categoryDist.length > 0 && (
-        <div className="card p-6">
-          <h3 className="text-lg font-bold text-text-primary mb-6">Products by Category</h3>
+        <div className="bg-tpppeach/30 rounded-lg p-4 border border-tppgrey">
+          <h3 className="text-sm font-bold text-tppslate mb-4">Products by Category</h3>
           <div className="space-y-3">
             {categoryDist.slice(0, 5).map((cat) => (
-              <div key={cat.name} className="flex items-center gap-4">
+              <div key={cat.name} className="flex items-center gap-3">
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-text-primary">{cat.name}</span>
-                    <span className="text-sm text-text-muted">{cat.count} products ({cat.percentage}%)</span>
+                    <span className="text-xs font-medium text-tppslate">{cat.name}</span>
+                    <span className="text-[10px] text-tppslate/60">{cat.count} products ({cat.percentage}%)</span>
                   </div>
-                  <div className="w-full bg-surface rounded-full h-2">
+                  <div className="w-full bg-tppgrey rounded-full h-1.5">
                     <div 
-                      className="bg-admin-pink h-2 rounded-full transition-all"
+                      className="bg-tppslate h-1.5 rounded-full transition-all"
                       style={{ width: `${cat.percentage}%` }}
                     ></div>
                   </div>
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* Quick Actions */}
-      <div className="card p-6">
-        <h3 className="text-lg font-bold text-text-primary mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Link
-            to="/admin/products"
-            className="btn btn-outline flex flex-col items-center gap-2 py-6 hover:border-admin-pink"
-          >
-            <span className="text-2xl">📦</span>
-            <span>Manage Products</span>
-          </Link>
-          <Link
-            to="/admin/bundles"
-            className="btn btn-outline flex flex-col items-center gap-2 py-6 hover:border-admin-pink"
-          >
-            <span className="text-2xl">🎁</span>
-            <span>Manage Bundles</span>
-          </Link>
-          <Link
-            to="/admin/orders"
-            className="btn btn-outline flex flex-col items-center gap-2 py-6 hover:border-admin-pink"
-          >
-            <span className="text-2xl">🛒</span>
-            <span>View Orders</span>
-          </Link>
-          <Link
-            to="/admin/categories"
-            className="btn btn-outline flex flex-col items-center gap-2 py-6 hover:border-admin-pink"
-          >
-            <span className="text-2xl">📂</span>
-            <span>Categories</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Inventory Alerts */}
-      {!loading && stats && (stats.productBreakdown.low_stock > 0 || stats.productBreakdown.out_of_stock > 0) && (
-        <div className="card p-6 border-l-4 border-yellow-500">
-          <div className="flex items-start gap-4">
-            <div className="text-yellow-500 text-2xl">⚠️</div>
-            <div className="flex-1">
-              <h4 className="font-semibold text-text-primary mb-2">Inventory Alerts</h4>
-              <div className="space-y-1 text-sm text-text-secondary">
-                {stats.productBreakdown.low_stock > 0 && (
-                  <div>• {stats.productBreakdown.low_stock} product(s) running low on stock</div>
-                )}
-                {stats.productBreakdown.out_of_stock > 0 && (
-                  <div>• {stats.productBreakdown.out_of_stock} product(s) out of stock</div>
-                )}
-              </div>
-              <Link to="/admin/products" className="text-admin-pink text-sm mt-2 inline-block hover:underline">
-                View inventory →
-              </Link>
-            </div>
           </div>
         </div>
       )}
