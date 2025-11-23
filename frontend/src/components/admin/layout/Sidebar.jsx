@@ -181,8 +181,8 @@ export default function Sidebar({ isOpen, onClose }) {
                                 {isNotificationItem && badgeCount > 0 ? (
                                   <div className="ml-auto relative group/notif w-8 h-6 flex items-center justify-center">
                                     {/* Notification Count - Shows by default */}
-                                    <span className={`absolute text-sm font-bold group-hover/notif:opacity-0 transition-opacity duration-200 ${
-                                      isActive ? 'text-tppslate' : 'text-red-500'
+                                    <span className={`absolute text-sm group-hover/notif:opacity-0 transition-opacity duration-200 ${
+                                      isActive ? 'text-tppslate' : 'text-white/95'
                                     }`}>
                                       {badgeCount}
                                     </span>
