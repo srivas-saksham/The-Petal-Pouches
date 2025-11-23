@@ -181,19 +181,25 @@ export default function Sidebar({ isOpen, onClose }) {
                                 {isNotificationItem && badgeCount > 0 ? (
                                   <div className="ml-auto relative group/notif w-8 h-6 flex items-center justify-center">
                                     {/* Notification Count - Shows by default */}
-                                    <span className="absolute text-red-500 text-sm font-bold group-hover/notif:opacity-0 transition-opacity duration-200">
+                                    <span className={`absolute text-sm font-bold group-hover/notif:opacity-0 transition-opacity duration-200 ${
+                                      isActive ? 'text-tppslate' : 'text-red-500'
+                                    }`}>
                                       {badgeCount}
                                     </span>
                                     {/* Mark as Read Button - Shows on hover */}
                                     <button
                                       onClick={markAllAsRead}
                                       disabled={isMarkingRead}
-                                      className={`absolute opacity-0 group-hover/notif:opacity-100 p-1 hover:bg-white/20 rounded transition-all duration-200 ${
+                                      className={`absolute opacity-0 group-hover/notif:opacity-100 p-1 rounded transition-all duration-200 ${
+                                        isActive ? 'hover:bg-slate-100' : 'hover:bg-white/20'
+                                      } ${
                                         isMarkingRead ? 'cursor-not-allowed' : ''
                                       }`}
                                       title="Mark all as read"
                                     >
-                                      <CheckCheck className="w-4 h-4 text-white/70 hover:text-white transition-colors" />
+                                      <CheckCheck className={`w-4 h-4 transition-colors ${
+                                        isActive ? 'text-tppslate hover:text-tppslate/80' : 'text-white/70 hover:text-white'
+                                      }`} />
                                     </button>
                                   </div>
                                 ) : badgeCount > 0 ? (
