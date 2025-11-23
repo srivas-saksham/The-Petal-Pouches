@@ -428,7 +428,7 @@ export default function ProductsPage() {
           title="Create New Product"
           size="lg"
         >
-          <div className="max-h-[70vh] overflow-y-auto scrollbar-custom">
+          <div className="max-h-[100vh] overflow-y-auto scrollbar-custom">
             <CreateProductForm onSuccess={handleCreateSuccess} />
           </div>
         </Modal>
@@ -442,7 +442,7 @@ export default function ProductsPage() {
           title="Edit Product"
           size="lg"
         >
-          <div className="max-h-[70vh] overflow-y-auto scrollbar-custom">
+          <div className="max-h-[100vh] overflow-y-auto scrollbar-custom">
             <UpdateProductForm
               productId={editingProductId}
               onSuccess={handleUpdateSuccess}

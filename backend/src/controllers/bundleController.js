@@ -167,7 +167,7 @@ const getAllBundles = async (req, res) => {
 
     // Build query
     let query = supabase
-      .from('Bundles')  // Changed: bundles → Bundles
+      .from('Bundles')
       .select(`
         *,
         Bundle_items (
@@ -214,12 +214,18 @@ const getAllBundles = async (req, res) => {
 
     if (error) throw error;
 
+    // ✅ ADD PRODUCT COUNT TO EACH BUNDLE
+    const bundlesWithCount = (bundles || []).map(bundle => ({
+      ...bundle,
+      product_count: bundle.Bundle_items?.length || 0
+    }));
+
     // Calculate metadata
     const totalPages = Math.ceil(count / limitNum);
 
     res.status(200).json({
       success: true,
-      data: bundles || [],
+      data: bundlesWithCount,
       metadata: {
         totalCount: count,
         totalPages,

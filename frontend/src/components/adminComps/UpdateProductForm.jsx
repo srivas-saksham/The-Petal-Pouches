@@ -1,6 +1,47 @@
 // frontend/src/components/adminComps/UpdateProductForm.jsx
 import { useState, useEffect } from 'react';
+import { 
+  Package, 
+  Upload, 
+  X, 
+  AlertCircle, 
+  CheckCircle2, 
+  Plus,
+  ChevronDown,
+  Info,
+  Loader2,
+  Tag,
+  DollarSign,
+  Hash,
+  FileText,
+  Layers,
+  Edit
+} from 'lucide-react';
 import axios from 'axios';
+
+// InputWrapper component - OUTSIDE the main component
+const InputWrapper = ({ label, name, required, icon: Icon, children, hint, error }) => (
+  <div className="space-y-2">
+    <label htmlFor={name} className="flex items-center gap-2 text-sm font-semibold text-tppslate">
+      {Icon && <Icon className="w-4 h-4 text-tppslate/60" />}
+      {label}
+      {required && <span className="text-red-500">*</span>}
+    </label>
+    {children}
+    {hint && !error && (
+      <p className="text-xs text-tppslate/60 flex items-center gap-1">
+        <Info className="w-3 h-3" />
+        {hint}
+      </p>
+    )}
+    {error && (
+      <p className="text-xs text-red-600 flex items-center gap-1 animate-shake">
+        <AlertCircle className="w-3 h-3" />
+        {error}
+      </p>
+    )}
+  </div>
+);
 
 const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -21,6 +62,10 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
+  
+  // Field-level validation errors
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
 
   // Category management
   const [categories, setCategories] = useState([]);
@@ -84,17 +129,82 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     }
   };
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  // Validation functions
+  const validateField = (name, value) => {
+    switch (name) {
+      case 'title':
+        if (!value.trim()) return 'Product title is required';
+        if (value.trim().length < 3) return 'Title must be at least 3 characters';
+        if (value.trim().length > 200) return 'Title must be less than 200 characters';
+        return '';
+      
+      case 'price':
+        if (!value) return 'Price is required';
+        if (isNaN(value) || parseFloat(value) <= 0) return 'Price must be greater than 0';
+        if (parseFloat(value) > 1000000) return 'Price seems unrealistic';
+        return '';
+      
+      case 'stock':
+        if (!value && value !== 0) return 'Stock quantity is required';
+        if (isNaN(value) || parseInt(value) < 0) return 'Stock must be 0 or greater';
+        if (parseInt(value) > 100000) return 'Stock quantity seems unrealistic';
+        return '';
+      
+      case 'sku':
+        if (!value.trim()) return 'SKU is required';
+        if (!/^[A-Za-z0-9-_]+$/.test(value.trim())) return 'SKU can only contain letters, numbers, hyphens, and underscores';
+        if (value.trim().length < 2) return 'SKU must be at least 2 characters';
+        if (value.trim().length > 50) return 'SKU must be less than 50 characters';
+        return '';
+      
+      case 'description':
+        if (value.trim().length > 2000) return 'Description must be less than 2000 characters';
+        return '';
+      
+      default:
+        return '';
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched(prev => ({ ...prev, [name]: true }));
+    
+    const error = validateField(name, value);
+    setErrors(prev => ({ ...prev, [name]: error }));
   };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setErrors(prev => ({ ...prev, image: 'Please select a valid image file' }));
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors(prev => ({ ...prev, image: 'Image size must be less than 5MB' }));
+        return;
+      }
+      
       setImage(file);
+      setErrors(prev => ({ ...prev, image: '' }));
+      
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -103,9 +213,15 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     }
   };
 
-  // Handle has_variants checkbox change
-  const handleHasVariantsChange = (e) => {
-    const newValue = e.target.checked;
+  const handleRemoveImage = () => {
+    setImage(null);
+    setImagePreview(null);
+    setErrors(prev => ({ ...prev, image: '' }));
+  };
+
+  // Handle has_variants toggle change
+  const handleHasVariantsChange = () => {
+    const newValue = !hasVariants;
     setHasVariants(newValue);
     
     // Show warning if unchecking and product originally had variants
@@ -162,8 +278,35 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     }
   };
 
+  const validateForm = () => {
+    const newErrors = {};
+    
+    // Validate all fields
+    Object.keys(formData).forEach(key => {
+      const error = validateField(key, formData[key]);
+      if (error) newErrors[key] = error;
+    });
+    
+    setErrors(newErrors);
+    setTouched({
+      title: true,
+      price: true,
+      stock: true,
+      sku: true,
+      description: true
+    });
+    
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate form
+    if (!validateForm()) {
+      setMessage({ type: 'error', text: 'Please fix all errors before submitting' });
+      return;
+    }
     
     // Final confirmation if deleting variants
     if (showVariantWarning) {
@@ -184,11 +327,11 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     try {
       const data = new FormData();
       
-      if (formData.title) data.append('title', formData.title);
-      if (formData.description) data.append('description', formData.description);
+      if (formData.title) data.append('title', formData.title.trim());
+      if (formData.description) data.append('description', formData.description.trim());
       if (formData.price) data.append('price', formData.price);
       if (formData.stock !== '') data.append('stock', formData.stock);
-      if (formData.sku) data.append('sku', formData.sku);
+      if (formData.sku) data.append('sku', formData.sku.trim());
       if (formData.category_id) {
         data.append('category_id', formData.category_id);
       } else {
@@ -228,263 +371,329 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
   };
 
   if (loadingProduct) {
-    return <div style={{ padding: '20px' }}>Loading product...</div>;
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="w-8 h-8 text-tppslate animate-spin" />
+      </div>
+    );
   }
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px' }}>
-      <h2 style={{ marginBottom: '20px' }}>Update Product</h2>
-      
+    <div className="p-6 space-y-6">
+      {/* Header with Icon */}
+      <div className="flex items-center gap-3 pb-4 border-b-2 border-slate-200">
+        <div className="w-10 h-10 bg-tppslate rounded-lg flex items-center justify-center">
+          <Edit className="w-5 h-5 text-white" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-tppslate">Update Product</h2>
+          <p className="text-sm text-tppslate/60">Edit product information</p>
+        </div>
+      </div>
+
+      {/* Global Message */}
       {message.text && (
-        <div style={{
-          padding: '10px',
-          marginBottom: '15px',
-          borderRadius: '4px',
-          backgroundColor: message.type === 'success' ? '#d4edda' : '#f8d7da',
-          color: message.type === 'success' ? '#155724' : '#721c24',
-          border: `1px solid ${message.type === 'success' ? '#c3e6cb' : '#f5c6cb'}`
-        }}>
-          {message.text}
+        <div className={`
+          p-4 rounded-lg border-2 flex items-start gap-3 animate-slide-in
+          ${message.type === 'success' 
+            ? 'bg-tpppeach/20 border-tpppeach text-tppslate' 
+            : 'bg-red-50 border-red-200 text-red-800'
+          }
+        `}>
+          {message.type === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          ) : (
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          )}
+          <div className="flex-1">
+            <p className="font-medium text-sm">{message.text}</p>
+          </div>
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
-        {/* Current Image */}
-        {currentImage && !imagePreview && (
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-              Current Image:
-            </label>
-            <img 
-              src={currentImage} 
-              alt="Current product" 
-              style={{ width: '150px', height: '150px', objectFit: 'cover', borderRadius: '4px' }}
-            />
-          </div>
-        )}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Image Upload Section - Compact */}
+        <div className="bg-white rounded-lg p-6 border-2 border-slate-200 hover:border-tppslate hover:bg-tppslate/5 transition-all duration-200">
+          <InputWrapper 
+            label="Product Image" 
+            name="image" 
+            icon={Upload}
+            error={errors.image}
+            hint="Upload new image to replace current one (max 5MB)"
+          >
+            <div className="flex items-start gap-4 mt-3">
+              {/* Current/Preview Image */}
+              <div className="flex-shrink-0">
+                {imagePreview ? (
+                  <div className="relative group">
+                    <img 
+                      src={imagePreview} 
+                      alt="Product preview" 
+                      className="w-32 h-32 object-cover rounded-lg border-2 border-slate-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute top-1 right-1 p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100"
+                      aria-label="Remove image"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    <div className="absolute bottom-1 left-1 px-2 py-0.5 bg-black/60 text-white text-[10px] rounded-full backdrop-blur-sm">
+                      New
+                    </div>
+                  </div>
+                ) : currentImage ? (
+                  <div className="relative">
+                    <img 
+                      src={currentImage} 
+                      alt="Current product" 
+                      className="w-32 h-32 object-cover rounded-lg border-2 border-slate-200"
+                    />
+                    <div className="absolute bottom-1 left-1 px-2 py-0.5 bg-black/60 text-white text-[10px] rounded-full backdrop-blur-sm">
+                      Current
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-32 h-32 border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center bg-slate-50">
+                    <Upload className="w-8 h-8 text-slate-300" />
+                  </div>
+                )}
+              </div>
 
-        {/* New Image Upload */}
-        <div style={{ marginBottom: '15px' }}>
-          <label htmlFor="image" style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-            New Image (optional):
-          </label>
-          <input
-            type="file"
-            id="image"
-            accept="image/*"
-            onChange={handleImageChange}
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
-            }}
-          />
-          {imagePreview && (
-            <img 
-              src={imagePreview} 
-              alt="Preview" 
-              style={{ marginTop: '10px', width: '150px', height: '150px', objectFit: 'cover', borderRadius: '4px' }}
-            />
-          )}
+              {/* Upload Button */}
+              <label 
+                htmlFor="image" 
+                className="flex-1 flex flex-col items-center justify-center h-32 border-2 border-dashed border-slate-200 rounded-lg cursor-pointer bg-tpppeach/10 hover:bg-tpppeach/20 hover:border-tppslate hover:bg-tppslate/5 transition-all duration-200 group"
+              >
+                <Upload className="w-8 h-8 text-tppslate/40 mb-2 group-hover:text-tppslate transition-colors" />
+                <p className="text-sm text-tppslate/60">
+                  <span className="font-semibold">Click to upload</span>
+                </p>
+                <p className="text-xs text-tppslate/40 mt-1">PNG, JPG, WEBP up to 5MB</p>
+                <input
+                  id="image"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </InputWrapper>
         </div>
 
-        {/* Title */}
-        <div style={{ marginBottom: '15px' }}>
-          <label htmlFor="title" style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-            Product Title:
-          </label>
-          <input
-            type="text"
-            id="title"
-            name="title"
-            value={formData.title}
-            onChange={handleChange}
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
-            }}
-          />
-        </div>
-
-        {/* Description */}
-        <div style={{ marginBottom: '15px' }}>
-          <label htmlFor="description" style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-            Description:
-          </label>
-          <textarea
-            id="description"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            rows="4"
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
-            }}
-          />
-        </div>
-
-        {/* Price */}
-        <div style={{ marginBottom: '15px' }}>
-          <label htmlFor="price" style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-            Price (₹):
-          </label>
-          <input
-            type="number"
-            id="price"
-            name="price"
-            value={formData.price}
-            onChange={handleChange}
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
-            }}
-          />
-        </div>
-
-        {/* Stock */}
-        <div style={{ marginBottom: '15px' }}>
-          <label htmlFor="stock" style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-            Stock Quantity:
-          </label>
-          <input
-            type="number"
-            id="stock"
-            name="stock"
-            value={formData.stock}
-            onChange={handleChange}
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
-            }}
-          />
-        </div>
-
-        {/* SKU */}
-        <div style={{ marginBottom: '15px' }}>
-          <label htmlFor="sku" style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-            SKU:
-          </label>
-          <input
-            type="text"
-            id="sku"
-            name="sku"
-            value={formData.sku}
-            onChange={handleChange}
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
-            }}
-          />
-        </div>
-
-        {/* Category Selection */}
-        <div style={{ marginBottom: '15px' }}>
-          <label htmlFor="category_id" style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-            Category
-          </label>
+        {/* Product Details Section */}
+        <div className="bg-white rounded-lg p-6 border-2 border-slate-200 hover:border-tppslate hover:bg-tppslate/5 transition-all duration-200">
+          <h3 className="text-base font-bold text-tppslate mb-4 flex items-center gap-2">
+            <Tag className="w-5 h-5" />
+            Product Details
+          </h3>
           
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'start' }}>
-            <select
-              id="category_id"
-              name="category_id"
-              value={formData.category_id}
-              onChange={handleChange}
-              disabled={loadingCategories}
-              style={{
-                flex: 1,
-                padding: '8px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                backgroundColor: loadingCategories ? '#f0f0f0' : 'white'
-              }}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Title */}
+            <div className="md:col-span-2">
+              <InputWrapper 
+                label="Product Title" 
+                name="title" 
+                required 
+                icon={Tag}
+                error={errors.title}
+                hint="Enter a clear, descriptive product name"
+              >
+                <input
+                  type="text"
+                  id="title"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  placeholder="e.g., Pink Heart Necklace"
+                  className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
+                    errors.title && touched.title
+                      ? 'border-red-300 bg-red-50'
+                      : 'border-slate-200 hover:border-tppslate hover:bg-tppslate/5/40 focus:border-tppslate bg-white hover:bg-tpppeach/10'
+                  }`}
+                  aria-invalid={errors.title && touched.title ? 'true' : 'false'}
+                />
+              </InputWrapper>
+            </div>
+
+            {/* Price */}
+            <InputWrapper 
+              label="Price (₹)" 
+              name="price" 
+              required 
+              icon={DollarSign}
+              error={errors.price}
+              hint="Enter amount in INR"
             >
-              <option value="">-- No Category --</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
+              <input
+                type="number"
+                id="price"
+                name="price"
+                value={formData.price}
+                onChange={handleInputChange}
+                onBlur={handleBlur}
+                placeholder="999"
+                min="0"
+                step="0.01"
+                className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
+                  errors.price && touched.price
+                    ? 'border-red-300 bg-red-50'
+                    : 'border-slate-200 hover:border-tppslate hover:bg-tppslate/5/40 focus:border-tppslate bg-white hover:bg-tpppeach/10'
+                }`}
+                aria-invalid={errors.price && touched.price ? 'true' : 'false'}
+              />
+            </InputWrapper>
 
-            <button
-              type="button"
-              onClick={() => setShowAddCategory(!showAddCategory)}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: showAddCategory ? '#6c757d' : '#28a745',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: '600',
-                whiteSpace: 'nowrap'
-              }}
+            {/* Stock */}
+            <InputWrapper 
+              label="Stock Quantity" 
+              name="stock" 
+              required 
+              icon={Package}
+              error={errors.stock}
+              hint="Available inventory count"
             >
-              {showAddCategory ? 'Cancel' : '+ New Category'}
-            </button>
-          </div>
+              <input
+                type="number"
+                id="stock"
+                name="stock"
+                value={formData.stock}
+                onChange={handleInputChange}
+                onBlur={handleBlur}
+                placeholder="50"
+                min="0"
+                className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
+                  errors.stock && touched.stock
+                    ? 'border-red-300 bg-red-50'
+                    : 'border-slate-200 hover:border-tppslate hover:bg-tppslate/5/40 focus:border-tppslate bg-white hover:bg-tpppeach/10'
+                }`}
+                aria-invalid={errors.stock && touched.stock ? 'true' : 'false'}
+              />
+            </InputWrapper>
 
-          {/* Add New Category Section */}
-          {showAddCategory && (
-            <div style={{
-              marginTop: '15px',
-              padding: '15px',
-              backgroundColor: '#f8f9fa',
-              border: '2px dashed #dee2e6',
-              borderRadius: '8px'
-            }}>
-              <h4 style={{ marginTop: 0, marginBottom: '15px', fontSize: '1rem' }}>
-                Quick Add Category
-              </h4>
+            {/* SKU */}
+            <InputWrapper 
+              label="SKU (Stock Keeping Unit)" 
+              name="sku" 
+              required 
+              icon={Hash}
+              error={errors.sku}
+              hint="Unique product identifier"
+            >
+              <input
+                type="text"
+                id="sku"
+                name="sku"
+                value={formData.sku}
+                onChange={handleInputChange}
+                onBlur={handleBlur}
+                placeholder="NECKLACE-001"
+                className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm font-mono transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
+                  errors.sku && touched.sku
+                    ? 'border-red-300 bg-red-50'
+                    : 'border-slate-200 hover:border-tppslate hover:bg-tppslate/5/40 focus:border-tppslate bg-white hover:bg-tpppeach/10'
+                }`}
+                aria-invalid={errors.sku && touched.sku ? 'true' : 'false'}
+              />
+            </InputWrapper>
 
-              {categoryMessage.text && (
-                <div style={{
-                  padding: '8px',
-                  marginBottom: '10px',
-                  borderRadius: '4px',
-                  fontSize: '0.9rem',
-                  backgroundColor: categoryMessage.type === 'success' ? '#d4edda' : '#f8d7da',
-                  color: categoryMessage.type === 'success' ? '#155724' : '#721c24',
-                  border: `1px solid ${categoryMessage.type === 'success' ? '#c3e6cb' : '#f5c6cb'}`
-                }}>
-                  {categoryMessage.text}
+            {/* Category */}
+            <InputWrapper 
+              label="Category" 
+              name="category_id" 
+              icon={Layers}
+              hint="Optional: Organize products by category"
+            >
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <select
+                    id="category_id"
+                    name="category_id"
+                    value={formData.category_id}
+                    onChange={handleInputChange}
+                    disabled={loadingCategories}
+                    className="w-full px-4 py-2.5 pr-10 border-2 border-slate-200 rounded-lg text-sm appearance-none hover:border-tppslate hover:bg-tppslate/5/40 hover:bg-tpppeach/10 focus:border-tppslate focus:outline-none focus:ring-2 focus:ring-tppslate/20 transition-all duration-200 disabled:bg-slate-100 disabled:cursor-not-allowed bg-white"
+                  >
+                    <option value="">-- No Category --</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tppslate/40 pointer-events-none" />
                 </div>
-              )}
+                <button
+                  type="button"
+                  onClick={() => setShowAddCategory(!showAddCategory)}
+                  className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-2 whitespace-nowrap border-2 ${
+                    showAddCategory
+                      ? 'bg-slate-100 text-tppslate hover:bg-slate-200 border-slate-200'
+                      : 'bg-tpppeach text-tppslate hover:bg-tpppeach/80 border-tpppeach'
+                  }`}
+                >
+                  {showAddCategory ? (
+                    <>
+                      <X className="w-4 h-4" />
+                      Cancel
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      New
+                    </>
+                  )}
+                </button>
+              </div>
+            </InputWrapper>
+          </div>
+        </div>
 
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9rem', fontWeight: '600' }}>
-                  Category Name *
+        {/* Add Category Section */}
+        {showAddCategory && (
+          <div className="bg-white rounded-lg p-5 border-2 border-slate-200 hover:border-tppslate hover:bg-tppslate/5 transition-all duration-200 animate-slide-in">
+            <div className="flex items-center gap-2 text-tppslate mb-4">
+              <Plus className="w-5 h-5" />
+              <h3 className="font-semibold">Create New Category</h3>
+            </div>
+
+            {categoryMessage.text && (
+              <div className={`
+                p-3 rounded-lg border-2 flex items-center gap-2 text-sm mb-4
+                ${categoryMessage.type === 'success' 
+                  ? 'bg-tpppeach/20 border-tpppeach text-tppslate' 
+                  : 'bg-red-50 border-red-200 text-red-800'
+                }
+              `}>
+                {categoryMessage.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                )}
+                {categoryMessage.text}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-semibold text-tppslate mb-1.5">
+                  Category Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   name="name"
                   value={newCategory.name}
                   onChange={handleNewCategoryChange}
-                  placeholder="e.g., Necklaces"
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    border: '1px solid #ced4da',
-                    borderRadius: '4px',
-                    fontSize: '0.9rem'
-                  }}
+                  placeholder="e.g., Necklaces, Bracelets"
+                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg text-sm hover:border-tppslate hover:bg-tppslate/5/40 hover:bg-tpppeach/10 focus:border-tppslate focus:outline-none focus:ring-2 focus:ring-tppslate/20 transition-all duration-200 bg-white"
                 />
               </div>
 
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9rem', fontWeight: '600' }}>
+              <div>
+                <label className="block text-sm font-semibold text-tppslate mb-1.5">
                   Description (Optional)
                 </label>
                 <textarea
@@ -492,168 +701,167 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
                   value={newCategory.description}
                   onChange={handleNewCategoryChange}
                   rows="2"
-                  placeholder="Brief description..."
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    border: '1px solid #ced4da',
-                    borderRadius: '4px',
-                    fontSize: '0.9rem',
-                    resize: 'vertical'
-                  }}
+                  placeholder="Brief category description..."
+                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg text-sm hover:border-tppslate hover:bg-tppslate/5/40 hover:bg-tpppeach/10 focus:border-tppslate focus:outline-none focus:ring-2 focus:ring-tppslate/20 transition-all duration-200 resize-none bg-white"
                 />
               </div>
 
               <button
                 type="button"
                 onClick={handleCreateCategory}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  backgroundColor: '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  fontSize: '0.9rem'
-                }}
+                className="w-full px-4 py-2.5 bg-tppslate text-white rounded-lg text-sm font-semibold hover:bg-tppslate/90 transition-all duration-200 flex items-center justify-center gap-2 border-2 border-tppslate"
               >
+                <Plus className="w-4 h-4" />
                 Create Category
               </button>
             </div>
-          )}
+          </div>
+        )}
+
+        {/* Description Section */}
+        <div className="bg-white rounded-lg p-6 border-2 border-slate-200 hover:border-tppslate hover:bg-tppslate/5 transition-all duration-200">
+          <InputWrapper 
+            label="Description" 
+            name="description" 
+            icon={FileText}
+            error={errors.description}
+            hint="Detailed product information (optional)"
+          >
+            <textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              onBlur={handleBlur}
+              rows="4"
+              placeholder="Beautiful heart-shaped necklace perfect for gifting..."
+              className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 resize-none focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
+                errors.description && touched.description
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-slate-200 hover:border-tppslate hover:bg-tppslate/5/40 focus:border-tppslate bg-white hover:bg-tpppeach/10'
+              }`}
+              aria-invalid={errors.description && touched.description ? 'true' : 'false'}
+            />
+            <p className="text-xs text-tppslate/40 mt-1">
+              {formData.description.length}/2000 characters
+            </p>
+          </InputWrapper>
         </div>
 
         {/* Has Variants Toggle with WARNING */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            cursor: 'pointer',
-            padding: '12px',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '4px',
-            border: '1px solid #dee2e6'
-          }}>
-            <input
-              type="checkbox"
-              checked={hasVariants}
-              onChange={handleHasVariantsChange}
-              style={{ marginRight: '10px', width: '18px', height: '18px', cursor: 'pointer' }}
-            />
-            <div>
-              <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>
-                This product has variants
-              </span>
-              <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '4px' }}>
-                (e.g., different colors, sizes, metals, etc.)
+        <div className="bg-white rounded-lg p-5 border-2 border-slate-200 hover:border-tppslate hover:bg-tppslate/5 transition-all duration-200">
+          <div className="flex items-start gap-4">
+            <button
+              type="button"
+              onClick={handleHasVariantsChange}
+              className="relative flex items-center focus:outline-none focus:ring-2 focus:ring-tppslate/20 rounded-full"
+              role="switch"
+              aria-checked={hasVariants}
+              aria-label="Toggle product variants"
+            >
+              <div className={`w-11 h-6 rounded-full transition-all duration-200 ${
+                hasVariants ? 'bg-tpppeach' : 'bg-slate-300'
+              }`}></div>
+              <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-all duration-200 shadow-sm ${
+                hasVariants ? 'translate-x-5' : ''
+              }`}></div>
+            </button>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-tppslate/60" />
+                <span className="font-semibold text-sm text-tppslate">
+                  This product has variants
+                </span>
               </div>
-            </div>
-          </label>
+              <p className="text-xs text-tppslate/60 mt-1">
+                Enable if this product comes in different options (colors, sizes, materials, etc.)
+              </p>
+              
+              {/* Variant Warning - Shows when unchecking has_variants */}
+              {showVariantWarning && (
+                <div className="mt-3 p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg animate-slide-in">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="font-bold text-sm text-yellow-800 mb-2">
+                        ⚠️ DANGER: Variant Deletion Warning
+                      </h4>
+                      <p className="text-xs text-yellow-800 font-semibold mb-2">
+                        Unchecking this box will permanently delete all {variantCount} variant(s) associated with this product!
+                      </p>
+                      <ul className="text-xs text-yellow-700 space-y-1 mb-2 ml-4 list-disc">
+                        <li>All variant data will be lost</li>
+                        <li>All variant images will be deleted from Cloudinary</li>
+                        <li>This action CANNOT be undone</li>
+                      </ul>
+                      <p className="text-xs text-red-700 font-bold flex items-start gap-1.5">
+                        <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                        <span>Alternative: Keep the checkbox checked and manage variants individually.</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-          {/* Variant Warning - Shows when unchecking has_variants */}
-          {showVariantWarning && (
-            <div style={{
-              marginTop: '15px',
-              padding: '15px',
-              backgroundColor: '#fff3cd',
-              border: '2px solid #ffc107',
-              borderRadius: '8px',
-              animation: 'pulse 2s infinite'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'start', gap: '10px' }}>
-                <span style={{ fontSize: '1.5rem' }}>⚠️</span>
-                <div>
-                  <h4 style={{ margin: '0 0 10px 0', color: '#856404', fontSize: '1rem', fontWeight: '700' }}>
-                    DANGER: Variant Deletion Warning
-                  </h4>
-                  <p style={{ margin: '0 0 10px 0', color: '#856404', fontSize: '0.9rem', fontWeight: '600' }}>
-                    Unchecking this box will permanently delete all {variantCount} variant(s) associated with this product!
-                  </p>
-                  <ul style={{ margin: '10px 0', paddingLeft: '20px', color: '#856404', fontSize: '0.85rem' }}>
-                    <li>All variant data will be lost</li>
-                    <li>All variant images will be deleted from Cloudinary</li>
-                    <li>This action CANNOT be undone</li>
-                  </ul>
-                  <p style={{ margin: '10px 0 0 0', color: '#d32f2f', fontSize: '0.9rem', fontWeight: '700' }}>
-                    💡 Alternative: Keep the checkbox checked and manage variants individually.
+              {hasVariants && !showVariantWarning && (
+                <div className="mt-3 p-3 bg-blue-50 border-2 border-blue-200 rounded-lg animate-slide-in">
+                  <p className="text-xs text-blue-800 flex items-start gap-2">
+                    <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Note:</strong> Use the "Variants" button in the product list to manage variants for this product.
+                      {variantCount > 0 && (
+                        <span className="block mt-1 font-semibold">
+                          Current variants: {variantCount}
+                        </span>
+                      )}
+                    </span>
                   </p>
                 </div>
-              </div>
+              )}
             </div>
-          )}
-
-          {hasVariants && !showVariantWarning && (
-            <div style={{
-              marginTop: '10px',
-              padding: '12px',
-              backgroundColor: '#e7f3ff',
-              border: '1px solid #b3d9ff',
-              borderRadius: '4px'
-            }}>
-              <p style={{ margin: 0, fontSize: '0.875rem', color: '#004085' }}>
-                ℹ️ <strong>Note:</strong> Click the "Variants" button in the product list to manage variants for this product.
-                {variantCount > 0 && (
-                  <span style={{ display: 'block', marginTop: '5px', fontWeight: '600' }}>
-                    Current variants: {variantCount}
-                  </span>
-                )}
-              </p>
-            </div>
-          )}
+          </div>
         </div>
 
-        {/* Buttons */}
-        <div style={{ display: 'flex', gap: '10px' }}>
+        {/* Submit Buttons */}
+        <div className="flex gap-3 pt-4 border-t-2 border-slate-200">
           <button
             type="submit"
             disabled={loading}
-            style={{
-              flex: 1,
-              padding: '10px',
-              backgroundColor: loading ? '#ccc' : (showVariantWarning ? '#dc3545' : '#007bff'),
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontWeight: '600'
-            }}
+            className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all duration-200 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm hover:shadow-md border-2 ${
+              loading
+                ? 'bg-slate-300 border-slate-300 text-slate-500'
+                : showVariantWarning
+                ? 'bg-red-600 border-red-600 text-white hover:bg-red-700'
+                : 'bg-tppslate border-tppslate text-white hover:bg-tppslate/90'
+            }`}
           >
-            {loading ? 'Updating...' : (showVariantWarning ? '⚠️ Update & Delete Variants' : 'Update Product')}
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Updating...
+              </>
+            ) : showVariantWarning ? (
+              <>
+                <AlertCircle className="w-5 h-5" />
+                Update & Delete Variants
+              </>
+            ) : (
+              'Update Product'
+            )}
           </button>
           
           {onCancel && (
             <button
               type="button"
               onClick={onCancel}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: '#6c757d',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: '600'
-              }}
+              disabled={loading}
+              className="px-6 py-3 bg-slate-100 text-tppslate rounded-lg font-semibold hover:bg-slate-200 transition-all duration-200 border-2 border-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
           )}
         </div>
       </form>
-
-      {/* CSS Animation for Warning Pulse */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% {
-            box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
-          }
-          50% {
-            box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
-          }
-        }
-      `}</style>
     </div>
   );
 };

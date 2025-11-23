@@ -95,16 +95,26 @@ export default function TopBar({ onMenuClick }) {
           .slice(0, 3);
       }
 
-      // Filter bundles by search query
+      // Filter bundles by search query - FIX: Deduplicate bundles by ID
       if (bundlesRes?.ok) {
         const data = await bundlesRes.json();
         const allBundles = data.data || [];
-        results.bundles = allBundles
-          .filter(b => 
-            b.title?.toLowerCase().includes(lowerQuery) ||
-            b.description?.toLowerCase().includes(lowerQuery)
-          )
-          .slice(0, 3);
+        
+        // Use a Map to ensure unique bundles by ID
+        const uniqueBundlesMap = new Map();
+        
+        allBundles.forEach(bundle => {
+          if (bundle.title?.toLowerCase().includes(lowerQuery) ||
+              bundle.description?.toLowerCase().includes(lowerQuery)) {
+            // Only add if not already in map (prevents duplicates)
+            if (!uniqueBundlesMap.has(bundle.id)) {
+              uniqueBundlesMap.set(bundle.id, bundle);
+            }
+          }
+        });
+        
+        // Convert map to array and take first 3
+        results.bundles = Array.from(uniqueBundlesMap.values()).slice(0, 3);
       }
 
       // Filter orders by search query
@@ -264,7 +274,7 @@ export default function TopBar({ onMenuClick }) {
                     </div>
                   )}
 
-                  {/* Bundles */}
+                  {/* Bundles - FIXED: Removed nested map */}
                   {searchResults.bundles?.length > 0 && (
                     <div className="mb-2">
                       <div className="px-4 py-2 text-xs font-semibold text-tppslate/60 flex items-center gap-2">
@@ -287,7 +297,7 @@ export default function TopBar({ onMenuClick }) {
                               {bundle.title}
                             </div>
                             <div className="text-xs text-tppslate/60">
-                              ₹{bundle.price} • {bundle.product_count || bundle.products?.length || bundle.bundle_items?.length || 0} products
+                              ₹{bundle.price} • {bundle.product_count || 0} products
                             </div>
                           </div>
                         </button>

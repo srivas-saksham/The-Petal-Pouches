@@ -2,45 +2,66 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { MoreVertical } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 export default function ActionMenu({ actions = [], position = 'bottom-right' }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState('bottom');
+  const [dropdownPosition, setDropdownPosition] = useState(null);
+  const [isHoveringMenu, setIsHoveringMenu] = useState(false);
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
-  const dropdownRef = useRef(null);
+  const rowRef = useRef(null);
 
-  // Calculate if dropdown should open upward or downward
+  // Find and store reference to parent table row
   useEffect(() => {
-    if (isOpen && buttonRef.current && dropdownRef.current) {
+    if (buttonRef.current) {
+      rowRef.current = buttonRef.current.closest('tr');
+    }
+  }, []);
+
+  // Calculate dropdown position - ALWAYS opens downward
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
       const buttonRect = buttonRef.current.getBoundingClientRect();
-      const dropdownHeight = dropdownRef.current.offsetHeight;
-      const viewportHeight = window.innerHeight;
       
-      // Calculate space below and above
-      const spaceBelow = viewportHeight - buttonRect.bottom;
-      const spaceAbove = buttonRect.top;
-      
-      // If not enough space below but enough space above, open upward
-      if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
-        setDropdownPosition('top');
-      } else {
-        setDropdownPosition('bottom');
-      }
+      setDropdownPosition({
+        top: buttonRect.bottom + 8, // Always 8px below the button
+        left: buttonRect.right - 180, // Align to right edge
+      });
+    } else {
+      setDropdownPosition(null);
     }
   }, [isOpen]);
+
+  // Apply hover effect to row when hovering menu or menu is open
+  useEffect(() => {
+    if (rowRef.current) {
+      if (isHoveringMenu || isOpen) {
+        // Add peach background
+        rowRef.current.classList.add('!bg-tpppeach', '!bg-opacity-100');
+      } else {
+        // Remove peach background
+        rowRef.current.classList.remove('!bg-tpppeach', '!bg-opacity-100');
+      }
+    }
+  }, [isHoveringMenu, isOpen]);
 
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      if (menuRef.current && !menuRef.current.contains(event.target) &&
+          buttonRef.current && !buttonRef.current.contains(event.target)) {
         setIsOpen(false);
+        setIsHoveringMenu(false);
       }
     };
 
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        setIsHoveringMenu(false);
+      };
     }
   }, [isOpen]);
 
@@ -49,29 +70,38 @@ export default function ActionMenu({ actions = [], position = 'bottom-right' }) 
       action.onClick();
     }
     setIsOpen(false);
+    setIsHoveringMenu(false);
   };
 
   return (
-    <div className="relative inline-block" ref={menuRef}>
-      {/* Three dots button */}
-      <button
-        ref={buttonRef}
-        onClick={() => setIsOpen(!isOpen)}
-        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-        aria-label="Actions menu"
-      >
-        <MoreVertical className="w-5 h-5 text-gray-600" />
-      </button>
+    <>
+      <div className="relative inline-block">
+        {/* Three dots button */}
+        <button
+          ref={buttonRef}
+          onClick={() => setIsOpen(!isOpen)}
+          onMouseEnter={() => setIsHoveringMenu(true)}
+          onMouseLeave={() => setIsHoveringMenu(false)}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          aria-label="Actions menu"
+        >
+          <MoreVertical className="w-5 h-5 text-gray-600" />
+        </button>
+      </div>
 
-      {/* Dropdown menu */}
-      {isOpen && (
+      {/* Dropdown menu - rendered with portal, ALWAYS opens downward */}
+      {isOpen && dropdownPosition && createPortal(
         <div
-          ref={dropdownRef}
-          className={`
-            absolute right-0 z-50 min-w-[180px] bg-white rounded-lg shadow-lg 
-            border border-gray-200 py-1 animate-in fade-in duration-100
-            ${dropdownPosition === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'}
-          `}
+          ref={menuRef}
+          onMouseEnter={() => setIsHoveringMenu(true)}
+          onMouseLeave={() => setIsHoveringMenu(false)}
+          style={{
+            position: 'fixed',
+            top: `${dropdownPosition.top}px`,
+            left: `${dropdownPosition.left}px`,
+            zIndex: 9999,
+          }}
+          className="min-w-[180px] bg-white rounded-lg shadow-lg border border-gray-200 py-1 animate-in fade-in duration-100"
         >
           {actions.map((action, index) => {
             // Render divider
@@ -107,8 +137,9 @@ export default function ActionMenu({ actions = [], position = 'bottom-right' }) 
               </button>
             );
           })}
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 }
