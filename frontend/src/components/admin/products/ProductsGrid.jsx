@@ -86,7 +86,7 @@ export default function ProductsGrid({
               key={product.id}
               className={`
                 group relative bg-white rounded-lg border-2 transition-all duration-200
-                hover:shadow-lg
+                hover:shadow-lg border-2 transition-all duration-200 hover:border-tppslate hover:shadow-sm hover:bg-tppslate/5
                 ${isSelected 
                   ? 'border-tppmint shadow-md' 
                   : 'border-tppgrey/30 hover:border-tppgrey'
@@ -102,7 +102,7 @@ export default function ProductsGrid({
                     onChange={(e) => onSelectOne(product.id, e.target.checked)}
                     className="sr-only"
                   />
-                  <div className={`
+                  {/* <div className={`
                     w-6 h-6 rounded border-2 flex items-center justify-center transition-all
                     ${isSelected 
                       ? 'bg-tppmint border-tppmint' 
@@ -110,7 +110,7 @@ export default function ProductsGrid({
                     }
                   `}>
                     {isSelected && <Check className="w-4 h-4 text-white" />}
-                  </div>
+                  </div> */}
                 </label>
               </div>
 

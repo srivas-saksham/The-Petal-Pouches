@@ -50,13 +50,13 @@ const CompactStatCard = ({ icon: Icon, label, value, subValue, variant = 'defaul
   const getVariantStyles = () => {
     switch (variant) {
       case 'success':
-        return 'border-green-300 bg-green-50 hover:border-green-400';
+        return 'border-green-300 border-2 transition-all duration-200 hover:border-green-600 hover:shadow-sm hover:bg-green-100';
       case 'warning':
-        return 'border-amber-300 bg-amber-50 hover:border-amber-400';
+        return 'border-yellow-300 border-2 transition-all duration-200 hover:border-yellow-600 hover:shadow-sm hover:bg-yellow-100';
       case 'danger':
-        return 'border-red-300 bg-red-50 hover:border-red-400';
+        return 'border-red-300 border-2 transition-all duration-200 hover:border-red-600 hover:shadow-sm hover:bg-red-100';
       default:
-        return 'border-slate-200 hover:border-slate-300';
+        return 'border-slate-200 border-2 transition-all duration-200 hover:border-tppslate hover:shadow-sm hover:bg-tppslate/10';
     }
   };
 
@@ -439,7 +439,7 @@ export default function EnhancedProductStats() {
         <div className="space-y-4 pt-2">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Stock Distribution */}
-            <div className="bg-white rounded border border-slate-200 p-4">
+            <div className="bg-white rounded border border-slate-200 p-4 border-2 transition-all duration-200 hover:border-tppslate hover:shadow-sm hover:bg-tppslate/10">
               <div className="flex items-center gap-2 mb-4">
                 <PieChart className="w-4 h-4 text-slate-600" />
                 <h3 className="text-sm font-semibold text-slate">Stock Distribution</h3>
@@ -479,7 +479,7 @@ export default function EnhancedProductStats() {
             </div>
 
             {/* Category Distribution */}
-            <div className="bg-white rounded border border-slate-200 p-4">
+            <div className="bg-white rounded border border-slate-200 p-4 border-2 transition-all duration-200 hover:border-tppslate hover:shadow-sm hover:bg-tppslate/10">
               <div className="flex items-center gap-2 mb-4">
                 <Tag className="w-4 h-4 text-slate-600" />
                 <h3 className="text-sm font-semibold text-slate">Category Distribution</h3>
@@ -503,7 +503,7 @@ export default function EnhancedProductStats() {
 
             {/* Price Range Distribution */}
             {stats.priceRanges.length > 0 && (
-              <div className="bg-white rounded border border-slate-200 p-4">
+              <div className="bg-white rounded border border-slate-200 p-4 border-2 transition-all duration-200 hover:border-tppslate hover:shadow-sm hover:bg-tppslate/10">
                 <div className="flex items-center gap-2 mb-4">
                   <DollarSign className="w-4 h-4 text-slate-600" />
                   <h3 className="text-sm font-semibold text-slate">Price Range Distribution</h3>
@@ -522,7 +522,7 @@ export default function EnhancedProductStats() {
             )}
 
             {/* Product Type Distribution */}
-            <div className="bg-white rounded border border-slate-200 p-4">
+            <div className="bg-white rounded border border-slate-200 p-4 border-2 transition-all duration-200 hover:border-tppslate hover:shadow-sm hover:bg-tppslate/10">
               <div className="flex items-center gap-2 mb-4">
                 <Layers className="w-4 h-4 text-slate-600" />
                 <h3 className="text-sm font-semibold text-slate">Product Type Distribution</h3>
@@ -555,13 +555,13 @@ export default function EnhancedProductStats() {
           </div>
 
           {/* Key Insights */}
-          <div className="bg-slate-50 rounded border border-slate-200 p-4">
+          <div className="bg-slate-50 rounded border border-slate-200 p-4 border-2 transition-all duration-200 hover:border-tppslate hover:shadow-sm hover:bg-tppslate/10">
             <h3 className="text-sm font-semibold text-slate mb-3 flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-slate-600" />
               Key Insights
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-              <div className="bg-white rounded border border-slate-200 p-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs ">
+              <div className="bg-white rounded border border-slate-200 p-3 border-2 transition-all duration-200 hover:border-tppslate hover:shadow-sm hover:bg-tppslate/10">
                 <div className="font-semibold text-slate-700 mb-1">Inventory Status</div>
                 <div className="text-slate-600">
                   {stats.inStockPercent >= 70 
@@ -571,7 +571,7 @@ export default function EnhancedProductStats() {
                     : '⚠ Low inventory - consider restocking'}
                 </div>
               </div>
-              <div className="bg-white rounded border border-slate-200 p-3">
+              <div className="bg-white rounded border border-slate-200 p-3 border-2 transition-all duration-200 hover:border-tppslate hover:shadow-sm hover:bg-tppslate/10">
                 <div className="font-semibold text-slate-700 mb-1">Urgent Actions</div>
                 <div className="text-slate-600">
                   {stats.outOfStock > 0 
@@ -581,7 +581,7 @@ export default function EnhancedProductStats() {
                     : '✓ No urgent actions needed'}
                 </div>
               </div>
-              <div className="bg-white rounded border border-slate-200 p-3">
+              <div className="bg-white rounded border border-slate-200 p-3 border-2 transition-all duration-200 hover:border-tppslate hover:shadow-sm hover:bg-tppslate/10">
                 <div className="font-semibold text-slate-700 mb-1">Product Diversity</div>
                 <div className="text-slate-600">
                   {stats.categoryStats.length} {stats.categoryStats.length === 1 ? 'category' : 'categories'} with 
