@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        'tpppink': '#EDAFB8',           // Primary accents, buttons, active states
+        'tpppink': '#d95669',           // Primary accents, buttons, active states
         'tpppeach': '#F7E1D7',          // Backgrounds, card surfaces
         'tppgrey': '#DEDBD2',           // Table rows, dividers, borders
         'tppmint': '#B0C4B1',           // Success badges, positive indicators

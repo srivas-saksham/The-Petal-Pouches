@@ -134,7 +134,7 @@ export default function Dashboard() {
           title="Dashboard"
           description="Welcome back! Here's what's happening with your store today."
         />
-        <div className="bg-white rounded-lg border-2 border-slate-200 p-8 text-center transition-all duration-200 hover:border-tppslate hover:bg-tppslate/5 hover:shadow-sm">
+        <div className="bg-white rounded-lg border-2 border-tpppink/30 p-8 text-center transition-all duration-200 hover:border-tpppink hover:bg-tpppink/5 hover:shadow-sm">
           <div className="text-red-500 mb-3 text-xl">⚠️</div>
           <h3 className="text-base font-semibold text-tppslate mb-1">Error Loading Dashboard</h3>
           <p className="text-tppslate/70 text-xs mb-3">{error}</p>
@@ -169,10 +169,10 @@ export default function Dashboard() {
             return (
               <div 
                 key={stat.id} 
-                className="bg-white rounded-lg p-4 border-2 border-slate-200 animate-fade-in transition-all duration-200 hover:border-tppslate hover:bg-tppslate/5 hover:shadow-sm "
+                className="bg-white rounded-lg p-4 border-2 border-tpppink/30 animate-fade-in transition-all duration-200 hover:border-tpppink hover:bg-tpppink/5 hover:shadow-sm "
               >
                 <div className="flex items-center justify-between mb-3">
-                  <div className="w-9 h-9 bg-tpppeach/30 rounded-md flex items-center justify-center shadow-sm border border-slate-200">
+                  <div className="w-9 h-9 bg-tpppeach/30 rounded-md flex items-center justify-center shadow-sm border border-tpppink/30">
                     <Icon className="w-5 h-5 text-tppslate" />
                   </div>
                   {stat.change !== 0 && (
@@ -199,7 +199,7 @@ export default function Dashboard() {
       {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Recent Orders */}
-        <div className="bg-white rounded-lg p-4 border-2 border-slate-200 transition-all duration-200 hover:border-tppslate hover:bg-tppslate/5 hover:shadow-sm">
+        <div className="bg-white rounded-lg p-4 border-2 border-tpppink/30 transition-all duration-200 hover:border-tpppink hover:bg-tpppink/5 hover:shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-tppslate">Recent Orders</h3>
             <Link 
@@ -225,7 +225,7 @@ export default function Dashboard() {
               {recentOrders.map((order) => (
                 <div 
                   key={order.id}
-                  className="flex items-center justify-between p-3 bg-white rounded-md border-2 border-slate-200 transition-all duration-200 hover:border-tppslate hover:bg-tppslate/5 hover:shadow-sm "
+                  className="flex items-center justify-between p-3 bg-white rounded-md border-2 border-tpppink/30 transition-all duration-200 hover:border-tpppink hover:bg-tpppink/5 hover:shadow-sm "
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -256,7 +256,7 @@ export default function Dashboard() {
         </div>
 
         {/* Top Products */}
-        <div className="bg-white rounded-lg p-4 border-2 border-slate-200 transition-all duration-200 hover:border-tppslate hover:bg-tppslate/5 hover:shadow-sm">
+        <div className="bg-white rounded-lg p-4 border-2 border-tpppink/30 transition-all duration-200 hover:border-tpppink hover:bg-tpppink/5 hover:shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-tppslate">Top Products</h3>
             <Link 
@@ -282,12 +282,12 @@ export default function Dashboard() {
               {topProducts.map((product, index) => (
                 <div 
                   key={product.id}
-                  className="flex items-center gap-3 p-3 bg-white rounded-md border-2 border-tpppeach transition-all duration-200 hover:border-tpppeach hover:bg-tpppeach/40 hover:shadow-sm "
+                  className="flex items-center gap-3 p-3 bg-white rounded-md border-2 border-tpppink/20 transition-all duration-200 hover:border-tppslate/60 hover:bg-tppslate/5 hover:shadow-sm "
                 >
                   <img
                     src={product.img_url}
                     alt={product.title}
-                    className="w-10 h-10 object-cover rounded border border-slate-200"
+                    className="w-10 h-10 object-cover rounded border border-tpppink/30"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-tppslate truncate text-xs">
@@ -314,13 +314,13 @@ export default function Dashboard() {
 
       {/* Monthly Revenue Chart */}
       {!loading && monthlyRevenue.length > 0 && (
-        <div className="bg-white rounded-lg p-4 border-2 border-slate-200 transition-all duration-200 hover:border-tppslate hover:bg-tppslate/5 hover:shadow-sm">
+        <div className="bg-white rounded-lg p-4 border-2 border-tpppink/30 transition-all duration-200 hover:border-tpppink hover:bg-tpppink/5 hover:shadow-sm">
           <h3 className="text-sm font-bold text-tppslate mb-4">Monthly Revenue</h3>
           <div className="grid grid-cols-6 gap-3">
             {monthlyRevenue.map((data, index) => (
               <div 
                 key={index} 
-                className="text-center p-3 bg-white rounded-md border-2 border-slate-200 transition-all duration-200 hover:border-tppslate hover:bg-tppslate/5 hover:shadow-sm "
+                className="text-center p-3 bg-white rounded-md border-2 border-tpppink/30 transition-all duration-200 hover:border-tpppink hover:bg-tpppink/5 hover:shadow-sm "
               >
                 <div className="text-[10px] text-tppslate/60 mb-1 font-medium">{data.month}</div>
                 <div className="font-bold text-tppslate text-xs">{formatCurrency(data.revenue, false)}</div>
@@ -333,13 +333,13 @@ export default function Dashboard() {
 
       {/* Category Distribution */}
       {!loading && categoryDist.length > 0 && (
-        <div className="bg-white rounded-lg p-4 border-2 border-slate-200 transition-all duration-200 hover:border-tppslate hover:bg-tppslate/5 hover:shadow-sm">
+        <div className="bg-white rounded-lg p-4 border-2 border-tpppink/30 transition-all duration-200 hover:border-tpppink hover:bg-tpppink/5 hover:shadow-sm">
           <h3 className="text-sm font-bold text-tppslate mb-4">Products by Category</h3>
           <div className="space-y-3">
             {categoryDist.slice(0, 5).map((cat) => (
               <div 
                 key={cat.name} 
-                className="flex items-center gap-3 p-3 bg-white rounded-md border-2 border-slate-200 transition-all duration-200 hover:border-tppslate hover:bg-tppslate/5 hover:shadow-sm "
+                className="flex items-center gap-3 p-3 bg-white rounded-md border-2 border-tpppink/30 transition-all duration-200 hover:border-tpppink hover:bg-tpppink/5 hover:shadow-sm "
               >
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">

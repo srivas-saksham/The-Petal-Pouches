@@ -381,7 +381,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
   return (
     <div className="p-6 space-y-6">
       {/* Header with Icon */}
-      <div className="flex items-center gap-3 pb-4 border-b-2 border-slate-200">
+      <div className="flex items-center gap-3 pb-4 border-b-2 border-tpppink/30">
         <div className="w-10 h-10 bg-tppslate rounded-lg flex items-center justify-center">
           <Edit className="w-5 h-5 text-white" />
         </div>
@@ -413,7 +413,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Image Upload Section - Compact */}
-        <div className="bg-white rounded-lg p-6 border-2 border-slate-200 hover:border-tppslate hover:bg-tppslate/5 transition-all duration-200">
+        <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
           <InputWrapper 
             label="Product Image" 
             name="image" 
@@ -429,7 +429,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
                     <img 
                       src={imagePreview} 
                       alt="Product preview" 
-                      className="w-32 h-32 object-cover rounded-lg border-2 border-slate-200"
+                      className="w-32 h-32 object-cover rounded-lg border-2 border-tpppink/30"
                     />
                     <button
                       type="button"
@@ -448,14 +448,14 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
                     <img 
                       src={currentImage} 
                       alt="Current product" 
-                      className="w-32 h-32 object-cover rounded-lg border-2 border-slate-200"
+                      className="w-32 h-32 object-cover rounded-lg border-2 border-tpppink/30"
                     />
                     <div className="absolute bottom-1 left-1 px-2 py-0.5 bg-black/60 text-white text-[10px] rounded-full backdrop-blur-sm">
                       Current
                     </div>
                   </div>
                 ) : (
-                  <div className="w-32 h-32 border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center bg-slate-50">
+                  <div className="w-32 h-32 border-2 border-dashed border-tpppink/30 rounded-lg flex items-center justify-center bg-slate-50">
                     <Upload className="w-8 h-8 text-slate-300" />
                   </div>
                 )}
@@ -464,7 +464,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
               {/* Upload Button */}
               <label 
                 htmlFor="image" 
-                className="flex-1 flex flex-col items-center justify-center h-32 border-2 border-dashed border-slate-200 rounded-lg cursor-pointer bg-tpppeach/10 hover:bg-tpppeach/20 hover:border-tppslate hover:bg-tppslate/5 transition-all duration-200 group"
+                className="flex-1 flex flex-col items-center justify-center h-32 border-2 border-dashed border-tpppink/30 rounded-lg cursor-pointer bg-tpppeach/10 hover:bg-tpppeach/20 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200 group"
               >
                 <Upload className="w-8 h-8 text-tppslate/40 mb-2 group-hover:text-tppslate transition-colors" />
                 <p className="text-sm text-tppslate/60">
@@ -484,7 +484,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         </div>
 
         {/* Product Details Section */}
-        <div className="bg-white rounded-lg p-6 border-2 border-slate-200 hover:border-tppslate hover:bg-tppslate/5 transition-all duration-200">
+        <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
           <h3 className="text-base font-bold text-tppslate mb-4 flex items-center gap-2">
             <Tag className="w-5 h-5" />
             Product Details
@@ -512,7 +512,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
                   className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
                     errors.title && touched.title
                       ? 'border-red-300 bg-red-50'
-                      : 'border-slate-200 hover:border-tppslate hover:bg-tppslate/5/40 focus:border-tppslate bg-white hover:bg-tpppeach/10'
+                      : 'border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5/40 focus:border-tpppink bg-white hover:bg-tpppeach/10'
                   }`}
                   aria-invalid={errors.title && touched.title ? 'true' : 'false'}
                 />
@@ -541,7 +541,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
                 className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
                   errors.price && touched.price
                     ? 'border-red-300 bg-red-50'
-                    : 'border-slate-200 hover:border-tppslate hover:bg-tppslate/5/40 focus:border-tppslate bg-white hover:bg-tpppeach/10'
+                    : 'border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5/40 focus:border-tpppink bg-white hover:bg-tpppeach/10'
                 }`}
                 aria-invalid={errors.price && touched.price ? 'true' : 'false'}
               />
@@ -568,7 +568,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
                 className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
                   errors.stock && touched.stock
                     ? 'border-red-300 bg-red-50'
-                    : 'border-slate-200 hover:border-tppslate hover:bg-tppslate/5/40 focus:border-tppslate bg-white hover:bg-tpppeach/10'
+                    : 'border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5/40 focus:border-tpppink bg-white hover:bg-tpppeach/10'
                 }`}
                 aria-invalid={errors.stock && touched.stock ? 'true' : 'false'}
               />
@@ -594,7 +594,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
                 className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm font-mono transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
                   errors.sku && touched.sku
                     ? 'border-red-300 bg-red-50'
-                    : 'border-slate-200 hover:border-tppslate hover:bg-tppslate/5/40 focus:border-tppslate bg-white hover:bg-tpppeach/10'
+                    : 'border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5/40 focus:border-tpppink bg-white hover:bg-tpppeach/10'
                 }`}
                 aria-invalid={errors.sku && touched.sku ? 'true' : 'false'}
               />
@@ -615,7 +615,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
                     value={formData.category_id}
                     onChange={handleInputChange}
                     disabled={loadingCategories}
-                    className="w-full px-4 py-2.5 pr-10 border-2 border-slate-200 rounded-lg text-sm appearance-none hover:border-tppslate hover:bg-tppslate/5/40 hover:bg-tpppeach/10 focus:border-tppslate focus:outline-none focus:ring-2 focus:ring-tppslate/20 transition-all duration-200 disabled:bg-slate-100 disabled:cursor-not-allowed bg-white"
+                    className="w-full px-4 py-2.5 pr-10 border-2 border-tpppink/30 rounded-lg text-sm appearance-none hover:border-tpppink hover:bg-tpppink/5/40 hover:bg-tpppeach/10 focus:border-tpppink focus:outline-none focus:ring-2 focus:ring-tppslate/20 transition-all duration-200 disabled:bg-slate-100 disabled:cursor-not-allowed bg-white"
                   >
                     <option value="">-- No Category --</option>
                     {categories.map((category) => (
@@ -631,8 +631,8 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
                   onClick={() => setShowAddCategory(!showAddCategory)}
                   className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-2 whitespace-nowrap border-2 ${
                     showAddCategory
-                      ? 'bg-slate-100 text-tppslate hover:bg-slate-200 border-slate-200'
-                      : 'bg-tpppeach text-tppslate hover:bg-tpppeach/80 border-tpppeach'
+                      ? 'bg-slate-100 text-tppslate hover:bg-slate-200 border-tpppink/30'
+                      : 'bg-tpppink/50 text-tppslate hover:bg-tpppink/80 border-tpppink/50'
                   }`}
                 >
                   {showAddCategory ? (
@@ -654,7 +654,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
 
         {/* Add Category Section */}
         {showAddCategory && (
-          <div className="bg-white rounded-lg p-5 border-2 border-slate-200 hover:border-tppslate hover:bg-tppslate/5 transition-all duration-200 animate-slide-in">
+          <div className="bg-white rounded-lg p-5 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200 animate-slide-in">
             <div className="flex items-center gap-2 text-tppslate mb-4">
               <Plus className="w-5 h-5" />
               <h3 className="font-semibold">Create New Category</h3>
@@ -688,7 +688,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
                   value={newCategory.name}
                   onChange={handleNewCategoryChange}
                   placeholder="e.g., Necklaces, Bracelets"
-                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg text-sm hover:border-tppslate hover:bg-tppslate/5/40 hover:bg-tpppeach/10 focus:border-tppslate focus:outline-none focus:ring-2 focus:ring-tppslate/20 transition-all duration-200 bg-white"
+                  className="w-full px-4 py-2.5 border-2 border-tpppink/30 rounded-lg text-sm hover:border-tpppink hover:bg-tpppink/5/40 hover:bg-tpppeach/10 focus:border-tpppink focus:outline-none focus:ring-2 focus:ring-tppslate/20 transition-all duration-200 bg-white"
                 />
               </div>
 
@@ -702,7 +702,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
                   onChange={handleNewCategoryChange}
                   rows="2"
                   placeholder="Brief category description..."
-                  className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg text-sm hover:border-tppslate hover:bg-tppslate/5/40 hover:bg-tpppeach/10 focus:border-tppslate focus:outline-none focus:ring-2 focus:ring-tppslate/20 transition-all duration-200 resize-none bg-white"
+                  className="w-full px-4 py-2.5 border-2 border-tpppink/30 rounded-lg text-sm hover:border-tpppink hover:bg-tpppink/5/40 hover:bg-tpppeach/10 focus:border-tpppink focus:outline-none focus:ring-2 focus:ring-tppslate/20 transition-all duration-200 resize-none bg-white"
                 />
               </div>
 
@@ -719,7 +719,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         )}
 
         {/* Description Section */}
-        <div className="bg-white rounded-lg p-6 border-2 border-slate-200 hover:border-tppslate hover:bg-tppslate/5 transition-all duration-200">
+        <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
           <InputWrapper 
             label="Description" 
             name="description" 
@@ -738,7 +738,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
               className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 resize-none focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
                 errors.description && touched.description
                   ? 'border-red-300 bg-red-50'
-                  : 'border-slate-200 hover:border-tppslate hover:bg-tppslate/5/40 focus:border-tppslate bg-white hover:bg-tpppeach/10'
+                  : 'border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5/40 focus:border-tpppink bg-white hover:bg-tpppeach/10'
               }`}
               aria-invalid={errors.description && touched.description ? 'true' : 'false'}
             />
@@ -749,7 +749,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         </div>
 
         {/* Has Variants Toggle with WARNING */}
-        <div className="bg-white rounded-lg p-5 border-2 border-slate-200 hover:border-tppslate hover:bg-tppslate/5 transition-all duration-200">
+        <div className="bg-white rounded-lg p-5 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
           <div className="flex items-start gap-4">
             <button
               type="button"
@@ -760,7 +760,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
               aria-label="Toggle product variants"
             >
               <div className={`w-11 h-6 rounded-full transition-all duration-200 ${
-                hasVariants ? 'bg-tpppeach' : 'bg-slate-300'
+                hasVariants ? 'bg-tpppink' : 'bg-slate-300'
               }`}></div>
               <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-all duration-200 shadow-sm ${
                 hasVariants ? 'translate-x-5' : ''
@@ -823,7 +823,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         </div>
 
         {/* Submit Buttons */}
-        <div className="flex gap-3 pt-4 border-t-2 border-slate-200">
+        <div className="flex gap-3 pt-4 border-t-2 border-tpppink/30">
           <button
             type="submit"
             disabled={loading}
@@ -855,7 +855,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
               type="button"
               onClick={onCancel}
               disabled={loading}
-              className="px-6 py-3 bg-slate-100 text-tppslate rounded-lg font-semibold hover:bg-slate-200 transition-all duration-200 border-2 border-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-3 bg-slate-100 text-tppslate rounded-lg font-semibold hover:bg-slate-200 transition-all duration-200 border-2 border-tpppink/30 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>

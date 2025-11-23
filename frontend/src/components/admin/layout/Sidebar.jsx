@@ -111,7 +111,7 @@ export default function Sidebar({ isOpen, onClose }) {
           </button>
 
           {/* Logo */}
-          <div className={`flex items-center gap-3 border-b border-white/10 transition-all ${isCollapsed ? 'justify-center px-3 py-6' : 'px-5 py-5'}`}>
+          <div className={`bg-tpppink flex items-center gap-3 border-b border-white/10 transition-all ${isCollapsed ? 'justify-center px-3 py-6' : 'px-5 py-5'}`}>
             <div className={`bg-white rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${isCollapsed ? 'w-11 h-11' : 'w-9 h-9'}`}>
               <span className={`text-tppslate font-bold transition-all ${isCollapsed ? 'text-lg' : 'text-base'}`}>TP</span>
             </div>
@@ -124,7 +124,7 @@ export default function Sidebar({ isOpen, onClose }) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+          <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6 bg-tpppink">
             {Object.keys(groupedItems).map((section) => (
               <div key={section}>
                 {/* Section Label */}
@@ -220,7 +220,7 @@ export default function Sidebar({ isOpen, onClose }) {
           </nav>
 
           {/* User Profile */}
-          <div className="border-t border-white/10 p-3">
+          <div className="bg-tpppink border-t border-white/10 p-3">
             <div className={`flex items-center gap-3 py-2.5 hover:bg-white/10 rounded-lg transition-all duration-200 cursor-pointer group ${isCollapsed ? 'justify-center px-2' : 'px-3'}`}>
               <div className={`bg-white rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isCollapsed ? 'w-10 h-10' : 'w-8 h-8'}`}>
                 <span className={`text-tppslate font-semibold transition-all ${isCollapsed ? 'text-sm' : 'text-xs'}`}>AD</span>
