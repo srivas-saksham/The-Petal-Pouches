@@ -288,7 +288,7 @@ export default function ProductsPage() {
         description="Manage your product catalog"
         actions={
           <Button
-            variant="slate"
+            variant="primary"
             icon={<Plus className="w-4 h-4" />}
             onClick={() => setShowCreateModal(true)}
             className="text-sm"

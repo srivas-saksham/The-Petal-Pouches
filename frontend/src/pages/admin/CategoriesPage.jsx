@@ -185,7 +185,7 @@ export default function CategoriesPage() {
         description="Organize your products with categories"
         actions={
           <Button
-            variant="slate"
+            variant="primary"
             icon={<Plus className="w-5 h-5" />}
             onClick={handleOpenCreateModal}
           >

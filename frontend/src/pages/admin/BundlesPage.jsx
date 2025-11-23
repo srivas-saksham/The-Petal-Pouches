@@ -163,7 +163,7 @@ export default function BundlesPage() {
         description="Create and manage product bundles with discounted pricing"
         actions={
           <Button
-            variant="slate"
+            variant="primary"
             icon={<Plus className="w-5 h-5" />}
             onClick={() => setShowCreateModal(true)}
           >
