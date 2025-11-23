@@ -284,9 +284,6 @@ export default function Dashboard() {
                   key={product.id}
                   className="flex items-center gap-3 p-3 bg-white rounded-md border-2 border-tpppeach transition-all duration-200 hover:border-tpppeach hover:bg-tpppeach/40 hover:shadow-sm "
                 >
-                  {/* <div className="flex-shrink-0 w-6 h-6 bg-tppslate text-white rounded-full flex items-center justify-center font-bold text-[10px]">
-                    {index + 1}
-                  </div> */}
                   <img
                     src={product.img_url}
                     alt={product.title}
