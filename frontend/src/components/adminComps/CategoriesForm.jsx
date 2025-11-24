@@ -1,6 +1,7 @@
 // frontend/src/components/adminComps/CategoriesForm.jsx
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Plus, Package, Search, X, Edit, Trash2, Eye, Check } from 'lucide-react';
 
 const CategoriesForm = () => {
   const [categories, setCategories] = useState([]);
@@ -11,6 +12,13 @@ const CategoriesForm = () => {
     description: ''
   });
   const [editingId, setEditingId] = useState(null);
+  
+  // Add products functionality
+  const [showAddProductsSection, setShowAddProductsSection] = useState(false);
+  const [allProducts, setAllProducts] = useState([]);
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productSearchTerm, setProductSearchTerm] = useState('');
 
   useEffect(() => {
     fetchCategories();
@@ -23,9 +31,6 @@ const CategoriesForm = () => {
         `${import.meta.env.VITE_API_BASE_URL}/api/categories`
       );
       
-      console.log('📦 Categories loaded:', response.data);
-      
-      // Handle different response structures
       const categoriesData = response.data.data || response.data.categories || response.data || [];
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
       setLoading(false);
@@ -36,10 +41,44 @@ const CategoriesForm = () => {
     }
   };
 
+  const fetchAllProducts = async () => {
+    setProductsLoading(true);
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_BASE_URL}/api/products?limit=1000`
+      );
+      const products = response.data.data || [];
+      setAllProducts(products);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setMessage({ type: 'error', text: 'Failed to load products' });
+    }
+    setProductsLoading(false);
+  };
+
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
+    });
+  };
+
+  const handleToggleAddProducts = async () => {
+    const newState = !showAddProductsSection;
+    setShowAddProductsSection(newState);
+    
+    if (newState && allProducts.length === 0) {
+      await fetchAllProducts();
+    }
+  };
+
+  const handleToggleProductSelection = (productId) => {
+    setSelectedProductIds(prev => {
+      if (prev.includes(productId)) {
+        return prev.filter(id => id !== productId);
+      } else {
+        return [...prev, productId];
+      }
     });
   };
 
@@ -66,13 +105,32 @@ const CategoriesForm = () => {
         description: formData.description
       });
 
+      const categoryId = response.data.data?.id || editingId;
+
+      // If products are selected, update them
+      if (selectedProductIds.length > 0 && categoryId) {
+        const updatePromises = selectedProductIds.map(productId =>
+          axios.put(
+            `${import.meta.env.VITE_API_BASE_URL}/api/admin/products/${productId}`,
+            { category_id: categoryId },
+            { headers: { 'Content-Type': 'application/json' } }
+          )
+        );
+
+        await Promise.all(updatePromises);
+      }
+
       setMessage({ 
         type: 'success', 
-        text: editingId ? 'Category updated successfully!' : 'Category created successfully!' 
+        text: editingId 
+          ? 'Category updated successfully!' 
+          : `Category created successfully!${selectedProductIds.length > 0 ? ` ${selectedProductIds.length} products added.` : ''}`
       });
       
       setFormData({ name: '', description: '' });
       setEditingId(null);
+      setSelectedProductIds([]);
+      setShowAddProductsSection(false);
       
       setTimeout(() => {
         fetchCategories();
@@ -91,12 +149,13 @@ const CategoriesForm = () => {
   };
 
   const handleEdit = (category) => {
-    console.log('✏️ Editing category:', category);
     setFormData({
       name: category.name,
       description: category.description || ''
     });
     setEditingId(category.id);
+    setShowAddProductsSection(false);
+    setSelectedProductIds([]);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -104,6 +163,8 @@ const CategoriesForm = () => {
     setFormData({ name: '', description: '' });
     setEditingId(null);
     setMessage({ type: '', text: '' });
+    setShowAddProductsSection(false);
+    setSelectedProductIds([]);
   };
 
   const handleDelete = async (id, categoryName) => {
@@ -137,62 +198,115 @@ const CategoriesForm = () => {
     }
   };
 
+  const filteredProducts = allProducts.filter(product => {
+    const matchesSearch = product.title.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+      (product.sku && product.sku.toLowerCase().includes(productSearchTerm.toLowerCase()));
+    
+    // When editing, show only products not in this category
+    if (editingId) {
+      return matchesSearch && product.category_id !== editingId;
+    }
+    
+    return matchesSearch;
+  });
+
+  const formatCurrency = (amount) => {
+    if (amount === null || amount === undefined || isNaN(amount)) return '₹0';
+    return `₹${parseFloat(amount).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  };
+
   return (
-    <div style={{ padding: '20px' }}>
-      <h2 style={{ marginBottom: '20px', fontSize: '1.5rem', fontWeight: '700' }}>
+    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+      <h2 style={{ 
+        marginBottom: '24px', 
+        fontSize: '28px', 
+        fontWeight: '700',
+        color: '#4A5759'
+      }}>
         Category Management
       </h2>
 
       {/* Alert Messages */}
       {message.text && (
         <div style={{
-          padding: '12px',
+          padding: '12px 16px',
           marginBottom: '20px',
-          borderRadius: '6px',
-          backgroundColor: message.type === 'success' ? '#d4edda' : '#f8d7da',
-          color: message.type === 'success' ? '#155724' : '#721c24',
-          border: `1px solid ${message.type === 'success' ? '#c3e6cb' : '#f5c6cb'}`
+          borderRadius: '8px',
+          backgroundColor: message.type === 'success' ? '#B0C4B1' : '#fee',
+          color: message.type === 'success' ? '#4A5759' : '#c33',
+          border: `2px solid ${message.type === 'success' ? '#B0C4B1' : '#fcc'}`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
         }}>
+          {message.type === 'success' ? <Check size={16} /> : <X size={16} />}
           {message.text}
         </div>
       )}
 
       {/* Create/Edit Form */}
       <div style={{ 
-        marginBottom: '30px', 
-        padding: '20px', 
-        backgroundColor: '#f8f9fa', 
-        borderRadius: '8px',
-        border: '1px solid #dee2e6'
+        marginBottom: '32px', 
+        padding: '24px', 
+        backgroundColor: '#fff', 
+        borderRadius: '12px',
+        border: '2px solid #DEDBD2',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
       }}>
-        <h3 style={{ marginBottom: '15px', fontSize: '1.25rem', fontWeight: '600' }}>
-          {editingId ? '✏️ Edit Category' : '➕ Create New Category'}
+        <h3 style={{ 
+          marginBottom: '20px', 
+          fontSize: '20px', 
+          fontWeight: '600',
+          color: '#4A5759',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          {editingId ? <Edit size={20} /> : <Plus size={20} />}
+          {editingId ? 'Edit Category' : 'Create New Category'}
         </h3>
         
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-              Category Name *
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: '600',
+              color: '#4A5759',
+              fontSize: '14px'
+            }}>
+              Category Name <span style={{ color: '#d95669' }}>*</span>
             </label>
             <input
               type="text"
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              placeholder="e.g., Necklaces, Rings, Soft Toys"
+              placeholder="e.g., Jewelry, Soft Toys, Accessories"
               style={{
                 width: '100%',
-                padding: '10px',
-                border: '1px solid #ced4da',
-                borderRadius: '4px',
-                fontSize: '1rem'
+                padding: '10px 12px',
+                border: '2px solid #DEDBD2',
+                borderRadius: '8px',
+                fontSize: '14px',
+                color: '#4A5759',
+                outline: 'none',
+                transition: 'all 0.2s'
               }}
+              onFocus={(e) => e.target.style.borderColor = '#d95669'}
+              onBlur={(e) => e.target.style.borderColor = '#DEDBD2'}
             />
           </div>
 
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-              Description (Optional)
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: '600',
+              color: '#4A5759',
+              fontSize: '14px'
+            }}>
+              Description
             </label>
             <textarea
               name="description"
@@ -202,31 +316,274 @@ const CategoriesForm = () => {
               placeholder="Brief description of this category..."
               style={{
                 width: '100%',
-                padding: '10px',
-                border: '1px solid #ced4da',
-                borderRadius: '4px',
-                fontSize: '1rem',
-                resize: 'vertical'
+                padding: '10px 12px',
+                border: '2px solid #DEDBD2',
+                borderRadius: '8px',
+                fontSize: '14px',
+                color: '#4A5759',
+                resize: 'vertical',
+                outline: 'none',
+                transition: 'all 0.2s'
               }}
+              onFocus={(e) => e.target.style.borderColor = '#d95669'}
+              onBlur={(e) => e.target.style.borderColor = '#DEDBD2'}
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
+          {/* Add Products Toggle Button */}
+          <div style={{ marginBottom: '16px' }}>
+            <button
+              type="button"
+              onClick={handleToggleAddProducts}
+              disabled={loading}
+              style={{
+                padding: '10px 16px',
+                backgroundColor: showAddProductsSection ? '#d95669' : '#fff',
+                color: showAddProductsSection ? '#fff' : '#4A5759',
+                border: '2px solid #d95669',
+                borderRadius: '8px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontWeight: '600',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Plus size={16} />
+              {showAddProductsSection ? 'Hide Products Selection' : 'Add Products to Category'}
+            </button>
+          </div>
+
+          {/* Add Products Section */}
+          {showAddProductsSection && (
+            <div style={{
+              marginBottom: '20px',
+              padding: '16px',
+              backgroundColor: '#F7E1D7',
+              borderRadius: '8px',
+              border: '2px solid #DEDBD2'
+            }}>
+              <h4 style={{ 
+                fontSize: '16px', 
+                fontWeight: '600', 
+                marginBottom: '12px',
+                color: '#4A5759',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <Package size={18} />
+                Select Products
+              </h4>
+
+              {/* Search */}
+              <div style={{ position: 'relative', marginBottom: '12px' }}>
+                <Search 
+                  size={16} 
+                  style={{ 
+                    position: 'absolute', 
+                    left: '12px', 
+                    top: '50%', 
+                    transform: 'translateY(-50%)',
+                    color: '#4A5759',
+                    opacity: 0.5
+                  }} 
+                />
+                <input
+                  type="text"
+                  value={productSearchTerm}
+                  onChange={(e) => setProductSearchTerm(e.target.value)}
+                  placeholder="Search products..."
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px 8px 36px',
+                    border: '2px solid #DEDBD2',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    color: '#4A5759',
+                    backgroundColor: '#fff',
+                    outline: 'none'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#d95669'}
+                  onBlur={(e) => e.target.style.borderColor = '#DEDBD2'}
+                />
+              </div>
+
+              {/* Selected count */}
+              {selectedProductIds.length > 0 && (
+                <div style={{
+                  padding: '8px 12px',
+                  backgroundColor: '#B0C4B1',
+                  borderRadius: '6px',
+                  marginBottom: '12px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#4A5759'
+                }}>
+                  {selectedProductIds.length} product{selectedProductIds.length !== 1 ? 's' : ''} selected
+                </div>
+              )}
+
+              {/* Products list */}
+              <div style={{ 
+                maxHeight: '400px', 
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                {productsLoading ? (
+                  <div style={{ 
+                    padding: '40px', 
+                    textAlign: 'center', 
+                    color: '#4A5759' 
+                  }}>
+                    Loading products...
+                  </div>
+                ) : filteredProducts.length === 0 ? (
+                  <div style={{ 
+                    padding: '40px', 
+                    textAlign: 'center', 
+                    color: '#4A5759' 
+                  }}>
+                    {productSearchTerm ? 'No products match your search' : 'No products available'}
+                  </div>
+                ) : (
+                  filteredProducts.map((product) => (
+                    <div
+                      key={product.id}
+                      onClick={() => handleToggleProductSelection(product.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '12px',
+                        backgroundColor: '#fff',
+                        border: `2px solid ${selectedProductIds.includes(product.id) ? '#B0C4B1' : '#DEDBD2'}`,
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!selectedProductIds.includes(product.id)) {
+                          e.currentTarget.style.borderColor = '#d95669';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!selectedProductIds.includes(product.id)) {
+                          e.currentTarget.style.borderColor = '#DEDBD2';
+                        }
+                      }}
+                    >
+                      {/* Checkbox */}
+                      <div style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '4px',
+                        border: `2px solid ${selectedProductIds.includes(product.id) ? '#B0C4B1' : '#DEDBD2'}`,
+                        backgroundColor: selectedProductIds.includes(product.id) ? '#B0C4B1' : '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        transition: 'all 0.2s'
+                      }}>
+                        {selectedProductIds.includes(product.id) && (
+                          <Check size={14} color="#fff" strokeWidth={3} />
+                        )}
+                      </div>
+
+                      {/* Product Image */}
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '6px',
+                        backgroundColor: '#F7E1D7',
+                        overflow: 'hidden',
+                        flexShrink: 0,
+                        border: '2px solid #DEDBD2'
+                      }}>
+                        {product.img_url ? (
+                          <img 
+                            src={product.img_url} 
+                            alt={product.title}
+                            style={{ 
+                              width: '100%', 
+                              height: '100%', 
+                              objectFit: 'cover' 
+                            }}
+                          />
+                        ) : (
+                          <div style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center' 
+                          }}>
+                            <Package size={20} color="#4A5759" style={{ opacity: 0.3 }} />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Product Details */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ 
+                          fontWeight: '600', 
+                          fontSize: '14px',
+                          color: '#4A5759',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {product.title}
+                        </div>
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: '#4A5759',
+                          opacity: 0.6,
+                          marginTop: '2px'
+                        }}>
+                          SKU: {product.sku || 'N/A'}
+                        </div>
+                      </div>
+
+                      {/* Price */}
+                      <div style={{ 
+                        fontWeight: '700', 
+                        fontSize: '14px',
+                        color: '#4A5759',
+                        flexShrink: 0
+                      }}>
+                        {formatCurrency(product.price)}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             <button
               type="submit"
               disabled={loading}
               style={{
                 padding: '10px 20px',
-                backgroundColor: loading ? '#6c757d' : '#007bff',
-                color: 'white',
+                backgroundColor: loading ? '#DEDBD2' : '#d95669',
+                color: '#fff',
                 border: 'none',
-                borderRadius: '4px',
+                borderRadius: '8px',
                 cursor: loading ? 'not-allowed' : 'pointer',
                 fontWeight: '600',
-                fontSize: '1rem'
+                fontSize: '14px',
+                transition: 'all 0.2s',
+                opacity: loading ? 0.6 : 1
               }}
             >
-              {loading ? '⏳ Processing...' : editingId ? '💾 Update Category' : '➕ Create Category'}
+              {loading ? 'Processing...' : editingId ? 'Update Category' : 'Create Category'}
             </button>
             
             {editingId && (
@@ -235,13 +592,14 @@ const CategoriesForm = () => {
                 onClick={handleCancel}
                 style={{
                   padding: '10px 20px',
-                  backgroundColor: '#6c757d',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
+                  backgroundColor: '#fff',
+                  color: '#4A5759',
+                  border: '2px solid #DEDBD2',
+                  borderRadius: '8px',
                   cursor: 'pointer',
                   fontWeight: '600',
-                  fontSize: '1rem'
+                  fontSize: '14px',
+                  transition: 'all 0.2s'
                 }}
               >
                 Cancel
@@ -253,149 +611,21 @@ const CategoriesForm = () => {
               onClick={fetchCategories}
               style={{
                 padding: '10px 20px',
-                backgroundColor: '#17a2b8',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
+                backgroundColor: '#fff',
+                color: '#4A5759',
+                border: '2px solid #4A5759',
+                borderRadius: '8px',
                 cursor: 'pointer',
                 fontWeight: '600',
-                fontSize: '1rem',
-                marginLeft: 'auto'
+                fontSize: '14px',
+                marginLeft: 'auto',
+                transition: 'all 0.2s'
               }}
             >
-              🔄 Refresh
+              Refresh
             </button>
           </div>
         </form>
-      </div>
-
-      {/* Categories List */}
-      <div>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: '15px'
-        }}>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: '600' }}>
-            📦 All Categories ({categories.length})
-          </h3>
-        </div>
-
-        {loading && categories.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
-            ⏳ Loading categories...
-          </div>
-        ) : categories.length === 0 ? (
-          <div style={{ 
-            padding: '40px', 
-            textAlign: 'center', 
-            backgroundColor: '#f8f9fa',
-            borderRadius: '8px',
-            border: '1px solid #dee2e6'
-          }}>
-            <p style={{ marginBottom: '10px', fontSize: '1.1rem' }}>📭 No categories yet.</p>
-            <p style={{ color: '#666' }}>Create your first category using the form above!</p>
-          </div>
-        ) : (
-          <div style={{ 
-            display: 'grid', 
-            gap: '15px'
-          }}>
-            {categories.map((category) => (
-              <div
-                key={category.id}
-                style={{
-                  padding: '20px',
-                  backgroundColor: '#fff',
-                  border: '1px solid #dee2e6',
-                  borderRadius: '8px',
-                  transition: 'box-shadow 0.2s',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                  <div style={{ flex: 1 }}>
-                    <h4 style={{ 
-                      fontSize: '1.1rem', 
-                      fontWeight: '600', 
-                      marginBottom: '8px',
-                      color: '#212529'
-                    }}>
-                      {category.name}
-                    </h4>
-                    {category.description && (
-                      <p style={{ 
-                        color: '#6c757d', 
-                        marginBottom: '10px',
-                        fontSize: '0.95rem'
-                      }}>
-                        {category.description}
-                      </p>
-                    )}
-                    <div style={{ 
-                      display: 'flex', 
-                      gap: '15px',
-                      fontSize: '0.85rem',
-                      color: '#868e96'
-                    }}>
-                      <span>ID: {category.id.substring(0, 8)}...</span>
-                      <span>Created: {new Date(category.created_at).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                  
-                  <div style={{ display: 'flex', gap: '8px', marginLeft: '20px' }}>
-                    <button
-                      onClick={() => handleEdit(category)}
-                      style={{
-                        padding: '8px 16px',
-                        backgroundColor: '#007bff',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '0.9rem',
-                        fontWeight: '600'
-                      }}
-                    >
-                      ✏️ Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(category.id, category.name)}
-                      style={{
-                        padding: '8px 16px',
-                        backgroundColor: '#dc3545',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '0.9rem',
-                        fontWeight: '600'
-                      }}
-                    >
-                      🗑️ Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Debug Info (can be removed in production) */}
-      <div style={{ 
-        marginTop: '30px', 
-        padding: '15px', 
-        backgroundColor: '#e9ecef', 
-        borderRadius: '6px',
-        fontSize: '0.85rem',
-        color: '#495057'
-      }}>
-        <strong>Debug Info:</strong><br/>
-        Categories Count: {categories.length}<br/>
-        Loading: {loading.toString()}<br/>
-        API URL: {import.meta.env.VITE_API_BASE_URL}/api/categories
       </div>
     </div>
   );

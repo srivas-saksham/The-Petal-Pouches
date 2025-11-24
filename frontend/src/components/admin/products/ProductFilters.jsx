@@ -14,11 +14,11 @@ export default function ProductFilters({
     <div className="space-y-3">
       {/* Filter Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-medium text-tppslate">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
           <SlidersHorizontal className="w-4 h-4" />
           <span>Filters</span>
           {hasActiveFilters && (
-            <span className="px-2 py-0.5 bg-tppmint/20 text-tppmint rounded-full text-xs font-medium">
+            <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
               Active
             </span>
           )}
@@ -27,7 +27,7 @@ export default function ProductFilters({
         {hasActiveFilters && (
           <button
             onClick={onClearFilters}
-            className="flex items-center gap-1 text-xs text-tppgrey hover:text-tppslate transition-colors"
+            className="flex items-center gap-1 text-xs text-slate-600 hover:text-slate-900 transition-colors"
           >
             <X className="w-3 h-3" />
             Clear all
@@ -35,19 +35,22 @@ export default function ProductFilters({
         )}
       </div>
 
-      {/* Horizontal Filters Grid - ✅ UPDATED: 6 columns for new filter */}
+      {/* Horizontal Filters Grid - 6 columns for new filter */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
         {/* Category Filter */}
         <div className="space-y-1.5">
-          <label className="block text-xs font-medium text-tppslate">
+          <label className="block text-xs font-medium text-slate-700">
             Category
           </label>
           <select
             value={activeFilters.category_id || ''}
             onChange={(e) => onFilterChange('category_id', e.target.value)}
-            className="w-full px-3 py-2 text-sm bg-white border border-tppgrey rounded-lg 
-                     focus:outline-none focus:ring-2 focus:ring-tppmint focus:border-transparent
-                     transition-all text-tppslate"
+            className="w-full px-3 py-2 text-sm bg-white border-2 border-slate-200 rounded-lg 
+                     focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent
+                     hover:border-pink-400 hover:shadow-sm hover:bg-pink-50/50
+                     transition-all duration-200 text-slate-700 cursor-pointer
+                     appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] 
+                     bg-[length:1.2em] bg-[right_0.5rem_center] bg-no-repeat pr-8"
           >
             <option value="">All Categories</option>
             {categories.map((category) => (
@@ -60,7 +63,7 @@ export default function ProductFilters({
 
         {/* Min Price Filter */}
         <div className="space-y-1.5">
-          <label className="block text-xs font-medium text-tppslate">
+          <label className="block text-xs font-medium text-slate-700">
             Min Price
           </label>
           <input
@@ -70,15 +73,16 @@ export default function ProductFilters({
             placeholder="0.00"
             min="0"
             step="0.01"
-            className="w-full px-3 py-2 text-sm bg-white border border-tppgrey rounded-lg 
-                     focus:outline-none focus:ring-2 focus:ring-tppmint focus:border-transparent
-                     transition-all text-tppslate placeholder:text-tppgrey"
+            className="w-full px-3 py-2 text-sm bg-white border-2 border-slate-200 rounded-lg 
+                     focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent
+                     hover:border-pink-400 hover:shadow-sm hover:bg-pink-50/50
+                     transition-all duration-200 text-slate-700 placeholder:text-slate-400"
           />
         </div>
 
         {/* Max Price Filter */}
         <div className="space-y-1.5">
-          <label className="block text-xs font-medium text-tppslate">
+          <label className="block text-xs font-medium text-slate-700">
             Max Price
           </label>
           <input
@@ -88,23 +92,27 @@ export default function ProductFilters({
             placeholder="999.99"
             min="0"
             step="0.01"
-            className="w-full px-3 py-2 text-sm bg-white border border-tppgrey rounded-lg 
-                     focus:outline-none focus:ring-2 focus:ring-tppmint focus:border-transparent
-                     transition-all text-tppslate placeholder:text-tppgrey"
+            className="w-full px-3 py-2 text-sm bg-white border-2 border-slate-200 rounded-lg 
+                     focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent
+                     hover:border-pink-400 hover:shadow-sm hover:bg-pink-50/50
+                     transition-all duration-200 text-slate-700 placeholder:text-slate-400"
           />
         </div>
 
-        {/* ✅ UPDATED: Stock Level Filter (comprehensive with low stock option) */}
+        {/* Stock Level Filter */}
         <div className="space-y-1.5">
-          <label className="block text-xs font-medium text-tppslate">
+          <label className="block text-xs font-medium text-slate-700">
             Stock Level
           </label>
           <select
             value={activeFilters.stock_level || ''}
             onChange={(e) => onFilterChange('stock_level', e.target.value)}
-            className="w-full px-3 py-2 text-sm bg-white border border-tppgrey rounded-lg 
-                     focus:outline-none focus:ring-2 focus:ring-tppmint focus:border-transparent
-                     transition-all text-tppslate"
+            className="w-full px-3 py-2 text-sm bg-white border-2 border-slate-200 rounded-lg 
+                     focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent
+                     hover:border-pink-400 hover:shadow-sm hover:bg-pink-50/50
+                     transition-all duration-200 text-slate-700 cursor-pointer
+                     appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] 
+                     bg-[length:1.2em] bg-[right_0.5rem_center] bg-no-repeat pr-8"
           >
             {PRODUCT_FILTERS.stock_level.map((option) => (
               <option key={option.value} value={option.value}>
@@ -114,17 +122,20 @@ export default function ProductFilters({
           </select>
         </div>
 
-        {/* ✅ NEW: Has Variants Filter */}
+        {/* Has Variants Filter */}
         <div className="space-y-1.5">
-          <label className="block text-xs font-medium text-tppslate">
+          <label className="block text-xs font-medium text-slate-700">
             Product Type
           </label>
           <select
             value={activeFilters.has_variants || ''}
             onChange={(e) => onFilterChange('has_variants', e.target.value)}
-            className="w-full px-3 py-2 text-sm bg-white border border-tppgrey rounded-lg 
-                     focus:outline-none focus:ring-2 focus:ring-tppmint focus:border-transparent
-                     transition-all text-tppslate"
+            className="w-full px-3 py-2 text-sm bg-white border-2 border-slate-200 rounded-lg 
+                     focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent
+                     hover:border-pink-400 hover:shadow-sm hover:bg-pink-50/50
+                     transition-all duration-200 text-slate-700 cursor-pointer
+                     appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] 
+                     bg-[length:1.2em] bg-[right_0.5rem_center] bg-no-repeat pr-8"
           >
             {PRODUCT_FILTERS.has_variants.map((option) => (
               <option key={option.value} value={option.value}>
@@ -134,17 +145,20 @@ export default function ProductFilters({
           </select>
         </div>
 
-        {/* ✅ UPDATED: Sort Filter with all 8 options */}
+        {/* Sort Filter with all 8 options */}
         <div className="space-y-1.5">
-          <label className="block text-xs font-medium text-tppslate">
+          <label className="block text-xs font-medium text-slate-700">
             Sort By
           </label>
           <select
             value={activeFilters.sort || 'created_at'}
             onChange={(e) => onFilterChange('sort', e.target.value)}
-            className="w-full px-3 py-2 text-sm bg-white border border-tppgrey rounded-lg 
-                     focus:outline-none focus:ring-2 focus:ring-tppmint focus:border-transparent
-                     transition-all text-tppslate"
+            className="w-full px-3 py-2 text-sm bg-white border-2 border-slate-200 rounded-lg 
+                     focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent
+                     hover:border-pink-400 hover:shadow-sm hover:bg-pink-50/50
+                     transition-all duration-200 text-slate-700 cursor-pointer
+                     appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] 
+                     bg-[length:1.2em] bg-[right_0.5rem_center] bg-no-repeat pr-8"
           >
             {PRODUCT_SORT_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -155,17 +169,17 @@ export default function ProductFilters({
         </div>
       </div>
 
-      {/* ✅ UPDATED: Active Filters Pills with better labels */}
+      {/* Active Filters Pills with better labels */}
       {hasActiveFilters && (
-        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-tppgrey/30">
-          <span className="text-xs text-tppgrey">Active:</span>
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-300">
+          <span className="text-xs text-slate-600 font-medium">Active:</span>
           
           {activeFilters.category_id && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-tppmint/10 text-tppmint rounded-full text-xs">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-pink-100 text-pink-700 rounded-full text-xs font-medium border border-pink-200">
               {categories.find(c => c.id === parseInt(activeFilters.category_id))?.name || 'Category'}
               <button
                 onClick={() => onFilterChange('category_id', '')}
-                className="hover:bg-tppmint/20 rounded-full p-0.5 transition-colors"
+                className="hover:bg-pink-200 rounded-full p-0.5 transition-colors"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -173,11 +187,11 @@ export default function ProductFilters({
           )}
           
           {activeFilters.min_price && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-tppmint/10 text-tppmint rounded-full text-xs">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-pink-100 text-pink-700 rounded-full text-xs font-medium border border-pink-200">
               Min: ₹{activeFilters.min_price}
               <button
                 onClick={() => onFilterChange('min_price', '')}
-                className="hover:bg-tppmint/20 rounded-full p-0.5 transition-colors"
+                className="hover:bg-pink-200 rounded-full p-0.5 transition-colors"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -185,50 +199,47 @@ export default function ProductFilters({
           )}
           
           {activeFilters.max_price && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-tppmint/10 text-tppmint rounded-full text-xs">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-pink-100 text-pink-700 rounded-full text-xs font-medium border border-pink-200">
               Max: ₹{activeFilters.max_price}
               <button
                 onClick={() => onFilterChange('max_price', '')}
-                className="hover:bg-tppmint/20 rounded-full p-0.5 transition-colors"
+                className="hover:bg-pink-200 rounded-full p-0.5 transition-colors"
               >
                 <X className="w-3 h-3" />
               </button>
             </span>
           )}
           
-          {/* ✅ UPDATED: Stock level pill with better labels */}
           {activeFilters.stock_level && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-tppmint/10 text-tppmint rounded-full text-xs">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-pink-100 text-pink-700 rounded-full text-xs font-medium border border-pink-200">
               {PRODUCT_FILTERS.stock_level.find(opt => opt.value === activeFilters.stock_level)?.label || 'Stock Filter'}
               <button
                 onClick={() => onFilterChange('stock_level', '')}
-                className="hover:bg-tppmint/20 rounded-full p-0.5 transition-colors"
+                className="hover:bg-pink-200 rounded-full p-0.5 transition-colors"
               >
                 <X className="w-3 h-3" />
               </button>
             </span>
           )}
 
-          {/* ✅ NEW: Has variants pill */}
           {activeFilters.has_variants && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-tppmint/10 text-tppmint rounded-full text-xs">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-pink-100 text-pink-700 rounded-full text-xs font-medium border border-pink-200">
               {PRODUCT_FILTERS.has_variants.find(opt => opt.value === activeFilters.has_variants)?.label || 'Type Filter'}
               <button
                 onClick={() => onFilterChange('has_variants', '')}
-                className="hover:bg-tppmint/20 rounded-full p-0.5 transition-colors"
+                className="hover:bg-pink-200 rounded-full p-0.5 transition-colors"
               >
                 <X className="w-3 h-3" />
               </button>
             </span>
           )}
 
-          {/* ✅ UPDATED: Sort pill with better label */}
           {activeFilters.sort && activeFilters.sort !== 'created_at' && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-tppslate/10 text-tppslate rounded-full text-xs">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium border border-slate-300">
               {PRODUCT_SORT_OPTIONS.find(opt => opt.value === activeFilters.sort)?.label || 'Custom Sort'}
               <button
                 onClick={() => onFilterChange('sort', 'created_at')}
-                className="hover:bg-tppslate/20 rounded-full p-0.5 transition-colors"
+                className="hover:bg-slate-200 rounded-full p-0.5 transition-colors"
               >
                 <X className="w-3 h-3" />
               </button>

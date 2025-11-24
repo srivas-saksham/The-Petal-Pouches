@@ -66,17 +66,27 @@ const createCategory = async (req, res) => {
  */
 const getAllCategories = async (req, res) => {
   try {
+    // Get all categories with product counts
     const { data, error } = await supabase
       .from('Categories')
-      .select('*')
+      .select(`
+        *,
+        products:Products(count)
+      `)
       .order('name', { ascending: true });
 
     if (error) throw error;
 
+    // Transform data to include product count
+    const categoriesWithCounts = data.map(cat => ({
+      ...cat,
+      product_count: cat.products?.[0]?.count || 0
+    }));
+
     res.status(200).json({
       success: true,
-      count: data.length,
-      data: data
+      count: categoriesWithCounts.length,
+      data: categoriesWithCounts
     });
 
   } catch (error) {

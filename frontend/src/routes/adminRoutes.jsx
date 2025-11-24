@@ -7,6 +7,7 @@ import AdminLayout from '../components/admin/layout/AdminLayout';
 import Dashboard from '../pages/admin/Dashboard';
 import ProductsPage from '../pages/admin/ProductsPage';
 import CategoriesPage from '../pages/admin/CategoriesPage';
+import CategoriesForm from '../components/adminComps/CategoriesForm';
 import BundlesPage from '../pages/admin/BundlesPage';
 import OrdersPage from '../pages/admin/OrdersPage';
 import CustomersPage from '../pages/admin/CustomersPage';

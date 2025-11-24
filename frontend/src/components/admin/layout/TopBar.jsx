@@ -210,7 +210,7 @@ export default function TopBar({ onMenuClick }) {
         <div className="hidden md:block w-full max-w-md relative" ref={searchRef}>
           <form onSubmit={handleSearch} className="relative">
             <div className={`relative flex items-center transition-all duration-200 ${
-              searchFocused ? 'ring-2 ring-tppslate' : ''
+              searchFocused ? '' : ''
             }`}>
               <Search className="absolute left-3 w-4 h-4 text-tppslate/50" />
               <input
@@ -220,7 +220,7 @@ export default function TopBar({ onMenuClick }) {
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
                 placeholder="Search products, orders, customers..."
-                className="w-full pl-10 pr-10 py-2 bg-white border-2 border-slate-200 rounded-lg text-sm text-tppslate placeholder-tppslate/50 focus:outline-none focus:border-tppslate transition-all duration-200 hover:border-slate-300"
+                className="w-full pl-10 pr-10 py-2 bg-white border-2 border-tpppink/50 rounded-lg text-sm text-tppslate placeholder-tppslate/50 !outline-none focus:!outline-none focus:ring-0 transition-all duration-200 hover:border-tpppink focus:bg-tpppink/5"
               />
               {searchQuery && (
                 <button
