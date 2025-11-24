@@ -30,19 +30,22 @@ if (process.env.NODE_ENV === 'development') {
 // ROUTES - ORDER MATTERS! (Most specific first)
 // ============================================
 
-// 1. Categories routes (both public and admin)
+// 1. Admin Authentication routes (MUST BE FIRST - no auth required)
+app.use('/api/admin/auth', require('./routes/adminAuth'));
+
+// 2. Categories routes (both public and admin)
 app.use('/api/categories', require('./routes/categories'));
 
-// 2. Bundle routes (must come BEFORE product routes to avoid conflicts)
+// 3. Bundle routes (must come BEFORE product routes to avoid conflicts)
 app.use('/api/bundles', require('./routes/bundles'));
 
-// 3. Admin routes (must come BEFORE general product routes)
+// 4. Admin routes (must come BEFORE general product routes)
 app.use('/api/admin', require('./routes/admin'));
 
-// 4. Public product routes (must come AFTER admin routes)
+// 5. Public product routes (must come AFTER admin routes)
 app.use('/api/products', require('./routes/products'));
 
-// 5. Variant routes - SPECIFIC PATHS ONLY
+// 6. Variant routes - SPECIFIC PATHS ONLY
 app.use('/api/variants', require('./routes/variants'));
 
 // ============================================
@@ -67,6 +70,12 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       health: '/health',
+      auth: {
+        register: 'POST /api/admin/auth/register',
+        login: 'POST /api/admin/auth/login',
+        me: 'GET /api/admin/auth/me',
+        logout: 'POST /api/admin/auth/logout'
+      },
       products: {
         getAll: 'GET /api/products',
         getById: 'GET /api/products/:id',
@@ -119,6 +128,7 @@ app.use((req, res) => {
     success: false,
     message: `Route not found: ${req.method} ${req.path}`,
     availableRoutes: {
+      auth: '/api/admin/auth',
       products: '/api/products',
       admin: '/api/admin',
       categories: '/api/categories',
@@ -142,6 +152,8 @@ app.listen(PORT, () => {
   
   console.log('📍 Available Endpoints:');
   console.log(`   🌐 Health: http://localhost:${PORT}/health`);
+  console.log(`   🔐 Auth (Login): http://localhost:${PORT}/api/admin/auth/login`);
+  console.log(`   🔐 Auth (Register): http://localhost:${PORT}/api/admin/auth/register`);
   console.log(`   📦 Products (Public): http://localhost:${PORT}/api/products`);
   console.log(`   🔑 Admin (Products): http://localhost:${PORT}/api/admin/products`);
   console.log(`   📂 Categories: http://localhost:${PORT}/api/categories`);

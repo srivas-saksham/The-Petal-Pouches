@@ -11,16 +11,24 @@ import {
   Settings,
   ChevronsLeft,
   ChevronsRight,
-  CheckCheck
+  CheckCheck,
+  LogOut,
+  ChevronDown
 } from 'lucide-react';
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { NAVIGATION_ITEMS, NAVIGATION_SECTIONS } from '../../../utils/constants';
+import { useAdminAuth } from '../../../context/AdminAuthContext';
 
 export default function Sidebar({ isOpen, onClose }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [notificationCount, setNotificationCount] = useState(5);
   const [isMarkingRead, setIsMarkingRead] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  
+  const { logout, admin } = useAdminAuth();
+  const navigate = useNavigate();
   
   const markAllAsRead = async (e) => {
     e.preventDefault();
@@ -35,6 +43,9 @@ export default function Sidebar({ isOpen, onClose }) {
       // TODO: Replace with actual API call
       // const response = await fetch(`${API_URL}/api/notifications/mark-all-read`, {
       //   method: 'POST',
+      //   headers: {
+      //     'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+      //   }
       // });
       // if (response.ok) {
       //   setNotificationCount(0);
@@ -46,6 +57,23 @@ export default function Sidebar({ isOpen, onClose }) {
       console.error('Error marking notifications as read:', error);
     } finally {
       setIsMarkingRead(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    
+    setIsLoggingOut(true);
+    
+    try {
+      await logout();
+      navigate('/admin/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still redirect even if error
+      navigate('/admin/login');
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -72,6 +100,22 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
+  };
+
+  const toggleUserMenu = (e) => {
+    e.stopPropagation();
+    setShowUserMenu(!showUserMenu);
+  };
+
+  // Get admin initials
+  const getInitials = (name) => {
+    if (!name) return 'AD';
+    if (name == 'Miss Founder') return '❤';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
   };
 
   return (
@@ -219,19 +263,92 @@ export default function Sidebar({ isOpen, onClose }) {
             ))}
           </nav>
 
-          {/* User Profile */}
+          {/* User Profile Section */}
           <div className="bg-tpppink border-t border-white/10 p-3">
-            <div className={`flex items-center gap-3 py-2.5 hover:bg-white/10 rounded-lg transition-all duration-200 cursor-pointer group ${isCollapsed ? 'justify-center px-2' : 'px-3'}`}>
-              <div className={`bg-white rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isCollapsed ? 'w-10 h-10' : 'w-8 h-8'}`}>
-                <span className={`text-tppslate font-semibold transition-all ${isCollapsed ? 'text-sm' : 'text-xs'}`}>AD</span>
+            {/* User Info */}
+            <div 
+              onClick={isCollapsed ? undefined : toggleUserMenu}
+              className={`flex items-center gap-3 py-2.5 rounded-lg transition-all duration-200 group relative ${
+                isCollapsed ? 'justify-center px-2' : 'px-3 hover:bg-white/10 cursor-pointer'
+              }`}
+            >
+              <div className={`bg-white rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                isCollapsed ? 'w-10 h-10' : 'w-8 h-8'
+              }`}>
+                <span className={`text-tppslate font-semibold transition-all ${
+                  isCollapsed ? 'text-sm' : 'text-xs'
+                }`}>
+                  {getInitials(admin?.name)}
+                </span>
               </div>
               {!isCollapsed && (
-                <div className="flex-1 min-w-0 overflow-hidden">
-                  <p className="text-white text-sm font-medium truncate">Admin</p>
-                  <p className="text-white/50 text-[10px] truncate">admin@tpp.com</p>
-                </div>
+                <>
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <p className="text-white text-sm font-medium truncate">
+                      {admin?.name || 'Admin User'}
+                    </p>
+                    <p className="text-white/50 text-[10px] truncate capitalize">
+                      {admin?.role || 'admin'}
+                    </p>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-white/60 transition-transform duration-200 ${
+                    showUserMenu ? 'rotate-180' : ''
+                  }`} />
+                </>
               )}
             </div>
+
+            {/* User Menu Dropdown - Only show when not collapsed */}
+            {!isCollapsed && showUserMenu && (
+              <div className="mt-2 space-y-1 animate-scale-in">
+                {/* Profile Button */}
+                <button
+                  onClick={() => {
+                    navigate('/admin/settings');
+                    setShowUserMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-white/80 hover:bg-white/10 rounded-lg transition-all text-sm font-medium"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>Settings</span>
+                </button>
+
+                {/* Logout Button */}
+                <button
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-red-600 bg-white/95 hover:bg-white/70 rounded-lg transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoggingOut ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-red-300 border-t-transparent rounded-full animate-spin" />
+                      <span>Logging out...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="w-4 h-4" />
+                      <span>Logout</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Collapsed Logout Button */}
+            {isCollapsed && (
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                title="Logout"
+                className="w-full mt-2 flex items-center justify-center p-2.5 text-red-300 hover:bg-red-500/20 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoggingOut ? (
+                  <div className="w-5 h-5 border-2 border-red-300 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <LogOut className="w-5 h-5" />
+                )}
+              </button>
+            )}
           </div>
         </div>
       </aside>
