@@ -120,7 +120,12 @@ const loginAdmin = async (req, res) => {
       });
     }
 
-    // Generate JWT token
+    // ✅ CLEAR RATE LIMIT ON SUCCESSFUL LOGIN
+    const { clearRateLimit } = require('../middleware/adminAuth');
+    const ip = req.ip || req.connection.remoteAddress;
+    clearRateLimit(ip);
+
+    // Generate JWT token with SHORTER expiration (30 minutes for session-based)
     const token = jwt.sign(
       {
         id: admin.id,
@@ -130,7 +135,7 @@ const loginAdmin = async (req, res) => {
         permissions: admin.permissions
       },
       process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
+      { expiresIn: '30m' }
     );
 
     // Update last login
@@ -149,7 +154,8 @@ const loginAdmin = async (req, res) => {
           email: admin.email,
           name: admin.name,
           role: admin.role,
-          permissions: admin.permissions
+          permissions: admin.permissions,
+          _id: admin.id
         }
       }
     });
@@ -159,6 +165,105 @@ const loginAdmin = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Login failed',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * ✅ NEW: Verify Admin Password (Re-authentication)
+ * POST /api/admin/auth/verify
+ */
+const verifyAdminPassword = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required'
+      });
+    }
+
+    // Find admin user
+    const { data: admin, error: fetchError } = await supabase
+      .from('admin_users')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (fetchError || !admin) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Check if admin is active
+    if (!admin.is_active) {
+      return res.status(403).json({
+        success: false,
+        message: 'This admin account has been deactivated'
+      });
+    }
+
+    // Verify password
+    const passwordMatch = await bcrypt.compare(password, admin.password_hash);
+    if (!passwordMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid password'
+      });
+    }
+
+    // ✅ CLEAR RATE LIMIT ON SUCCESSFUL VERIFICATION
+    const { clearRateLimit } = require('../middleware/adminAuth');
+    const ip = req.ip || req.connection.remoteAddress;
+    clearRateLimit(ip);
+
+    // Generate new session token
+    const token = jwt.sign(
+      {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        role: admin.role,
+        permissions: admin.permissions
+      },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '30m' }
+    );
+
+    // Optional: Log re-authentication attempt
+    await supabase
+      .from('admin_users')
+      .update({ 
+        last_login: new Date().toISOString()
+      })
+      .eq('id', admin.id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Identity verified successfully',
+      data: {
+        token,
+        admin: {
+          id: admin.id,
+          email: admin.email,
+          name: admin.name,
+          role: admin.role,
+          permissions: admin.permissions,
+          _id: admin.id
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Admin verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Verification failed',
       error: error.message
     });
   }
@@ -242,7 +347,7 @@ const refreshToken = async (req, res) => {
         permissions: admin.permissions
       },
       process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
+      { expiresIn: '30m' } // ✅ Changed to 30m
     );
 
     res.status(200).json({
@@ -269,6 +374,7 @@ const refreshToken = async (req, res) => {
 module.exports = {
   registerAdmin,
   loginAdmin,
+  verifyAdminPassword, // ✅ NEW: Export verify function
   getCurrentAdmin,
   logoutAdmin,
   refreshToken

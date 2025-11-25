@@ -7,16 +7,25 @@ const {
   loginAdmin,
   getCurrentAdmin,
   logoutAdmin,
-  refreshToken
+  refreshToken,
+  verifyAdminPassword
 } = require('../controllers/adminAuthController');
-const { verifyAdminToken } = require('../middleware/adminAuth');
+const { 
+  verifyAdminToken, 
+  rateLimitLogin, 
+  securityHeaders 
+} = require('../middleware/adminAuth');
 
-// Public routes
-router.post('/register', registerAdmin);
-router.post('/login', loginAdmin);
+// ✅ Apply security headers to all admin routes
+router.use(securityHeaders);
+
+// ✅ Public routes with rate limiting for auth endpoints
+router.post('/register', rateLimitLogin, registerAdmin);
+router.post('/login', rateLimitLogin, loginAdmin);
+router.post('/verify', rateLimitLogin, verifyAdminPassword);
 router.post('/refresh', refreshToken);
 
-// Protected routes
+// ✅ Protected routes
 router.get('/me', verifyAdminToken, getCurrentAdmin);
 router.post('/logout', verifyAdminToken, logoutAdmin);
 
