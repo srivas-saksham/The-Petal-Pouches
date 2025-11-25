@@ -1,7 +1,7 @@
 // frontend/src/components/admin/ui/SearchBar.jsx
 
 import { Search, X } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function SearchBar({
   value = '',
@@ -9,10 +9,30 @@ export default function SearchBar({
   placeholder = 'Search...',
   className = '',
   onClear,
+  debounceDelay = 500, // Add configurable delay (default 500ms)
 }) {
   const [isFocused, setIsFocused] = useState(false);
+  const [localValue, setLocalValue] = useState(value); // Local state for immediate UI update
+
+  // Sync local value when prop changes (for external resets)
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  // Debounce effect - triggers onChange after delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localValue !== value) {
+        onChange({ target: { value: localValue } });
+      }
+    }, debounceDelay);
+
+    // Cleanup: clear timeout if user keeps typing
+    return () => clearTimeout(timer);
+  }, [localValue, debounceDelay]); // Runs when localValue changes
 
   const handleClear = () => {
+    setLocalValue(''); // Clear local state
     if (onClear) {
       onClear();
     } else {
@@ -32,14 +52,14 @@ export default function SearchBar({
         <Search className="w-4 h-4 text-text-muted flex-shrink-0" />
         <input
           type="text"
-          value={value}
-          onChange={onChange}
+          value={localValue} // Use local state for instant feedback
+          onChange={(e) => setLocalValue(e.target.value)} // Update local state immediately
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           placeholder={placeholder}
           className="flex-1 outline-none text-sm text-text-primary placeholder:text-text-muted bg-transparent"
         />
-        {value && (
+        {localValue && (
           <button
             type="button"
             onClick={handleClear}
