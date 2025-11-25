@@ -7,6 +7,7 @@ import PageHeader from '../../components/admin/ui/PageHeader';
 import StatusBadge from '../../components/admin/ui/StatusBadge';
 import { SkeletonStats, SkeletonCard } from '../../components/admin/ui/LoadingSkeleton';
 import { formatCurrency, formatDate, getRelativeTime } from '../../utils/adminHelpers';
+import { useToast } from '../../hooks/useToast';
 
 // Import services
 import {
@@ -26,7 +27,8 @@ export default function Dashboard() {
   const [categoryDist, setCategoryDist] = useState([]);
   const [trends, setTrends] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  
+  const toast = useToast();
 
   useEffect(() => {
     fetchDashboardData();
@@ -34,7 +36,6 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     setLoading(true);
-    setError('');
 
     try {
       // Fetch all dashboard data in parallel
@@ -80,7 +81,7 @@ export default function Dashboard() {
 
     } catch (err) {
       console.error('Dashboard error:', err);
-      setError('Failed to load dashboard data');
+      toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
@@ -126,28 +127,6 @@ export default function Dashboard() {
       change: calculateChange(stats.customers.current, stats.customers.previous),
     },
   ] : [];
-
-  if (error) {
-    return (
-      <div className="space-y-4">
-        <PageHeader
-          title="Dashboard"
-          description="Welcome back! Here's what's happening with your store today."
-        />
-        <div className="bg-white rounded-lg border-2 border-tpppink/30 p-8 text-center transition-all duration-200 hover:border-tpppink hover:bg-tpppink/5 hover:shadow-sm">
-          <div className="text-red-500 mb-3 text-xl">⚠️</div>
-          <h3 className="text-base font-semibold text-tppslate mb-1">Error Loading Dashboard</h3>
-          <p className="text-tppslate/70 text-xs mb-3">{error}</p>
-          <button
-            onClick={fetchDashboardData}
-            className="btn btn-primary text-sm"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-5">

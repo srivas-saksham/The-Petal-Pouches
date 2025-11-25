@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, LayoutGrid, List } from 'lucide-react';
+import { useToast } from '../../hooks/useToast';
 import PageHeader from '../../components/admin/ui/PageHeader';
 import SearchBar from '../../components/admin/ui/SearchBar';
 import Button from '../../components/admin/ui/Button';
@@ -29,6 +30,8 @@ import {
 import { getCategories } from '../../services/categoryService';
 
 export default function ProductsPage() {
+  const toast = useToast();
+  
   // State declarations
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -36,7 +39,6 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [message, setMessage] = useState({ type: '', text: '' });
   
   // View mode: 'list' or 'grid'
   const [viewMode, setViewMode] = useState('list');
@@ -47,10 +49,10 @@ export default function ProductsPage() {
   const [editingProductId, setEditingProductId] = useState(null);
   const [variantManagerProduct, setVariantManagerProduct] = useState(null);
   
-  // Search term - must be declared before filters
+  // Search term
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Filters with new stock_level and has_variants
+  // Filters
   const [filters, setFilters] = useState({
     category_id: '',
     min_price: '',
@@ -79,6 +81,8 @@ export default function ProductsPage() {
     const result = await getCategories();
     if (result.success) {
       setCategories(result.data.data || []);
+    } else {
+      toast.error('Failed to load categories');
     }
   };
 
@@ -87,6 +91,8 @@ export default function ProductsPage() {
     const result = await getProductStats();
     if (result.success) {
       setStats(result.data);
+    } else {
+      toast.error('Failed to load product statistics');
     }
     setStatsLoading(false);
   };
@@ -112,17 +118,14 @@ export default function ProductsPage() {
       params.max_price = parseFloat(filters.max_price);
     }
     
-    // Handle stock_level filter (comprehensive)
     if (filters.stock_level && filters.stock_level !== '') {
       params.stock_level = filters.stock_level;
     }
     
-    // Handle has_variants filter
     if (filters.has_variants && filters.has_variants !== '') {
       params.has_variants = filters.has_variants;
     }
     
-    // Validate and send sort parameter (only valid options)
     const validSortValues = PRODUCT_SORT_OPTIONS.map(opt => opt.value);
     if (filters.sort && validSortValues.includes(filters.sort)) {
       params.sort = filters.sort;
@@ -130,7 +133,6 @@ export default function ProductsPage() {
       params.sort = 'created_at';
     }
     
-    // Search query (backend searches title, description, and SKU)
     if (searchTerm && searchTerm.trim()) {
       params.search = searchTerm.trim();
     }
@@ -141,7 +143,7 @@ export default function ProductsPage() {
       setProducts(result.data.data || []);
       setMetadata(result.data.metadata || null);
     } else {
-      setMessage({ type: 'error', text: result.error || 'Failed to load products' });
+      toast.error(result.error || 'Failed to load products');
     }
     
     setLoading(false);
@@ -168,6 +170,7 @@ export default function ProductsPage() {
     });
     setSearchTerm('');
     setCurrentPage(1);
+    toast.info('Filters cleared');
   };
 
   const hasActiveFilters = () => {
@@ -197,21 +200,12 @@ export default function ProductsPage() {
 
   const handleClearSelection = () => {
     setSelectedIds([]);
+    toast.info('Selection cleared');
   };
 
   const handleBulkAction = async (action) => {
-    console.log('Bulk action:', action, 'on products:', selectedIds);
-    
-    // TODO: Implement bulk actions on backend
-    setMessage({ 
-      type: 'success', 
-      text: `Bulk action "${action}" on ${selectedIds.length} products - Coming soon!` 
-    });
-    
-    setTimeout(() => {
-      setMessage({ type: '', text: '' });
-      setSelectedIds([]);
-    }, 3000);
+    toast.info(`Bulk action "${action}" on ${selectedIds.length} products - Coming soon!`);
+    setSelectedIds([]);
   };
 
   const handleEdit = (productId) => {
@@ -225,28 +219,24 @@ export default function ProductsPage() {
     const result = await deleteProduct(productId);
     
     if (result.success) {
-      setMessage({ type: 'success', text: 'Product deleted successfully' });
+      toast.success(`Product "${productTitle}" deleted successfully!`);
       fetchProducts();
       fetchStats();
     } else {
-      setMessage({ type: 'error', text: result.error || 'Failed to delete product' });
+      toast.error(result.error || 'Failed to delete product');
     }
-    
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   };
 
   const handleDuplicate = async (productId) => {
     const result = await duplicateProduct(productId);
     
     if (result.success) {
-      setMessage({ type: 'success', text: 'Product duplicated successfully' });
+      toast.success('Product duplicated successfully!');
       fetchProducts();
       fetchStats();
     } else {
-      setMessage({ type: 'error', text: result.error || 'Failed to duplicate product' });
+      toast.error(result.error || 'Failed to duplicate product');
     }
-    
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   };
 
   const handleManageVariants = (productId) => {
@@ -255,19 +245,17 @@ export default function ProductsPage() {
 
   const handleCreateSuccess = () => {
     setShowCreateModal(false);
-    setMessage({ type: 'success', text: 'Product created successfully!' });
+    toast.success('Product created successfully!');
     fetchProducts();
     fetchStats();
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   };
 
   const handleUpdateSuccess = () => {
     setShowEditModal(false);
     setEditingProductId(null);
-    setMessage({ type: 'success', text: 'Product updated successfully!' });
+    // toast.success('Product updated successfully!');
     fetchProducts();
     fetchStats();
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   };
 
   const handleModalClose = () => {
@@ -297,19 +285,6 @@ export default function ProductsPage() {
           </Button>
         }
       />
-
-      {/* Messages */}
-      {message.text && (
-        <div className={`
-          p-3 rounded-lg border animate-slide-in text-sm
-          ${message.type === 'success' 
-            ? 'bg-tppmint/20 border-tppmint text-tppslate' 
-            : 'bg-red-50 border-red-200 text-red-800'
-          }
-        `}>
-          {message.text}
-        </div>
-      )}
 
       {/* Search & Filters Section */}
       <div className="bg-white rounded-lg p-5 border border-tppgrey shadow-sm space-y-4">
@@ -458,6 +433,7 @@ export default function ProductsPage() {
           productId={variantManagerProduct}
           onClose={() => {
             setVariantManagerProduct(null);
+            toast.info('Variant manager closed');
             fetchProducts();
             fetchStats();
           }}

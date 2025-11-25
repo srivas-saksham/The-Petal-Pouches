@@ -9,6 +9,7 @@ import StatusBadge from '../../components/admin/ui/StatusBadge';
 import ActionMenu from '../../components/admin/ui/ActionMenu';
 import Modal from '../../components/admin/ui/Modal';
 import { formatCurrency, formatDate } from '../../utils/adminHelpers';
+import { useToast } from '../../hooks/useToast';
 
 // Import existing working components
 import BundleForm from '../../components/adminComps/BundleForm';
@@ -28,7 +29,7 @@ export default function BundlesPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
-  const [message, setMessage] = useState({ type: '', text: '' });
+  const toast = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedBundles, setExpandedBundles] = useState(new Set());
   
@@ -61,7 +62,7 @@ export default function BundlesPage() {
     if (result.success) {
       setBundles(result.data.data || []);
     } else {
-      setMessage({ type: 'error', text: result.error || 'Failed to load bundles' });
+      toast.error(result.error || 'Failed to load bundles');
     }
     
     setLoading(false);
@@ -101,52 +102,50 @@ export default function BundlesPage() {
     const result = await deleteBundle(bundleId);
     
     if (result.success) {
-      setMessage({ type: 'success', text: 'Bundle deleted successfully' });
+      toast.success('Bundle deleted successfully');
       fetchBundles();
       fetchStats();
     } else {
-      setMessage({ type: 'error', text: result.error || 'Failed to delete bundle' });
+      toast.error(result.error || 'Failed to delete bundle');
     }
-    
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   };
 
   const handleToggle = async (bundleId) => {
     const result = await toggleBundleStatus(bundleId);
     
     if (result.success) {
-      setMessage({ type: 'success', text: result.data.message || 'Status updated' });
+      toast.success(result.data.message || 'Bundle status updated');
       fetchBundles();
       fetchStats();
     } else {
-      setMessage({ type: 'error', text: result.error || 'Failed to toggle status' });
+      toast.error(result.error || 'Failed to toggle status');
     }
     
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    
   };
 
   const handleDuplicate = async (bundleId) => {
     const result = await duplicateBundle(bundleId);
     
     if (result.success) {
-      setMessage({ type: 'success', text: 'Bundle duplicated successfully' });
+      toast.success('Bundle duplicated successfully');
       fetchBundles();
       fetchStats();
     } else {
-      setMessage({ type: 'error', text: result.error || 'Failed to duplicate bundle' });
+      toast.error(result.error || 'Failed to duplicate bundle');
     }
     
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    
   };
 
   const handleFormSuccess = (successMessage) => {
     setShowCreateModal(false);
     setShowEditModal(false);
     setEditingBundleId(null);
-    setMessage({ type: 'success', text: successMessage });
+    toast.success(successMessage);
     fetchBundles();
     fetchStats();
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    
   };
 
   const handleModalClose = () => {
@@ -171,19 +170,6 @@ export default function BundlesPage() {
           </Button>
         }
       />
-
-      {/* Messages */}
-      {message.text && (
-        <div className={`
-          p-4 rounded-lg border animate-slide-in
-          ${message.type === 'success' 
-            ? 'bg-green-50 border-green-200 text-green-800' 
-            : 'bg-red-50 border-red-200 text-red-800'
-          }
-        `}>
-          {message.text}
-        </div>
-      )}
 
       {/* Stats Cards */}
       {!statsLoading && stats && (

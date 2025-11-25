@@ -1,11 +1,12 @@
 // frontend/src/pages/admin/CategoriesPage.jsx
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Tag, Package, AlertCircle, Search, X, FolderOpen, Layers, ChevronRight, Eye } from 'lucide-react';
+import { Plus, Edit, Trash2, Tag, Package, Search, X, FolderOpen, Layers, ChevronRight, Eye } from 'lucide-react';
 import PageHeader from '../../components/admin/ui/PageHeader';
 import Button from '../../components/admin/ui/Button';
 import Modal from '../../components/admin/ui/Modal';
 import { formatDate } from '../../utils/adminHelpers';
+import { useToast } from '../../hooks/useToast';
 
 // Import services
 import {
@@ -83,7 +84,7 @@ export default function CategoriesPage() {
   const [stats, setStats] = useState({ total: 0, withProducts: 0, empty: 0 });
   const [loading, setLoading] = useState(false);
   const [statsLoading, setStatsLoading] = useState(true);
-  const [message, setMessage] = useState({ type: '', text: '' });
+  const toast = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   
   // Modal states
@@ -143,7 +144,7 @@ export default function CategoriesPage() {
         empty: categoriesArray.length - withProducts,
       });
     } else {
-      setMessage({ type: 'error', text: result.error || 'Failed to load categories' });
+      toast.error(result.error || 'Failed to load categories');
     }
     
     setLoading(false);
@@ -158,7 +159,7 @@ export default function CategoriesPage() {
       const products = result.data.data || [];
       setCategoryProducts(products);
     } else {
-      setMessage({ type: 'error', text: 'Failed to load products' });
+      toast.error('Failed to load products');
       setCategoryProducts([]);
     }
     
@@ -182,12 +183,12 @@ export default function CategoriesPage() {
     e.preventDefault();
     
     if (!formData.name.trim()) {
-      setMessage({ type: 'error', text: 'Category name is required' });
+      toast.error('Category name is required');
       return;
     }
 
     setSubmitting(true);
-    setMessage({ type: '', text: '' });
+    
 
     const categoryData = {
       name: formData.name.trim(),
@@ -202,22 +203,17 @@ export default function CategoriesPage() {
     }
 
     if (result.success) {
-      setMessage({ 
-        type: 'success', 
-        text: editingId ? 'Category updated successfully!' : 'Category created successfully!' 
-      });
+      toast.success(
+        editingId ? 'Category updated successfully!' : 'Category created successfully!'
+      );
       
       setFormData({ name: '', description: '' });
       setEditingId(null);
       setShowModal(false);
       
       fetchCategories();
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
     } else {
-      setMessage({
-        type: 'error',
-        text: result.error || 'Failed to save category'
-      });
+      toast.error(result.error || 'Failed to save category');
     }
 
     setSubmitting(false);
@@ -238,19 +234,15 @@ export default function CategoriesPage() {
     }
 
     setLoading(true);
-    setMessage({ type: '', text: '' });
+    
     
     const result = await deleteCategory(id);
     
     if (result.success) {
-      setMessage({ type: 'success', text: 'Category deleted successfully!' });
+      toast.success('Category deleted successfully!');
       fetchCategories();
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
     } else {
-      setMessage({
-        type: 'error',
-        text: result.error || 'Failed to delete category'
-      });
+      toast.error(result.error || 'Failed to delete category');
     }
     
     setLoading(false);
@@ -260,7 +252,7 @@ export default function CategoriesPage() {
     setFormData({ name: '', description: '' });
     setEditingId(null);
     setShowModal(false);
-    setMessage({ type: '', text: '' });
+    
   };
 
   const handleOpenCreateModal = () => {
@@ -319,10 +311,9 @@ export default function CategoriesPage() {
 
   const handleAddProductsToCategory = async () => {
     if (selectedProductIds.length === 0) {
-      setMessage({ type: 'error', text: 'Please select at least one product' });
+      toast.error('Please select at least one product');
       return;
     }
-
     setAddProductsLoading(true);
 
     // Update each selected product with the new category
@@ -335,15 +326,13 @@ export default function CategoriesPage() {
     const failCount = results.length - successCount;
 
     if (successCount > 0) {
-      setMessage({ 
-        type: 'success', 
-        text: `Successfully added ${successCount} product${successCount !== 1 ? 's' : ''} to ${addProductsCategory.name}${failCount > 0 ? `, ${failCount} failed` : ''}` 
-      });
+      toast.success(
+        `Successfully added ${successCount} product${successCount !== 1 ? 's' : ''} to ${addProductsCategory.name}${failCount > 0 ? `, ${failCount} failed` : ''}`
+      );
       fetchCategories();
       handleCloseAddProductsModal();
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
     } else {
-      setMessage({ type: 'error', text: 'Failed to add products to category' });
+      toast.error('Failed to add products to category');
     }
 
     setAddProductsLoading(false);
@@ -371,26 +360,6 @@ export default function CategoriesPage() {
           </Button>
         }
       />
-
-      {/* Messages */}
-      {message.text && (
-        <div className={`
-          p-3 rounded-lg border animate-slide-in text-sm
-          ${message.type === 'success' 
-            ? 'bg-tpppink/20 border-tpppink text-tppslate' 
-            : 'bg-red-50 border-red-200 text-red-800'
-          }
-        `}>
-          <div className="flex items-center gap-2">
-            {message.type === 'success' ? (
-              <Package className="w-4 h-4" />
-            ) : (
-              <AlertCircle className="w-4 h-4" />
-            )}
-            {message.text}
-          </div>
-        </div>
-      )}
 
       {/* Stats Cards */}
       {!statsLoading && (

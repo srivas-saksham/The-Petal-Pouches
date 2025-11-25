@@ -18,6 +18,7 @@ import {
   Edit
 } from 'lucide-react';
 import axios from 'axios';
+import { useToast } from '../../hooks/useToast';
 
 // InputWrapper component - OUTSIDE the main component
 const InputWrapper = ({ label, name, required, icon: Icon, children, hint, error }) => (
@@ -61,7 +62,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
   const [showVariantWarning, setShowVariantWarning] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(true);
-  const [message, setMessage] = useState({ type: '', text: '' });
+  const toast = useToast();
   
   // Field-level validation errors
   const [errors, setErrors] = useState({});
@@ -75,7 +76,6 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     name: '',
     description: ''
   });
-  const [categoryMessage, setCategoryMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
     fetchProduct();
@@ -109,7 +109,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
       setLoadingProduct(false);
     } catch (error) {
       console.error('Error fetching product:', error);
-      setMessage({ type: 'error', text: 'Failed to load product' });
+      toast.error('Failed to load product');
       setLoadingProduct(false);
     }
   };
@@ -243,7 +243,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
   // Create new category
   const handleCreateCategory = async () => {
     if (!newCategory.name.trim()) {
-      setCategoryMessage({ type: 'error', text: 'Category name is required' });
+      toast.error('Category name is required');
       return;
     }
 
@@ -256,7 +256,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         }
       );
 
-      setCategoryMessage({ type: 'success', text: 'Category created successfully!' });
+      toast.success('Category created successfully!');
       
       setNewCategory({ name: '', description: '' });
       await fetchCategories();
@@ -266,15 +266,12 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
       
       setTimeout(() => {
         setShowAddCategory(false);
-        setCategoryMessage({ type: '', text: '' });
+        
       }, 1500);
 
     } catch (error) {
       console.error('Error creating category:', error);
-      setCategoryMessage({
-        type: 'error',
-        text: error.response?.data?.message || 'Failed to create category'
-      });
+      toast.error(error.response?.data?.message || 'Failed to create category');
     }
   };
 
@@ -304,7 +301,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     
     // Validate form
     if (!validateForm()) {
-      setMessage({ type: 'error', text: 'Please fix all errors before submitting' });
+      toast.error('Please fix all errors before submitting');
       return;
     }
     
@@ -322,7 +319,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     }
     
     setLoading(true);
-    setMessage({ type: '', text: '' });
+    
 
     try {
       const data = new FormData();
@@ -354,17 +351,14 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         ? `${response.data.message} (${variantCount} variants deleted)`
         : response.data.message;
 
-      setMessage({ type: 'success', text: successMessage });
+      toast.success(successMessage);
       
       if (onSuccess) {
         setTimeout(() => onSuccess(response.data.data), 1500);
       }
     } catch (error) {
       console.error('Error updating product:', error);
-      setMessage({
-        type: 'error',
-        text: error.response?.data?.message || 'Failed to update product'
-      });
+      toast.error(error.response?.data?.message || 'Failed to update product');
     } finally {
       setLoading(false);
     }
@@ -390,26 +384,6 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
           <p className="text-sm text-tppslate/60">Edit product information</p>
         </div>
       </div>
-
-      {/* Global Message */}
-      {message.text && (
-        <div className={`
-          p-4 rounded-lg border-2 flex items-start gap-3 animate-slide-in
-          ${message.type === 'success' 
-            ? 'bg-tpppeach/20 border-tpppeach text-tppslate' 
-            : 'bg-red-50 border-red-200 text-red-800'
-          }
-        `}>
-          {message.type === 'success' ? (
-            <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          ) : (
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          )}
-          <div className="flex-1">
-            <p className="font-medium text-sm">{message.text}</p>
-          </div>
-        </div>
-      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Image Upload Section - Compact */}
@@ -659,23 +633,6 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
               <Plus className="w-5 h-5" />
               <h3 className="font-semibold">Create New Category</h3>
             </div>
-
-            {categoryMessage.text && (
-              <div className={`
-                p-3 rounded-lg border-2 flex items-center gap-2 text-sm mb-4
-                ${categoryMessage.type === 'success' 
-                  ? 'bg-tpppeach/20 border-tpppeach text-tppslate' 
-                  : 'bg-red-50 border-red-200 text-red-800'
-                }
-              `}>
-                {categoryMessage.type === 'success' ? (
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                )}
-                {categoryMessage.text}
-              </div>
-            )}
 
             <div className="space-y-3">
               <div>

@@ -17,6 +17,7 @@ import {
   Layers
 } from 'lucide-react';
 import axios from 'axios';
+import { useToast } from '../../hooks/useToast';
 
 const InputWrapper = ({ label, name, required, icon: Icon, children, hint, error }) => (
     <div className="space-y-2">
@@ -55,7 +56,7 @@ const CreateProductForm = ({ onSuccess }) => {
   const [imagePreview, setImagePreview] = useState(null);
   const [hasVariants, setHasVariants] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
+  const toast = useToast();
   
   // Field-level validation errors
   const [errors, setErrors] = useState({});
@@ -69,7 +70,6 @@ const CreateProductForm = ({ onSuccess }) => {
     name: '',
     description: ''
   });
-  const [categoryMessage, setCategoryMessage] = useState({ type: '', text: '' });
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -192,7 +192,7 @@ const CreateProductForm = ({ onSuccess }) => {
   // Create new category
   const handleCreateCategory = async () => {
     if (!newCategory.name.trim()) {
-      setCategoryMessage({ type: 'error', text: 'Category name is required' });
+      toast.error('Category name is required');
       return;
     }
 
@@ -220,15 +220,12 @@ const CreateProductForm = ({ onSuccess }) => {
       // Close the add category section after a short delay
       setTimeout(() => {
         setShowAddCategory(false);
-        setCategoryMessage({ type: '', text: '' });
+        
       }, 1500);
 
     } catch (error) {
       console.error('Error creating category:', error);
-      setCategoryMessage({
-        type: 'error',
-        text: error.response?.data?.message || 'Failed to create category'
-      });
+      toast.error(error.response?.data?.message || 'Failed to create category');
     }
   };
 
@@ -264,12 +261,12 @@ const CreateProductForm = ({ onSuccess }) => {
     
     // Validate form
     if (!validateForm()) {
-      setMessage({ type: 'error', text: 'Please fix all errors before submitting' });
+      toast.error('Please fix all errors before submitting');
       return;
     }
     
     setLoading(true);
-    setMessage({ type: '', text: '' });
+    
 
     try {
       const data = new FormData();
@@ -295,7 +292,7 @@ const CreateProductForm = ({ onSuccess }) => {
         }
       );
 
-      setMessage({ type: 'success', text: 'Product created successfully!' });
+      toast.success('Product created successfully!');
 
       // Reset form
       setFormData({
@@ -318,10 +315,8 @@ const CreateProductForm = ({ onSuccess }) => {
 
     } catch (error) {
       console.error('Error creating product:', error);
-      setMessage({
-        type: 'error',
-        text: error.response?.data?.message || 'Failed to create product'
-      });
+      toast.error(error.response?.data?.message || 'Failed to create product');
+
     } finally {
       setLoading(false);
     }
@@ -340,26 +335,6 @@ const CreateProductForm = ({ onSuccess }) => {
           <p className="text-sm text-tppslate/60">Add a new product to your catalog</p>
         </div>
       </div>
-
-      {/* Global Message */}
-      {message.text && (
-        <div className={`
-          p-4 rounded-lg border-2 flex items-start gap-3 animate-slide-in
-          ${message.type === 'success' 
-            ? 'bg-tpppeach/20 border-tpppeach text-tppslate' 
-            : 'bg-red-50 border-red-200 text-red-800'
-          }
-        `}>
-          {message.type === 'success' ? (
-            <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          ) : (
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          )}
-          <div className="flex-1">
-            <p className="font-medium text-sm">{message.text}</p>
-          </div>
-        </div>
-      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Image Upload Section */}
@@ -594,23 +569,6 @@ const CreateProductForm = ({ onSuccess }) => {
               <Plus className="w-5 h-5" />
               <h3 className="font-semibold">Create New Category</h3>
             </div>
-
-            {categoryMessage.text && (
-              <div className={`
-                p-3 rounded-lg border-2 flex items-center gap-2 text-sm mb-4
-                ${categoryMessage.type === 'success' 
-                  ? 'bg-tpppeach/20 border-tpppeach text-tppslate' 
-                  : 'bg-red-50 border-red-200 text-red-800'
-                }
-              `}>
-                {categoryMessage.type === 'success' ? (
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                )}
-                {categoryMessage.text}
-              </div>
-            )}
 
             <div className="space-y-3">
               <div>

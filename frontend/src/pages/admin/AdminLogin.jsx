@@ -3,17 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../../context/AdminAuthContext';
+import { useToast } from '../../hooks/useToast';
 import * as adminAuthService from '../../services/adminAuthService';
-import { Lock, Mail, ArrowRight, TriangleAlert, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Lock, Mail, ArrowRight, TriangleAlert, ShieldCheck } from 'lucide-react';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [attemptCount, setAttemptCount] = useState(0); // ✅ NEW: Track attempts
+  const [attemptCount, setAttemptCount] = useState(0);
   const { login, reAuthenticate, admin, requiresReauth } = useAdminAuth();
   const navigate = useNavigate();
+  const toast = useToast();
 
   // Check if user is already authenticated
   useEffect(() => {
@@ -22,39 +23,53 @@ export default function AdminLogin() {
     }
   }, [admin, requiresReauth, navigate]);
 
-  // ✅ Handle Fresh Login (email + password)
+  // Handle Fresh Login (email + password)
   const handleFreshLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
 
     const result = await login(email, password);
 
     if (result.success) {
-      setAttemptCount(0); // ✅ Reset on success
+      setAttemptCount(0);
+      toast.success('Login successful! Welcome back.');
       navigate('/admin/dashboard');
     } else {
-      setAttemptCount(prev => prev + 1); // ✅ Increment on failure
-      setError(result.error || 'Login failed');
+      setAttemptCount(prev => prev + 1);
+      const maxAttempts = 5;
+      const remaining = maxAttempts - (attemptCount + 1);
+      
+      if (remaining > 0) {
+        toast.error(`${result.error || 'Login failed'}. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`);
+      } else {
+        toast.error('Too many failed attempts. Account temporarily locked.');
+      }
     }
 
     setLoading(false);
   };
 
-  // ✅ Handle Re-authentication (password only)
+  // Handle Re-authentication (password only)
   const handleReAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
 
     const result = await reAuthenticate(password);
 
     if (result.success) {
-      setAttemptCount(0); // ✅ Reset on success
+      setAttemptCount(0);
+      toast.success(`Welcome back, ${admin.name}!`);
       navigate('/admin/dashboard');
     } else {
-      setAttemptCount(prev => prev + 1); // ✅ Increment on failure
-      setError(result.error || 'Password verification failed');
+      setAttemptCount(prev => prev + 1);
+      const maxAttempts = 5;
+      const remaining = maxAttempts - (attemptCount + 1);
+      
+      if (remaining > 0) {
+        toast.error(`${result.error || 'Verification failed'}. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`);
+      } else {
+        toast.error('Too many failed attempts. Please try again later.');
+      }
     }
 
     setLoading(false);
@@ -62,8 +77,6 @@ export default function AdminLogin() {
 
   // Determine which form to show
   const isReAuthMode = requiresReauth && admin;
-  const maxAttempts = 5;
-  const remainingAttempts = maxAttempts - attemptCount;
 
   return (
     <div className="min-h-screen flex overflow-x-hidden">
@@ -102,29 +115,6 @@ export default function AdminLogin() {
               <p className="text-tppslate/60 text-lg">
                 Sign in to your admin dashboard
               </p>
-            </div>
-          )}
-
-          {/* ✅ NEW: Attempt Counter Warning (show after first failed attempt) */}
-          {attemptCount > 0 && attemptCount < maxAttempts && (
-            <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded text-yellow-800 text-sm flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold">
-                  {attemptCount === 1 ? 'Incorrect credentials' : `${attemptCount} failed attempts`}
-                </p>
-                <p className="mt-1">
-                  {remainingAttempts} {remainingAttempts === 1 ? 'attempt' : 'attempts'} remaining before temporary lockout
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Error Message */}
-          {!isReAuthMode && error && (
-            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded text-red-700 text-sm">
-              <p className="font-medium">{isReAuthMode ? 'Verification Failed' : 'Login Failed'}</p>
-              <p className="mt-1">{error}</p>
             </div>
           )}
 
@@ -191,7 +181,6 @@ export default function AdminLogin() {
                 <button
                   type="button"
                   onClick={() => {
-                    // Clear everything and force full login
                     adminAuthService.clearAllAdminData();
                     window.location.reload();
                   }}
