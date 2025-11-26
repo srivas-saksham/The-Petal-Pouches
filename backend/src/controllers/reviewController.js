@@ -1,6 +1,6 @@
 // backend/src/controllers/reviewController.js
 
-const pool = require('../config/database');
+const supabase = require('../config/supabaseClient');
 
 /**
  * Review Controller
@@ -35,12 +35,13 @@ const ReviewController = {
       }
 
       // Check if product exists
-      const productCheck = await pool.query(
-        'SELECT id FROM products WHERE id = $1',
-        [product_id]
-      );
+      const { data: product, error: productError } = await supabase
+        .from('Products')
+        .select('id')
+        .eq('id', product_id)
+        .single();
 
-      if (productCheck.rows.length === 0) {
+      if (productError || !product) {
         return res.status(404).json({
           success: false,
           message: 'Product not found'
@@ -48,16 +49,19 @@ const ReviewController = {
       }
 
       // Check if user has purchased this product
-      const purchaseCheck = await pool.query(
-        `SELECT oi.id FROM order_items oi
-         JOIN orders o ON oi.order_id = o.id
-         JOIN product_variants pv ON oi.product_variant_id = pv.id
-         WHERE o.user_id = $1 AND pv.product_id = $2 AND o.status = 'delivered'
-         LIMIT 1`,
-        [userId, product_id]
-      );
+      const { data: purchases, error: purchaseError } = await supabase
+        .from('Order_items')
+        .select(`
+          id,
+          Orders!inner(user_id, status),
+          Product_variants!inner(product_id)
+        `)
+        .eq('Orders.user_id', userId)
+        .eq('Product_variants.product_id', product_id)
+        .eq('Orders.status', 'delivered')
+        .limit(1);
 
-      if (purchaseCheck.rows.length === 0) {
+      if (purchaseError || !purchases || purchases.length === 0) {
         return res.status(400).json({
           success: false,
           message: 'You can only review products you have purchased and received'
@@ -65,12 +69,14 @@ const ReviewController = {
       }
 
       // Check if user already reviewed this product
-      const existingReview = await pool.query(
-        'SELECT id FROM reviews WHERE user_id = $1 AND product_id = $2',
-        [userId, product_id]
-      );
+      const { data: existingReview, error: existingError } = await supabase
+        .from('Reviews')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('product_id', product_id)
+        .single();
 
-      if (existingReview.rows.length > 0) {
+      if (existingReview) {
         return res.status(400).json({
           success: false,
           message: 'You have already reviewed this product. You can update your existing review.'
@@ -78,27 +84,40 @@ const ReviewController = {
       }
 
       // Create review
-      const result = await pool.query(
-        `INSERT INTO reviews (id, user_id, product_id, order_id, rating, comment, created_at)
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW())
-         RETURNING id, user_id, product_id, rating, comment, created_at`,
-        [userId, product_id, order_id, rating, comment]
-      );
+      const { data: review, error: createError } = await supabase
+        .from('Reviews')
+        .insert([{
+          user_id: userId,
+          product_id,
+          order_id,
+          rating,
+          comment,
+          created_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
 
-      const review = result.rows[0];
+      if (createError) throw createError;
 
-      // Update product average rating
-      await pool.query(
-        `UPDATE products 
-         SET average_rating = (
-           SELECT AVG(rating) FROM reviews WHERE product_id = $1
-         ),
-         review_count = (
-           SELECT COUNT(*) FROM reviews WHERE product_id = $1
-         )
-         WHERE id = $1`,
-        [product_id]
-      );
+      // Get all reviews for this product to calculate average
+      const { data: allReviews, error: reviewsError } = await supabase
+        .from('Reviews')
+        .select('rating')
+        .eq('product_id', product_id);
+
+      if (!reviewsError && allReviews) {
+        const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+        const reviewCount = allReviews.length;
+
+        // Update product average rating
+        await supabase
+          .from('Products')
+          .update({
+            average_rating: avgRating,
+            review_count: reviewCount
+          })
+          .eq('id', product_id);
+      }
 
       console.log(`✅ Review created: ${review.id} for product ${product_id} by user ${userId}`);
 
@@ -129,64 +148,72 @@ const ReviewController = {
       const { page = 1, limit = 10, rating_filter, sort = 'recent' } = req.query;
       const offset = (page - 1) * limit;
 
-      // Build query
-      let whereClause = 'WHERE r.product_id = $1';
-      const params = [productId];
-      let paramCount = 1;
+      // Build base query
+      let query = supabase
+        .from('Reviews')
+        .select(`
+          id,
+          rating,
+          comment,
+          created_at,
+          helpful_count,
+          verified_purchase,
+          Users!inner(
+            id,
+            name,
+            avatar_url
+          )
+        `, { count: 'exact' })
+        .eq('product_id', productId);
 
+      // Apply rating filter
       if (rating_filter) {
-        paramCount++;
-        whereClause += ` AND r.rating = $${paramCount}`;
-        params.push(parseInt(rating_filter));
+        query = query.eq('rating', parseInt(rating_filter));
       }
 
-      // Sort options
-      let orderBy = 'ORDER BY r.created_at DESC'; // recent
-      if (sort === 'helpful') {
-        orderBy = 'ORDER BY r.helpful_count DESC, r.created_at DESC';
-      } else if (sort === 'rating_high') {
-        orderBy = 'ORDER BY r.rating DESC, r.created_at DESC';
-      } else if (sort === 'rating_low') {
-        orderBy = 'ORDER BY r.rating ASC, r.created_at DESC';
+      // Apply sorting
+      switch (sort) {
+        case 'helpful':
+          query = query.order('helpful_count', { ascending: false });
+          query = query.order('created_at', { ascending: false });
+          break;
+        case 'rating_high':
+          query = query.order('rating', { ascending: false });
+          query = query.order('created_at', { ascending: false });
+          break;
+        case 'rating_low':
+          query = query.order('rating', { ascending: true });
+          query = query.order('created_at', { ascending: false });
+          break;
+        default: // recent
+          query = query.order('created_at', { ascending: false });
       }
 
-      // Get reviews
-      const reviewsQuery = `
-        SELECT 
-          r.id,
-          r.rating,
-          r.comment,
-          r.created_at,
-          r.helpful_count,
-          r.verified_purchase,
-          u.id as user_id,
-          u.name as user_name,
-          u.avatar_url as user_avatar
-        FROM reviews r
-        JOIN users u ON r.user_id = u.id
-        ${whereClause}
-        ${orderBy}
-        LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
-      `;
+      // Apply pagination
+      query = query.range(offset, offset + parseInt(limit) - 1);
 
-      params.push(parseInt(limit), offset);
-      const reviewsResult = await pool.query(reviewsQuery, params);
+      const { data: reviews, error: reviewsError, count } = await query;
 
-      // Get total count
-      const countResult = await pool.query(
-        `SELECT COUNT(*) FROM reviews r ${whereClause}`,
-        params.slice(0, paramCount)
-      );
+      if (reviewsError) throw reviewsError;
+
+      // Format reviews
+      const formattedReviews = reviews.map(review => ({
+        id: review.id,
+        rating: review.rating,
+        comment: review.comment,
+        created_at: review.created_at,
+        helpful_count: review.helpful_count,
+        verified_purchase: review.verified_purchase,
+        user_id: review.Users.id,
+        user_name: review.Users.name,
+        user_avatar: review.Users.avatar_url
+      }));
 
       // Get rating distribution
-      const distributionResult = await pool.query(
-        `SELECT rating, COUNT(*) as count
-         FROM reviews
-         WHERE product_id = $1
-         GROUP BY rating
-         ORDER BY rating DESC`,
-        [productId]
-      );
+      const { data: allReviews, error: distributionError } = await supabase
+        .from('Reviews')
+        .select('rating')
+        .eq('product_id', productId);
 
       const distribution = {
         5: 0,
@@ -196,18 +223,20 @@ const ReviewController = {
         1: 0
       };
 
-      distributionResult.rows.forEach(row => {
-        distribution[row.rating] = parseInt(row.count);
-      });
+      if (!distributionError && allReviews) {
+        allReviews.forEach(review => {
+          distribution[review.rating] = (distribution[review.rating] || 0) + 1;
+        });
+      }
 
       return res.status(200).json({
         success: true,
-        reviews: reviewsResult.rows,
+        reviews: formattedReviews,
         pagination: {
-          total: parseInt(countResult.rows[0].count),
+          total: count || 0,
           page: parseInt(page),
           limit: parseInt(limit),
-          pages: Math.ceil(countResult.rows[0].count / limit)
+          pages: Math.ceil((count || 0) / limit)
         },
         rating_distribution: distribution
       });
@@ -231,37 +260,46 @@ const ReviewController = {
       const { page = 1, limit = 10 } = req.query;
       const offset = (page - 1) * limit;
 
-      const result = await pool.query(
-        `SELECT 
-          r.id,
-          r.product_id,
-          r.rating,
-          r.comment,
-          r.created_at,
-          r.helpful_count,
-          p.title as product_title,
-          p.image_url as product_image
-        FROM reviews r
-        JOIN products p ON r.product_id = p.id
-        WHERE r.user_id = $1
-        ORDER BY r.created_at DESC
-        LIMIT $2 OFFSET $3`,
-        [userId, limit, offset]
-      );
+      const { data: reviews, error: reviewsError, count } = await supabase
+        .from('Reviews')
+        .select(`
+          id,
+          product_id,
+          rating,
+          comment,
+          created_at,
+          helpful_count,
+          Products!inner(
+            title,
+            image_url
+          )
+        `, { count: 'exact' })
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + parseInt(limit) - 1);
 
-      const countResult = await pool.query(
-        'SELECT COUNT(*) FROM reviews WHERE user_id = $1',
-        [userId]
-      );
+      if (reviewsError) throw reviewsError;
+
+      // Format reviews
+      const formattedReviews = reviews.map(review => ({
+        id: review.id,
+        product_id: review.product_id,
+        rating: review.rating,
+        comment: review.comment,
+        created_at: review.created_at,
+        helpful_count: review.helpful_count,
+        product_title: review.Products.title,
+        product_image: review.Products.image_url
+      }));
 
       return res.status(200).json({
         success: true,
-        reviews: result.rows,
+        reviews: formattedReviews,
         pagination: {
-          total: parseInt(countResult.rows[0].count),
+          total: count || 0,
           page: parseInt(page),
           limit: parseInt(limit),
-          pages: Math.ceil(countResult.rows[0].count / limit)
+          pages: Math.ceil((count || 0) / limit)
         }
       });
 
@@ -295,47 +333,62 @@ const ReviewController = {
       }
 
       // Check ownership
-      const ownerCheck = await pool.query(
-        'SELECT id, product_id FROM reviews WHERE id = $1 AND user_id = $2',
-        [reviewId, userId]
-      );
+      const { data: existingReview, error: checkError } = await supabase
+        .from('Reviews')
+        .select('id, product_id')
+        .eq('id', reviewId)
+        .eq('user_id', userId)
+        .single();
 
-      if (ownerCheck.rows.length === 0) {
+      if (checkError || !existingReview) {
         return res.status(404).json({
           success: false,
           message: 'Review not found or you do not have permission to update it'
         });
       }
 
-      const productId = ownerCheck.rows[0].product_id;
+      const productId = existingReview.product_id;
+
+      // Build update object
+      const updateData = {
+        updated_at: new Date().toISOString()
+      };
+      if (rating) updateData.rating = rating;
+      if (comment !== undefined) updateData.comment = comment;
 
       // Update review
-      const result = await pool.query(
-        `UPDATE reviews
-         SET rating = COALESCE($1, rating),
-             comment = COALESCE($2, comment),
-             updated_at = NOW()
-         WHERE id = $3 AND user_id = $4
-         RETURNING id, rating, comment, updated_at`,
-        [rating, comment, reviewId, userId]
-      );
+      const { data: updatedReview, error: updateError } = await supabase
+        .from('Reviews')
+        .update(updateData)
+        .eq('id', reviewId)
+        .eq('user_id', userId)
+        .select()
+        .single();
 
-      // Update product average rating
-      await pool.query(
-        `UPDATE products 
-         SET average_rating = (
-           SELECT AVG(rating) FROM reviews WHERE product_id = $1
-         )
-         WHERE id = $1`,
-        [productId]
-      );
+      if (updateError) throw updateError;
+
+      // Get all reviews for this product to recalculate average
+      const { data: allReviews, error: reviewsError } = await supabase
+        .from('Reviews')
+        .select('rating')
+        .eq('product_id', productId);
+
+      if (!reviewsError && allReviews) {
+        const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+
+        // Update product average rating
+        await supabase
+          .from('Products')
+          .update({ average_rating: avgRating })
+          .eq('id', productId);
+      }
 
       console.log(`✅ Review updated: ${reviewId} by user ${userId}`);
 
       return res.status(200).json({
         success: true,
         message: 'Review updated successfully',
-        review: result.rows[0]
+        review: updatedReview
       });
 
     } catch (error) {
@@ -359,38 +412,52 @@ const ReviewController = {
       const reviewId = req.params.id;
 
       // Check ownership
-      const ownerCheck = await pool.query(
-        'SELECT id, product_id FROM reviews WHERE id = $1 AND user_id = $2',
-        [reviewId, userId]
-      );
+      const { data: existingReview, error: checkError } = await supabase
+        .from('Reviews')
+        .select('id, product_id')
+        .eq('id', reviewId)
+        .eq('user_id', userId)
+        .single();
 
-      if (ownerCheck.rows.length === 0) {
+      if (checkError || !existingReview) {
         return res.status(404).json({
           success: false,
           message: 'Review not found or you do not have permission to delete it'
         });
       }
 
-      const productId = ownerCheck.rows[0].product_id;
+      const productId = existingReview.product_id;
 
       // Delete review
-      await pool.query(
-        'DELETE FROM reviews WHERE id = $1 AND user_id = $2',
-        [reviewId, userId]
-      );
+      const { error: deleteError } = await supabase
+        .from('Reviews')
+        .delete()
+        .eq('id', reviewId)
+        .eq('user_id', userId);
 
-      // Update product average rating and count
-      await pool.query(
-        `UPDATE products 
-         SET average_rating = (
-           SELECT AVG(rating) FROM reviews WHERE product_id = $1
-         ),
-         review_count = (
-           SELECT COUNT(*) FROM reviews WHERE product_id = $1
-         )
-         WHERE id = $1`,
-        [productId]
-      );
+      if (deleteError) throw deleteError;
+
+      // Get remaining reviews for this product to recalculate average
+      const { data: allReviews, error: reviewsError } = await supabase
+        .from('Reviews')
+        .select('rating')
+        .eq('product_id', productId);
+
+      if (!reviewsError) {
+        const avgRating = allReviews.length > 0 
+          ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length 
+          : null;
+        const reviewCount = allReviews.length;
+
+        // Update product average rating and count
+        await supabase
+          .from('Products')
+          .update({
+            average_rating: avgRating,
+            review_count: reviewCount
+          })
+          .eq('id', productId);
+      }
 
       console.log(`✅ Review deleted: ${reviewId} by user ${userId}`);
 
@@ -418,26 +485,36 @@ const ReviewController = {
     try {
       const reviewId = req.params.id;
 
-      // Increment helpful count
-      const result = await pool.query(
-        `UPDATE reviews
-         SET helpful_count = helpful_count + 1
-         WHERE id = $1
-         RETURNING id, helpful_count`,
-        [reviewId]
-      );
+      // Get current helpful count
+      const { data: review, error: fetchError } = await supabase
+        .from('Reviews')
+        .select('helpful_count')
+        .eq('id', reviewId)
+        .single();
 
-      if (result.rows.length === 0) {
+      if (fetchError || !review) {
         return res.status(404).json({
           success: false,
           message: 'Review not found'
         });
       }
 
+      // Increment helpful count
+      const newCount = (review.helpful_count || 0) + 1;
+
+      const { data: updatedReview, error: updateError } = await supabase
+        .from('Reviews')
+        .update({ helpful_count: newCount })
+        .eq('id', reviewId)
+        .select('id, helpful_count')
+        .single();
+
+      if (updateError) throw updateError;
+
       return res.status(200).json({
         success: true,
         message: 'Marked as helpful',
-        helpful_count: result.rows[0].helpful_count
+        helpful_count: updatedReview.helpful_count
       });
 
     } catch (error) {

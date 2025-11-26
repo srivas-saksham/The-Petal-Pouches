@@ -1,7 +1,7 @@
 // frontend/src/components/user/ProtectedCustomerRoute.jsx
 
 import { Navigate } from 'react-router-dom';
-import { useUserAuth } from '../context/UserAuthContext';
+import { useUserAuth } from '../../context/UserAuthContext';;
 
 /**
  * Route guard component for authenticated customer pages

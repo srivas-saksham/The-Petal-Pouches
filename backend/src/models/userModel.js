@@ -1,7 +1,7 @@
 // backend/src/models/userModel.js
 
-const pool = require('../config/database');
-const bcrypt = require('bcrypt');
+const supabase = require('../config/supabaseClient');
+const bcrypt = require('bcryptjs');
 
 /**
  * User Model - Handles all user-related database operations for customers
@@ -29,30 +29,36 @@ const UserModel = {
       const saltRounds = 10;
       const password_hash = await bcrypt.hash(password, saltRounds);
       
-      const query = `
-        INSERT INTO users (
-          id, name, email, password_hash, phone, 
-          email_verified, is_active, created_at, updated_at
-        )
-        VALUES (
-          gen_random_uuid(), $1, $2, $3, $4, 
-          false, true, now(), now()
-        )
-        RETURNING id, name, email, phone, email_verified, is_active, created_at, updated_at
-      `;
+      const { data: user, error } = await supabase
+        .from('Users')
+        .insert([{
+          name,
+          email,
+          password_hash,
+          phone: phone || null,
+          email_verified: false,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select('id, name, email, phone, email_verified, is_active, created_at, updated_at')
+        .single();
       
-      const values = [name, email, password_hash, phone || null];
-      const result = await pool.query(query, values);
-      
-      console.log(`[UserModel] New user created: ${email}`);
-      return result.rows[0];
-      
-    } catch (error) {
-      // Handle PostgreSQL unique constraint violation
-      if (error.code === '23505' && error.constraint === 'users_email_key') {
-        throw new Error('EMAIL_EXISTS');
+      if (error) {
+        // Handle unique constraint violation
+        if (error.code === '23505' || error.message.includes('duplicate key')) {
+          throw new Error('EMAIL_EXISTS');
+        }
+        throw error;
       }
       
+      console.log(`[UserModel] New user created: ${email}`);
+      return user;
+      
+    } catch (error) {
+      if (error.message === 'EMAIL_EXISTS') {
+        throw error;
+      }
       console.error('[UserModel] Error creating user:', error);
       throw error;
     }
@@ -66,16 +72,17 @@ const UserModel = {
    * @returns {Promise<Object|null>} User object with password_hash or null
    */
   async findByEmail(email) {
-    const query = `
-      SELECT 
-        id, name, email, password_hash, phone, 
-        email_verified, is_active, created_at, updated_at, last_login
-      FROM users
-      WHERE email = $1
-    `;
+    const { data: user, error } = await supabase
+      .from('Users')
+      .select('id, name, email, password_hash, phone, email_verified, is_active, created_at, updated_at, last_login')
+      .eq('email', email)
+      .single();
     
-    const result = await pool.query(query, [email]);
-    return result.rows[0] || null;
+    if (error) {
+      return null;
+    }
+    
+    return user;
   },
 
   /**
@@ -84,16 +91,18 @@ const UserModel = {
    * @returns {Promise<Object|null>} User object or null
    */
   async findById(userId) {
-    const query = `
-      SELECT 
-        id, name, email, phone, 
-        email_verified, is_active, created_at, updated_at, last_login
-      FROM users
-      WHERE id = $1 AND is_active = true
-    `;
+    const { data: user, error } = await supabase
+      .from('Users')
+      .select('id, name, email, phone, email_verified, is_active, created_at, updated_at, last_login')
+      .eq('id', userId)
+      .eq('is_active', true)
+      .single();
     
-    const result = await pool.query(query, [userId]);
-    return result.rows[0] || null;
+    if (error) {
+      return null;
+    }
+    
+    return user;
   },
 
   /**
@@ -102,24 +111,48 @@ const UserModel = {
    * @returns {Promise<Object|null>} User profile with order count, wishlist count, etc.
    */
   async getProfile(userId) {
-    const query = `
-      SELECT 
-        u.id, u.name, u.email, u.phone, 
-        u.email_verified, u.is_active, u.created_at, u.last_login,
-        COUNT(DISTINCT o.id) as total_orders,
-        COUNT(DISTINCT w.id) as wishlist_count,
-        COUNT(DISTINCT a.id) as address_count,
-        COALESCE(SUM(o.final_total), 0)::int as total_spent
-      FROM users u
-      LEFT JOIN orders o ON u.id = o.user_id AND o.status != 'cancelled'
-      LEFT JOIN wishlist w ON u.id = w.user_id
-      LEFT JOIN addresses a ON u.id = a.user_id
-      WHERE u.id = $1 AND u.is_active = true
-      GROUP BY u.id
-    `;
+    // Get user basic info
+    const { data: user, error: userError } = await supabase
+      .from('Users')
+      .select('id, name, email, phone, email_verified, is_active, created_at, last_login')
+      .eq('id', userId)
+      .eq('is_active', true)
+      .single();
     
-    const result = await pool.query(query, [userId]);
-    return result.rows[0] || null;
+    if (userError || !user) {
+      return null;
+    }
+
+    // Get orders (excluding cancelled)
+    const { data: orders, error: ordersError } = await supabase
+      .from('Orders')
+      .select('id, final_total')
+      .eq('user_id', userId)
+      .neq('status', 'cancelled');
+
+    // Get wishlist count
+    const { count: wishlistCount, error: wishlistError } = await supabase
+      .from('Wishlist')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    // Get address count
+    const { count: addressCount, error: addressError } = await supabase
+      .from('Addresses')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    // Calculate totals
+    const totalOrders = orders ? orders.length : 0;
+    const totalSpent = orders ? orders.reduce((sum, order) => sum + (order.final_total || 0), 0) : 0;
+
+    return {
+      ...user,
+      total_orders: totalOrders,
+      wishlist_count: wishlistCount || 0,
+      address_count: addressCount || 0,
+      total_spent: Math.floor(totalSpent)
+    };
   },
 
   /**
@@ -128,9 +161,12 @@ const UserModel = {
    * @returns {Promise<boolean>} True if email exists
    */
   async emailExists(email) {
-    const query = `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1) as exists`;
-    const result = await pool.query(query, [email]);
-    return result.rows[0].exists;
+    const { count, error } = await supabase
+      .from('Users')
+      .select('*', { count: 'exact', head: true })
+      .eq('email', email);
+    
+    return (count || 0) > 0;
   },
 
   // ==================== UPDATE OPERATIONS ====================
@@ -146,25 +182,27 @@ const UserModel = {
   async updateProfile(userId, updateData) {
     const { name, phone } = updateData;
     
-    const query = `
-      UPDATE users
-      SET 
-        name = COALESCE($1, name),
-        phone = COALESCE($2, phone),
-        updated_at = now()
-      WHERE id = $3 AND is_active = true
-      RETURNING id, name, email, phone, email_verified, is_active, created_at, updated_at
-    `;
+    const updates = {
+      updated_at: new Date().toISOString()
+    };
     
-    const values = [name || null, phone || null, userId];
-    const result = await pool.query(query, values);
+    if (name) updates.name = name;
+    if (phone !== undefined) updates.phone = phone;
     
-    if (result.rows.length === 0) {
+    const { data: user, error } = await supabase
+      .from('Users')
+      .update(updates)
+      .eq('id', userId)
+      .eq('is_active', true)
+      .select('id, name, email, phone, email_verified, is_active, created_at, updated_at')
+      .single();
+    
+    if (error || !user) {
       throw new Error('USER_NOT_FOUND');
     }
     
     console.log(`[UserModel] Profile updated for user: ${userId}`);
-    return result.rows[0];
+    return user;
   },
 
   /**
@@ -175,28 +213,35 @@ const UserModel = {
    */
   async updateEmail(userId, newEmail) {
     try {
-      const query = `
-        UPDATE users
-        SET 
-          email = $1,
-          email_verified = false,
-          updated_at = now()
-        WHERE id = $2 AND is_active = true
-        RETURNING id, name, email, phone, email_verified, is_active
-      `;
+      const { data: user, error } = await supabase
+        .from('Users')
+        .update({
+          email: newEmail,
+          email_verified: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId)
+        .eq('is_active', true)
+        .select('id, name, email, phone, email_verified, is_active')
+        .single();
       
-      const result = await pool.query(query, [newEmail, userId]);
+      if (error) {
+        if (error.code === '23505' || error.message.includes('duplicate key')) {
+          throw new Error('EMAIL_EXISTS');
+        }
+        throw error;
+      }
       
-      if (result.rows.length === 0) {
+      if (!user) {
         throw new Error('USER_NOT_FOUND');
       }
       
       console.log(`[UserModel] Email updated for user: ${userId}`);
-      return result.rows[0];
+      return user;
       
     } catch (error) {
-      if (error.code === '23505') {
-        throw new Error('EMAIL_EXISTS');
+      if (error.message === 'EMAIL_EXISTS' || error.message === 'USER_NOT_FOUND') {
+        throw error;
       }
       throw error;
     }
@@ -212,18 +257,17 @@ const UserModel = {
     const saltRounds = 10;
     const password_hash = await bcrypt.hash(newPassword, saltRounds);
     
-    const query = `
-      UPDATE users
-      SET 
-        password_hash = $1,
-        updated_at = now()
-      WHERE id = $2 AND is_active = true
-    `;
+    const { error, count } = await supabase
+      .from('Users')
+      .update({
+        password_hash,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .eq('is_active', true);
     
-    const result = await pool.query(query, [password_hash, userId]);
-    
-    if (result.rowCount === 0) {
-      throw new Error('USER_NOT_FOUND');
+    if (error) {
+      throw error;
     }
     
     console.log(`[UserModel] Password updated for user: ${userId}`);
@@ -236,17 +280,16 @@ const UserModel = {
    * @returns {Promise<boolean>} True if successful
    */
   async verifyEmail(userId) {
-    const query = `
-      UPDATE users
-      SET 
-        email_verified = true,
-        updated_at = now()
-      WHERE id = $1 AND is_active = true
-    `;
+    const { error } = await supabase
+      .from('Users')
+      .update({
+        email_verified: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .eq('is_active', true);
     
-    const result = await pool.query(query, [userId]);
-    
-    if (result.rowCount === 0) {
+    if (error) {
       throw new Error('USER_NOT_FOUND');
     }
     
@@ -260,13 +303,10 @@ const UserModel = {
    * @returns {Promise<void>}
    */
   async updateLastLogin(userId) {
-    const query = `
-      UPDATE users
-      SET last_login = now()
-      WHERE id = $1
-    `;
-    
-    await pool.query(query, [userId]);
+    await supabase
+      .from('Users')
+      .update({ last_login: new Date().toISOString() })
+      .eq('id', userId);
   },
 
   // ==================== DELETE OPERATIONS ====================
@@ -277,17 +317,16 @@ const UserModel = {
    * @returns {Promise<boolean>} True if successful
    */
   async deactivate(userId) {
-    const query = `
-      UPDATE users
-      SET 
-        is_active = false,
-        updated_at = now()
-      WHERE id = $1
-    `;
+    const { data, error } = await supabase
+      .from('Users')
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .select();
     
-    const result = await pool.query(query, [userId]);
-    
-    if (result.rowCount === 0) {
+    if (error || !data || data.length === 0) {
       throw new Error('USER_NOT_FOUND');
     }
     
@@ -302,10 +341,13 @@ const UserModel = {
    * @returns {Promise<boolean>} True if successful
    */
   async hardDelete(userId) {
-    const query = `DELETE FROM users WHERE id = $1`;
-    const result = await pool.query(query, [userId]);
+    const { data, error } = await supabase
+      .from('Users')
+      .delete()
+      .eq('id', userId)
+      .select();
     
-    if (result.rowCount === 0) {
+    if (error || !data || data.length === 0) {
       throw new Error('USER_NOT_FOUND');
     }
     
@@ -370,34 +412,53 @@ const UserModel = {
    * @returns {Promise<Object>} User statistics
    */
   async getStatistics(userId) {
-    const query = `
-      SELECT 
-        COUNT(DISTINCT o.id) as total_orders,
-        COUNT(DISTINCT CASE WHEN o.status = 'delivered' THEN o.id END) as completed_orders,
-        COUNT(DISTINCT CASE WHEN o.status = 'cancelled' THEN o.id END) as cancelled_orders,
-        COALESCE(SUM(CASE WHEN o.status != 'cancelled' THEN o.final_total ELSE 0 END), 0)::int as total_spent,
-        COUNT(DISTINCT w.id) as wishlist_items,
-        COUNT(DISTINCT r.id) as total_reviews,
-        COUNT(DISTINCT a.id) as saved_addresses
-      FROM users u
-      LEFT JOIN orders o ON u.id = o.user_id
-      LEFT JOIN wishlist w ON u.id = w.user_id
-      LEFT JOIN reviews r ON u.id = r.user_id
-      LEFT JOIN addresses a ON u.id = a.user_id
-      WHERE u.id = $1
-      GROUP BY u.id
-    `;
-    
-    const result = await pool.query(query, [userId]);
-    return result.rows[0] || {
+    // Get all orders
+    const { data: orders, error: ordersError } = await supabase
+      .from('Orders')
+      .select('id, status, final_total')
+      .eq('user_id', userId);
+
+    // Get wishlist count
+    const { count: wishlistCount, error: wishlistError } = await supabase
+      .from('Wishlist')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    // Get reviews count
+    const { count: reviewsCount, error: reviewsError } = await supabase
+      .from('Reviews')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    // Get addresses count
+    const { count: addressesCount, error: addressesError } = await supabase
+      .from('Addresses')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    // Calculate statistics
+    const stats = {
       total_orders: 0,
       completed_orders: 0,
       cancelled_orders: 0,
       total_spent: 0,
-      wishlist_items: 0,
-      total_reviews: 0,
-      saved_addresses: 0
+      wishlist_items: wishlistCount || 0,
+      total_reviews: reviewsCount || 0,
+      saved_addresses: addressesCount || 0
     };
+
+    if (orders && orders.length > 0) {
+      stats.total_orders = orders.length;
+      stats.completed_orders = orders.filter(o => o.status === 'delivered').length;
+      stats.cancelled_orders = orders.filter(o => o.status === 'cancelled').length;
+      stats.total_spent = Math.floor(
+        orders
+          .filter(o => o.status !== 'cancelled')
+          .reduce((sum, o) => sum + (o.final_total || 0), 0)
+      );
+    }
+
+    return stats;
   },
 
   /**
@@ -408,22 +469,20 @@ const UserModel = {
    * @returns {Promise<Array>} Array of users
    */
   async search(searchTerm, limit = 20, offset = 0) {
-    const query = `
-      SELECT 
-        id, name, email, phone, 
-        email_verified, is_active, created_at, last_login
-      FROM users
-      WHERE 
-        (name ILIKE $1 OR email ILIKE $1)
-        AND is_active = true
-      ORDER BY created_at DESC
-      LIMIT $2 OFFSET $3
-    `;
+    const { data: users, error } = await supabase
+      .from('Users')
+      .select('id, name, email, phone, email_verified, is_active, created_at, last_login')
+      .eq('is_active', true)
+      .or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
     
-    const searchPattern = `%${searchTerm}%`;
-    const result = await pool.query(query, [searchPattern, limit, offset]);
+    if (error) {
+      console.error('[UserModel] Search error:', error);
+      return [];
+    }
     
-    return result.rows;
+    return users || [];
   }
 };
 

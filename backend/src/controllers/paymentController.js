@@ -1,6 +1,6 @@
 // backend/src/controllers/paymentController.js
 
-const pool = require('../config/database');
+const supabase = require('../config/supabaseClient');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 
@@ -37,12 +37,14 @@ const PaymentController = {
 
       // Verify order exists and belongs to user
       if (orderId) {
-        const orderCheck = await pool.query(
-          'SELECT id, user_id, final_total FROM orders WHERE id = $1 AND user_id = $2',
-          [orderId, userId]
-        );
+        const { data: order, error } = await supabase
+          .from('Orders')
+          .select('id, user_id, final_total')
+          .eq('id', orderId)
+          .eq('user_id', userId)
+          .single();
 
-        if (orderCheck.rows.length === 0) {
+        if (error || !order) {
           return res.status(404).json({
             success: false,
             message: 'Order not found'
@@ -50,7 +52,7 @@ const PaymentController = {
         }
 
         // Verify amount matches order total
-        if (orderCheck.rows[0].final_total !== amount) {
+        if (parseFloat(order.final_total) !== parseFloat(amount)) {
           return res.status(400).json({
             success: false,
             message: 'Amount mismatch with order total'
@@ -97,11 +99,7 @@ const PaymentController = {
    * POST /api/payments/razorpay/verify
    */
   verifyRazorpayPayment: async (req, res) => {
-    const client = await pool.connect();
-    
     try {
-      await client.query('BEGIN');
-
       const userId = req.user.id;
       const {
         razorpay_order_id,
@@ -130,20 +128,25 @@ const PaymentController = {
       if (!isAuthentic) {
         // Record failed payment
         if (orderId) {
-          await client.query(
-            `INSERT INTO payments (user_id, order_id, provider, payment_id, amount, status, is_success, failure_msg)
-             VALUES ($1, $2, 'razorpay', $3, 0, 'failed', false, 'Invalid signature')`,
-            [userId, orderId, razorpay_payment_id]
-          );
+          await supabase
+            .from('Payments')
+            .insert([{
+              user_id: userId,
+              order_id: orderId,
+              provider: 'razorpay',
+              payment_id: razorpay_payment_id,
+              amount: 0,
+              status: 'failed',
+              is_success: false,
+              failure_msg: 'Invalid signature'
+            }]);
 
           // Update order payment status
-          await client.query(
-            `UPDATE orders SET payment_status = 'failed' WHERE id = $1`,
-            [orderId]
-          );
+          await supabase
+            .from('Orders')
+            .update({ payment_status: 'failed' })
+            .eq('id', orderId);
         }
-
-        await client.query('COMMIT');
 
         return res.status(400).json({
           success: false,
@@ -155,26 +158,43 @@ const PaymentController = {
       const payment = await razorpay.payments.fetch(razorpay_payment_id);
 
       // Record successful payment
-      const paymentResult = await client.query(
-        `INSERT INTO payments (user_id, order_id, provider, payment_id, amount, currency, status, is_success)
-         VALUES ($1, $2, 'razorpay', $3, $4, $5, 'success', true)
-         RETURNING *`,
-        [userId, orderId || null, razorpay_payment_id, payment.amount / 100, payment.currency]
-      );
+      const { data: paymentRecord, error: paymentError } = await supabase
+        .from('Payments')
+        .insert([{
+          user_id: userId,
+          order_id: orderId || null,
+          provider: 'razorpay',
+          payment_id: razorpay_payment_id,
+          amount: payment.amount / 100,
+          currency: payment.currency,
+          status: 'success',
+          is_success: true
+        }])
+        .select()
+        .single();
+
+      if (paymentError) throw paymentError;
 
       // Update order status and payment status
       if (orderId) {
-        await client.query(
-          `UPDATE orders 
-           SET payment_status = 'paid', 
-               payment_id = $1,
-               status = CASE WHEN status = 'pending' THEN 'confirmed' ELSE status END
-           WHERE id = $2`,
-          [razorpay_payment_id, orderId]
-        );
-      }
+        // Get current order status
+        const { data: currentOrder } = await supabase
+          .from('Orders')
+          .select('status')
+          .eq('id', orderId)
+          .single();
 
-      await client.query('COMMIT');
+        const newStatus = currentOrder?.status === 'pending' ? 'confirmed' : currentOrder?.status;
+
+        await supabase
+          .from('Orders')
+          .update({
+            payment_status: 'paid',
+            payment_id: razorpay_payment_id,
+            status: newStatus
+          })
+          .eq('id', orderId);
+      }
 
       console.log(`✅ Payment verified: ${razorpay_payment_id}`);
 
@@ -182,22 +202,19 @@ const PaymentController = {
         success: true,
         message: 'Payment verified successfully',
         data: {
-          payment: paymentResult.rows[0],
+          payment: paymentRecord,
           razorpay_payment_id,
           razorpay_order_id
         }
       });
 
     } catch (error) {
-      await client.query('ROLLBACK');
       console.error('Verify Razorpay payment error:', error);
       res.status(500).json({
         success: false,
         message: 'Payment verification failed',
         error: error.message
       });
-    } finally {
-      client.release();
     }
   },
 
@@ -242,10 +259,10 @@ const PaymentController = {
           // Update order status
           const orderId = payload.payment.entity.notes?.order_id;
           if (orderId) {
-            await pool.query(
-              `UPDATE orders SET payment_status = 'failed' WHERE id = $1`,
-              [orderId]
-            );
+            await supabase
+              .from('Orders')
+              .update({ payment_status: 'failed' })
+              .eq('id', orderId);
           }
           break;
 
@@ -342,40 +359,48 @@ const PaymentController = {
       const { page = 1, limit = 10, status } = req.query;
       const offset = (page - 1) * limit;
 
-      let query = `
-        SELECT p.*, o.id as order_number, o.final_total as order_amount
-        FROM payments p
-        LEFT JOIN orders o ON p.order_id = o.id
-        WHERE p.user_id = $1
-      `;
-      const params = [userId];
+      // Build query
+      let query = supabase
+        .from('Payments')
+        .select(`
+          *,
+          Orders (
+            id,
+            final_total,
+            status
+          )
+        `, { count: 'exact' })
+        .eq('user_id', userId);
 
       // Filter by status
       if (status) {
-        query += ` AND p.status = $${params.length + 1}`;
-        params.push(status);
+        query = query.eq('status', status);
       }
 
-      query += ` ORDER BY p.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-      params.push(limit, offset);
+      // Apply pagination and ordering
+      const { data: payments, error, count } = await query
+        .order('created_at', { ascending: false })
+        .range(offset, offset + parseInt(limit) - 1);
 
-      const result = await pool.query(query, params);
+      if (error) throw error;
 
-      // Get total count
-      const countResult = await pool.query(
-        'SELECT COUNT(*) as total FROM payments WHERE user_id = $1',
-        [userId]
-      );
+      // Transform data to match original structure
+      const transformedPayments = (payments || []).map(payment => ({
+        ...payment,
+        order_number: payment.Orders?.id || null,
+        order_amount: payment.Orders?.final_total || null,
+        order_status: payment.Orders?.status || null
+      }));
 
       res.status(200).json({
         success: true,
         message: 'Payment history retrieved successfully',
-        data: result.rows,
+        data: transformedPayments,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
-          total: parseInt(countResult.rows[0].total),
-          pages: Math.ceil(countResult.rows[0].total / limit)
+          total: count || 0,
+          pages: Math.ceil((count || 0) / limit)
         }
       });
 
@@ -398,25 +423,39 @@ const PaymentController = {
       const userId = req.user.id;
       const { id } = req.params;
 
-      const result = await pool.query(
-        `SELECT p.*, o.id as order_number, o.final_total as order_amount, o.status as order_status
-         FROM payments p
-         LEFT JOIN orders o ON p.order_id = o.id
-         WHERE p.id = $1 AND p.user_id = $2`,
-        [id, userId]
-      );
+      const { data: payment, error } = await supabase
+        .from('Payments')
+        .select(`
+          *,
+          Orders (
+            id,
+            final_total,
+            status
+          )
+        `)
+        .eq('id', id)
+        .eq('user_id', userId)
+        .single();
 
-      if (result.rows.length === 0) {
+      if (error || !payment) {
         return res.status(404).json({
           success: false,
           message: 'Payment not found'
         });
       }
 
+      // Transform data to match original structure
+      const transformedPayment = {
+        ...payment,
+        order_number: payment.Orders?.id || null,
+        order_amount: payment.Orders?.final_total || null,
+        order_status: payment.Orders?.status || null
+      };
+
       res.status(200).json({
         success: true,
         message: 'Payment details retrieved successfully',
-        data: result.rows[0]
+        data: transformedPayment
       });
 
     } catch (error) {

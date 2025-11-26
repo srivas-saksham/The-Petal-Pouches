@@ -2,7 +2,7 @@
 
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const pool = require('../config/database');
+const supabase = require('../config/supabaseClient');
 const { clearCustomerRateLimit } = require('../middleware/userAuth');
 
 /**
@@ -55,12 +55,13 @@ const UserAuthController = {
       }
 
       // Check if user already exists
-      const existingUser = await pool.query(
-        'SELECT id FROM users WHERE email = $1',
-        [email.toLowerCase()]
-      );
+      const { data: existingUser } = await supabase
+        .from('Users')
+        .select('id')
+        .eq('email', email.toLowerCase())
+        .single();
 
-      if (existingUser.rows.length > 0) {
+      if (existingUser) {
         return res.status(409).json({
           success: false,
           message: 'Email already registered',
@@ -73,14 +74,20 @@ const UserAuthController = {
       const passwordHash = await bcrypt.hash(password, saltRounds);
 
       // Insert new user
-      const result = await pool.query(
-        `INSERT INTO users (name, email, password_hash, phone, created_at, is_active, email_verified)
-         VALUES ($1, $2, $3, $4, NOW(), true, false)
-         RETURNING id, name, email, phone, created_at`,
-        [name.trim(), email.toLowerCase(), passwordHash, phone || null]
-      );
+      const { data: newUser, error } = await supabase
+        .from('Users')
+        .insert([{
+          name: name.trim(),
+          email: email.toLowerCase(),
+          password_hash: passwordHash,
+          phone: phone || null,
+          is_active: true,
+          email_verified: false
+        }])
+        .select('id, name, email, phone, created_at')
+        .single();
 
-      const newUser = result.rows[0];
+      if (error) throw error;
 
       // Generate JWT token
       const token = jwt.sign(
@@ -117,7 +124,8 @@ const UserAuthController = {
       console.error('Registration error:', error);
       res.status(500).json({
         success: false,
-        message: 'Registration failed. Please try again.'
+        message: 'Registration failed. Please try again.',
+        error: error.message
       });
     }
   },
@@ -141,20 +149,19 @@ const UserAuthController = {
       }
 
       // Find user by email
-      const result = await pool.query(
-        'SELECT id, name, email, password_hash, is_active, email_verified FROM users WHERE email = $1',
-        [email.toLowerCase()]
-      );
+      const { data: user, error: fetchError } = await supabase
+        .from('Users')
+        .select('id, name, email, password_hash, is_active, email_verified')
+        .eq('email', email.toLowerCase())
+        .single();
 
-      if (result.rows.length === 0) {
+      if (fetchError || !user) {
         return res.status(401).json({
           success: false,
           message: 'Invalid email or password',
           code: 'INVALID_CREDENTIALS'
         });
       }
-
-      const user = result.rows[0];
 
       // Check if account is active
       if (!user.is_active) {
@@ -177,10 +184,10 @@ const UserAuthController = {
       }
 
       // Update last login
-      await pool.query(
-        'UPDATE users SET last_login = NOW() WHERE id = $1',
-        [user.id]
-      );
+      await supabase
+        .from('Users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', user.id);
 
       // Clear rate limit on successful login
       if (req.rateLimitIp) {
@@ -219,7 +226,8 @@ const UserAuthController = {
       console.error('Login error:', error);
       res.status(500).json({
         success: false,
-        message: 'Login failed. Please try again.'
+        message: 'Login failed. Please try again.',
+        error: error.message
       });
     }
   },
@@ -259,21 +267,19 @@ const UserAuthController = {
    */
   getCurrentUser: async (req, res) => {
     try {
-      const result = await pool.query(
-        `SELECT id, name, email, phone, email_verified, created_at, last_login
-         FROM users 
-         WHERE id = $1 AND is_active = true`,
-        [req.user.id]
-      );
+      const { data: user, error } = await supabase
+        .from('Users')
+        .select('id, name, email, phone, email_verified, created_at, last_login')
+        .eq('id', req.user.id)
+        .eq('is_active', true)
+        .single();
 
-      if (result.rows.length === 0) {
+      if (error || !user) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
         });
       }
-
-      const user = result.rows[0];
 
       res.json({
         success: true,
@@ -298,20 +304,19 @@ const UserAuthController = {
   refreshToken: async (req, res) => {
     try {
       // Get current user data from database to ensure it's up to date
-      const result = await pool.query(
-        'SELECT id, name, email, email_verified, is_active FROM users WHERE id = $1',
-        [req.user.id]
-      );
+      const { data: user, error } = await supabase
+        .from('Users')
+        .select('id, name, email, email_verified, is_active')
+        .eq('id', req.user.id)
+        .single();
 
-      if (result.rows.length === 0 || !result.rows[0].is_active) {
+      if (error || !user || !user.is_active) {
         return res.status(401).json({
           success: false,
           message: 'User not found or inactive',
           code: 'USER_INACTIVE'
         });
       }
-
-      const user = result.rows[0];
 
       // Generate new token
       const token = jwt.sign(
@@ -353,19 +358,18 @@ const UserAuthController = {
       const userId = req.user.id;
 
       // Check if already verified
-      const result = await pool.query(
-        'SELECT email_verified, email FROM users WHERE id = $1',
-        [userId]
-      );
+      const { data: user, error } = await supabase
+        .from('Users')
+        .select('email_verified, email')
+        .eq('id', userId)
+        .single();
 
-      if (result.rows.length === 0) {
+      if (error || !user) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
         });
       }
-
-      const user = result.rows[0];
 
       if (user.email_verified) {
         return res.status(400).json({
@@ -420,15 +424,18 @@ const UserAuthController = {
       }
 
       // Update user email_verified status
-      const result = await pool.query(
-        `UPDATE users 
-         SET email_verified = true, updated_at = NOW()
-         WHERE id = $1 AND email = $2
-         RETURNING id, email, email_verified`,
-        [decoded.id, decoded.email]
-      );
+      const { data: updatedUser, error } = await supabase
+        .from('Users')
+        .update({ 
+          email_verified: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', decoded.id)
+        .eq('email', decoded.email)
+        .select('id, email, email_verified')
+        .single();
 
-      if (result.rows.length === 0) {
+      if (error || !updatedUser) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
@@ -480,20 +487,20 @@ const UserAuthController = {
       }
 
       // Check if user exists
-      const result = await pool.query(
-        'SELECT id, email, name FROM users WHERE email = $1 AND is_active = true',
-        [email.toLowerCase()]
-      );
+      const { data: user, error } = await supabase
+        .from('Users')
+        .select('id, email, name')
+        .eq('email', email.toLowerCase())
+        .eq('is_active', true)
+        .single();
 
       // Always return success to prevent email enumeration
-      if (result.rows.length === 0) {
+      if (error || !user) {
         return res.json({
           success: true,
           message: 'If the email exists, a password reset link has been sent.'
         });
       }
-
-      const user = result.rows[0];
 
       // Generate reset token
       const resetToken = jwt.sign(
@@ -561,15 +568,18 @@ const UserAuthController = {
       const passwordHash = await bcrypt.hash(password, saltRounds);
 
       // Update password
-      const result = await pool.query(
-        `UPDATE users 
-         SET password_hash = $1, updated_at = NOW()
-         WHERE id = $2 AND email = $3
-         RETURNING id, email`,
-        [passwordHash, decoded.id, decoded.email]
-      );
+      const { data: updatedUser, error } = await supabase
+        .from('Users')
+        .update({ 
+          password_hash: passwordHash,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', decoded.id)
+        .eq('email', decoded.email)
+        .select('id, email')
+        .single();
 
-      if (result.rows.length === 0) {
+      if (error || !updatedUser) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
@@ -627,19 +637,18 @@ const UserAuthController = {
       }
 
       // Get current password hash
-      const result = await pool.query(
-        'SELECT password_hash FROM users WHERE id = $1',
-        [userId]
-      );
+      const { data: user, error } = await supabase
+        .from('Users')
+        .select('password_hash')
+        .eq('id', userId)
+        .single();
 
-      if (result.rows.length === 0) {
+      if (error || !user) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
         });
       }
-
-      const user = result.rows[0];
 
       // Verify current password
       const passwordMatch = await bcrypt.compare(currentPassword, user.password_hash);
@@ -657,10 +666,13 @@ const UserAuthController = {
       const passwordHash = await bcrypt.hash(newPassword, saltRounds);
 
       // Update password
-      await pool.query(
-        'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
-        [passwordHash, userId]
-      );
+      await supabase
+        .from('Users')
+        .update({ 
+          password_hash: passwordHash,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
 
       console.log(`[Password Change] Password changed for user ID: ${userId}`);
 

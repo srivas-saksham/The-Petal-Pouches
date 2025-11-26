@@ -1,6 +1,7 @@
 // backend/src/controllers/userProfileController.js
 
-const pool = require('../config/database');
+const supabase = require('../config/supabaseClient');
+const bcrypt = require('bcryptjs');
 
 /**
  * User Profile Controller
@@ -19,62 +20,71 @@ const UserProfileController = {
       const userId = req.user.id;
 
       // Get user profile
-      const userResult = await pool.query(
-        `SELECT id, name, email, phone, email_verified, created_at, last_login, updated_at
-         FROM users 
-         WHERE id = $1 AND is_active = true`,
-        [userId]
-      );
+      const { data: user, error: userError } = await supabase
+        .from('Users')
+        .select('id, name, email, phone, email_verified, created_at, last_login, updated_at')
+        .eq('id', userId)
+        .eq('is_active', true)
+        .single();
 
-      if (userResult.rows.length === 0) {
+      if (userError || !user) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
         });
       }
 
-      const user = userResult.rows[0];
+      // Get all orders for statistics
+      const { data: orders, error: ordersError } = await supabase
+        .from('Orders')
+        .select('status, final_total')
+        .eq('user_id', userId);
 
-      // Get order statistics
-      const orderStats = await pool.query(
-        `SELECT 
-           COUNT(*) as total_orders,
-           COALESCE(SUM(final_total), 0) as total_spent,
-           COUNT(CASE WHEN status = 'delivered' THEN 1 END) as completed_orders,
-           COUNT(CASE WHEN status = 'pending' OR status = 'confirmed' THEN 1 END) as pending_orders
-         FROM orders 
-         WHERE user_id = $1`,
-        [userId]
-      );
+      const orderStats = {
+        total_orders: 0,
+        total_spent: 0,
+        completed_orders: 0,
+        pending_orders: 0
+      };
+
+      if (!ordersError && orders) {
+        orderStats.total_orders = orders.length;
+        orderStats.total_spent = orders.reduce((sum, order) => sum + (order.final_total || 0), 0);
+        orderStats.completed_orders = orders.filter(o => o.status === 'delivered').length;
+        orderStats.pending_orders = orders.filter(o => o.status === 'pending' || o.status === 'confirmed').length;
+      }
 
       // Get wishlist count
-      const wishlistCount = await pool.query(
-        'SELECT COUNT(*) as count FROM wishlist WHERE user_id = $1',
-        [userId]
-      );
+      const { count: wishlistCount, error: wishlistError } = await supabase
+        .from('Wishlist')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
 
       // Get cart count
-      const cartCount = await pool.query(
-        `SELECT COALESCE(SUM(ci.quantity), 0) as count
-         FROM carts c
-         LEFT JOIN cart_items ci ON c.id = ci.cart_id
-         WHERE c.user_id = $1`,
-        [userId]
-      );
+      const { data: cart, error: cartError } = await supabase
+        .from('Carts')
+        .select(`
+          id,
+          Cart_items(quantity)
+        `)
+        .eq('user_id', userId)
+        .single();
+
+      const cartItemsCount = cart && cart.Cart_items 
+        ? cart.Cart_items.reduce((sum, item) => sum + (item.quantity || 0), 0) 
+        : 0;
 
       // Get address count
-      const addressCount = await pool.query(
-        'SELECT COUNT(*) as count FROM addresses WHERE user_id = $1',
-        [userId]
-      );
+      const { count: addressCount, error: addressError } = await supabase
+        .from('Addresses')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
 
       // Get review count
-      const reviewCount = await pool.query(
-        'SELECT COUNT(*) as count FROM reviews WHERE user_id = $1',
-        [userId]
-      );
-
-      const stats = orderStats.rows[0];
+      const { count: reviewCount, error: reviewError } = await supabase
+        .from('Reviews')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
 
       res.json({
         success: true,
@@ -82,15 +92,15 @@ const UserProfileController = {
           user,
           statistics: {
             orders: {
-              total: parseInt(stats.total_orders),
-              completed: parseInt(stats.completed_orders),
-              pending: parseInt(stats.pending_orders),
-              total_spent: parseFloat(stats.total_spent)
+              total: orderStats.total_orders,
+              completed: orderStats.completed_orders,
+              pending: orderStats.pending_orders,
+              total_spent: orderStats.total_spent
             },
-            wishlist_items: parseInt(wishlistCount.rows[0].count),
-            cart_items: parseInt(cartCount.rows[0].count),
-            addresses: parseInt(addressCount.rows[0].count),
-            reviews: parseInt(reviewCount.rows[0].count)
+            wishlist_items: wishlistCount || 0,
+            cart_items: cartItemsCount,
+            addresses: addressCount || 0,
+            reviews: reviewCount || 0
           }
         }
       });
@@ -142,22 +152,24 @@ const UserProfileController = {
       }
 
       // Update profile
-      const result = await pool.query(
-        `UPDATE users 
-         SET name = $1, phone = $2, updated_at = NOW()
-         WHERE id = $3 AND is_active = true
-         RETURNING id, name, email, phone, email_verified, updated_at`,
-        [name.trim(), phone || null, userId]
-      );
+      const { data: updatedUser, error: updateError } = await supabase
+        .from('Users')
+        .update({
+          name: name.trim(),
+          phone: phone || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId)
+        .eq('is_active', true)
+        .select('id, name, email, phone, email_verified, updated_at')
+        .single();
 
-      if (result.rows.length === 0) {
+      if (updateError || !updatedUser) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
         });
       }
-
-      const updatedUser = result.rows[0];
 
       console.log(`[Profile Update] User ${updatedUser.email} updated profile`);
 
@@ -204,20 +216,20 @@ const UserProfileController = {
       }
 
       // Verify password
-      const userResult = await pool.query(
-        'SELECT password_hash FROM users WHERE id = $1',
-        [userId]
-      );
+      const { data: user, error: userError } = await supabase
+        .from('Users')
+        .select('password_hash')
+        .eq('id', userId)
+        .single();
 
-      if (userResult.rows.length === 0) {
+      if (userError || !user) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
         });
       }
 
-      const bcrypt = require('bcrypt');
-      const passwordMatch = await bcrypt.compare(password, userResult.rows[0].password_hash);
+      const passwordMatch = await bcrypt.compare(password, user.password_hash);
 
       if (!passwordMatch) {
         return res.status(401).json({
@@ -228,12 +240,14 @@ const UserProfileController = {
       }
 
       // Check if new email already exists
-      const existingEmail = await pool.query(
-        'SELECT id FROM users WHERE email = $1 AND id != $2',
-        [email.toLowerCase(), userId]
-      );
+      const { data: existingEmail, error: emailError } = await supabase
+        .from('Users')
+        .select('id')
+        .eq('email', email.toLowerCase())
+        .neq('id', userId)
+        .single();
 
-      if (existingEmail.rows.length > 0) {
+      if (existingEmail) {
         return res.status(409).json({
           success: false,
           message: 'Email already in use',
@@ -242,13 +256,18 @@ const UserProfileController = {
       }
 
       // Update email and set email_verified to false
-      const result = await pool.query(
-        `UPDATE users 
-         SET email = $1, email_verified = false, updated_at = NOW()
-         WHERE id = $2
-         RETURNING id, name, email, email_verified`,
-        [email.toLowerCase(), userId]
-      );
+      const { data: updatedUser, error: updateError } = await supabase
+        .from('Users')
+        .update({
+          email: email.toLowerCase(),
+          email_verified: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId)
+        .select('id, name, email, email_verified')
+        .single();
+
+      if (updateError) throw updateError;
 
       console.log(`[Email Update] User ID ${userId} changed email to ${email}`);
 
@@ -257,7 +276,7 @@ const UserProfileController = {
       res.json({
         success: true,
         message: 'Email updated. Please verify your new email address.',
-        data: { user: result.rows[0] }
+        data: { user: updatedUser }
       });
 
     } catch (error) {
@@ -289,20 +308,19 @@ const UserProfileController = {
       }
 
       // Verify password
-      const userResult = await pool.query(
-        'SELECT password_hash, email FROM users WHERE id = $1',
-        [userId]
-      );
+      const { data: user, error: userError } = await supabase
+        .from('Users')
+        .select('password_hash, email')
+        .eq('id', userId)
+        .single();
 
-      if (userResult.rows.length === 0) {
+      if (userError || !user) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
         });
       }
 
-      const user = userResult.rows[0];
-      const bcrypt = require('bcrypt');
       const passwordMatch = await bcrypt.compare(password, user.password_hash);
 
       if (!passwordMatch) {
@@ -314,12 +332,15 @@ const UserProfileController = {
       }
 
       // Soft delete: deactivate account instead of hard delete
-      await pool.query(
-        `UPDATE users 
-         SET is_active = false, updated_at = NOW()
-         WHERE id = $1`,
-        [userId]
-      );
+      const { error: updateError } = await supabase
+        .from('Users')
+        .update({
+          is_active: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (updateError) throw updateError;
 
       console.log(`[Account Deletion] User ${user.email} deactivated account`);
 
@@ -348,69 +369,121 @@ const UserProfileController = {
       const userId = req.user.id;
 
       // Recent orders (last 5)
-      const recentOrders = await pool.query(
-        `SELECT id, order_number, status, final_total, created_at, payment_status
-         FROM orders 
-         WHERE user_id = $1
-         ORDER BY created_at DESC
-         LIMIT 5`,
-        [userId]
-      );
+      const { data: recentOrders, error: recentOrdersError } = await supabase
+        .from('Orders')
+        .select('id, order_number, status, final_total, created_at, payment_status')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(5);
 
       // Active orders (pending, confirmed, shipped)
-      const activeOrders = await pool.query(
-        `SELECT id, order_number, status, final_total, created_at
-         FROM orders 
-         WHERE user_id = $1 
-         AND status IN ('pending', 'confirmed', 'shipped')
-         ORDER BY created_at DESC`,
-        [userId]
-      );
+      const { data: activeOrders, error: activeOrdersError } = await supabase
+        .from('Orders')
+        .select('id, order_number, status, final_total, created_at')
+        .eq('user_id', userId)
+        .in('status', ['pending', 'confirmed', 'shipped'])
+        .order('created_at', { ascending: false });
 
       // Wishlist count with recent items
-      const wishlistItems = await pool.query(
-        `SELECT w.id, w.created_at, p.id as product_id, p.title, p.price, p.image_url
-         FROM wishlist w
-         JOIN products p ON w.product_id = p.id
-         WHERE w.user_id = $1
-         ORDER BY w.created_at DESC
-         LIMIT 5`,
-        [userId]
-      );
+      const { data: wishlistItems, error: wishlistError } = await supabase
+        .from('Wishlist')
+        .select(`
+          id,
+          created_at,
+          Products!inner(
+            id,
+            title,
+            price,
+            image_url
+          )
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      // Format wishlist items
+      const formattedWishlist = wishlistItems ? wishlistItems.map(item => ({
+        id: item.id,
+        created_at: item.created_at,
+        product_id: item.Products.id,
+        title: item.Products.title,
+        price: item.Products.price,
+        image_url: item.Products.image_url
+      })) : [];
 
       // Total spent this month
-      const monthlySpent = await pool.query(
-        `SELECT COALESCE(SUM(final_total), 0) as monthly_total
-         FROM orders
-         WHERE user_id = $1 
-         AND status = 'delivered'
-         AND created_at >= DATE_TRUNC('month', CURRENT_DATE)`,
-        [userId]
-      );
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const { data: monthlyOrders, error: monthlyError } = await supabase
+        .from('Orders')
+        .select('final_total')
+        .eq('user_id', userId)
+        .eq('status', 'delivered')
+        .gte('created_at', startOfMonth.toISOString());
+
+      const monthlySpent = monthlyOrders 
+        ? monthlyOrders.reduce((sum, order) => sum + (order.final_total || 0), 0) 
+        : 0;
 
       // Pending reviews (delivered orders without reviews)
-      const pendingReviews = await pool.query(
-        `SELECT DISTINCT o.id as order_id, oi.product_variant_id, p.id as product_id, p.title, p.image_url
-         FROM orders o
-         JOIN order_items oi ON o.id = oi.order_id
-         JOIN product_variants pv ON oi.product_variant_id = pv.id
-         JOIN products p ON pv.product_id = p.id
-         LEFT JOIN reviews r ON r.product_id = p.id AND r.user_id = $1
-         WHERE o.user_id = $1 
-         AND o.status = 'delivered'
-         AND r.id IS NULL
-         LIMIT 5`,
-        [userId]
-      );
+      const { data: deliveredOrders, error: deliveredError } = await supabase
+        .from('Orders')
+        .select(`
+          id,
+          Order_items!inner(
+            product_variant_id,
+            Product_variants!inner(
+              product_id,
+              Products!inner(
+                id,
+                title,
+                image_url
+              )
+            )
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('status', 'delivered');
+
+      // Get user's reviews
+      const { data: userReviews, error: reviewsError } = await supabase
+        .from('Reviews')
+        .select('product_id')
+        .eq('user_id', userId);
+
+      const reviewedProductIds = new Set(userReviews ? userReviews.map(r => r.product_id) : []);
+
+      // Find products without reviews
+      const pendingReviewsMap = new Map();
+      if (deliveredOrders) {
+        deliveredOrders.forEach(order => {
+          order.Order_items.forEach(item => {
+            const product = item.Product_variants.Products;
+            if (!reviewedProductIds.has(product.id) && !pendingReviewsMap.has(product.id)) {
+              pendingReviewsMap.set(product.id, {
+                order_id: order.id,
+                product_variant_id: item.product_variant_id,
+                product_id: product.id,
+                title: product.title,
+                image_url: product.image_url
+              });
+            }
+          });
+        });
+      }
+
+      const pendingReviews = Array.from(pendingReviewsMap.values()).slice(0, 5);
 
       res.json({
         success: true,
         data: {
-          recent_orders: recentOrders.rows,
-          active_orders: activeOrders.rows,
-          wishlist_preview: wishlistItems.rows,
-          monthly_spent: parseFloat(monthlySpent.rows[0].monthly_total),
-          pending_reviews: pendingReviews.rows
+          recent_orders: recentOrders || [],
+          active_orders: activeOrders || [],
+          wishlist_preview: formattedWishlist,
+          monthly_spent: monthlySpent,
+          pending_reviews: pendingReviews
         }
       });
 
@@ -436,29 +509,29 @@ const UserProfileController = {
       const notifications = [];
 
       // Check for pending deliveries
-      const pendingDeliveries = await pool.query(
-        `SELECT COUNT(*) as count
-         FROM orders
-         WHERE user_id = $1 AND status = 'shipped'`,
-        [userId]
-      );
+      const { count: shippedCount, error: shippedError } = await supabase
+        .from('Orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('status', 'shipped');
 
-      if (parseInt(pendingDeliveries.rows[0].count) > 0) {
+      if (!shippedError && shippedCount > 0) {
         notifications.push({
           type: 'delivery',
-          message: `You have ${pendingDeliveries.rows[0].count} order(s) on the way`,
+          message: `You have ${shippedCount} order(s) on the way`,
           priority: 'high',
           created_at: new Date()
         });
       }
 
       // Check for unverified email
-      const emailStatus = await pool.query(
-        'SELECT email_verified FROM users WHERE id = $1',
-        [userId]
-      );
+      const { data: user, error: userError } = await supabase
+        .from('Users')
+        .select('email_verified')
+        .eq('id', userId)
+        .single();
 
-      if (!emailStatus.rows[0].email_verified) {
+      if (!userError && user && !user.email_verified) {
         notifications.push({
           type: 'email_verification',
           message: 'Please verify your email address',
@@ -467,25 +540,49 @@ const UserProfileController = {
         });
       }
 
-      // Check for pending reviews
-      const pendingReviews = await pool.query(
-        `SELECT COUNT(DISTINCT p.id) as count
-         FROM orders o
-         JOIN order_items oi ON o.id = oi.order_id
-         JOIN product_variants pv ON oi.product_variant_id = pv.id
-         JOIN products p ON pv.product_id = p.id
-         LEFT JOIN reviews r ON r.product_id = p.id AND r.user_id = $1
-         WHERE o.user_id = $1 
-         AND o.status = 'delivered'
-         AND r.id IS NULL
-         AND o.created_at >= NOW() - INTERVAL '30 days'`,
-        [userId]
-      );
+      // Check for pending reviews (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      if (parseInt(pendingReviews.rows[0].count) > 0) {
+      const { data: recentDeliveredOrders, error: ordersError } = await supabase
+        .from('Orders')
+        .select(`
+          id,
+          Order_items!inner(
+            Product_variants!inner(
+              product_id
+            )
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('status', 'delivered')
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      // Get user's reviews
+      const { data: userReviews, error: reviewsError } = await supabase
+        .from('Reviews')
+        .select('product_id')
+        .eq('user_id', userId);
+
+      const reviewedProductIds = new Set(userReviews ? userReviews.map(r => r.product_id) : []);
+
+      // Count unique products without reviews
+      const unreviewedProducts = new Set();
+      if (recentDeliveredOrders) {
+        recentDeliveredOrders.forEach(order => {
+          order.Order_items.forEach(item => {
+            const productId = item.Product_variants.product_id;
+            if (!reviewedProductIds.has(productId)) {
+              unreviewedProducts.add(productId);
+            }
+          });
+        });
+      }
+
+      if (unreviewedProducts.size > 0) {
         notifications.push({
           type: 'review',
-          message: `You have ${pendingReviews.rows[0].count} product(s) to review`,
+          message: `You have ${unreviewedProducts.size} product(s) to review`,
           priority: 'low',
           created_at: new Date()
         });

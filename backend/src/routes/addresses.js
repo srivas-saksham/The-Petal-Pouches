@@ -4,16 +4,17 @@ const express = require('express');
 const router = express.Router();
 const {
   getAddresses,
-  getAddress,
-  createNewAddress,
-  updateExistingAddress,
-  deleteExistingAddress,
-  setAddressAsDefault,
-  getDefaultAddressOnly,
-  bulkDeleteAddresses,
-  getAddressStats,
+  getAddressById,      // Mapped to getAddress
+  createAddress,       // Mapped to createNewAddress
+  updateAddress,       // Mapped to updateExistingAddress
+  deleteAddress,       // Mapped to deleteExistingAddress
+  setDefaultAddress,   // Mapped to setAddressAsDefault
+  getDefaultAddress,   // Mapped to getDefaultAddressOnly
+  bulkDeleteAddresses, // Added new method
+  getAddressStats,     // Added new method
   geocodeAddress
 } = require('../controllers/addressController');
+
 const { 
   verifyCustomerToken, 
   customerSecurityHeaders 
@@ -40,7 +41,7 @@ router.get('/', getAddresses);
  * @desc    Create new address
  * @access  Private (Customer)
  */
-router.post('/', createNewAddress);
+router.post('/', createAddress);
 
 /**
  * @route   GET /api/addresses/default
@@ -48,7 +49,7 @@ router.post('/', createNewAddress);
  * @access  Private (Customer)
  * @note    Must be BEFORE /:id route to prevent conflict
  */
-router.get('/default', getDefaultAddressOnly);
+router.get('/default', getDefaultAddress);
 
 /**
  * @route   GET /api/addresses/stats
@@ -78,27 +79,27 @@ router.delete('/bulk', bulkDeleteAddresses);
  * @desc    Get single address by ID
  * @access  Private (Customer)
  */
-router.get('/:id', getAddress);
+router.get('/:id', getAddressById);
 
 /**
  * @route   PUT /api/addresses/:id
  * @desc    Update existing address
  * @access  Private (Customer)
  */
-router.put('/:id', updateExistingAddress);
+router.put('/:id', updateAddress);
 
 /**
  * @route   DELETE /api/addresses/:id
  * @desc    Delete address
  * @access  Private (Customer)
  */
-router.delete('/:id', deleteExistingAddress);
+router.delete('/:id', deleteAddress);
 
 /**
  * @route   PATCH /api/addresses/:id/default
  * @desc    Set address as default
  * @access  Private (Customer)
  */
-router.patch('/:id/default', setAddressAsDefault);
+router.patch('/:id/default', setDefaultAddress);
 
 module.exports = router;

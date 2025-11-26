@@ -27,39 +27,95 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // ============================================
-// ROUTES - ORDER MATTERS! (Most specific first)
+// SUPABASE CONNECTION TEST
 // ============================================
 
-// 1. Admin Authentication routes (MUST BE FIRST - no auth required)
-app.use('/api/admin/auth', require('./routes/adminAuth'));
+const supabase = require('./config/supabaseClient');
 
-// 2. Categories routes (both public and admin)
+// Test Supabase connection on startup
+(async () => {
+  try {
+    const { data, error } = await supabase
+      .from('Products')
+      .select('count')
+      .limit(1);
+    
+    if (error) {
+      console.log('⚠️  Supabase connection test failed:', error.message);
+    } else {
+      console.log('✅ Supabase connected successfully');
+    }
+  } catch (err) {
+    console.log('⚠️  Could not test Supabase connection:', err.message);
+  }
+})();
+
+// ============================================
+// ROUTES - ORDER MATTERS!
+// ============================================
+
+// 1. ADMIN & STAFF ROUTES
+// --------------------------------------------
+app.use('/api/admin/auth', require('./routes/adminAuth')); // Admin Login/Register
+app.use('/api/admin', require('./routes/admin'));          // Admin Product Management
+
+// 2. CUSTOMER AUTHENTICATION & PROFILE
+// --------------------------------------------
+app.use('/api/auth', require('./routes/userAuth'));        // Customer Login/Register
+app.use('/api/users', require('./routes/users'));          // Customer Profile/Dashboard
+app.use('/api/addresses', require('./routes/addresses'));  // Address Book
+
+// 3. CATALOG (PUBLIC & ADMIN MIXED)
+// --------------------------------------------
 app.use('/api/categories', require('./routes/categories'));
-
-// 3. Bundle routes (must come BEFORE product routes to avoid conflicts)
-app.use('/api/bundles', require('./routes/bundles'));
-
-// 4. Admin routes (must come BEFORE general product routes)
-app.use('/api/admin', require('./routes/admin'));
-
-// 5. Public product routes (must come AFTER admin routes)
+app.use('/api/bundles', require('./routes/bundles'));      // Must be before products to avoid conflicts
 app.use('/api/products', require('./routes/products'));
-
-// 6. Variant routes - SPECIFIC PATHS ONLY
 app.use('/api/variants', require('./routes/variants'));
+app.use('/api/reviews', require('./routes/reviews'));
+
+// 4. COMMERCE & TRANSACTIONS
+// --------------------------------------------
+app.use('/api/cart', require('./routes/cart'));            // Shopping Cart
+app.use('/api/wishlist', require('./routes/wishlist'));    // Wishlist
+app.use('/api/orders', require('./routes/orders'));        // Order Management
+app.use('/api/payments', require('./routes/payments'));    // Razorpay/Stripe
 
 // ============================================
-// HEALTH CHECK & ERROR HANDLERS
+// HEALTH CHECK & API DOCUMENTATION
 // ============================================
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Server is healthy',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
+app.get('/health', async (req, res) => {
+  try {
+    // Test Supabase connection
+    const { error } = await supabase
+      .from('Products')
+      .select('count')
+      .limit(1);
+    
+    const supabaseStatus = error ? 'unhealthy' : 'healthy';
+    const overallStatus = error ? 'degraded' : 'healthy';
+    
+    res.status(error ? 503 : 200).json({
+      success: !error,
+      status: overallStatus,
+      message: error ? 'Server running with issues' : 'Server is healthy',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      services: {
+        supabase: supabaseStatus
+      }
+    });
+  } catch (err) {
+    res.status(503).json({
+      success: false,
+      status: 'unhealthy',
+      message: 'Server health check failed',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
 });
 
 // Root endpoint with API info
@@ -67,58 +123,77 @@ app.get('/', (req, res) => {
   res.json({
     success: true,
     message: 'The Petal Pouches API is running! 🌸',
-    version: '1.0.0',
-    endpoints: {
-      health: '/health',
-      auth: {
-        register: 'POST /api/admin/auth/register',
-        login: 'POST /api/admin/auth/login',
-        me: 'GET /api/admin/auth/me',
-        logout: 'POST /api/admin/auth/logout'
+    version: '1.2.0',
+    database: 'Supabase',
+    documentation: {
+      admin: {
+        auth: '/api/admin/auth',
+        products: '/api/admin/products',
+        bundles: '/api/bundles/admin'
       },
-      products: {
-        getAll: 'GET /api/products',
-        getById: 'GET /api/products/:id',
-        create: 'POST /api/admin/products',
-        update: 'PUT /api/admin/products/:id',
-        delete: 'DELETE /api/admin/products/:id'
+      customer: {
+        auth: '/api/auth',
+        profile: '/api/users',
+        addresses: '/api/addresses',
+        orders: '/api/orders',
+        cart: '/api/cart',
+        wishlist: '/api/wishlist',
+        payments: '/api/payments'
       },
-      categories: {
-        getAll: 'GET /api/categories',
-        getById: 'GET /api/categories/:id',
-        create: 'POST /api/categories/admin',
-        update: 'PUT /api/categories/admin/:id',
-        delete: 'DELETE /api/categories/admin/:id'
-      },
-      bundles: {
-        getAll: 'GET /api/bundles',
-        getById: 'GET /api/bundles/:id',
-        checkStock: 'GET /api/bundles/:id/stock',
-        create: 'POST /api/bundles/admin',
-        update: 'PUT /api/bundles/admin/:id',
-        delete: 'DELETE /api/bundles/admin/:id',
-        toggle: 'PATCH /api/bundles/admin/:id/toggle',
-        duplicate: 'POST /api/bundles/admin/:id/duplicate'
-      },
-      variants: {
-        getByProduct: 'GET /api/variants/products/:productId/variants',
-        getById: 'GET /api/variants/:variantId',
-        create: 'POST /api/variants/admin/products/:productId/variants',
-        update: 'PUT /api/variants/admin/:variantId',
-        delete: 'DELETE /api/variants/admin/:variantId'
+      catalog: {
+        products: '/api/products',
+        categories: '/api/categories',
+        bundles: '/api/bundles',
+        reviews: '/api/reviews'
       }
     }
   });
 });
 
+// ============================================
+// ERROR HANDLERS
+// ============================================
+
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('❌ Error:', err.stack);
   
-  res.status(err.status || 500).json({
+  // Handle Supabase-specific errors
+  let statusCode = err.status || 500;
+  let message = err.message || 'Internal Server Error';
+  
+  // Check if it's a Supabase error
+  if (err.code) {
+    switch (err.code) {
+      case 'PGRST116':
+        statusCode = 404;
+        message = 'Resource not found';
+        break;
+      case '23505':
+        statusCode = 409;
+        message = 'Resource already exists';
+        break;
+      case '23503':
+        statusCode = 400;
+        message = 'Invalid reference - related resource not found';
+        break;
+      case '42501':
+        statusCode = 403;
+        message = 'Insufficient permissions';
+        break;
+      default:
+        statusCode = 500;
+        message = 'Database operation failed';
+    }
+  }
+  
+  res.status(statusCode).json({
     success: false,
-    message: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    message,
+    ...(process.env.NODE_ENV === 'development' && { 
+      stack: err.stack,
+      code: err.code 
+    })
   });
 });
 
@@ -127,14 +202,10 @@ app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: `Route not found: ${req.method} ${req.path}`,
-    availableRoutes: {
-      auth: '/api/admin/auth',
-      products: '/api/products',
-      admin: '/api/admin',
-      categories: '/api/categories',
-      bundles: '/api/bundles',
-      variants: '/api/variants'
-    }
+    availableResources: [
+      '/api/auth', '/api/users', '/api/products', 
+      '/api/cart', '/api/orders', '/api/payments'
+    ]
   });
 });
 
@@ -148,18 +219,15 @@ app.listen(PORT, () => {
   console.log('\n🚀 ===================================');
   console.log(`   Server running on port ${PORT}`);
   console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`   Database: Supabase`);
   console.log('🚀 ===================================\n');
   
-  console.log('📍 Available Endpoints:');
-  console.log(`   🌐 Health: http://localhost:${PORT}/health`);
-  console.log(`   🔐 Auth (Login): http://localhost:${PORT}/api/admin/auth/login`);
-  console.log(`   🔐 Auth (Register): http://localhost:${PORT}/api/admin/auth/register`);
-  console.log(`   📦 Products (Public): http://localhost:${PORT}/api/products`);
-  console.log(`   🔑 Admin (Products): http://localhost:${PORT}/api/admin/products`);
-  console.log(`   📂 Categories: http://localhost:${PORT}/api/categories`);
-  console.log(`   🎁 Bundles (Public): http://localhost:${PORT}/api/bundles`);
-  console.log(`   🔑 Admin (Bundles): http://localhost:${PORT}/api/bundles/admin`);
-  console.log(`   🎨 Variants: http://localhost:${PORT}/api/variants`);
+  console.log('📍 Key Endpoints:');
+  console.log(`   🌐 Health:     http://localhost:${PORT}/health`);
+  console.log(`   🛒 Products:   http://localhost:${PORT}/api/products`);
+  console.log(`   🛍️ Cart:       http://localhost:${PORT}/api/cart`);
+  console.log(`   👤 User Auth:  http://localhost:${PORT}/api/auth/login`);
+  console.log(`   🔐 Admin Auth: http://localhost:${PORT}/api/admin/auth/login`);
   console.log('\n✨ Server is ready to accept requests!\n');
 });
 

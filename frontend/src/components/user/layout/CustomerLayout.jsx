@@ -1,8 +1,8 @@
 // frontend/src/components/user/layout/CustomerLayout.jsx
 
 import { useState } from 'react';
-import CustomerSidebar from './CustomerSidebar';
-import CustomerTopBar from './CustomerTopBar';
+import CustomerSidebar from './Sidebar';
+import CustomerTopBar from './TopBar';
 
 /**
  * Main layout wrapper for customer dashboard

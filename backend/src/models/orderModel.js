@@ -1,6 +1,6 @@
 // backend/src/models/orderModel.js
 
-const pool = require('../config/database');
+const supabase = require('../config/supabaseClient');
 
 /**
  * Order Model - Handles all order-related database operations
@@ -30,11 +30,7 @@ const OrderModel = {
    * @returns {Promise<Object>} Created order with items
    */
   async create(orderData, items) {
-    const client = await pool.connect();
-    
     try {
-      await client.query('BEGIN');
-      
       const {
         user_id,
         subtotal,
@@ -47,65 +43,45 @@ const OrderModel = {
       } = orderData;
 
       // Insert order
-      const orderQuery = `
-        INSERT INTO orders (
-          id, user_id, status, subtotal, shipping_cost, final_total,
-          shipping_address, payment_status, payment_id, created_at, placed_at,
-          custom_bundle_id, bundle_type
-        )
-        VALUES (
-          gen_random_uuid(), $1, 'pending', $2, $3, $4,
-          $5, 'unpaid', $6, now(), now(),
-          $7, $8
-        )
-        RETURNING *
-      `;
-      
-      const orderValues = [
-        user_id,
-        subtotal,
-        shipping_cost,
-        final_total,
-        JSON.stringify(shipping_address),
-        payment_id,
-        custom_bundle_id,
-        bundle_type
-      ];
-      
-      const orderResult = await client.query(orderQuery, orderValues);
-      const order = orderResult.rows[0];
+      const { data: order, error: orderError } = await supabase
+        .from('Orders')
+        .insert([{
+          user_id,
+          status: 'pending',
+          subtotal,
+          shipping_cost,
+          final_total,
+          shipping_address,
+          payment_status: 'unpaid',
+          payment_id,
+          custom_bundle_id,
+          bundle_type,
+          created_at: new Date().toISOString(),
+          placed_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
 
       // Insert order items
-      const itemsQuery = `
-        INSERT INTO order_items (
-          id, order_id, product_variant_id, quantity, price, 
-          bundle_origin, bundle_id, created_at
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, now())
-        RETURNING *
-      `;
+      const orderItemsData = items.map(item => ({
+        order_id: order.id,
+        product_variant_id: item.product_variant_id,
+        quantity: item.quantity,
+        price: item.price,
+        bundle_origin: item.bundle_origin || null,
+        bundle_id: item.bundle_id || null,
+        created_at: new Date().toISOString()
+      }));
 
-      const orderItems = [];
-      for (const item of items) {
-        const itemValues = [
-          null, // Let database generate UUID
-          order.id,
-          item.product_variant_id,
-          item.quantity,
-          item.price,
-          item.bundle_origin || null,
-          item.bundle_id || null
-        ];
-        
-        const itemResult = await client.query(
-          itemsQuery.replace('$1', 'gen_random_uuid()'),
-          itemValues.slice(1)
-        );
-        orderItems.push(itemResult.rows[0]);
-      }
+      const { data: orderItems, error: itemsError } = await supabase
+        .from('Order_items')
+        .insert(orderItemsData)
+        .select();
 
-      await client.query('COMMIT');
-      
+      if (itemsError) throw itemsError;
+
       console.log(`[OrderModel] Order created: ${order.id} for user: ${user_id}`);
       
       return {
@@ -114,11 +90,8 @@ const OrderModel = {
       };
       
     } catch (error) {
-      await client.query('ROLLBACK');
       console.error('[OrderModel] Error creating order:', error);
       throw error;
-    } finally {
-      client.release();
     }
   },
 
@@ -131,37 +104,68 @@ const OrderModel = {
    * @returns {Promise<Object|null>} Order with items and product details
    */
   async findById(orderId, userId = null) {
-    const query = `
-      SELECT 
-        o.*,
-        json_agg(
-          json_build_object(
-            'id', oi.id,
-            'product_variant_id', oi.product_variant_id,
-            'quantity', oi.quantity,
-            'price', oi.price,
-            'bundle_origin', oi.bundle_origin,
-            'bundle_id', oi.bundle_id,
-            'product_title', p.title,
-            'product_img', p.img_url,
-            'variant_sku', pv.sku,
-            'variant_attributes', pv.attributes,
-            'variant_img', pv.img_url
+    try {
+      // Build query with user filter if provided
+      let orderQuery = supabase
+        .from('Orders')
+        .select('*')
+        .eq('id', orderId);
+
+      if (userId) {
+        orderQuery = orderQuery.eq('user_id', userId);
+      }
+
+      const { data: order, error: orderError } = await orderQuery.single();
+
+      if (orderError) {
+        if (orderError.code === 'PGRST116') return null;
+        throw orderError;
+      }
+
+      // Get order items with product details
+      const { data: orderItems, error: itemsError } = await supabase
+        .from('Order_items')
+        .select(`
+          *,
+          Product_variants!inner(
+            id,
+            sku,
+            attributes,
+            img_url,
+            Products!inner(
+              title,
+              img_url
+            )
           )
-        ) as items
-      FROM orders o
-      INNER JOIN order_items oi ON o.id = oi.order_id
-      INNER JOIN product_variants pv ON oi.product_variant_id = pv.id
-      INNER JOIN products p ON pv.product_id = p.id
-      WHERE o.id = $1
-        ${userId ? 'AND o.user_id = $2' : ''}
-      GROUP BY o.id
-    `;
-    
-    const values = userId ? [orderId, userId] : [orderId];
-    const result = await pool.query(query, values);
-    
-    return result.rows[0] || null;
+        `)
+        .eq('order_id', orderId);
+
+      if (itemsError) throw itemsError;
+
+      // Format items
+      const items = (orderItems || []).map(item => ({
+        id: item.id,
+        product_variant_id: item.product_variant_id,
+        quantity: item.quantity,
+        price: item.price,
+        bundle_origin: item.bundle_origin,
+        bundle_id: item.bundle_id,
+        product_title: item.Product_variants.Products.title,
+        product_img: item.Product_variants.Products.img_url,
+        variant_sku: item.Product_variants.sku,
+        variant_attributes: item.Product_variants.attributes,
+        variant_img: item.Product_variants.img_url
+      }));
+
+      return {
+        ...order,
+        items
+      };
+      
+    } catch (error) {
+      console.error('[OrderModel] Error finding order by ID:', error);
+      throw error;
+    }
   },
 
   /**
@@ -176,54 +180,84 @@ const OrderModel = {
    * @returns {Promise<Array>} Array of orders
    */
   async findByUser(userId, options = {}) {
-    const {
-      limit = 20,
-      offset = 0,
-      status = null,
-      sortBy = 'created_at',
-      sortOrder = 'DESC'
-    } = options;
+    try {
+      const {
+        limit = 20,
+        offset = 0,
+        status = null,
+        sortBy = 'created_at',
+        sortOrder = 'DESC'
+      } = options;
 
-    const validSortFields = ['created_at', 'placed_at', 'final_total', 'status'];
-    const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
-    const sortDir = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+      const validSortFields = ['created_at', 'placed_at', 'final_total', 'status'];
+      const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
+      const ascending = sortOrder.toUpperCase() === 'ASC';
 
-    const query = `
-      SELECT 
-        o.id,
-        o.status,
-        o.subtotal,
-        o.shipping_cost,
-        o.final_total,
-        o.payment_status,
-        o.created_at,
-        o.placed_at,
-        o.bundle_type,
-        COUNT(oi.id) as item_count,
-        json_agg(
-          json_build_object(
-            'product_title', p.title,
-            'product_img', COALESCE(pv.img_url, p.img_url),
-            'quantity', oi.quantity
+      // Build orders query
+      let ordersQuery = supabase
+        .from('Orders')
+        .select('id, status, subtotal, shipping_cost, final_total, payment_status, created_at, placed_at, bundle_type')
+        .eq('user_id', userId);
+
+      if (status) {
+        ordersQuery = ordersQuery.eq('status', status);
+      }
+
+      ordersQuery = ordersQuery
+        .order(sortField, { ascending })
+        .range(offset, offset + limit - 1);
+
+      const { data: orders, error: ordersError } = await ordersQuery;
+
+      if (ordersError) throw ordersError;
+
+      if (!orders || orders.length === 0) {
+        return [];
+      }
+
+      // Get order items for all orders
+      const orderIds = orders.map(o => o.id);
+      const { data: allItems, error: itemsError } = await supabase
+        .from('Order_items')
+        .select(`
+          order_id,
+          quantity,
+          Product_variants!inner(
+            img_url,
+            Products!inner(
+              title,
+              img_url
+            )
           )
-        ) as items_preview
-      FROM orders o
-      INNER JOIN order_items oi ON o.id = oi.order_id
-      INNER JOIN product_variants pv ON oi.product_variant_id = pv.id
-      INNER JOIN products p ON pv.product_id = p.id
-      WHERE o.user_id = $1
-        ${status ? 'AND o.status = $4' : ''}
-      GROUP BY o.id
-      ORDER BY o.${sortField} ${sortDir}
-      LIMIT $2 OFFSET $3
-    `;
-    
-    const values = status 
-      ? [userId, limit, offset, status]
-      : [userId, limit, offset];
-    
-    const result = await pool.query(query, values);
-    return result.rows;
+        `)
+        .in('order_id', orderIds);
+
+      if (itemsError) throw itemsError;
+
+      // Group items by order_id and format results
+      const itemsByOrder = {};
+      (allItems || []).forEach(item => {
+        if (!itemsByOrder[item.order_id]) {
+          itemsByOrder[item.order_id] = [];
+        }
+        itemsByOrder[item.order_id].push({
+          product_title: item.Product_variants.Products.title,
+          product_img: item.Product_variants.img_url || item.Product_variants.Products.img_url,
+          quantity: item.quantity
+        });
+      });
+
+      // Combine orders with their items
+      return orders.map(order => ({
+        ...order,
+        item_count: itemsByOrder[order.id] ? itemsByOrder[order.id].length : 0,
+        items_preview: itemsByOrder[order.id] || []
+      }));
+      
+    } catch (error) {
+      console.error('[OrderModel] Error finding orders by user:', error);
+      throw error;
+    }
   },
 
   /**
@@ -233,17 +267,25 @@ const OrderModel = {
    * @returns {Promise<number>} Order count
    */
   async countByUser(userId, status = null) {
-    const query = `
-      SELECT COUNT(*) as count
-      FROM orders
-      WHERE user_id = $1
-        ${status ? 'AND status = $2' : ''}
-    `;
-    
-    const values = status ? [userId, status] : [userId];
-    const result = await pool.query(query, values);
-    
-    return parseInt(result.rows[0].count);
+    try {
+      let query = supabase
+        .from('Orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+      if (status) {
+        query = query.eq('status', status);
+      }
+
+      const { count, error } = await query;
+
+      if (error) throw error;
+
+      return count || 0;
+    } catch (error) {
+      console.error('[OrderModel] Error counting orders:', error);
+      throw error;
+    }
   },
 
   /**
@@ -270,29 +312,37 @@ const OrderModel = {
    * @returns {Promise<Object>} Updated order
    */
   async updateStatus(orderId, status) {
-    const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
-    
-    if (!validStatuses.includes(status)) {
-      throw new Error('INVALID_STATUS');
-    }
+    try {
+      const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+      
+      if (!validStatuses.includes(status)) {
+        throw new Error('INVALID_STATUS');
+      }
 
-    const query = `
-      UPDATE orders
-      SET 
-        status = $1,
-        updated_at = now()
-      WHERE id = $2
-      RETURNING *
-    `;
-    
-    const result = await pool.query(query, [status, orderId]);
-    
-    if (result.rows.length === 0) {
-      throw new Error('ORDER_NOT_FOUND');
+      const { data, error } = await supabase
+        .from('Orders')
+        .update({
+          status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          throw new Error('ORDER_NOT_FOUND');
+        }
+        throw error;
+      }
+
+      console.log(`[OrderModel] Order ${orderId} status updated to: ${status}`);
+      return data;
+      
+    } catch (error) {
+      console.error('[OrderModel] Error updating order status:', error);
+      throw error;
     }
-    
-    console.log(`[OrderModel] Order ${orderId} status updated to: ${status}`);
-    return result.rows[0];
   },
 
   /**
@@ -303,30 +353,43 @@ const OrderModel = {
    * @returns {Promise<Object>} Updated order
    */
   async updatePaymentStatus(orderId, paymentStatus, paymentId = null) {
-    const validStatuses = ['unpaid', 'paid', 'refunded', 'failed'];
-    
-    if (!validStatuses.includes(paymentStatus)) {
-      throw new Error('INVALID_PAYMENT_STATUS');
-    }
+    try {
+      const validStatuses = ['unpaid', 'paid', 'refunded', 'failed'];
+      
+      if (!validStatuses.includes(paymentStatus)) {
+        throw new Error('INVALID_PAYMENT_STATUS');
+      }
 
-    const query = `
-      UPDATE orders
-      SET 
-        payment_status = $1,
-        payment_id = COALESCE($2, payment_id),
-        updated_at = now()
-      WHERE id = $3
-      RETURNING *
-    `;
-    
-    const result = await pool.query(query, [paymentStatus, paymentId, orderId]);
-    
-    if (result.rows.length === 0) {
-      throw new Error('ORDER_NOT_FOUND');
+      const updateData = {
+        payment_status: paymentStatus,
+        updated_at: new Date().toISOString()
+      };
+
+      if (paymentId) {
+        updateData.payment_id = paymentId;
+      }
+
+      const { data, error } = await supabase
+        .from('Orders')
+        .update(updateData)
+        .eq('id', orderId)
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          throw new Error('ORDER_NOT_FOUND');
+        }
+        throw error;
+      }
+
+      console.log(`[OrderModel] Order ${orderId} payment status: ${paymentStatus}`);
+      return data;
+      
+    } catch (error) {
+      console.error('[OrderModel] Error updating payment status:', error);
+      throw error;
     }
-    
-    console.log(`[OrderModel] Order ${orderId} payment status: ${paymentStatus}`);
-    return result.rows[0];
   },
 
   /**
@@ -336,25 +399,23 @@ const OrderModel = {
    * @returns {Promise<Object>} Updated order
    */
   async cancel(orderId, userId) {
-    const client = await pool.connect();
-    
     try {
-      await client.query('BEGIN');
-
       // Check if order belongs to user and can be cancelled
-      const checkQuery = `
-        SELECT status, payment_status
-        FROM orders
-        WHERE id = $1 AND user_id = $2
-      `;
-      
-      const checkResult = await client.query(checkQuery, [orderId, userId]);
-      
-      if (checkResult.rows.length === 0) {
-        throw new Error('ORDER_NOT_FOUND');
+      const { data: order, error: fetchError } = await supabase
+        .from('Orders')
+        .select('status, payment_status')
+        .eq('id', orderId)
+        .eq('user_id', userId)
+        .single();
+
+      if (fetchError) {
+        if (fetchError.code === 'PGRST116') {
+          throw new Error('ORDER_NOT_FOUND');
+        }
+        throw fetchError;
       }
 
-      const { status, payment_status } = checkResult.rows[0];
+      const { status, payment_status } = order;
 
       // Only allow cancellation for pending/confirmed orders
       if (!['pending', 'confirmed'].includes(status)) {
@@ -362,36 +423,31 @@ const OrderModel = {
       }
 
       // Update order status
-      const updateQuery = `
-        UPDATE orders
-        SET 
-          status = 'cancelled',
-          updated_at = now()
-        WHERE id = $1
-        RETURNING *
-      `;
-      
-      const result = await client.query(updateQuery, [orderId]);
+      const updateData = {
+        status: 'cancelled',
+        updated_at: new Date().toISOString()
+      };
 
       // If payment was completed, mark for refund
       if (payment_status === 'paid') {
-        await client.query(
-          `UPDATE orders SET payment_status = 'refunded' WHERE id = $1`,
-          [orderId]
-        );
+        updateData.payment_status = 'refunded';
       }
 
-      await client.query('COMMIT');
-      
+      const { data: updatedOrder, error: updateError } = await supabase
+        .from('Orders')
+        .update(updateData)
+        .eq('id', orderId)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
       console.log(`[OrderModel] Order cancelled: ${orderId}`);
-      return result.rows[0];
+      return updatedOrder;
       
     } catch (error) {
-      await client.query('ROLLBACK');
       console.error('[OrderModel] Error cancelling order:', error);
       throw error;
-    } finally {
-      client.release();
     }
   },
 
@@ -403,23 +459,60 @@ const OrderModel = {
    * @returns {Promise<Object>} Order statistics
    */
   async getStatistics(userId) {
-    const query = `
-      SELECT 
-        COUNT(*) as total_orders,
-        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_orders,
-        COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed_orders,
-        COUNT(CASE WHEN status = 'shipped' THEN 1 END) as shipped_orders,
-        COUNT(CASE WHEN status = 'delivered' THEN 1 END) as delivered_orders,
-        COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_orders,
-        COALESCE(SUM(CASE WHEN status != 'cancelled' THEN final_total ELSE 0 END), 0)::int as total_spent,
-        COALESCE(AVG(CASE WHEN status = 'delivered' THEN final_total END), 0)::int as avg_order_value,
-        MAX(created_at) as last_order_date
-      FROM orders
-      WHERE user_id = $1
-    `;
-    
-    const result = await pool.query(query, [userId]);
-    return result.rows[0];
+    try {
+      const { data: orders, error } = await supabase
+        .from('Orders')
+        .select('status, final_total, created_at')
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      if (!orders || orders.length === 0) {
+        return {
+          total_orders: 0,
+          pending_orders: 0,
+          confirmed_orders: 0,
+          shipped_orders: 0,
+          delivered_orders: 0,
+          cancelled_orders: 0,
+          total_spent: 0,
+          avg_order_value: 0,
+          last_order_date: null
+        };
+      }
+
+      // Calculate statistics
+      const stats = {
+        total_orders: orders.length,
+        pending_orders: orders.filter(o => o.status === 'pending').length,
+        confirmed_orders: orders.filter(o => o.status === 'confirmed').length,
+        shipped_orders: orders.filter(o => o.status === 'shipped').length,
+        delivered_orders: orders.filter(o => o.status === 'delivered').length,
+        cancelled_orders: orders.filter(o => o.status === 'cancelled').length,
+        total_spent: orders
+          .filter(o => o.status !== 'cancelled')
+          .reduce((sum, o) => sum + o.final_total, 0),
+        avg_order_value: 0,
+        last_order_date: orders.reduce((latest, o) => {
+          const orderDate = new Date(o.created_at);
+          return orderDate > latest ? orderDate : latest;
+        }, new Date(0))
+      };
+
+      // Calculate average order value for delivered orders
+      const deliveredOrders = orders.filter(o => o.status === 'delivered');
+      if (deliveredOrders.length > 0) {
+        stats.avg_order_value = Math.round(
+          deliveredOrders.reduce((sum, o) => sum + o.final_total, 0) / deliveredOrders.length
+        );
+      }
+
+      return stats;
+      
+    } catch (error) {
+      console.error('[OrderModel] Error getting statistics:', error);
+      throw error;
+    }
   },
 
   // ==================== ADMIN OPERATIONS ====================
@@ -434,52 +527,72 @@ const OrderModel = {
    * @returns {Promise<Array>} Array of orders
    */
   async findAll(filters = {}) {
-    const {
-      status = null,
-      payment_status = null,
-      limit = 50,
-      offset = 0
-    } = filters;
+    try {
+      const {
+        status = null,
+        payment_status = null,
+        limit = 50,
+        offset = 0
+      } = filters;
 
-    let whereClause = [];
-    let values = [];
-    let paramCounter = 1;
+      // Build query
+      let query = supabase
+        .from('Orders')
+        .select(`
+          *,
+          Users!inner(
+            name,
+            email
+          )
+        `);
 
-    if (status) {
-      whereClause.push(`o.status = $${paramCounter}`);
-      values.push(status);
-      paramCounter++;
+      if (status) {
+        query = query.eq('status', status);
+      }
+
+      if (payment_status) {
+        query = query.eq('payment_status', payment_status);
+      }
+
+      query = query
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      const { data: orders, error: ordersError } = await query;
+
+      if (ordersError) throw ordersError;
+
+      if (!orders || orders.length === 0) {
+        return [];
+      }
+
+      // Get item counts for all orders
+      const orderIds = orders.map(o => o.id);
+      const { data: itemCounts, error: itemsError } = await supabase
+        .from('Order_items')
+        .select('order_id')
+        .in('order_id', orderIds);
+
+      if (itemsError) throw itemsError;
+
+      // Count items per order
+      const itemCountByOrder = {};
+      (itemCounts || []).forEach(item => {
+        itemCountByOrder[item.order_id] = (itemCountByOrder[item.order_id] || 0) + 1;
+      });
+
+      // Format results
+      return orders.map(order => ({
+        ...order,
+        customer_name: order.Users.name,
+        customer_email: order.Users.email,
+        item_count: itemCountByOrder[order.id] || 0
+      }));
+      
+    } catch (error) {
+      console.error('[OrderModel] Error finding all orders:', error);
+      throw error;
     }
-
-    if (payment_status) {
-      whereClause.push(`o.payment_status = $${paramCounter}`);
-      values.push(payment_status);
-      paramCounter++;
-    }
-
-    const whereString = whereClause.length > 0 
-      ? `WHERE ${whereClause.join(' AND ')}`
-      : '';
-
-    const query = `
-      SELECT 
-        o.*,
-        u.name as customer_name,
-        u.email as customer_email,
-        COUNT(oi.id) as item_count
-      FROM orders o
-      INNER JOIN users u ON o.user_id = u.id
-      LEFT JOIN order_items oi ON o.id = oi.order_id
-      ${whereString}
-      GROUP BY o.id, u.name, u.email
-      ORDER BY o.created_at DESC
-      LIMIT $${paramCounter} OFFSET $${paramCounter + 1}
-    `;
-    
-    values.push(limit, offset);
-    const result = await pool.query(query, values);
-    
-    return result.rows;
   },
 
   /**
@@ -488,23 +601,40 @@ const OrderModel = {
    * @returns {Promise<Array>} Order items with product details
    */
   async getOrderItems(orderId) {
-    const query = `
-      SELECT 
-        oi.*,
-        p.title as product_title,
-        p.img_url as product_img,
-        pv.sku as variant_sku,
-        pv.attributes as variant_attributes,
-        pv.img_url as variant_img
-      FROM order_items oi
-      INNER JOIN product_variants pv ON oi.product_variant_id = pv.id
-      INNER JOIN products p ON pv.product_id = p.id
-      WHERE oi.order_id = $1
-      ORDER BY oi.created_at
-    `;
-    
-    const result = await pool.query(query, [orderId]);
-    return result.rows;
+    try {
+      const { data: items, error } = await supabase
+        .from('Order_items')
+        .select(`
+          *,
+          Product_variants!inner(
+            sku,
+            attributes,
+            img_url,
+            Products!inner(
+              title,
+              img_url
+            )
+          )
+        `)
+        .eq('order_id', orderId)
+        .order('created_at');
+
+      if (error) throw error;
+
+      // Format items
+      return (items || []).map(item => ({
+        ...item,
+        product_title: item.Product_variants.Products.title,
+        product_img: item.Product_variants.Products.img_url,
+        variant_sku: item.Product_variants.sku,
+        variant_attributes: item.Product_variants.attributes,
+        variant_img: item.Product_variants.img_url
+      }));
+      
+    } catch (error) {
+      console.error('[OrderModel] Error getting order items:', error);
+      throw error;
+    }
   }
 };
 

@@ -1,6 +1,6 @@
 // backend/src/models/addressModel.js
 
-const pool = require('../config/database');
+const supabase = require('../config/supabaseClient');
 
 /**
  * Address Model - Handles all address-related database operations
@@ -17,15 +17,17 @@ const AddressModel = {
    */
   getUserAddresses: async (userId) => {
     try {
-      const result = await pool.query(
-        `SELECT * FROM addresses 
-         WHERE user_id = $1 
-         ORDER BY is_default DESC, created_at DESC`,
-        [userId]
-      );
+      const { data: addresses, error } = await supabase
+        .from('Addresses')
+        .select('*')
+        .eq('user_id', userId)
+        .order('is_default', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
       
-      console.log(`📍 Fetched ${result.rows.length} addresses for user ${userId}`);
-      return result.rows;
+      console.log(`📍 Fetched ${addresses?.length || 0} addresses for user ${userId}`);
+      return addresses || [];
     } catch (error) {
       console.error('Error fetching user addresses:', error);
       throw error;
@@ -40,18 +42,20 @@ const AddressModel = {
    */
   getAddressById: async (addressId, userId) => {
     try {
-      const result = await pool.query(
-        'SELECT * FROM addresses WHERE id = $1 AND user_id = $2',
-        [addressId, userId]
-      );
+      const { data: address, error } = await supabase
+        .from('Addresses')
+        .select('*')
+        .eq('id', addressId)
+        .eq('user_id', userId)
+        .single();
 
-      if (result.rows.length === 0) {
-        const error = new Error('Address not found');
-        error.code = 'ADDRESS_NOT_FOUND';
-        throw error;
+      if (error || !address) {
+        const err = new Error('Address not found');
+        err.code = 'ADDRESS_NOT_FOUND';
+        throw err;
       }
 
-      return result.rows[0];
+      return address;
     } catch (error) {
       if (error.code === 'ADDRESS_NOT_FOUND') {
         throw error;
@@ -68,12 +72,18 @@ const AddressModel = {
    */
   getDefaultAddress: async (userId) => {
     try {
-      const result = await pool.query(
-        'SELECT * FROM addresses WHERE user_id = $1 AND is_default = true',
-        [userId]
-      );
+      const { data: address, error } = await supabase
+        .from('Addresses')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('is_default', true)
+        .single();
 
-      return result.rows.length > 0 ? result.rows[0] : null;
+      if (error) {
+        return null;
+      }
+
+      return address;
     } catch (error) {
       console.error('Error fetching default address:', error);
       throw error;
@@ -88,14 +98,17 @@ const AddressModel = {
    */
   getAddressesByType: async (userId, addressType) => {
     try {
-      const result = await pool.query(
-        `SELECT * FROM addresses 
-         WHERE user_id = $1 AND address_type = $2 
-         ORDER BY is_default DESC, created_at DESC`,
-        [userId, addressType]
-      );
+      const { data: addresses, error } = await supabase
+        .from('Addresses')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('address_type', addressType)
+        .order('is_default', { ascending: false })
+        .order('created_at', { ascending: false });
 
-      return result.rows;
+      if (error) throw error;
+
+      return addresses || [];
     } catch (error) {
       console.error('Error fetching addresses by type:', error);
       throw error;
@@ -109,12 +122,14 @@ const AddressModel = {
    */
   getAddressCount: async (userId) => {
     try {
-      const result = await pool.query(
-        'SELECT COUNT(*) as count FROM addresses WHERE user_id = $1',
-        [userId]
-      );
+      const { count, error } = await supabase
+        .from('Addresses')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
 
-      return parseInt(result.rows[0].count);
+      if (error) throw error;
+
+      return count || 0;
     } catch (error) {
       console.error('Error counting addresses:', error);
       throw error;
@@ -145,11 +160,7 @@ const AddressModel = {
    * @returns {Promise<Object>} - Created address object
    */
   createAddress: async (userId, addressData) => {
-    const client = await pool.connect();
-    
     try {
-      await client.query('BEGIN');
-
       const {
         line1,
         line2,
@@ -171,12 +182,13 @@ const AddressModel = {
       }
 
       // Check if user exists
-      const userCheck = await client.query(
-        'SELECT id FROM users WHERE id = $1',
-        [userId]
-      );
+      const { data: user, error: userError } = await supabase
+        .from('Users')
+        .select('id')
+        .eq('id', userId)
+        .single();
 
-      if (userCheck.rows.length === 0) {
+      if (userError || !user) {
         const error = new Error('User not found');
         error.code = 'USER_NOT_FOUND';
         throw error;
@@ -184,32 +196,39 @@ const AddressModel = {
 
       // If setting as default, unset other defaults
       if (is_default) {
-        await client.query(
-          'UPDATE addresses SET is_default = false WHERE user_id = $1',
-          [userId]
-        );
+        await supabase
+          .from('Addresses')
+          .update({ is_default: false })
+          .eq('user_id', userId);
       }
 
       // Insert new address
-      const result = await client.query(
-        `INSERT INTO addresses 
-         (user_id, line1, line2, city, state, country, zip_code, address_type, phone, landmark, is_default)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-         RETURNING *`,
-        [userId, line1, line2 || null, city, state, country, zip_code, address_type, phone || null, landmark || null, is_default]
-      );
+      const { data: address, error: insertError } = await supabase
+        .from('Addresses')
+        .insert([{
+          user_id: userId,
+          line1,
+          line2: line2 || null,
+          city,
+          state,
+          country,
+          zip_code,
+          address_type,
+          phone: phone || null,
+          landmark: landmark || null,
+          is_default
+        }])
+        .select()
+        .single();
 
-      await client.query('COMMIT');
+      if (insertError) throw insertError;
       
-      console.log(`✅ Address created: ${result.rows[0].id}`);
-      return result.rows[0];
+      console.log(`✅ Address created: ${address.id}`);
+      return address;
 
     } catch (error) {
-      await client.query('ROLLBACK');
       console.error('Error creating address:', error);
       throw error;
-    } finally {
-      client.release();
     }
   },
 
@@ -223,34 +242,31 @@ const AddressModel = {
    * @returns {Promise<Object>} - Updated address object
    */
   updateAddress: async (addressId, userId, addressData) => {
-    const client = await pool.connect();
-    
     try {
-      await client.query('BEGIN');
-
       // Verify ownership
-      const existingCheck = await client.query(
-        'SELECT * FROM addresses WHERE id = $1 AND user_id = $2',
-        [addressId, userId]
-      );
+      const { data: existing, error: existingError } = await supabase
+        .from('Addresses')
+        .select('*')
+        .eq('id', addressId)
+        .eq('user_id', userId)
+        .single();
 
-      if (existingCheck.rows.length === 0) {
+      if (existingError || !existing) {
         const error = new Error('Address not found');
         error.code = 'ADDRESS_NOT_FOUND';
         throw error;
       }
 
-      const existing = existingCheck.rows[0];
-
       // If setting as default and wasn't default before, unset others
       if (addressData.is_default && !existing.is_default) {
-        await client.query(
-          'UPDATE addresses SET is_default = false WHERE user_id = $1',
-          [userId]
-        );
+        await supabase
+          .from('Addresses')
+          .update({ is_default: false })
+          .eq('user_id', userId);
       }
 
-      // Build update query dynamically
+      // Build update object
+      const updateObj = {};
       const {
         line1,
         line2,
@@ -264,34 +280,34 @@ const AddressModel = {
         is_default
       } = addressData;
 
-      const result = await client.query(
-        `UPDATE addresses 
-         SET line1 = COALESCE($1, line1),
-             line2 = COALESCE($2, line2),
-             city = COALESCE($3, city),
-             state = COALESCE($4, state),
-             country = COALESCE($5, country),
-             zip_code = COALESCE($6, zip_code),
-             address_type = COALESCE($7, address_type),
-             phone = COALESCE($8, phone),
-             landmark = COALESCE($9, landmark),
-             is_default = COALESCE($10, is_default)
-         WHERE id = $11 AND user_id = $12
-         RETURNING *`,
-        [line1, line2, city, state, country, zip_code, address_type, phone, landmark, is_default, addressId, userId]
-      );
+      if (line1 !== undefined) updateObj.line1 = line1;
+      if (line2 !== undefined) updateObj.line2 = line2;
+      if (city !== undefined) updateObj.city = city;
+      if (state !== undefined) updateObj.state = state;
+      if (country !== undefined) updateObj.country = country;
+      if (zip_code !== undefined) updateObj.zip_code = zip_code;
+      if (address_type !== undefined) updateObj.address_type = address_type;
+      if (phone !== undefined) updateObj.phone = phone;
+      if (landmark !== undefined) updateObj.landmark = landmark;
+      if (is_default !== undefined) updateObj.is_default = is_default;
 
-      await client.query('COMMIT');
+      // Update address
+      const { data: updatedAddress, error: updateError } = await supabase
+        .from('Addresses')
+        .update(updateObj)
+        .eq('id', addressId)
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
       
       console.log(`✅ Address updated: ${addressId}`);
-      return result.rows[0];
+      return updatedAddress;
 
     } catch (error) {
-      await client.query('ROLLBACK');
       console.error('Error updating address:', error);
       throw error;
-    } finally {
-      client.release();
     }
   },
 
@@ -302,46 +318,44 @@ const AddressModel = {
    * @returns {Promise<Object>} - Updated address object
    */
   setDefaultAddress: async (addressId, userId) => {
-    const client = await pool.connect();
-    
     try {
-      await client.query('BEGIN');
-
       // Verify ownership
-      const existingCheck = await client.query(
-        'SELECT * FROM addresses WHERE id = $1 AND user_id = $2',
-        [addressId, userId]
-      );
+      const { data: existing, error: existingError } = await supabase
+        .from('Addresses')
+        .select('*')
+        .eq('id', addressId)
+        .eq('user_id', userId)
+        .single();
 
-      if (existingCheck.rows.length === 0) {
+      if (existingError || !existing) {
         const error = new Error('Address not found');
         error.code = 'ADDRESS_NOT_FOUND';
         throw error;
       }
 
       // Unset all defaults for this user
-      await client.query(
-        'UPDATE addresses SET is_default = false WHERE user_id = $1',
-        [userId]
-      );
+      await supabase
+        .from('Addresses')
+        .update({ is_default: false })
+        .eq('user_id', userId);
 
       // Set new default
-      const result = await client.query(
-        'UPDATE addresses SET is_default = true WHERE id = $1 AND user_id = $2 RETURNING *',
-        [addressId, userId]
-      );
+      const { data: updatedAddress, error: updateError } = await supabase
+        .from('Addresses')
+        .update({ is_default: true })
+        .eq('id', addressId)
+        .eq('user_id', userId)
+        .select()
+        .single();
 
-      await client.query('COMMIT');
+      if (updateError) throw updateError;
       
       console.log(`✅ Default address set: ${addressId}`);
-      return result.rows[0];
+      return updatedAddress;
 
     } catch (error) {
-      await client.query('ROLLBACK');
       console.error('Error setting default address:', error);
       throw error;
-    } finally {
-      client.release();
     }
   },
 
@@ -354,51 +368,56 @@ const AddressModel = {
    * @returns {Promise<Object>} - Result object with deletion info
    */
   deleteAddress: async (addressId, userId) => {
-    const client = await pool.connect();
-    
     try {
-      await client.query('BEGIN');
-
       // Verify ownership and get address info
-      const existingCheck = await client.query(
-        'SELECT * FROM addresses WHERE id = $1 AND user_id = $2',
-        [addressId, userId]
-      );
+      const { data: existing, error: existingError } = await supabase
+        .from('Addresses')
+        .select('*')
+        .eq('id', addressId)
+        .eq('user_id', userId)
+        .single();
 
-      if (existingCheck.rows.length === 0) {
+      if (existingError || !existing) {
         const error = new Error('Address not found');
         error.code = 'ADDRESS_NOT_FOUND';
         throw error;
       }
 
-      const existing = existingCheck.rows[0];
       const wasDefault = existing.is_default;
 
       // Delete the address
-      await client.query(
-        'DELETE FROM addresses WHERE id = $1 AND user_id = $2',
-        [addressId, userId]
-      );
+      const { error: deleteError } = await supabase
+        .from('Addresses')
+        .delete()
+        .eq('id', addressId)
+        .eq('user_id', userId);
+
+      if (deleteError) throw deleteError;
 
       let newDefaultAddress = null;
 
       // If deleted address was default, set another as default
       if (wasDefault) {
-        const otherAddresses = await client.query(
-          'SELECT * FROM addresses WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
-          [userId]
-        );
+        const { data: otherAddresses, error: otherError } = await supabase
+          .from('Addresses')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1);
 
-        if (otherAddresses.rows.length > 0) {
-          const updateResult = await client.query(
-            'UPDATE addresses SET is_default = true WHERE id = $1 RETURNING *',
-            [otherAddresses.rows[0].id]
-          );
-          newDefaultAddress = updateResult.rows[0];
+        if (!otherError && otherAddresses && otherAddresses.length > 0) {
+          const { data: updated, error: updateError } = await supabase
+            .from('Addresses')
+            .update({ is_default: true })
+            .eq('id', otherAddresses[0].id)
+            .select()
+            .single();
+
+          if (!updateError) {
+            newDefaultAddress = updated;
+          }
         }
       }
-
-      await client.query('COMMIT');
       
       console.log(`✅ Address deleted: ${addressId}${wasDefault ? ' (was default)' : ''}`);
 
@@ -408,11 +427,8 @@ const AddressModel = {
       };
 
     } catch (error) {
-      await client.query('ROLLBACK');
       console.error('Error deleting address:', error);
       throw error;
-    } finally {
-      client.release();
     }
   },
 
@@ -423,52 +439,69 @@ const AddressModel = {
    * @returns {Promise<Object>} - Result with deletion info
    */
   batchDeleteAddresses: async (addressIds, userId) => {
-    const client = await pool.connect();
-    
     try {
-      await client.query('BEGIN');
-
       // Check if deleting all addresses
-      const totalCount = await client.query(
-        'SELECT COUNT(*) as count FROM addresses WHERE user_id = $1',
-        [userId]
-      );
+      const { count: totalCount, error: countError } = await supabase
+        .from('Addresses')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
 
-      if (parseInt(totalCount.rows[0].count) === addressIds.length) {
+      if (countError) throw countError;
+
+      if (totalCount === addressIds.length) {
         const error = new Error('Cannot delete all addresses');
         error.code = 'CANNOT_DELETE_ALL';
         throw error;
       }
 
-      // Delete addresses
-      const result = await client.query(
-        'DELETE FROM addresses WHERE id = ANY($1) AND user_id = $2 RETURNING id, is_default',
-        [addressIds, userId]
-      );
+      // Get addresses to be deleted to check if default is included
+      const { data: toDelete, error: fetchError } = await supabase
+        .from('Addresses')
+        .select('id, is_default')
+        .in('id', addressIds)
+        .eq('user_id', userId);
 
-      const deletedCount = result.rows.length;
-      const deletedIds = result.rows.map(r => r.id);
-      const deletedDefault = result.rows.some(r => r.is_default);
+      if (fetchError) throw fetchError;
+
+      const deletedDefault = toDelete?.some(addr => addr.is_default) || false;
+
+      // Delete addresses
+      const { data: deleted, error: deleteError } = await supabase
+        .from('Addresses')
+        .delete()
+        .in('id', addressIds)
+        .eq('user_id', userId)
+        .select('id, is_default');
+
+      if (deleteError) throw deleteError;
+
+      const deletedCount = deleted?.length || 0;
+      const deletedIds = deleted?.map(r => r.id) || [];
 
       let newDefaultAddress = null;
 
       // If default was deleted, assign new default
       if (deletedDefault) {
-        const remainingAddresses = await client.query(
-          'SELECT * FROM addresses WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
-          [userId]
-        );
+        const { data: remainingAddresses, error: remainingError } = await supabase
+          .from('Addresses')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1);
 
-        if (remainingAddresses.rows.length > 0) {
-          const updateResult = await client.query(
-            'UPDATE addresses SET is_default = true WHERE id = $1 RETURNING *',
-            [remainingAddresses.rows[0].id]
-          );
-          newDefaultAddress = updateResult.rows[0];
+        if (!remainingError && remainingAddresses && remainingAddresses.length > 0) {
+          const { data: updated, error: updateError } = await supabase
+            .from('Addresses')
+            .update({ is_default: true })
+            .eq('id', remainingAddresses[0].id)
+            .select()
+            .single();
+
+          if (!updateError) {
+            newDefaultAddress = updated;
+          }
         }
       }
-
-      await client.query('COMMIT');
       
       console.log(`✅ Batch deleted ${deletedCount} addresses`);
 
@@ -479,11 +512,8 @@ const AddressModel = {
       };
 
     } catch (error) {
-      await client.query('ROLLBACK');
       console.error('Error batch deleting addresses:', error);
       throw error;
-    } finally {
-      client.release();
     }
   }
 
