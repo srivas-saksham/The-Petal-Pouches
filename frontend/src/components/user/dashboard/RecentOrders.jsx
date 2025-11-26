@@ -139,7 +139,7 @@ const RecentOrders = ({ orders = [], loading = false, onViewAll }) => {
             <div className="flex justify-between items-start mb-3">
               <div>
                 <Link
-                  to={`/customer/orders/${order.id}`}
+                  to={`/user/orders/${order.id}`}
                   className="text-sm font-medium text-slate-900 hover:text-pink-500 transition-colors"
                 >
                   Order #{order.id?.slice(0, 8)}
@@ -166,7 +166,7 @@ const RecentOrders = ({ orders = [], loading = false, onViewAll }) => {
 
               <div className="flex gap-2">
                 <Link
-                  to={`/customer/orders/${order.id}`}
+                  to={`/user/orders/${order.id}`}
                   className="p-2 text-slate-600 hover:text-pink-500 hover:bg-pink-50 rounded-lg transition-colors"
                   title="View Details"
                 >
@@ -175,7 +175,7 @@ const RecentOrders = ({ orders = [], loading = false, onViewAll }) => {
 
                 {(order.status === 'shipped' || order.status === 'processing') && (
                   <Link
-                    to={`/customer/orders/${order.id}/track`}
+                    to={`/user/orders/${order.id}/track`}
                     className="p-2 text-slate-600 hover:text-pink-500 hover:bg-pink-50 rounded-lg transition-colors"
                     title="Track Order"
                   >

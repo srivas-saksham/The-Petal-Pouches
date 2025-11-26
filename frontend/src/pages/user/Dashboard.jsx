@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, Heart, MapPin, ShoppingBag, TrendingUp, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Package, Heart, MapPin, ShoppingBag, TrendingUp, Clock, CheckCircle, ArrowRight } from 'lucide-react';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useToast } from '../../hooks/useToast';
 
@@ -10,217 +10,224 @@ const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState({
+    totalOrders: 0,
+    totalSpent: 0,
+    pendingOrders: 0,
+    deliveredOrders: 0,
+  });
   const [recentOrders, setRecentOrders] = useState([]);
   const [wishlistCount, setWishlistCount] = useState(0);
+  const [addressCount, setAddressCount] = useState(0);
 
   const { user, token } = useUserAuth();
   const navigate = useNavigate();
   const toast = useToast();
 
-  // ✅ Fetch dashboard data
   useEffect(() => {
-    fetchDashboardData();
+    if (token) {
+      fetchAllDashboardData();
+    }
   }, [token]);
 
-  const fetchDashboardData = async () => {
+  const fetchAllDashboardData = async () => {
     setLoading(true);
     try {
-      // TODO: Replace with actual API calls
-      // For now using placeholder data
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      };
+
+      // Fetch Orders
+      const ordersRes = await fetch(`${API_URL}/api/orders`, { headers });
+      const ordersData = await ordersRes.json();
       
-      setStats({
-        totalOrders: 8,
-        totalSpent: 4850,
-        pendingOrders: 1,
-        deliveredOrders: 6,
-      });
+      if (ordersData.success && ordersData.data) {
+        const orders = Array.isArray(ordersData.data) ? ordersData.data : [];
+        
+        const totalOrders = orders.length;
+        const totalSpent = orders
+          .filter(o => o.payment_status === 'paid')
+          .reduce((sum, o) => sum + (o.final_total || o.total || 0), 0);
+        const pendingOrders = orders.filter(o => o.status === 'pending').length;
+        const deliveredOrders = orders.filter(o => o.status === 'delivered').length;
 
-      setRecentOrders([
-        {
-          id: '#ORD-001',
-          date: '2024-11-20',
-          total: 1299,
-          status: 'delivered',
-          items: 3,
-        },
-        {
-          id: '#ORD-002',
-          date: '2024-11-15',
-          total: 899,
-          status: 'delivered',
-          items: 2,
-        },
-        {
-          id: '#ORD-003',
-          date: '2024-11-10',
-          total: 1450,
-          status: 'pending',
-          items: 4,
-        },
-      ]);
+        setStats({
+          totalOrders,
+          totalSpent,
+          pendingOrders,
+          deliveredOrders,
+        });
 
-      setWishlistCount(5);
+        const recent = orders.slice(0, 5).map(order => ({
+          id: order.id || '#N/A',
+          date: order.created_at || new Date().toISOString(),
+          total: order.final_total || order.total || 0,
+          status: order.status || 'pending',
+          items: order.order_items?.length || 0,
+        }));
+        setRecentOrders(recent);
+      }
+
+      // Fetch Addresses
+      const addressRes = await fetch(`${API_URL}/api/addresses`, { headers });
+      const addressData = await addressRes.json();
+      if (addressData.success && Array.isArray(addressData.data)) {
+        setAddressCount(addressData.data.length);
+      }
+
+      // Fetch Wishlist
+      const wishlistRes = await fetch(`${API_URL}/api/wishlist`, { headers });
+      const wishlistData = await wishlistRes.json();
+      if (wishlistData.success && Array.isArray(wishlistData.data)) {
+        setWishlistCount(wishlistData.data.length);
+      }
+
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Get status badge styling
-  const getStatusStyle = (status) => {
-    switch (status) {
-      case 'delivered':
-        return { bg: 'bg-tppmint/20', text: 'text-tppmint', label: 'Delivered' };
-      case 'pending':
-        return { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Pending' };
-      case 'processing':
-        return { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Processing' };
-      case 'cancelled':
-        return { bg: 'bg-red-100', text: 'text-red-700', label: 'Cancelled' };
-      default:
-        return { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Unknown' };
-    }
+  const getStatusBadge = (status) => {
+    const styles = {
+      delivered: { bg: 'bg-tppmint/10', text: 'text-tppmint', label: 'Delivered' },
+      pending: { bg: 'bg-tppslate/10', text: 'text-tppslate', label: 'Pending' },
+      processing: { bg: 'bg-tpppink/10', text: 'text-tpppink', label: 'Processing' },
+      shipped: { bg: 'bg-tppslate/5', text: 'text-tppslate', label: 'Shipped' },
+      cancelled: { bg: 'bg-tppslate/20', text: 'text-tppslate', label: 'Cancelled' },
+    };
+    return styles[status] || styles.pending;
   };
 
-  // ✅ Format currency
   const formatCurrency = (amount) => {
-    return `₹${amount.toLocaleString('en-IN')}`;
+    const num = parseFloat(amount) || 0;
+    return `₹${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
   };
 
-  // ✅ Format date
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('en-IN', {
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return 'N/A';
+    }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-tpppeach border-t-tppslate mx-auto mb-4"></div>
-          <p className="text-tppslate font-medium">Loading your dashboard...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-tppslate/20 border-t-tpppink mx-auto mb-3"></div>
+          <p className="text-xs text-tppslate/60 font-medium">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-tpppink/10 to-tpppeach/10 border-2 border-tppslate/10 rounded-xl p-6 sm:p-8">
-        <h1 className="text-3xl sm:text-4xl font-bold text-tppslate mb-2">
-          Welcome back, {user?.name?.split(' ')[0]}! 👋
-        </h1>
-        <p className="text-tppslate/70 text-lg">
-          Check your orders, manage addresses, and explore more at The Petal Pouches
-        </p>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-tppslate">Welcome back, {user?.name?.split(' ')[0] || 'User'}</h1>
+        <p className="text-xs text-tppslate/60 mt-1">Here's your account overview</p>
       </div>
 
-      {/* Quick Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      {/* Stats Grid - Compact */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {/* Total Orders */}
-        <div className="bg-white rounded-xl border-2 border-tppslate/10 p-6 hover:border-tpppink hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-3 bg-tpppeach/30 rounded-lg">
-              <ShoppingBag className="w-6 h-6 text-tppslate" />
-            </div>
-            <span className="text-xs font-semibold text-tppmint bg-tppmint/20 px-2 py-1 rounded-full">
-              +{stats?.totalOrders}
-            </span>
+        <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
+          <div className="flex items-start justify-between mb-2">
+            <Package className="w-4 h-4 text-tpppink" />
+            <span className="text-xs font-semibold text-tpppink">{stats.totalOrders}</span>
           </div>
-          <p className="text-tppslate/70 text-sm font-medium">Total Orders</p>
-          <p className="text-2xl font-bold text-tppslate mt-1">{stats?.totalOrders || 0}</p>
+          <p className="text-xs text-tppslate/60 font-medium">Total Orders</p>
+          <p className="text-sm font-bold text-tppslate mt-1">{stats.totalOrders}</p>
         </div>
 
         {/* Total Spent */}
-        <div className="bg-white rounded-xl border-2 border-tppslate/10 p-6 hover:border-tpppink hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-3 bg-tpppeach/30 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-tppslate" />
-            </div>
-            <span className="text-xs font-semibold text-tppslate/60">Lifetime</span>
+        <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
+          <div className="flex items-start justify-between mb-2">
+            <TrendingUp className="w-4 h-4 text-tpppink" />
+            <span className="text-xs text-tppslate/50">Lifetime</span>
           </div>
-          <p className="text-tppslate/70 text-sm font-medium">Total Spent</p>
-          <p className="text-2xl font-bold text-tppslate mt-1">{formatCurrency(stats?.totalSpent || 0)}</p>
+          <p className="text-xs text-tppslate/60 font-medium">Total Spent</p>
+          <p className="text-sm font-bold text-tppslate mt-1">{formatCurrency(stats.totalSpent)}</p>
         </div>
 
         {/* Pending Orders */}
-        <div className="bg-white rounded-xl border-2 border-tppslate/10 p-6 hover:border-tpppink hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-3 bg-yellow-100 rounded-lg">
-              <Clock className="w-6 h-6 text-yellow-700" />
-            </div>
-            <span className="text-xs font-semibold text-yellow-700 bg-yellow-100 px-2 py-1 rounded-full">
-              {stats?.pendingOrders}
-            </span>
+        <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
+          <div className="flex items-start justify-between mb-2">
+            <Clock className="w-4 h-4 text-tpppink" />
+            <span className="text-xs font-semibold text-tpppink">{stats.pendingOrders}</span>
           </div>
-          <p className="text-tppslate/70 text-sm font-medium">Pending Orders</p>
-          <p className="text-2xl font-bold text-tppslate mt-1">{stats?.pendingOrders || 0}</p>
+          <p className="text-xs text-tppslate/60 font-medium">Pending Orders</p>
+          <p className="text-sm font-bold text-tppslate mt-1">{stats.pendingOrders}</p>
         </div>
 
         {/* Delivered Orders */}
-        <div className="bg-white rounded-xl border-2 border-tppslate/10 p-6 hover:border-tpppink hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-3 bg-tppmint/20 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-tppmint" />
-            </div>
-            <span className="text-xs font-semibold text-tppmint bg-tppmint/20 px-2 py-1 rounded-full">
-              {stats?.deliveredOrders}
-            </span>
+        <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
+          <div className="flex items-start justify-between mb-2">
+            <CheckCircle className="w-4 h-4 text-tpppink" />
+            <span className="text-xs font-semibold text-tpppink">{stats.deliveredOrders}</span>
           </div>
-          <p className="text-tppslate/70 text-sm font-medium">Delivered Orders</p>
-          <p className="text-2xl font-bold text-tppslate mt-1">{stats?.deliveredOrders || 0}</p>
+          <p className="text-xs text-tppslate/60 font-medium">Delivered</p>
+          <p className="text-sm font-bold text-tppslate mt-1">{stats.deliveredOrders}</p>
         </div>
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
-        {/* Recent Orders */}
-        <div className="lg:col-span-2 bg-white rounded-xl border-2 border-tppslate/10 overflow-hidden">
-          <div className="p-6 border-b-2 border-tppslate/10 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-tppslate">Recent Orders</h2>
+      {/* Main Content - Two Column */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Recent Orders - Wider */}
+        <div className="lg:col-span-2 bg-white border border-tppslate/10 rounded-lg overflow-hidden">
+          <div className="p-3 border-b border-tppslate/10 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-tppslate">Recent Orders</h2>
             <button
               onClick={() => navigate('/user/orders')}
-              className="text-sm text-tpppink hover:text-tpppink/80 font-semibold transition-colors"
+              className="text-xs text-tpppink hover:text-tpppink/80 font-medium transition-colors flex items-center gap-1"
             >
-              View All →
+              View All
+              <ArrowRight className="w-3 h-3" />
             </button>
           </div>
 
           {recentOrders.length === 0 ? (
-            <div className="p-12 text-center">
-              <Package className="w-12 h-12 text-tppslate/30 mx-auto mb-3" />
-              <p className="text-tppslate/60">No orders yet. Start shopping now!</p>
+            <div className="p-6 text-center">
+              <Package className="w-8 h-8 text-tppslate/20 mx-auto mb-2" />
+              <p className="text-xs text-tppslate/60">No orders yet</p>
+              <button
+                onClick={() => navigate('/shop')}
+                className="text-xs text-tpppink hover:text-tpppink/80 font-medium mt-2 transition-colors"
+              >
+                Start shopping →
+              </button>
             </div>
           ) : (
-            <div className="space-y-1">
-              {recentOrders.map((order, index) => {
-                const statusStyle = getStatusStyle(order.status);
+            <div className="divide-y divide-tppslate/5 max-h-64 overflow-y-auto">
+              {recentOrders.map((order) => {
+                const badge = getStatusBadge(order.status);
                 return (
                   <div
-                    key={index}
+                    key={order.id}
                     onClick={() => navigate(`/user/orders/${order.id}`)}
-                    className="p-4 hover:bg-tpppeach/10 transition-colors cursor-pointer border-b-2 border-tppslate/5 last:border-b-0 group"
+                    className="p-3 hover:bg-tppslate/5 transition-colors cursor-pointer group"
                   >
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-1">
-                          <p className="font-semibold text-tppslate">{order.id}</p>
-                          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusStyle.bg} ${statusStyle.text}`}>
-                            {statusStyle.label}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs font-semibold text-tppslate truncate">{order.id}</p>
+                          <span className={`text-xs font-medium px-1.5 py-0.5 rounded inline-block flex-shrink-0 ${badge.bg} ${badge.text}`}>
+                            {badge.label}
                           </span>
                         </div>
-                        <p className="text-sm text-tppslate/60">{order.items} items • {formatDate(order.date)}</p>
+                        <p className="text-xs text-tppslate/60">{order.items} item{order.items !== 1 ? 's' : ''} • {formatDate(order.date)}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-tppslate">{formatCurrency(order.total)}</p>
-                        <p className="text-xs text-tppslate/60 group-hover:text-tpppink transition-colors">View →</p>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-xs font-bold text-tppslate">{formatCurrency(order.total)}</p>
+                        <p className="text-xs text-tppslate/40 group-hover:text-tpppink transition-colors">View</p>
                       </div>
                     </div>
                   </div>
@@ -230,74 +237,45 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Quick Actions Sidebar */}
-        <div className="space-y-4 sm:space-y-6">
-          {/* Wishlist Card */}
-          <div className="bg-gradient-to-br from-tpppink/10 to-tpppeach/10 rounded-xl border-2 border-tppslate/10 p-6 hover:border-tpppink hover:shadow-md transition-all duration-200 cursor-pointer group"
-            onClick={() => navigate('/user/wishlist')}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <Heart className="w-8 h-8 text-tpppink" />
-              <span className="text-2xl font-bold text-tpppink">{wishlistCount}</span>
-            </div>
-            <h3 className="font-semibold text-tppslate mb-1">My Wishlist</h3>
-            <p className="text-sm text-tppslate/70">Items saved for later</p>
-            <p className="text-xs text-tpppink font-semibold mt-3 group-hover:translate-x-1 transition-transform">View Wishlist →</p>
-          </div>
-
-          {/* Addresses Card */}
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl border-2 border-blue-200/50 p-6 hover:border-blue-400 hover:shadow-md transition-all duration-200 cursor-pointer group"
+        {/* Quick Links - Sidebar */}
+        <div className="space-y-3">
+          {/* Addresses */}
+          <div
             onClick={() => navigate('/user/addresses')}
+            className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tpppink/30 transition-all cursor-pointer group"
           >
-            <div className="flex items-center justify-between mb-4">
-              <MapPin className="w-8 h-8 text-blue-600" />
-              <span className="text-2xl font-bold text-blue-600">3</span>
+            <div className="flex items-start justify-between mb-2">
+              <MapPin className="w-4 h-4 text-tpppink" />
+              <span className="text-sm font-bold text-tppslate">{addressCount}</span>
             </div>
-            <h3 className="font-semibold text-tppslate mb-1">Saved Addresses</h3>
-            <p className="text-sm text-tppslate/70">Manage delivery addresses</p>
-            <p className="text-xs text-blue-600 font-semibold mt-3 group-hover:translate-x-1 transition-transform">Manage →</p>
+            <p className="text-xs font-medium text-tppslate mb-1">Saved Addresses</p>
+            <p className="text-xs text-tppslate/60 group-hover:text-tpppink transition-colors">Manage →</p>
           </div>
 
-          {/* Continue Shopping Card */}
-          <div className="bg-gradient-to-br from-tppmint/20 to-tppmint/10 rounded-xl border-2 border-tppmint/30 p-6 hover:border-tppmint hover:shadow-md transition-all duration-200 cursor-pointer group"
+          {/* Wishlist */}
+          <div
+            onClick={() => navigate('/user/wishlist')}
+            className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tpppink/30 transition-all cursor-pointer group"
+          >
+            <div className="flex items-start justify-between mb-2">
+              <Heart className="w-4 h-4 text-tpppink" />
+              <span className="text-sm font-bold text-tppslate">{wishlistCount}</span>
+            </div>
+            <p className="text-xs font-medium text-tppslate mb-1">Saved Items</p>
+            <p className="text-xs text-tppslate/60 group-hover:text-tpppink transition-colors">View →</p>
+          </div>
+
+          {/* Continue Shopping */}
+          <div
             onClick={() => navigate('/shop')}
+            className="bg-tpppink/5 border border-tpppink/20 rounded-lg p-3 hover:bg-tpppink/10 hover:border-tpppink/40 transition-all cursor-pointer group"
           >
-            <div className="flex items-center justify-between mb-4">
-              <ShoppingBag className="w-8 h-8 text-tppmint" />
-              <span className="text-lg font-bold text-tppmint">→</span>
+            <div className="flex items-start justify-between mb-2">
+              <ShoppingBag className="w-4 h-4 text-tpppink" />
+              <ArrowRight className="w-4 h-4 text-tpppink/60 group-hover:translate-x-0.5 transition-transform" />
             </div>
-            <h3 className="font-semibold text-tppslate mb-1">Continue Shopping</h3>
-            <p className="text-sm text-tppslate/70">Explore new collections</p>
-            <p className="text-xs text-tppmint font-semibold mt-3 group-hover:translate-x-1 transition-transform">Shop Now →</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Help Section */}
-      <div className="bg-white rounded-xl border-2 border-tppslate/10 p-6 sm:p-8">
-        <div className="flex items-start gap-4">
-          <div className="p-3 bg-blue-100 rounded-lg flex-shrink-0">
-            <AlertCircle className="w-6 h-6 text-blue-600" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-tppslate mb-2">Need Help?</h3>
-            <p className="text-sm text-tppslate/70 mb-4">
-              Have questions about your orders or need assistance? Our customer support team is here to help.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <a
-                href="/contact"
-                className="px-4 py-2 bg-tpppink text-white rounded-lg font-medium text-sm hover:bg-tpppink/90 transition-colors"
-              >
-                Contact Support
-              </a>
-              <a
-                href="/faq"
-                className="px-4 py-2 border-2 border-tppslate/20 text-tppslate rounded-lg font-medium text-sm hover:border-tppslate/40 transition-colors"
-              >
-                View FAQs
-              </a>
-            </div>
+            <p className="text-xs font-medium text-tppslate mb-1">Continue Shopping</p>
+            <p className="text-xs text-tppslate/60 group-hover:text-tpppink transition-colors">Explore →</p>
           </div>
         </div>
       </div>

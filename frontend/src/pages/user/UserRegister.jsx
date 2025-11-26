@@ -26,7 +26,7 @@ export default function Register() {
   // ✅ Redirect if already logged in
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/customer/dashboard');
+      navigate('/user/dashboard');
     }
   }, [isAuthenticated, navigate]);
 
@@ -118,7 +118,7 @@ export default function Register() {
 
       if (result.success) {
         toast.success('Registration successful! Welcome to The Petal Pouches.');
-        navigate('/customer/dashboard');
+        navigate('/user/dashboard');
       } else {
         toast.error(result.error || 'Registration failed');
       }

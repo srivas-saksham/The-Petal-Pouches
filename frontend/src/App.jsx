@@ -1,45 +1,34 @@
-// frontend/src/App.jsx (UPDATED WITH USER ROUTES)
+// frontend/src/App.jsx (FIXED - uses /user/* paths)
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AdminAuthProvider } from './context/AdminAuthContext';
-import { UserAuthProvider } from './context/UserAuthContext'; // ✅ ADD THIS
+import { UserAuthProvider } from './context/UserAuthContext';
 import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './components/admin/ProtectedRoute';
-import ProtectedCustomerRoute from './components/user/ProtectedCustomerRoute'; // ✅ ADD THIS
+import ProtectedCustomerRoute from './components/user/ProtectedCustomerRoute';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminRoutes from './routes/adminRoutes';
-import UserRoutes from './routes/userRoutes'; // ✅ ADD THIS
+import UserRoutes from './routes/userRoutes';
 import Shop from './pages/Shop';
-import UserLogin from './pages/user/UserLogin'; // ✅ ADD THIS
-import UserRegister from './pages/user/UserRegister'; // ✅ ADD THIS
+import UserLogin from './pages/user/UserLogin';
+import UserRegister from './pages/user/UserRegister';
 
 function App() {
   return (
     <BrowserRouter>
       <ToastProvider>
-        {/* Wrap entire app with both auth providers */}
         <AdminAuthProvider>
-          <UserAuthProvider> {/* ✅ ADD USER AUTH PROVIDER */}
+          <UserAuthProvider>
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Navigate to="/shop" replace />} />
               <Route path="/shop" element={<Shop />} />
               
-              {/* ✅ USER/CUSTOMER AUTH ROUTES */}
+              {/* User/Customer Auth Routes */}
               <Route path="/login" element={<UserLogin />} />
               <Route path="/register" element={<UserRegister />} />
               
-              {/* ✅ PROTECTED CUSTOMER ROUTES */}
-              <Route
-                path="/customer/*"
-                element={
-                  <ProtectedCustomerRoute>
-                    <UserRoutes />
-                  </ProtectedCustomerRoute>
-                }
-              />
-              
-              {/* Alternative path for user routes */}
+              {/* Protected User Routes - Changed to /user/* */}
               <Route
                 path="/user/*"
                 element={
@@ -49,10 +38,10 @@ function App() {
                 }
               />
 
-              {/* ADMIN AUTH ROUTES */}
+              {/* Admin Auth Routes */}
               <Route path="/admin/login" element={<AdminLogin />} />
               
-              {/* PROTECTED ADMIN ROUTES */}
+              {/* Protected Admin Routes */}
               <Route
                 path="/admin/*"
                 element={
@@ -65,7 +54,7 @@ function App() {
               {/* 404 - Catch all */}
               <Route path="*" element={<Navigate to="/shop" replace />} />
             </Routes>
-          </UserAuthProvider> {/* ✅ CLOSE USER AUTH PROVIDER */}
+          </UserAuthProvider>
         </AdminAuthProvider>
       </ToastProvider>
     </BrowserRouter>

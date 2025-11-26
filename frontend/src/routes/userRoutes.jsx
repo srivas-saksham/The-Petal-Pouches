@@ -7,17 +7,17 @@ import CustomerLayout from '../components/user/layout/CustomerLayout';
 import Dashboard from '../pages/user/Dashboard';
 import Profile from '../pages/user/Profile';
 import Addresses from '../pages/user/Addresses';
-// Import other pages as you create them
-// import Orders from '../pages/user/Orders';
-// import Wishlist from '../pages/user/Wishlist';
-// import Settings from '../pages/user/Settings';
+import Orders from '../pages/user/Orders';
+import Wishlist from '../pages/user/Wishlist';
+import Settings from '../pages/user/Settings';
+import Notifications from '../pages/user/Notifications';
 
 export default function UserRoutes() {
   return (
     <CustomerLayout>
       <Routes>
-        {/* Redirect /user or /customer to dashboard */}
-        <Route path="/" element={<Navigate to="/customer/dashboard" replace />} />
+        {/* Remove this line - it's causing the issue */}
+        {/* <Route path="/" element={<Navigate to="/user/dashboard" replace />} /> */}
         
         {/* Dashboard */}
         <Route path="/dashboard" element={<Dashboard />} />
@@ -28,15 +28,17 @@ export default function UserRoutes() {
         {/* Addresses */}
         <Route path="/addresses" element={<Addresses />} />
         
-        {/* Orders - Uncomment when ready */}
-        {/* <Route path="/orders" element={<Orders />} /> */}
-        {/* <Route path="/orders/:orderId" element={<OrderDetails />} /> */}
+        {/* Orders */}
+        <Route path="/orders" element={<Orders />} />
         
-        {/* Wishlist - Uncomment when ready */}
-        {/* <Route path="/wishlist" element={<Wishlist />} /> */}
+        {/* Wishlist */}
+        <Route path="/wishlist" element={<Wishlist />} />
         
-        {/* Settings - Uncomment when ready */}
-        {/* <Route path="/settings" element={<Settings />} /> */}
+        {/* Settings */}
+        <Route path="/settings" element={<Settings />} />
+        
+        {/* Notifications */}
+        <Route path="/notifications" element={<Notifications />} />
         
         {/* 404 - Catch all unmatched customer routes */}
         <Route 
@@ -47,7 +49,7 @@ export default function UserRoutes() {
                 <h1 className="text-6xl font-bold text-tpppink mb-4">404</h1>
                 <p className="text-xl text-tppslate mb-6">Page not found</p>
                 <a 
-                  href="/customer/dashboard" 
+                  href="/user/dashboard" 
                   className="px-6 py-3 bg-tpppink text-white rounded-lg hover:bg-tpppink/90 transition-colors inline-block"
                 >
                   Back to Dashboard

@@ -20,7 +20,7 @@ export default function Login() {
   // ✅ Redirect if already logged in
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/customer/dashboard');
+      navigate('/user/dashboard');
     }
   }, [isAuthenticated, navigate]);
 
@@ -54,7 +54,7 @@ export default function Login() {
       if (result.success) {
         setAttemptCount(0);
         toast.success('Login successful! Welcome back.');
-        navigate('/customer/dashboard');
+        navigate('/user/dashboard');
       } else {
         const newAttemptCount = attemptCount + 1;
         setAttemptCount(newAttemptCount);

@@ -1,4 +1,4 @@
-// frontend/src/components/customer/addresses/AddressAutocomplete.jsx
+// frontend/src/components/user/addresses/AddressAutocomplete.jsx
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Search, MapPin, Loader } from 'lucide-react';

@@ -30,7 +30,7 @@ const QuickActions = ({ stats = {} }) => {
       description: 'View and track your orders',
       icon: Package,
       color: 'pink',
-      link: '/customer/orders',
+      link: '/user/orders',
       badge: stats.pendingOrders || null,
       badgeColor: 'bg-amber-500'
     },
@@ -40,7 +40,7 @@ const QuickActions = ({ stats = {} }) => {
       description: 'Manage delivery addresses',
       icon: MapPin,
       color: 'blue',
-      link: '/customer/addresses',
+      link: '/user/addresses',
       badge: stats.addresses || null,
       badgeColor: 'bg-slate-500'
     },
@@ -50,7 +50,7 @@ const QuickActions = ({ stats = {} }) => {
       description: 'Track your shipments',
       icon: Truck,
       color: 'purple',
-      link: '/customer/orders?filter=shipped',
+      link: '/user/orders?filter=shipped',
       badge: null,
       badgeColor: null
     },
@@ -70,7 +70,7 @@ const QuickActions = ({ stats = {} }) => {
       description: 'Your saved items',
       icon: Heart,
       color: 'pink',
-      link: '/customer/wishlist',
+      link: '/user/wishlist',
       badge: stats.wishlistItems || null,
       badgeColor: 'bg-pink-500'
     },
@@ -80,7 +80,7 @@ const QuickActions = ({ stats = {} }) => {
       description: 'Update account details',
       icon: User,
       color: 'slate',
-      link: '/customer/profile',
+      link: '/user/profile',
       badge: null,
       badgeColor: null
     }
