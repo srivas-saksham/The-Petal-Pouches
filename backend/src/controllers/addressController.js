@@ -1,537 +1,394 @@
 // backend/src/controllers/addressController.js
 
-const {
-  getUserAddresses,
-  getAddressById,
-  getDefaultAddress,
-  createAddress,
-  updateAddress,
-  deleteAddress,
-  setDefaultAddress,
-  userHasAddresses,
-  getAddressesByType,
-  batchDeleteAddresses,
-  getAddressCount
-} = require('../models/addressModel');
+const pool = require('../config/database');
 
 /**
- * Get all addresses for authenticated user
- * GET /api/addresses
+ * Address Controller
+ * Handles customer address management with geocoding support
  */
-const getAddresses = async (req, res) => {
-  try {
-    const userId = req.user?.id || req.admin?.id;
-    const { type, default_only } = req.query;
+const AddressController = {
 
-    if (!userId) {
-      return res.status(401).json({
+  // ==================== GET ADDRESSES ====================
+  
+  /**
+   * Get all addresses for authenticated user
+   * GET /api/addresses
+   */
+  getAddresses: async (req, res) => {
+    try {
+      const userId = req.user.id;
+
+      const result = await pool.query(
+        `SELECT * FROM addresses 
+         WHERE user_id = $1 
+         ORDER BY is_default DESC, created_at DESC`,
+        [userId]
+      );
+
+      res.status(200).json({
+        success: true,
+        count: result.rows.length,
+        addresses: result.rows
+      });
+
+    } catch (error) {
+      console.error('Get addresses error:', error);
+      res.status(500).json({
         success: false,
-        message: 'User authentication required'
+        message: 'Failed to fetch addresses',
+        error: error.message
       });
     }
+  },
 
-    let addresses;
+  // ==================== GET ADDRESS BY ID ====================
+  
+  /**
+   * Get single address by ID
+   * GET /api/addresses/:id
+   */
+  getAddressById: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
 
-    if (default_only === 'true') {
-      // Get only default address
-      const defaultAddress = await getDefaultAddress(userId);
-      addresses = defaultAddress ? [defaultAddress] : [];
-    } else if (type) {
-      // Filter by address type
-      addresses = await getAddressesByType(userId, type);
-    } else {
-      // Get all addresses
-      addresses = await getUserAddresses(userId);
-    }
+      const result = await pool.query(
+        'SELECT * FROM addresses WHERE id = $1 AND user_id = $2',
+        [id, userId]
+      );
 
-    res.status(200).json({
-      success: true,
-      message: 'Addresses retrieved successfully',
-      data: addresses,
-      count: addresses.length
-    });
-
-  } catch (error) {
-    console.error('Get addresses error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve addresses',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get single address by ID
- * GET /api/addresses/:id
- */
-const getAddress = async (req, res) => {
-  try {
-    const userId = req.user?.id || req.admin?.id;
-    const { id } = req.params;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'User authentication required'
-      });
-    }
-
-    const address = await getAddressById(id, userId);
-
-    if (!address) {
-      return res.status(404).json({
-        success: false,
-        message: 'Address not found or access denied'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: 'Address retrieved successfully',
-      data: address
-    });
-
-  } catch (error) {
-    console.error('Get address error:', error);
-    
-    if (error.message === 'Address not found') {
-      return res.status(404).json({
-        success: false,
-        message: 'Address not found'
-      });
-    }
-
-    if (error.message === 'Unauthorized access') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied to this address'
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve address',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Create new address
- * POST /api/addresses
- */
-const createNewAddress = async (req, res) => {
-  try {
-    const userId = req.user?.id || req.admin?.id;
-    const addressData = req.body;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'User authentication required'
-      });
-    }
-
-    // Check if this is the user's first address (auto-set as default)
-    const hasAddresses = await userHasAddresses(userId);
-    if (!hasAddresses) {
-      addressData.is_default = true;
-    }
-
-    const newAddress = await createAddress(userId, addressData);
-
-    res.status(201).json({
-      success: true,
-      message: 'Address created successfully',
-      data: newAddress
-    });
-
-  } catch (error) {
-    console.error('Create address error:', error);
-
-    if (error.message === 'User not found') {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create address',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Update existing address
- * PUT /api/addresses/:id
- */
-const updateExistingAddress = async (req, res) => {
-  try {
-    const userId = req.user?.id || req.admin?.id;
-    const { id } = req.params;
-    const updateData = req.body;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'User authentication required'
-      });
-    }
-
-    const updatedAddress = await updateAddress(id, userId, updateData);
-
-    res.status(200).json({
-      success: true,
-      message: 'Address updated successfully',
-      data: updatedAddress
-    });
-
-  } catch (error) {
-    console.error('Update address error:', error);
-
-    if (error.message === 'Address not found') {
-      return res.status(404).json({
-        success: false,
-        message: 'Address not found'
-      });
-    }
-
-    if (error.message === 'Unauthorized access') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied to this address'
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update address',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Delete address
- * DELETE /api/addresses/:id
- */
-const deleteExistingAddress = async (req, res) => {
-  try {
-    const userId = req.user?.id || req.admin?.id;
-    const { id } = req.params;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'User authentication required'
-      });
-    }
-
-    const result = await deleteAddress(id, userId);
-
-    res.status(200).json({
-      success: true,
-      message: result.wasDefault 
-        ? 'Default address deleted and new default set successfully'
-        : 'Address deleted successfully',
-      data: {
-        deletedAddressId: id,
-        wasDefault: result.wasDefault,
-        newDefaultAddress: result.newDefaultAddress || null
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Address not found'
+        });
       }
-    });
 
-  } catch (error) {
-    console.error('Delete address error:', error);
+      res.status(200).json({
+        success: true,
+        address: result.rows[0]
+      });
 
-    if (error.message === 'Address not found') {
-      return res.status(404).json({
+    } catch (error) {
+      console.error('Get address error:', error);
+      res.status(500).json({
         success: false,
-        message: 'Address not found'
+        message: 'Failed to fetch address',
+        error: error.message
       });
     }
+  },
 
-    if (error.message === 'Unauthorized access') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied to this address'
-      });
-    }
+  // ==================== CREATE ADDRESS ====================
+  
+  /**
+   * Create new address
+   * POST /api/addresses
+   */
+  createAddress: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const {
+        line1,
+        line2,
+        city,
+        state,
+        country = 'India',
+        zip_code,
+        is_default = false,
+        address_type = 'home',
+        phone,
+        landmark
+      } = req.body;
 
-    if (error.message === 'Cannot delete the only address') {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot delete your only address. Please add another address first.'
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete address',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Set address as default
- * PATCH /api/addresses/:id/default
- */
-const setAddressAsDefault = async (req, res) => {
-  try {
-    const userId = req.user?.id || req.admin?.id;
-    const { id } = req.params;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'User authentication required'
-      });
-    }
-
-    const defaultAddress = await setDefaultAddress(id, userId);
-
-    res.status(200).json({
-      success: true,
-      message: 'Default address updated successfully',
-      data: defaultAddress
-    });
-
-  } catch (error) {
-    console.error('Set default address error:', error);
-
-    if (error.message === 'Address not found') {
-      return res.status(404).json({
-        success: false,
-        message: 'Address not found'
-      });
-    }
-
-    if (error.message === 'Unauthorized access') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied to this address'
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Failed to set default address',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get default address only
- * GET /api/addresses/default
- */
-const getDefaultAddressOnly = async (req, res) => {
-  try {
-    const userId = req.user?.id || req.admin?.id;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'User authentication required'
-      });
-    }
-
-    const defaultAddress = await getDefaultAddress(userId);
-
-    if (!defaultAddress) {
-      return res.status(404).json({
-        success: false,
-        message: 'No default address found. Please add an address first.'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: 'Default address retrieved successfully',
-      data: defaultAddress
-    });
-
-  } catch (error) {
-    console.error('Get default address error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve default address',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Bulk delete addresses
- * DELETE /api/addresses/bulk
- */
-const bulkDeleteAddresses = async (req, res) => {
-  try {
-    const userId = req.user?.id || req.admin?.id;
-    const { addressIds } = req.body;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'User authentication required'
-      });
-    }
-
-    if (!addressIds || !Array.isArray(addressIds) || addressIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Address IDs array is required'
-      });
-    }
-
-    // Validate all IDs are UUIDs
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    const invalidIds = addressIds.filter(id => !uuidRegex.test(id));
-    
-    if (invalidIds.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid address IDs provided',
-        invalidIds
-      });
-    }
-
-    const result = await batchDeleteAddresses(addressIds, userId);
-
-    res.status(200).json({
-      success: true,
-      message: `Successfully deleted ${result.deletedCount} address(es)`,
-      data: {
-        deletedCount: result.deletedCount,
-        deletedIds: result.deletedIds,
-        newDefaultAddress: result.newDefaultAddress || null
+      // Validation
+      if (!line1 || !city || !state || !zip_code) {
+        return res.status(400).json({
+          success: false,
+          message: 'Address line 1, city, state, and zip code are required'
+        });
       }
-    });
 
-  } catch (error) {
-    console.error('Bulk delete addresses error:', error);
+      // If setting as default, unset other defaults
+      if (is_default) {
+        await pool.query(
+          'UPDATE addresses SET is_default = false WHERE user_id = $1',
+          [userId]
+        );
+      }
 
-    if (error.message === 'Cannot delete all addresses') {
-      return res.status(400).json({
+      const result = await pool.query(
+        `INSERT INTO addresses 
+         (user_id, line1, line2, city, state, country, zip_code, is_default, address_type, phone, landmark)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         RETURNING *`,
+        [userId, line1, line2, city, state, country, zip_code, is_default, address_type, phone, landmark]
+      );
+
+      console.log(`✅ Address created: ${result.rows[0].id}`);
+
+      res.status(201).json({
+        success: true,
+        message: 'Address created successfully',
+        address: result.rows[0]
+      });
+
+    } catch (error) {
+      console.error('Create address error:', error);
+      res.status(500).json({
         success: false,
-        message: 'Cannot delete all addresses. At least one address must remain.'
+        message: 'Failed to create address',
+        error: error.message
       });
     }
+  },
 
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete addresses',
-      error: error.message
-    });
-  }
-};
+  // ==================== UPDATE ADDRESS ====================
+  
+  /**
+   * Update existing address
+   * PUT /api/addresses/:id
+   */
+  updateAddress: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+      const {
+        line1,
+        line2,
+        city,
+        state,
+        country,
+        zip_code,
+        is_default,
+        address_type,
+        phone,
+        landmark
+      } = req.body;
 
-/**
- * Get address statistics
- * GET /api/addresses/stats
- */
-const getAddressStats = async (req, res) => {
-  try {
-    const userId = req.user?.id || req.admin?.id;
+      // Check if address exists and belongs to user
+      const existingAddress = await pool.query(
+        'SELECT * FROM addresses WHERE id = $1 AND user_id = $2',
+        [id, userId]
+      );
 
-    if (!userId) {
-      return res.status(401).json({
+      if (existingAddress.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Address not found'
+        });
+      }
+
+      // If setting as default, unset other defaults
+      if (is_default) {
+        await pool.query(
+          'UPDATE addresses SET is_default = false WHERE user_id = $1 AND id != $2',
+          [userId, id]
+        );
+      }
+
+      const result = await pool.query(
+        `UPDATE addresses 
+         SET line1 = COALESCE($1, line1),
+             line2 = COALESCE($2, line2),
+             city = COALESCE($3, city),
+             state = COALESCE($4, state),
+             country = COALESCE($5, country),
+             zip_code = COALESCE($6, zip_code),
+             is_default = COALESCE($7, is_default),
+             address_type = COALESCE($8, address_type),
+             phone = COALESCE($9, phone),
+             landmark = COALESCE($10, landmark)
+         WHERE id = $11 AND user_id = $12
+         RETURNING *`,
+        [line1, line2, city, state, country, zip_code, is_default, address_type, phone, landmark, id, userId]
+      );
+
+      console.log(`✅ Address updated: ${id}`);
+
+      res.status(200).json({
+        success: true,
+        message: 'Address updated successfully',
+        address: result.rows[0]
+      });
+
+    } catch (error) {
+      console.error('Update address error:', error);
+      res.status(500).json({
         success: false,
-        message: 'User authentication required'
+        message: 'Failed to update address',
+        error: error.message
       });
     }
+  },
 
-    const totalCount = await getAddressCount(userId);
-    const addresses = await getUserAddresses(userId);
+  // ==================== DELETE ADDRESS ====================
+  
+  /**
+   * Delete address
+   * DELETE /api/addresses/:id
+   */
+  deleteAddress: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
 
-    // Count by type
-    const typeStats = addresses.reduce((acc, addr) => {
-      acc[addr.address_type] = (acc[addr.address_type] || 0) + 1;
-      return acc;
-    }, {});
+      const result = await pool.query(
+        'DELETE FROM addresses WHERE id = $1 AND user_id = $2 RETURNING *',
+        [id, userId]
+      );
 
-    const defaultAddress = addresses.find(addr => addr.is_default);
-
-    res.status(200).json({
-      success: true,
-      message: 'Address statistics retrieved successfully',
-      data: {
-        totalCount,
-        typeBreakdown: typeStats,
-        hasDefault: !!defaultAddress,
-        defaultAddressType: defaultAddress?.address_type || null,
-        limit: 10,
-        remaining: Math.max(0, 10 - totalCount)
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Address not found'
+        });
       }
-    });
 
-  } catch (error) {
-    console.error('Get address stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve address statistics',
-      error: error.message
-    });
-  }
-};
+      console.log(`✅ Address deleted: ${id}`);
 
-/**
- * Geocoding search endpoint
- * POST /api/addresses/geocode
- */
-const geocodeAddress = async (req, res) => {
-  try {
-    const { query, lat, lng, country = 'IN' } = req.body;
+      res.status(200).json({
+        success: true,
+        message: 'Address deleted successfully'
+      });
 
-    // This would integrate with Mapbox/Nominatim
-    // For now, return a mock response structure
-    const mockResults = [
-      {
-        address: `${query}, India`,
-        lat: lat || 28.6139,
-        lng: lng || 77.2090,
-        components: {
-          line1: query,
-          city: 'New Delhi',
-          state: 'Delhi',
-          country: 'India',
-          zip_code: '110001'
-        }
+    } catch (error) {
+      console.error('Delete address error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to delete address',
+        error: error.message
+      });
+    }
+  },
+
+  // ==================== SET DEFAULT ADDRESS ====================
+  
+  /**
+   * Set address as default
+   * PATCH /api/addresses/:id/default
+   */
+  setDefaultAddress: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      // Check if address exists and belongs to user
+      const existingAddress = await pool.query(
+        'SELECT * FROM addresses WHERE id = $1 AND user_id = $2',
+        [id, userId]
+      );
+
+      if (existingAddress.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Address not found'
+        });
       }
-    ];
 
-    res.status(200).json({
-      success: true,
-      message: 'Geocoding results retrieved successfully',
-      data: mockResults,
-      query,
-      count: mockResults.length
-    });
+      // Unset all other defaults
+      await pool.query(
+        'UPDATE addresses SET is_default = false WHERE user_id = $1',
+        [userId]
+      );
 
-  } catch (error) {
-    console.error('Geocoding error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Geocoding service failed',
-      error: error.message
-    });
+      // Set this address as default
+      const result = await pool.query(
+        'UPDATE addresses SET is_default = true WHERE id = $1 AND user_id = $2 RETURNING *',
+        [id, userId]
+      );
+
+      console.log(`✅ Default address set: ${id}`);
+
+      res.status(200).json({
+        success: true,
+        message: 'Default address updated',
+        address: result.rows[0]
+      });
+
+    } catch (error) {
+      console.error('Set default address error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to set default address',
+        error: error.message
+      });
+    }
+  },
+
+  // ==================== GET DEFAULT ADDRESS ====================
+  
+  /**
+   * Get user's default address
+   * GET /api/addresses/default
+   */
+  getDefaultAddress: async (req, res) => {
+    try {
+      const userId = req.user.id;
+
+      const result = await pool.query(
+        'SELECT * FROM addresses WHERE user_id = $1 AND is_default = true',
+        [userId]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'No default address found'
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        address: result.rows[0]
+      });
+
+    } catch (error) {
+      console.error('Get default address error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch default address',
+        error: error.message
+      });
+    }
+  },
+
+  // ==================== GEOCODE ADDRESS ====================
+  
+  /**
+   * Geocode address (Mapbox/Nominatim fallback)
+   * POST /api/addresses/geocode
+   */
+  geocodeAddress: async (req, res) => {
+    try {
+      const { query } = req.body;
+
+      if (!query) {
+        return res.status(400).json({
+          success: false,
+          message: 'Query is required'
+        });
+      }
+
+      // This would integrate with Mapbox or Nominatim
+      // For now, return mock data (implement in geocodingService.js)
+      
+      res.status(200).json({
+        success: true,
+        message: 'Geocoding service not yet implemented',
+        results: []
+      });
+
+    } catch (error) {
+      console.error('Geocode error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Geocoding failed',
+        error: error.message
+      });
+    }
   }
+
 };
 
-module.exports = {
-  getAddresses,
-  getAddress,
-  createNewAddress,
-  updateExistingAddress,
-  deleteExistingAddress,
-  setAddressAsDefault,
-  getDefaultAddressOnly,
-  bulkDeleteAddresses,
-  getAddressStats,
-  geocodeAddress
-};
+module.exports = AddressController;

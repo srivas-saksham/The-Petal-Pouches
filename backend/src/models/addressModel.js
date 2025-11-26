@@ -1,377 +1,492 @@
 // backend/src/models/addressModel.js
 
-import supabase from '../config/supabaseClient.js';
+const pool = require('../config/database');
 
 /**
- * Get all addresses for a user
- * @param {string} userId - User ID
- * @returns {Promise<Array>} - Array of address objects
+ * Address Model - Handles all address-related database operations
+ * Manages user addresses with default address logic
  */
-export const getUserAddresses = async (userId) => {
-  try {
-    const { data, error } = await supabase
-      .from('addresses')
-      .select('*')
-      .eq('user_id', userId)
-      .order('is_default', { ascending: false })
-      .order('created_at', { ascending: false });
+const AddressModel = {
 
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error('Error fetching user addresses:', error);
-    throw error;
-  }
-};
+  // ==================== READ OPERATIONS ====================
 
-/**
- * Get single address by ID
- * @param {string} addressId - Address ID
- * @param {string} userId - User ID (for authorization)
- * @returns {Promise<Object>} - Address object
- */
-export const getAddressById = async (addressId, userId) => {
-  try {
-    const { data, error } = await supabase
-      .from('addresses')
-      .select('*')
-      .eq('id', addressId)
-      .eq('user_id', userId)
-      .single();
-
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error('Error fetching address:', error);
-    throw error;
-  }
-};
-
-/**
- * Get default address for a user
- * @param {string} userId - User ID
- * @returns {Promise<Object|null>} - Default address or null
- */
-export const getDefaultAddress = async (userId) => {
-  try {
-    const { data, error } = await supabase
-      .from('addresses')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_default', true)
-      .single();
-
-    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows found
-    return data || null;
-  } catch (error) {
-    console.error('Error fetching default address:', error);
-    throw error;
-  }
-};
-
-/**
- * Create new address
- * @param {string} userId - User ID
- * @param {Object} addressData - Address details
- * @returns {Promise<Object>} - Created address object
- */
-export const createAddress = async (userId, addressData) => {
-  try {
-    const {
-      line1,
-      line2,
-      city,
-      state,
-      country = 'India',
-      zip_code,
-      address_type = 'home',
-      phone,
-      landmark,
-      is_default = false
-    } = addressData;
-
-    // If this is being set as default, unset other defaults
-    if (is_default) {
-      await supabase
-        .from('addresses')
-        .update({ is_default: false })
-        .eq('user_id', userId);
+  /**
+   * Get all addresses for a user
+   * @param {string} userId - User ID
+   * @returns {Promise<Array>} - Array of address objects
+   */
+  getUserAddresses: async (userId) => {
+    try {
+      const result = await pool.query(
+        `SELECT * FROM addresses 
+         WHERE user_id = $1 
+         ORDER BY is_default DESC, created_at DESC`,
+        [userId]
+      );
+      
+      console.log(`📍 Fetched ${result.rows.length} addresses for user ${userId}`);
+      return result.rows;
+    } catch (error) {
+      console.error('Error fetching user addresses:', error);
+      throw error;
     }
+  },
 
-    const { data, error } = await supabase
-      .from('addresses')
-      .insert({
-        user_id: userId,
+  /**
+   * Get single address by ID with authorization
+   * @param {string} addressId - Address ID
+   * @param {string} userId - User ID (for authorization)
+   * @returns {Promise<Object|null>} - Address object or null
+   */
+  getAddressById: async (addressId, userId) => {
+    try {
+      const result = await pool.query(
+        'SELECT * FROM addresses WHERE id = $1 AND user_id = $2',
+        [addressId, userId]
+      );
+
+      if (result.rows.length === 0) {
+        const error = new Error('Address not found');
+        error.code = 'ADDRESS_NOT_FOUND';
+        throw error;
+      }
+
+      return result.rows[0];
+    } catch (error) {
+      if (error.code === 'ADDRESS_NOT_FOUND') {
+        throw error;
+      }
+      console.error('Error fetching address by ID:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get default address for a user
+   * @param {string} userId - User ID
+   * @returns {Promise<Object|null>} - Default address or null
+   */
+  getDefaultAddress: async (userId) => {
+    try {
+      const result = await pool.query(
+        'SELECT * FROM addresses WHERE user_id = $1 AND is_default = true',
+        [userId]
+      );
+
+      return result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      console.error('Error fetching default address:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get addresses by type (home, work, etc)
+   * @param {string} userId - User ID
+   * @param {string} addressType - Type of address
+   * @returns {Promise<Array>} - Array of addresses
+   */
+  getAddressesByType: async (userId, addressType) => {
+    try {
+      const result = await pool.query(
+        `SELECT * FROM addresses 
+         WHERE user_id = $1 AND address_type = $2 
+         ORDER BY is_default DESC, created_at DESC`,
+        [userId, addressType]
+      );
+
+      return result.rows;
+    } catch (error) {
+      console.error('Error fetching addresses by type:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get address count for user
+   * @param {string} userId - User ID
+   * @returns {Promise<number>} - Count of addresses
+   */
+  getAddressCount: async (userId) => {
+    try {
+      const result = await pool.query(
+        'SELECT COUNT(*) as count FROM addresses WHERE user_id = $1',
+        [userId]
+      );
+
+      return parseInt(result.rows[0].count);
+    } catch (error) {
+      console.error('Error counting addresses:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Check if user has any addresses
+   * @param {string} userId - User ID
+   * @returns {Promise<boolean>} - True if user has addresses
+   */
+  userHasAddresses: async (userId) => {
+    try {
+      const count = await AddressModel.getAddressCount(userId);
+      return count > 0;
+    } catch (error) {
+      console.error('Error checking user addresses:', error);
+      throw error;
+    }
+  },
+
+  // ==================== CREATE OPERATIONS ====================
+
+  /**
+   * Create new address
+   * @param {string} userId - User ID
+   * @param {Object} addressData - Address details
+   * @returns {Promise<Object>} - Created address object
+   */
+  createAddress: async (userId, addressData) => {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+
+      const {
         line1,
-        line2: line2 || null,
+        line2,
+        city,
+        state,
+        country = 'India',
+        zip_code,
+        address_type = 'home',
+        phone,
+        landmark,
+        is_default = false
+      } = addressData;
+
+      // Validate required fields
+      if (!line1 || !city || !state || !zip_code) {
+        const error = new Error('Missing required fields: line1, city, state, zip_code');
+        error.code = 'VALIDATION_ERROR';
+        throw error;
+      }
+
+      // Check if user exists
+      const userCheck = await client.query(
+        'SELECT id FROM users WHERE id = $1',
+        [userId]
+      );
+
+      if (userCheck.rows.length === 0) {
+        const error = new Error('User not found');
+        error.code = 'USER_NOT_FOUND';
+        throw error;
+      }
+
+      // If setting as default, unset other defaults
+      if (is_default) {
+        await client.query(
+          'UPDATE addresses SET is_default = false WHERE user_id = $1',
+          [userId]
+        );
+      }
+
+      // Insert new address
+      const result = await client.query(
+        `INSERT INTO addresses 
+         (user_id, line1, line2, city, state, country, zip_code, address_type, phone, landmark, is_default)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         RETURNING *`,
+        [userId, line1, line2 || null, city, state, country, zip_code, address_type, phone || null, landmark || null, is_default]
+      );
+
+      await client.query('COMMIT');
+      
+      console.log(`✅ Address created: ${result.rows[0].id}`);
+      return result.rows[0];
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error creating address:', error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  },
+
+  // ==================== UPDATE OPERATIONS ====================
+
+  /**
+   * Update existing address
+   * @param {string} addressId - Address ID
+   * @param {string} userId - User ID (for authorization)
+   * @param {Object} addressData - Updated address details
+   * @returns {Promise<Object>} - Updated address object
+   */
+  updateAddress: async (addressId, userId, addressData) => {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+
+      // Verify ownership
+      const existingCheck = await client.query(
+        'SELECT * FROM addresses WHERE id = $1 AND user_id = $2',
+        [addressId, userId]
+      );
+
+      if (existingCheck.rows.length === 0) {
+        const error = new Error('Address not found');
+        error.code = 'ADDRESS_NOT_FOUND';
+        throw error;
+      }
+
+      const existing = existingCheck.rows[0];
+
+      // If setting as default and wasn't default before, unset others
+      if (addressData.is_default && !existing.is_default) {
+        await client.query(
+          'UPDATE addresses SET is_default = false WHERE user_id = $1',
+          [userId]
+        );
+      }
+
+      // Build update query dynamically
+      const {
+        line1,
+        line2,
         city,
         state,
         country,
         zip_code,
         address_type,
-        phone: phone || null,
-        landmark: landmark || null,
-        is_default,
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single();
+        phone,
+        landmark,
+        is_default
+      } = addressData;
 
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error('Error creating address:', error);
-    throw error;
-  }
-};
+      const result = await client.query(
+        `UPDATE addresses 
+         SET line1 = COALESCE($1, line1),
+             line2 = COALESCE($2, line2),
+             city = COALESCE($3, city),
+             state = COALESCE($4, state),
+             country = COALESCE($5, country),
+             zip_code = COALESCE($6, zip_code),
+             address_type = COALESCE($7, address_type),
+             phone = COALESCE($8, phone),
+             landmark = COALESCE($9, landmark),
+             is_default = COALESCE($10, is_default)
+         WHERE id = $11 AND user_id = $12
+         RETURNING *`,
+        [line1, line2, city, state, country, zip_code, address_type, phone, landmark, is_default, addressId, userId]
+      );
 
-/**
- * Update existing address
- * @param {string} addressId - Address ID
- * @param {string} userId - User ID (for authorization)
- * @param {Object} addressData - Updated address details
- * @returns {Promise<Object>} - Updated address object
- */
-export const updateAddress = async (addressId, userId, addressData) => {
-  try {
-    const {
-      line1,
-      line2,
-      city,
-      state,
-      country,
-      zip_code,
-      address_type,
-      phone,
-      landmark,
-      is_default
-    } = addressData;
-
-    // Verify ownership
-    const existing = await getAddressById(addressId, userId);
-    if (!existing) {
-      const error = new Error('Address not found or unauthorized');
-      error.status = 404;
-      throw error;
-    }
-
-    // If setting as default, unset others
-    if (is_default && !existing.is_default) {
-      await supabase
-        .from('addresses')
-        .update({ is_default: false })
-        .eq('user_id', userId);
-    }
-
-    const updateData = {};
-    if (line1 !== undefined) updateData.line1 = line1;
-    if (line2 !== undefined) updateData.line2 = line2 || null;
-    if (city !== undefined) updateData.city = city;
-    if (state !== undefined) updateData.state = state;
-    if (country !== undefined) updateData.country = country;
-    if (zip_code !== undefined) updateData.zip_code = zip_code;
-    if (address_type !== undefined) updateData.address_type = address_type;
-    if (phone !== undefined) updateData.phone = phone || null;
-    if (landmark !== undefined) updateData.landmark = landmark || null;
-    if (is_default !== undefined) updateData.is_default = is_default;
-    updateData.updated_at = new Date().toISOString();
-
-    const { data, error } = await supabase
-      .from('addresses')
-      .update(updateData)
-      .eq('id', addressId)
-      .eq('user_id', userId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error('Error updating address:', error);
-    throw error;
-  }
-};
-
-/**
- * Delete address
- * @param {string} addressId - Address ID
- * @param {string} userId - User ID (for authorization)
- * @returns {Promise<Object>} - Deleted address object
- */
-export const deleteAddress = async (addressId, userId) => {
-  try {
-    // Verify ownership
-    const existing = await getAddressById(addressId, userId);
-    if (!existing) {
-      const error = new Error('Address not found or unauthorized');
-      error.status = 404;
-      throw error;
-    }
-
-    // If deleting default address, set another as default
-    if (existing.is_default) {
-      const otherAddresses = await getUserAddresses(userId);
-      const nextDefault = otherAddresses.find((a) => a.id !== addressId);
+      await client.query('COMMIT');
       
-      if (nextDefault) {
-        await supabase
-          .from('addresses')
-          .update({ is_default: true })
-          .eq('id', nextDefault.id);
-      }
-    }
+      console.log(`✅ Address updated: ${addressId}`);
+      return result.rows[0];
 
-    const { data, error } = await supabase
-      .from('addresses')
-      .delete()
-      .eq('id', addressId)
-      .eq('user_id', userId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error('Error deleting address:', error);
-    throw error;
-  }
-};
-
-/**
- * Set address as default
- * @param {string} addressId - Address ID
- * @param {string} userId - User ID (for authorization)
- * @returns {Promise<Object>} - Updated address object
- */
-export const setDefaultAddress = async (addressId, userId) => {
-  try {
-    // Verify ownership
-    const existing = await getAddressById(addressId, userId);
-    if (!existing) {
-      const error = new Error('Address not found or unauthorized');
-      error.status = 404;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error updating address:', error);
       throw error;
+    } finally {
+      client.release();
     }
+  },
 
-    // Unset current default
-    await supabase
-      .from('addresses')
-      .update({ is_default: false })
-      .eq('user_id', userId)
-      .eq('is_default', true);
+  /**
+   * Set address as default
+   * @param {string} addressId - Address ID
+   * @param {string} userId - User ID (for authorization)
+   * @returns {Promise<Object>} - Updated address object
+   */
+  setDefaultAddress: async (addressId, userId) => {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
 
-    // Set new default
-    const { data, error } = await supabase
-      .from('addresses')
-      .update({ is_default: true, updated_at: new Date().toISOString() })
-      .eq('id', addressId)
-      .eq('user_id', userId)
-      .select()
-      .single();
+      // Verify ownership
+      const existingCheck = await client.query(
+        'SELECT * FROM addresses WHERE id = $1 AND user_id = $2',
+        [addressId, userId]
+      );
 
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error('Error setting default address:', error);
-    throw error;
+      if (existingCheck.rows.length === 0) {
+        const error = new Error('Address not found');
+        error.code = 'ADDRESS_NOT_FOUND';
+        throw error;
+      }
+
+      // Unset all defaults for this user
+      await client.query(
+        'UPDATE addresses SET is_default = false WHERE user_id = $1',
+        [userId]
+      );
+
+      // Set new default
+      const result = await client.query(
+        'UPDATE addresses SET is_default = true WHERE id = $1 AND user_id = $2 RETURNING *',
+        [addressId, userId]
+      );
+
+      await client.query('COMMIT');
+      
+      console.log(`✅ Default address set: ${addressId}`);
+      return result.rows[0];
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error setting default address:', error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  },
+
+  // ==================== DELETE OPERATIONS ====================
+
+  /**
+   * Delete address (with auto-reassign default logic)
+   * @param {string} addressId - Address ID
+   * @param {string} userId - User ID (for authorization)
+   * @returns {Promise<Object>} - Result object with deletion info
+   */
+  deleteAddress: async (addressId, userId) => {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+
+      // Verify ownership and get address info
+      const existingCheck = await client.query(
+        'SELECT * FROM addresses WHERE id = $1 AND user_id = $2',
+        [addressId, userId]
+      );
+
+      if (existingCheck.rows.length === 0) {
+        const error = new Error('Address not found');
+        error.code = 'ADDRESS_NOT_FOUND';
+        throw error;
+      }
+
+      const existing = existingCheck.rows[0];
+      const wasDefault = existing.is_default;
+
+      // Delete the address
+      await client.query(
+        'DELETE FROM addresses WHERE id = $1 AND user_id = $2',
+        [addressId, userId]
+      );
+
+      let newDefaultAddress = null;
+
+      // If deleted address was default, set another as default
+      if (wasDefault) {
+        const otherAddresses = await client.query(
+          'SELECT * FROM addresses WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+          [userId]
+        );
+
+        if (otherAddresses.rows.length > 0) {
+          const updateResult = await client.query(
+            'UPDATE addresses SET is_default = true WHERE id = $1 RETURNING *',
+            [otherAddresses.rows[0].id]
+          );
+          newDefaultAddress = updateResult.rows[0];
+        }
+      }
+
+      await client.query('COMMIT');
+      
+      console.log(`✅ Address deleted: ${addressId}${wasDefault ? ' (was default)' : ''}`);
+
+      return {
+        wasDefault,
+        newDefaultAddress
+      };
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error deleting address:', error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  },
+
+  /**
+   * Batch delete addresses
+   * @param {Array} addressIds - Array of address IDs
+   * @param {string} userId - User ID (for authorization)
+   * @returns {Promise<Object>} - Result with deletion info
+   */
+  batchDeleteAddresses: async (addressIds, userId) => {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+
+      // Check if deleting all addresses
+      const totalCount = await client.query(
+        'SELECT COUNT(*) as count FROM addresses WHERE user_id = $1',
+        [userId]
+      );
+
+      if (parseInt(totalCount.rows[0].count) === addressIds.length) {
+        const error = new Error('Cannot delete all addresses');
+        error.code = 'CANNOT_DELETE_ALL';
+        throw error;
+      }
+
+      // Delete addresses
+      const result = await client.query(
+        'DELETE FROM addresses WHERE id = ANY($1) AND user_id = $2 RETURNING id, is_default',
+        [addressIds, userId]
+      );
+
+      const deletedCount = result.rows.length;
+      const deletedIds = result.rows.map(r => r.id);
+      const deletedDefault = result.rows.some(r => r.is_default);
+
+      let newDefaultAddress = null;
+
+      // If default was deleted, assign new default
+      if (deletedDefault) {
+        const remainingAddresses = await client.query(
+          'SELECT * FROM addresses WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+          [userId]
+        );
+
+        if (remainingAddresses.rows.length > 0) {
+          const updateResult = await client.query(
+            'UPDATE addresses SET is_default = true WHERE id = $1 RETURNING *',
+            [remainingAddresses.rows[0].id]
+          );
+          newDefaultAddress = updateResult.rows[0];
+        }
+      }
+
+      await client.query('COMMIT');
+      
+      console.log(`✅ Batch deleted ${deletedCount} addresses`);
+
+      return {
+        deletedCount,
+        deletedIds,
+        newDefaultAddress
+      };
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error batch deleting addresses:', error);
+      throw error;
+    } finally {
+      client.release();
+    }
   }
+
 };
 
-/**
- * Check if user has any addresses
- * @param {string} userId - User ID
- * @returns {Promise<boolean>} - True if user has addresses
- */
-export const userHasAddresses = async (userId) => {
-  try {
-    const { data, error } = await supabase
-      .from('addresses')
-      .select('id', { count: 'exact' })
-      .eq('user_id', userId);
-
-    if (error) throw error;
-    return data && data.length > 0;
-  } catch (error) {
-    console.error('Error checking user addresses:', error);
-    throw error;
-  }
-};
-
-/**
- * Get addresses by type (home, work, etc)
- * @param {string} userId - User ID
- * @param {string} addressType - Type of address
- * @returns {Promise<Array>} - Array of addresses
- */
-export const getAddressesByType = async (userId, addressType) => {
-  try {
-    const { data, error } = await supabase
-      .from('addresses')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('address_type', addressType)
-      .order('is_default', { ascending: false });
-
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error('Error fetching addresses by type:', error);
-    throw error;
-  }
-};
-
-/**
- * Batch update addresses (for cleaning up)
- * @param {string} userId - User ID
- * @param {Array} addressIds - Array of address IDs to delete
- * @returns {Promise<number>} - Number of deleted addresses
- */
-export const batchDeleteAddresses = async (userId, addressIds) => {
-  try {
-    const { count, error } = await supabase
-      .from('addresses')
-      .delete()
-      .in('id', addressIds)
-      .eq('user_id', userId);
-
-    if (error) throw error;
-    return count;
-  } catch (error) {
-    console.error('Error batch deleting addresses:', error);
-    throw error;
-  }
-};
-
-/**
- * Get address count for user
- * @param {string} userId - User ID
- * @returns {Promise<number>} - Count of addresses
- */
-export const getAddressCount = async (userId) => {
-  try {
-    const { count, error } = await supabase
-      .from('addresses')
-      .select('*', { count: 'exact' })
-      .eq('user_id', userId);
-
-    if (error) throw error;
-    return count;
-  } catch (error) {
-    console.error('Error counting addresses:', error);
-    throw error;
-  }
-};
-
-export default {
-  getUserAddresses,
-  getAddressById,
-  getDefaultAddress,
-  createAddress,
-  updateAddress,
-  deleteAddress,
-  setDefaultAddress,
-  userHasAddresses,
-  getAddressesByType,
-  batchDeleteAddresses,
-  getAddressCount
-};
+module.exports = AddressModel;
