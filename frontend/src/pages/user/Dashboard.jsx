@@ -8,6 +8,42 @@ import { useToast } from '../../hooks/useToast';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
+// Skeleton Components
+const StatCardSkeleton = () => (
+  <div className="bg-white border border-tppslate/10 rounded-lg p-3 animate-pulse">
+    <div className="flex items-start justify-between mb-2">
+      <div className="w-4 h-4 bg-tppslate/10 rounded"></div>
+      <div className="w-8 h-4 bg-tppslate/10 rounded"></div>
+    </div>
+    <div className="w-16 h-3 bg-tppslate/10 rounded mb-1"></div>
+    <div className="w-12 h-5 bg-tppslate/10 rounded"></div>
+  </div>
+);
+
+const OrderCardSkeleton = () => (
+  <div className="p-3 border-b border-tppslate/5 animate-pulse">
+    <div className="flex items-center justify-between gap-2 mb-2">
+      <div className="flex items-center gap-2 flex-1">
+        <div className="w-16 h-3 bg-tppslate/10 rounded"></div>
+        <div className="w-12 h-4 bg-tppslate/10 rounded"></div>
+      </div>
+      <div className="w-12 h-5 bg-tppslate/10 rounded"></div>
+    </div>
+    <div className="w-24 h-3 bg-tppslate/10 rounded"></div>
+  </div>
+);
+
+const QuickLinkSkeleton = () => (
+  <div className="bg-white border border-tppslate/10 rounded-lg p-3 animate-pulse">
+    <div className="flex items-start justify-between mb-2">
+      <div className="w-4 h-4 bg-tppslate/10 rounded"></div>
+      <div className="w-8 h-5 bg-tppslate/10 rounded"></div>
+    </div>
+    <div className="w-16 h-3 bg-tppslate/10 rounded mb-1"></div>
+    <div className="w-20 h-3 bg-tppslate/10 rounded"></div>
+  </div>
+);
+
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -38,7 +74,6 @@ export default function Dashboard() {
         'Content-Type': 'application/json',
       };
 
-      // Fetch Orders
       const ordersRes = await fetch(`${API_URL}/api/orders`, { headers });
       const ordersData = await ordersRes.json();
       
@@ -69,14 +104,12 @@ export default function Dashboard() {
         setRecentOrders(recent);
       }
 
-      // Fetch Addresses
       const addressRes = await fetch(`${API_URL}/api/addresses`, { headers });
       const addressData = await addressRes.json();
       if (addressData.success && Array.isArray(addressData.data)) {
         setAddressCount(addressData.data.length);
       }
 
-      // Fetch Wishlist
       const wishlistRes = await fetch(`${API_URL}/api/wishlist`, { headers });
       const wishlistData = await wishlistRes.json();
       if (wishlistData.success && Array.isArray(wishlistData.data)) {
@@ -92,7 +125,7 @@ export default function Dashboard() {
 
   const getStatusBadge = (status) => {
     const styles = {
-      delivered: { bg: 'bg-tppmint/10', text: 'text-tppmint', label: 'Delivered' },
+      delivered: { bg: 'bg-tppslate/10', text: 'text-tppslate', label: 'Delivered' },
       pending: { bg: 'bg-tppslate/10', text: 'text-tppslate', label: 'Pending' },
       processing: { bg: 'bg-tpppink/10', text: 'text-tpppink', label: 'Processing' },
       shipped: { bg: 'bg-tppslate/5', text: 'text-tppslate', label: 'Shipped' },
@@ -117,66 +150,68 @@ export default function Dashboard() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-tppslate/20 border-t-tpppink mx-auto mb-3"></div>
-          <p className="text-xs text-tppslate/60 font-medium">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-tppslate">Welcome back, {user?.name?.split(' ')[0] || 'User'}</h1>
-        <p className="text-xs text-tppslate/60 mt-1">Here's your account overview</p>
+      <div className="mb-4">
+        <h1 className="text-lg font-bold text-tppslate">
+          Welcome back, {user?.name?.split(' ')[0] || 'User'}
+        </h1>
+        <p className="text-xs text-tppslate/60 mt-0.5">Here's your account overview</p>
       </div>
 
-      {/* Stats Grid - Compact */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {/* Total Orders */}
-        <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
-          <div className="flex items-start justify-between mb-2">
-            <Package className="w-4 h-4 text-tpppink" />
-            <span className="text-xs font-semibold text-tpppink">{stats.totalOrders}</span>
-          </div>
-          <p className="text-xs text-tppslate/60 font-medium">Total Orders</p>
-          <p className="text-sm font-bold text-tppslate mt-1">{stats.totalOrders}</p>
-        </div>
+        {loading ? (
+          <>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </>
+        ) : (
+          <>
+            {/* Total Orders */}
+            <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
+              <div className="flex items-start justify-between mb-2">
+                <Package className="w-4 h-4 text-tpppink" />
+                <span className="text-xs font-semibold text-tpppink">{stats.totalOrders}</span>
+              </div>
+              <p className="text-xs text-tppslate/60 font-medium">Total Orders</p>
+              <p className="text-sm font-bold text-tppslate mt-1">{stats.totalOrders}</p>
+            </div>
 
-        {/* Total Spent */}
-        <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
-          <div className="flex items-start justify-between mb-2">
-            <TrendingUp className="w-4 h-4 text-tpppink" />
-            <span className="text-xs text-tppslate/50">Lifetime</span>
-          </div>
-          <p className="text-xs text-tppslate/60 font-medium">Total Spent</p>
-          <p className="text-sm font-bold text-tppslate mt-1">{formatCurrency(stats.totalSpent)}</p>
-        </div>
+            {/* Total Spent */}
+            <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
+              <div className="flex items-start justify-between mb-2">
+                <TrendingUp className="w-4 h-4 text-tpppink" />
+                <span className="text-xs text-tppslate/50">Lifetime</span>
+              </div>
+              <p className="text-xs text-tppslate/60 font-medium">Total Spent</p>
+              <p className="text-sm font-bold text-tppslate mt-1">{formatCurrency(stats.totalSpent)}</p>
+            </div>
 
-        {/* Pending Orders */}
-        <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
-          <div className="flex items-start justify-between mb-2">
-            <Clock className="w-4 h-4 text-tpppink" />
-            <span className="text-xs font-semibold text-tpppink">{stats.pendingOrders}</span>
-          </div>
-          <p className="text-xs text-tppslate/60 font-medium">Pending Orders</p>
-          <p className="text-sm font-bold text-tppslate mt-1">{stats.pendingOrders}</p>
-        </div>
+            {/* Pending Orders */}
+            <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
+              <div className="flex items-start justify-between mb-2">
+                <Clock className="w-4 h-4 text-tpppink" />
+                <span className="text-xs font-semibold text-tpppink">{stats.pendingOrders}</span>
+              </div>
+              <p className="text-xs text-tppslate/60 font-medium">Pending Orders</p>
+              <p className="text-sm font-bold text-tppslate mt-1">{stats.pendingOrders}</p>
+            </div>
 
-        {/* Delivered Orders */}
-        <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
-          <div className="flex items-start justify-between mb-2">
-            <CheckCircle className="w-4 h-4 text-tpppink" />
-            <span className="text-xs font-semibold text-tpppink">{stats.deliveredOrders}</span>
-          </div>
-          <p className="text-xs text-tppslate/60 font-medium">Delivered</p>
-          <p className="text-sm font-bold text-tppslate mt-1">{stats.deliveredOrders}</p>
-        </div>
+            {/* Delivered Orders */}
+            <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
+              <div className="flex items-start justify-between mb-2">
+                <CheckCircle className="w-4 h-4 text-tpppink" />
+                <span className="text-xs font-semibold text-tpppink">{stats.deliveredOrders}</span>
+              </div>
+              <p className="text-xs text-tppslate/60 font-medium">Delivered</p>
+              <p className="text-sm font-bold text-tppslate mt-1">{stats.deliveredOrders}</p>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Main Content - Two Column */}
@@ -194,7 +229,13 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {recentOrders.length === 0 ? (
+          {loading ? (
+            <div className="divide-y divide-tppslate/5">
+              <OrderCardSkeleton />
+              <OrderCardSkeleton />
+              <OrderCardSkeleton />
+            </div>
+          ) : recentOrders.length === 0 ? (
             <div className="p-6 text-center">
               <Package className="w-8 h-8 text-tppslate/20 mx-auto mb-2" />
               <p className="text-xs text-tppslate/60">No orders yet</p>
@@ -239,44 +280,54 @@ export default function Dashboard() {
 
         {/* Quick Links - Sidebar */}
         <div className="space-y-3">
-          {/* Addresses */}
-          <div
-            onClick={() => navigate('/user/addresses')}
-            className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tpppink/30 transition-all cursor-pointer group"
-          >
-            <div className="flex items-start justify-between mb-2">
-              <MapPin className="w-4 h-4 text-tpppink" />
-              <span className="text-sm font-bold text-tppslate">{addressCount}</span>
-            </div>
-            <p className="text-xs font-medium text-tppslate mb-1">Saved Addresses</p>
-            <p className="text-xs text-tppslate/60 group-hover:text-tpppink transition-colors">Manage →</p>
-          </div>
+          {loading ? (
+            <>
+              <QuickLinkSkeleton />
+              <QuickLinkSkeleton />
+              <QuickLinkSkeleton />
+            </>
+          ) : (
+            <>
+              {/* Addresses */}
+              <div
+                onClick={() => navigate('/user/addresses')}
+                className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tpppink/30 transition-all cursor-pointer group"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <MapPin className="w-4 h-4 text-tpppink" />
+                  <span className="text-sm font-bold text-tppslate">{addressCount}</span>
+                </div>
+                <p className="text-xs font-medium text-tppslate mb-1">Saved Addresses</p>
+                <p className="text-xs text-tppslate/60 group-hover:text-tpppink transition-colors">Manage →</p>
+              </div>
 
-          {/* Wishlist */}
-          <div
-            onClick={() => navigate('/user/wishlist')}
-            className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tpppink/30 transition-all cursor-pointer group"
-          >
-            <div className="flex items-start justify-between mb-2">
-              <Heart className="w-4 h-4 text-tpppink" />
-              <span className="text-sm font-bold text-tppslate">{wishlistCount}</span>
-            </div>
-            <p className="text-xs font-medium text-tppslate mb-1">Saved Items</p>
-            <p className="text-xs text-tppslate/60 group-hover:text-tpppink transition-colors">View →</p>
-          </div>
+              {/* Wishlist */}
+              <div
+                onClick={() => navigate('/user/wishlist')}
+                className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tpppink/30 transition-all cursor-pointer group"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <Heart className="w-4 h-4 text-tpppink" />
+                  <span className="text-sm font-bold text-tppslate">{wishlistCount}</span>
+                </div>
+                <p className="text-xs font-medium text-tppslate mb-1">Saved Items</p>
+                <p className="text-xs text-tppslate/60 group-hover:text-tpppink transition-colors">View →</p>
+              </div>
 
-          {/* Continue Shopping */}
-          <div
-            onClick={() => navigate('/shop')}
-            className="bg-tpppink/5 border border-tpppink/20 rounded-lg p-3 hover:bg-tpppink/10 hover:border-tpppink/40 transition-all cursor-pointer group"
-          >
-            <div className="flex items-start justify-between mb-2">
-              <ShoppingBag className="w-4 h-4 text-tpppink" />
-              <ArrowRight className="w-4 h-4 text-tpppink/60 group-hover:translate-x-0.5 transition-transform" />
-            </div>
-            <p className="text-xs font-medium text-tppslate mb-1">Continue Shopping</p>
-            <p className="text-xs text-tppslate/60 group-hover:text-tpppink transition-colors">Explore →</p>
-          </div>
+              {/* Continue Shopping */}
+              <div
+                onClick={() => navigate('/shop')}
+                className="bg-tpppink/5 border border-tpppink/20 rounded-lg p-3 hover:bg-tpppink/10 hover:border-tpppink/40 transition-all cursor-pointer group"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <ShoppingBag className="w-4 h-4 text-tpppink" />
+                  <ArrowRight className="w-4 h-4 text-tpppink/60 group-hover:translate-x-0.5 transition-transform" />
+                </div>
+                <p className="text-xs font-medium text-tppslate mb-1">Continue Shopping</p>
+                <p className="text-xs text-tppslate/60 group-hover:text-tpppink transition-colors">Explore →</p>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

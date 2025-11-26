@@ -42,7 +42,7 @@ export const getAddresses = async () => {
 
     return {
       success: true,
-      data: data.data || [],
+      data: data.addresses || [],
     };
   } catch (error) {
     return {

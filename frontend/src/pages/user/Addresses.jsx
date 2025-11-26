@@ -5,6 +5,7 @@ import { Plus, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
 import { getAddresses, deleteAddress, setDefaultAddress } from '../../services/addressService';
 import AddressList from '../../components/user/addresses/AddressList';
 import AddressForm from '../../components/user/addresses/AddressForm';
+import { AddressesSkeleton } from '../../components/user/layout/userSkeletons'; // ✅ Import skeleton
 
 /**
  * Addresses Page Component
@@ -53,6 +54,7 @@ const Addresses = () => {
       } else {
         setError(response.error || 'Failed to load addresses');
       }
+      
     } catch (err) {
       setError('Error loading addresses. Please try again.');
       console.error('Fetch addresses error:', err);
@@ -150,6 +152,15 @@ const Addresses = () => {
     setError(null);
   };
 
+  // ✅ SKELETON LOADING STATE - Show skeleton while loading
+  if (loading && !showAddForm) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <AddressesSkeleton />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* Header */}
@@ -179,7 +190,7 @@ const Addresses = () => {
 
       {/* Success Message */}
       {success && (
-        <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-3">
+        <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top">
           <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
           <p className="text-sm text-emerald-800">{success}</p>
           <button
@@ -195,7 +206,7 @@ const Addresses = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top">
           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
           <p className="text-sm text-red-800">{error}</p>
           <button
@@ -211,7 +222,7 @@ const Addresses = () => {
 
       {/* Add/Edit Address Form */}
       {showAddForm && (
-        <div className="mb-6">
+        <div className="mb-6 animate-in fade-in slide-in-from-top">
           <AddressForm
             address={editingAddress}
             onSubmit={handleFormSubmit}
@@ -224,7 +235,7 @@ const Addresses = () => {
       {!showAddForm && (
         <AddressList
           addresses={addresses}
-          loading={loading}
+          loading={false} // ✅ Set to false since we're showing skeleton above
           onEdit={handleEditAddress}
           onDelete={handleDeleteAddress}
           onSetDefault={handleSetDefault}
@@ -233,7 +244,7 @@ const Addresses = () => {
 
       {/* Empty State - shown when not loading and no addresses */}
       {!loading && !showAddForm && addresses.length === 0 && (
-        <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
+        <div className="bg-white rounded-lg border border-slate-200 p-12 text-center animate-in fade-in">
           <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <MapPin className="w-10 h-10 text-slate-400" />
           </div>
@@ -256,4 +267,4 @@ const Addresses = () => {
   );
 };
 
-export default Addresses;
+export default Addresses; 

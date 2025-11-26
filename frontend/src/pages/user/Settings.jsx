@@ -1,235 +1,362 @@
 // frontend/src/pages/user/Settings.jsx
 
-import React, { useState } from 'react';
-import { Settings, Bell, Lock, Eye, Save, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Bell, Lock, Eye, EyeOff, Save, X } from 'lucide-react';
+import { useUserAuth } from '../../context/UserAuthContext';
 import { useToast } from '../../hooks/useToast';
 
-const SettingsPage = () => {
-  const toast = useToast();
-  const [activeTab, setActiveTab] = useState('notifications');
-  const [isSaving, setIsSaving] = useState(false);
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
-  const [settings, setSettings] = useState({
-    // Notifications
-    order_updates: true,
-    marketing_emails: false,
-    promotional_offers: true,
-    shipping_notifications: true,
-    payment_alerts: true,
-    
-    // Privacy
-    profile_visibility: 'private',
-    email_visibility: 'private',
-    phone_visibility: 'private',
-    
-    // Preferences
-    currency: 'INR',
-    language: 'en',
+const SettingSkeleton = () => (
+  <div className="border border-tppslate/10 rounded-lg p-2.5 animate-pulse">
+    <div className="h-3 bg-tppslate/10 rounded w-24 mb-2"></div>
+    <div className="h-3 bg-tppslate/10 rounded w-full"></div>
+  </div>
+);
+
+export default function Settings() {
+  const [loading, setLoading] = useState(true);
+  const [editingPassword, setEditingPassword] = useState(false);
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [preferences, setPreferences] = useState({
+    emailNotifications: true,
+    smsNotifications: false,
+    pushNotifications: true,
+    marketingEmails: false,
+  });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
   });
 
-  const handleToggle = (key) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
+  const { token } = useUserAuth();
+  const toast = useToast();
 
-  const handleChange = (key, value) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: value
-    }));
-  };
+  useEffect(() => {
+    if (token) {
+      fetchSettings();
+    }
+  }, [token]);
 
-  const handleSave = async () => {
-    setIsSaving(true);
+  const fetchSettings = async () => {
     try {
-      // TODO: Save to API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.success('Settings saved successfully!');
+      const response = await fetch(`${API_URL}/api/users/preferences`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success && data.data) {
+        setPreferences(prev => ({ ...prev, ...data.data }));
+      }
     } catch (error) {
-      toast.error('Failed to save settings');
+      console.error('Error fetching preferences:', error);
     } finally {
-      setIsSaving(false);
+      setLoading(false);
     }
   };
 
+  const handlePreferenceChange = async (key) => {
+    const updated = { ...preferences, [key]: !preferences[key] };
+    setPreferences(updated);
+
+    try {
+      await fetch(`${API_URL}/api/users/preferences`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ [key]: updated[key] }),
+      });
+    } catch (error) {
+      console.error('Error updating preference:', error);
+      toast.error('Error updating preference');
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!passwordData.currentPassword?.trim()) {
+      toast.error('Current password is required');
+      return;
+    }
+
+    if (!passwordData.newPassword?.trim()) {
+      toast.error('New password is required');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/users/change-password`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Password changed successfully');
+        setEditingPassword(false);
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+      } else {
+        toast.error(data.message || 'Failed to change password');
+      }
+    } catch (error) {
+      console.error('Error changing password:', error);
+      toast.error('Error changing password');
+    }
+  };
+
+  const handlePasswordInputChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({ ...prev, [name]: value }));
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-tppslate flex items-center gap-2 mb-2">
-          <Settings className="w-8 h-8 text-tpppink" />
-          Settings
-        </h1>
-        <p className="text-tppslate/70">Manage your account preferences</p>
+      <div className="mb-2">
+        <h1 className="text-base font-bold text-tppslate">Settings</h1>
+        <p className="text-xs text-tppslate/60">Manage your preferences</p>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white rounded-lg border-2 border-tppslate/10 overflow-hidden">
-        <div className="flex border-b-2 border-tppslate/10">
-          <button
-            onClick={() => setActiveTab('notifications')}
-            className={`flex-1 py-4 px-6 font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
-              activeTab === 'notifications'
-                ? 'bg-tpppeach/20 text-tppslate border-b-4 border-tpppink -mb-2'
-                : 'text-tppslate/70 hover:text-tppslate'
-            }`}
-          >
-            <Bell className="w-5 h-5" />
-            Notifications
-          </button>
-          <button
-            onClick={() => setActiveTab('privacy')}
-            className={`flex-1 py-4 px-6 font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
-              activeTab === 'privacy'
-                ? 'bg-tpppeach/20 text-tppslate border-b-4 border-tpppink -mb-2'
-                : 'text-tppslate/70 hover:text-tppslate'
-            }`}
-          >
-            <Lock className="w-5 h-5" />
-            Privacy
-          </button>
-          <button
-            onClick={() => setActiveTab('preferences')}
-            className={`flex-1 py-4 px-6 font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
-              activeTab === 'preferences'
-                ? 'bg-tpppeach/20 text-tppslate border-b-4 border-tpppink -mb-2'
-                : 'text-tppslate/70 hover:text-tppslate'
-            }`}
-          >
-            <Eye className="w-5 h-5" />
-            Preferences
-          </button>
+      {/* Notification Preferences */}
+      <div className="bg-white border border-tppslate/10 rounded-lg p-3">
+        <div className="flex items-center gap-2 mb-2 pb-2 border-b border-tppslate/10">
+          <Bell className="w-4 h-4 text-tpppink" />
+          <h2 className="text-xs font-bold text-tppslate">Notifications</h2>
         </div>
 
-        {/* Content */}
-        <div className="p-6 sm:p-8">
-          {/* Notifications Tab */}
-          {activeTab === 'notifications' && (
-            <div className="space-y-6">
-              <p className="text-tppslate/70 mb-6">Choose what notifications you want to receive</p>
-
-              {[
-                { key: 'order_updates', label: 'Order Updates', description: 'Get notified about your order status' },
-                { key: 'shipping_notifications', label: 'Shipping Notifications', description: 'Receive shipping and tracking updates' },
-                { key: 'payment_alerts', label: 'Payment Alerts', description: 'Important payment notifications' },
-                { key: 'promotional_offers', label: 'Promotional Offers', description: 'Special deals and discounts' },
-                { key: 'marketing_emails', label: 'Marketing Emails', description: 'New product announcements and news' },
-              ].map(item => (
-                <div key={item.key} className="flex items-center justify-between p-4 bg-tpppeach/10 rounded-lg">
-                  <div>
-                    <p className="font-semibold text-tppslate">{item.label}</p>
-                    <p className="text-sm text-tppslate/60">{item.description}</p>
-                  </div>
-                  <button
-                    onClick={() => handleToggle(item.key)}
-                    className={`relative w-12 h-7 rounded-full transition-all ${
-                      settings[item.key] ? 'bg-tppmint' : 'bg-slate-300'
-                    }`}
-                  >
-                    <div
-                      className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform ${
-                        settings[item.key] ? 'translate-x-5' : ''
-                      }`}
-                    />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Privacy Tab */}
-          {activeTab === 'privacy' && (
-            <div className="space-y-6">
-              <p className="text-tppslate/70 mb-6">Control who can see your information</p>
-
-              {[
-                { key: 'profile_visibility', label: 'Profile Visibility' },
-                { key: 'email_visibility', label: 'Email Visibility' },
-                { key: 'phone_visibility', label: 'Phone Visibility' },
-              ].map(item => (
-                <div key={item.key} className="space-y-2">
-                  <label className="block font-semibold text-tppslate">{item.label}</label>
-                  <select
-                    value={settings[item.key]}
-                    onChange={(e) => handleChange(item.key, e.target.value)}
-                    className="w-full px-4 py-2 border-2 border-tppslate/10 rounded-lg focus:outline-none focus:border-tpppink"
-                  >
-                    <option value="private">Private (Only me)</option>
-                    <option value="friends">Friends Only</option>
-                    <option value="public">Public</option>
-                  </select>
-                </div>
-              ))}
-
-              <div className="mt-6 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-yellow-900 mb-1">Privacy Reminder</p>
-                  <p className="text-sm text-yellow-800">We'll always protect your data. These settings only affect visibility on your profile.</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Preferences Tab */}
-          {activeTab === 'preferences' && (
-            <div className="space-y-6">
-              <p className="text-tppslate/70 mb-6">Customize your experience</p>
-
-              <div className="space-y-2">
-                <label className="block font-semibold text-tppslate">Currency</label>
-                <select
-                  value={settings.currency}
-                  onChange={(e) => handleChange('currency', e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-tppslate/10 rounded-lg focus:outline-none focus:border-tpppink"
-                >
-                  <option value="INR">Indian Rupee (₹)</option>
-                  <option value="USD">US Dollar ($)</option>
-                  <option value="EUR">Euro (€)</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block font-semibold text-tppslate">Language</label>
-                <select
-                  value={settings.language}
-                  onChange={(e) => handleChange('language', e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-tppslate/10 rounded-lg focus:outline-none focus:border-tpppink"
-                >
-                  <option value="en">English</option>
-                  <option value="hi">हिन्दी (Hindi)</option>
-                  <option value="es">Español (Spanish)</option>
-                </select>
-              </div>
-            </div>
-          )}
-
-          {/* Save Button */}
-          <div className="mt-8 flex gap-3 pt-6 border-t-2 border-tppslate/10">
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="flex-1 px-6 py-3 bg-tpppink text-white rounded-lg hover:bg-tpppink/90 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2"
-            >
-              {isSaving ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Save Settings
-                </>
-              )}
-            </button>
+        {loading ? (
+          <div className="space-y-2">
+            <SettingSkeleton />
+            <SettingSkeleton />
+            <SettingSkeleton />
           </div>
+        ) : (
+          <div className="space-y-2">
+            {/* Email Notifications */}
+            <div className="flex items-center justify-between p-2 hover:bg-tppslate/5 rounded transition-colors">
+              <div>
+                <p className="text-xs font-medium text-tppslate">Email Notifications</p>
+                <p className="text-xs text-tppslate/60">Order updates and promotions</p>
+              </div>
+              <button
+                onClick={() => handlePreferenceChange('emailNotifications')}
+                className={`w-10 h-6 rounded-full transition-colors flex items-center ${
+                  preferences.emailNotifications
+                    ? 'bg-tpppink'
+                    : 'bg-tppslate/20'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                    preferences.emailNotifications ? 'translate-x-4.5' : 'translate-x-0.5'
+                  }`}
+                ></div>
+              </button>
+            </div>
+
+            {/* SMS Notifications */}
+            <div className="flex items-center justify-between p-2 hover:bg-tppslate/5 rounded transition-colors">
+              <div>
+                <p className="text-xs font-medium text-tppslate">SMS Notifications</p>
+                <p className="text-xs text-tppslate/60">Important updates via SMS</p>
+              </div>
+              <button
+                onClick={() => handlePreferenceChange('smsNotifications')}
+                className={`w-10 h-6 rounded-full transition-colors flex items-center ${
+                  preferences.smsNotifications
+                    ? 'bg-tpppink'
+                    : 'bg-tppslate/20'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                    preferences.smsNotifications ? 'translate-x-4.5' : 'translate-x-0.5'
+                  }`}
+                ></div>
+              </button>
+            </div>
+
+            {/* Push Notifications */}
+            <div className="flex items-center justify-between p-2 hover:bg-tppslate/5 rounded transition-colors">
+              <div>
+                <p className="text-xs font-medium text-tppslate">Push Notifications</p>
+                <p className="text-xs text-tppslate/60">Browser push alerts</p>
+              </div>
+              <button
+                onClick={() => handlePreferenceChange('pushNotifications')}
+                className={`w-10 h-6 rounded-full transition-colors flex items-center ${
+                  preferences.pushNotifications
+                    ? 'bg-tpppink'
+                    : 'bg-tppslate/20'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                    preferences.pushNotifications ? 'translate-x-4.5' : 'translate-x-0.5'
+                  }`}
+                ></div>
+              </button>
+            </div>
+
+            {/* Marketing Emails */}
+            <div className="flex items-center justify-between p-2 hover:bg-tppslate/5 rounded transition-colors">
+              <div>
+                <p className="text-xs font-medium text-tppslate">Marketing Emails</p>
+                <p className="text-xs text-tppslate/60">Deals and special offers</p>
+              </div>
+              <button
+                onClick={() => handlePreferenceChange('marketingEmails')}
+                className={`w-10 h-6 rounded-full transition-colors flex items-center ${
+                  preferences.marketingEmails
+                    ? 'bg-tpppink'
+                    : 'bg-tppslate/20'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                    preferences.marketingEmails ? 'translate-x-4.5' : 'translate-x-0.5'
+                  }`}
+                ></div>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Password Settings */}
+      <div className="bg-white border border-tppslate/10 rounded-lg p-3">
+        <div className="flex items-center justify-between pb-2 border-b border-tppslate/10">
+          <div className="flex items-center gap-2">
+            <Lock className="w-4 h-4 text-tpppink" />
+            <h2 className="text-xs font-bold text-tppslate">Password</h2>
+          </div>
+          {!editingPassword && (
+            <button
+              onClick={() => setEditingPassword(true)}
+              className="text-xs text-tpppink hover:text-tpppink/80 font-medium transition-colors"
+            >
+              Change
+            </button>
+          )}
+        </div>
+
+        {editingPassword ? (
+          <div className="mt-2 space-y-2">
+            {/* Current Password */}
+            <div>
+              <label className="text-xs font-medium text-tppslate/80 block mb-0.5">Current Password</label>
+              <div className="relative">
+                <input
+                  type={showPasswords ? 'text' : 'password'}
+                  name="currentPassword"
+                  value={passwordData.currentPassword}
+                  onChange={handlePasswordInputChange}
+                  placeholder="Enter current password"
+                  className="w-full px-2 py-1 text-xs border border-tppslate/20 rounded focus:outline-none focus:border-tpppink bg-white text-tppslate pr-8"
+                />
+                <button
+                  onClick={() => setShowPasswords(!showPasswords)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-tppslate/60 hover:text-tppslate"
+                >
+                  {showPasswords ? (
+                    <EyeOff className="w-3 h-3" />
+                  ) : (
+                    <Eye className="w-3 h-3" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* New Password */}
+            <div>
+              <label className="text-xs font-medium text-tppslate/80 block mb-0.5">New Password</label>
+              <input
+                type={showPasswords ? 'text' : 'password'}
+                name="newPassword"
+                value={passwordData.newPassword}
+                onChange={handlePasswordInputChange}
+                placeholder="Enter new password"
+                className="w-full px-2 py-1 text-xs border border-tppslate/20 rounded focus:outline-none focus:border-tpppink bg-white text-tppslate"
+              />
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label className="text-xs font-medium text-tppslate/80 block mb-0.5">Confirm Password</label>
+              <input
+                type={showPasswords ? 'text' : 'password'}
+                name="confirmPassword"
+                value={passwordData.confirmPassword}
+                onChange={handlePasswordInputChange}
+                placeholder="Confirm new password"
+                className="w-full px-2 py-1 text-xs border border-tppslate/20 rounded focus:outline-none focus:border-tpppink bg-white text-tppslate"
+              />
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-2 mt-2 pt-2 border-t border-tppslate/10">
+              <button
+                onClick={handlePasswordChange}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1 bg-tpppink text-white text-xs font-medium rounded hover:bg-tpppink/90 transition-colors"
+              >
+                <Save className="w-3 h-3" />
+                Save
+              </button>
+              <button
+                onClick={() => {
+                  setEditingPassword(false);
+                  setPasswordData({
+                    currentPassword: '',
+                    newPassword: '',
+                    confirmPassword: '',
+                  });
+                }}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1 border border-tppslate/20 text-tppslate text-xs font-medium rounded hover:bg-tppslate/5 transition-colors"
+              >
+                <X className="w-3 h-3" />
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-tppslate/60 mt-2">Last changed: Not available</p>
+        )}
+      </div>
+
+      {/* Data & Privacy */}
+      <div className="bg-white border border-tppslate/10 rounded-lg p-3">
+        <h2 className="text-xs font-bold text-tppslate mb-2">Data & Privacy</h2>
+        <div className="space-y-1">
+          <p className="text-xs text-tppslate/60">
+            Your data is encrypted and secure. We never share your information with third parties.
+          </p>
+          <button className="text-xs text-tpppink hover:text-tpppink/80 font-medium transition-colors">
+            Privacy Policy →
+          </button>
         </div>
       </div>
     </div>
   );
-};
-
-export default SettingsPage;
+}
