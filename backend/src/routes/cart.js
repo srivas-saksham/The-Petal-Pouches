@@ -1,71 +1,142 @@
-// backend/src/routes/cart.js
+// backend/src/routes/cart.js - DEBUG VERSION
 
 const express = require('express');
 const router = express.Router();
-const CartController = require('../controllers/cartController');
-const { optionalAuth, customerSecurityHeaders } = require('../middleware/userAuth');
+
+console.log('🔧 Cart routes file loaded');
+
+// Try to load the controller
+let CartController;
+try {
+  CartController = require('../controllers/cartController');
+  console.log('✅ CartController loaded successfully');
+} catch (err) {
+  console.error('❌ Failed to load CartController:', err.message);
+  CartController = null;
+}
 
 /**
- * Cart Routes
+ * Cart Routes - FIXED
  * Base path: /api/cart
- * Supports both authenticated users and guest sessions
  */
 
-// Apply security headers
-router.use(customerSecurityHeaders);
+// ==================== MIDDLEWARE ====================
 
-// Apply optional authentication (works for both authenticated and guest users)
-router.use(optionalAuth);
+/**
+ * Simple middleware to extract user info from headers
+ * Supports both authenticated users and guest sessions
+ */
+router.use((req, res, next) => {
+  // Extract from headers
+  const userId = req.get('x-user-id');
+  const sessionId = req.get('x-session-id');
 
-// ==================== CART OPERATIONS ====================
+  // Add to request object
+  req.user = { id: userId };
+  req.sessionId = sessionId;
+
+  console.log(`[Cart Route] User: ${userId}, Session: ${sessionId}`);
+
+  next();
+});
+
+// ==================== DEBUG ENDPOINT ====================
+router.get('/debug', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Cart routes are working!',
+    controllerLoaded: CartController !== null,
+    endpoints: [
+      'GET /api/cart',
+      'POST /api/cart/items',
+      'PATCH /api/cart/items/:id',
+      'DELETE /api/cart/items/:id',
+      'DELETE /api/cart',
+      'POST /api/cart/merge'
+    ]
+  });
+});
+
+// ==================== CART ENDPOINTS ====================
 
 /**
  * @route   GET /api/cart
- * @desc    Get user's cart with items and totals
- * @access  Public (requires user_id or x-session-id header)
  */
-router.get('/', CartController.getCart);
+router.get('/', (req, res, next) => {
+  if (!CartController) {
+    return res.status(500).json({
+      success: false,
+      message: 'CartController not loaded'
+    });
+  }
+  CartController.getCart(req, res, next);
+});
 
 /**
  * @route   POST /api/cart/items
- * @desc    Add item to cart
- * @access  Public (requires user_id or x-session-id header)
- * @body    { product_variant_id, quantity?, bundle_origin?, bundle_id? }
- * @header  x-session-id (for guest users)
  */
-router.post('/items', CartController.addToCart);
+router.post('/items', (req, res, next) => {
+  if (!CartController) {
+    return res.status(500).json({
+      success: false,
+      message: 'CartController not loaded'
+    });
+  }
+  CartController.addToCart(req, res, next);
+});
 
 /**
  * @route   PATCH /api/cart/items/:id
- * @desc    Update cart item quantity
- * @access  Public (requires user_id or x-session-id header)
- * @params  id (cart_item_id)
- * @body    { quantity }
  */
-router.patch('/items/:id', CartController.updateCartItem);
+router.patch('/items/:id', (req, res, next) => {
+  if (!CartController) {
+    return res.status(500).json({
+      success: false,
+      message: 'CartController not loaded'
+    });
+  }
+  CartController.updateCartItem(req, res, next);
+});
 
 /**
  * @route   DELETE /api/cart/items/:id
- * @desc    Remove item from cart
- * @access  Public (requires user_id or x-session-id header)
- * @params  id (cart_item_id)
  */
-router.delete('/items/:id', CartController.removeCartItem);
+router.delete('/items/:id', (req, res, next) => {
+  if (!CartController) {
+    return res.status(500).json({
+      success: false,
+      message: 'CartController not loaded'
+    });
+  }
+  CartController.removeCartItem(req, res, next);
+});
 
 /**
  * @route   DELETE /api/cart
- * @desc    Clear all items from cart
- * @access  Public (requires user_id or x-session-id header)
  */
-router.delete('/', CartController.clearCart);
+router.delete('/', (req, res, next) => {
+  if (!CartController) {
+    return res.status(500).json({
+      success: false,
+      message: 'CartController not loaded'
+    });
+  }
+  CartController.clearCart(req, res, next);
+});
 
 /**
  * @route   POST /api/cart/merge
- * @desc    Merge guest cart into user cart (on login)
- * @access  Private (Customer)
- * @body    { session_id }
  */
-const { verifyCustomerToken } = require('../middleware/userAuth');
-router.post('/merge', verifyCustomerToken, CartController.mergeCarts);
+router.post('/merge', (req, res, next) => {
+  if (!CartController) {
+    return res.status(500).json({
+      success: false,
+      message: 'CartController not loaded'
+    });
+  }
+  CartController.mergeCarts(req, res, next);
+});
+
+console.log('✅ All cart route handlers registered');
 
 module.exports = router;

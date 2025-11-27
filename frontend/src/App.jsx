@@ -9,7 +9,7 @@ import ProtectedCustomerRoute from './components/user/ProtectedCustomerRoute';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminRoutes from './routes/adminRoutes';
 import UserRoutes from './routes/userRoutes';
-import Shop from './pages/Shop';
+import Shop from './pages/ShopNew';
 import UserLogin from './pages/user/UserLogin';
 import UserRegister from './pages/user/UserRegister';
 

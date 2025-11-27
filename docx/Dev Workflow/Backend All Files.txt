@@ -1,0 +1,3893 @@
+Backend Code Files Documentation
+backend/src/index.js
+javascript// backend/src/index.js
+const express = require('express');
+const dotenv = require('dotenv');
+const cors = require('cors');
+const helmet = require('helmet');
+
+// Load environment variables
+dotenv.config();
+
+const app = express();
+
+// Middleware Configuration
+app.use(helmet());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Request logging middleware (development only)
+if (process.env.NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    console.log(`📍 ${req.method} ${req.path}`);
+    next();
+  });
+}
+
+// ============================================
+// SUPABASE CONNECTION TEST
+// ============================================
+
+const supabase = require('./config/supabaseClient');
+
+// Test Supabase connection on startup
+(async () => {
+  try {
+    const { data, error } = await supabase
+      .from('Products')
+      .select('count')
+      .limit(1);
+    
+    if (error) {
+      console.log('⚠️  Supabase connection test failed:', error.message);
+    } else {
+      console.log('✅ Supabase connected successfully');
+    }
+  } catch (err) {
+    console.log('⚠️  Could not test Supabase connection:', err.message);
+  }
+})();
+
+// ============================================
+// ROUTES - ORDER MATTERS!
+// ============================================
+
+// 1. ADMIN & STAFF ROUTES
+// --------------------------------------------
+app.use('/api/admin/auth', require('./routes/adminAuth')); // Admin Login/Register
+app.use('/api/admin', require('./routes/admin'));          // Admin Product Management
+
+// 2. CUSTOMER AUTHENTICATION & PROFILE
+// --------------------------------------------
+app.use('/api/auth', require('./routes/userAuth'));        // Customer Login/Register
+app.use('/api/users', require('./routes/users'));          // Customer Profile/Dashboard
+app.use('/api/addresses', require('./routes/addresses'));  // Address Book
+
+// 3. CATALOG (PUBLIC & ADMIN MIXED)
+// --------------------------------------------
+app.use('/api/categories', require('./routes/categories'));
+app.use('/api/bundles', require('./routes/bundles'));      // Must be before products to avoid conflicts
+app.use('/api/products', require('./routes/products'));
+app.use('/api/variants', require('./routes/variants'));
+app.use('/api/reviews', require('./routes/reviews'));
+
+// 4. COMMERCE & TRANSACTIONS
+// --------------------------------------------
+app.use('/api/cart', require('./routes/cart'));            // Shopping Cart
+app.use('/api/wishlist', require('./routes/wishlist'));    // Wishlist
+app.use('/api/orders', require('./routes/orders'));        // Order Management
+app.use('/api/payments', require('./routes/payments'));    // Razorpay/Stripe
+
+// ============================================
+// HEALTH CHECK & API DOCUMENTATION
+// ============================================
+
+// Health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    // Test Supabase connection
+    const { error } = await supabase
+      .from('Products')
+      .select('count')
+      .limit(1);
+    
+    const supabaseStatus = error ? 'unhealthy' : 'healthy';
+    const overallStatus = error ? 'degraded' : 'healthy';
+    
+    res.status(error ? 503 : 200).json({
+      success: !error,
+      status: overallStatus,
+      message: error ? 'Server running with issues' : 'Server is healthy',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      services: {
+        supabase: supabaseStatus
+      }
+    });
+  } catch (err) {
+    res.status(503).json({
+      success: false,
+      status: 'unhealthy',
+      message: 'Server health check failed',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
+});
+
+// Root endpoint with API info
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'The Petal Pouches API is running! 🌸',
+    version: '1.2.0',
+    database: 'Supabase',
+    documentation: {
+      admin: {
+        auth: '/api/admin/auth',
+        products: '/api/admin/products',
+        bundles: '/api/bundles/admin'
+      },
+      customer: {
+        auth: '/api/auth',
+        profile: '/api/users',
+        addresses: '/api/addresses',
+        orders: '/api/orders',
+        cart: '/api/cart',
+        wishlist: '/api/wishlist',
+        payments: '/api/payments'
+      },
+      catalog: {
+        products: '/api/products',
+        categories: '/api/categories',
+        bundles: '/api/bundles',
+        reviews: '/api/reviews'
+      }
+    }
+  });
+});
+
+// ============================================
+// ERROR HANDLERS
+// ============================================
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('❌ Error:', err.stack);
+  
+  // Handle Supabase-specific errors
+  let statusCode = err.status || 500;
+  let message = err.message || 'Internal Server Error';
+  
+  // Check if it's a Supabase error
+  if (err.code) {
+    switch (err.code) {
+      case 'PGRST116':
+        statusCode = 404;
+        message = 'Resource not found';
+        break;
+      case '23505':
+        statusCode = 409;
+        message = 'Resource already exists';
+        break;
+      case '23503':
+        statusCode = 400;
+        message = 'Invalid reference - related resource not found';
+        break;
+      case '42501':
+        statusCode = 403;
+        message = 'Insufficient permissions';
+        break;
+      default:
+        statusCode = 500;
+        message = 'Database operation failed';
+    }
+  }
+  
+  res.status(statusCode).json({
+    success: false,
+    message,
+    ...(process.env.NODE_ENV === 'development' && { 
+      stack: err.stack,
+      code: err.code 
+    })
+  });
+});
+
+// 404 handler (must be last)
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route not found: ${req.method} ${req.path}`,
+    availableResources: [
+      '/api/auth', '/api/users', '/api/products', 
+      '/api/cart', '/api/orders', '/api/payments'
+    ]
+  });
+});
+
+// ============================================
+// START SERVER
+// ============================================
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log('\n🚀 ===================================');
+  console.log(`   Server running on port ${PORT}`);
+  console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`   Database: Supabase`);
+  console.log('🚀 ===================================\n');
+  
+  console.log('📍 Key Endpoints:');
+  console.log(`   🌐 Health:     http://localhost:${PORT}/health`);
+  console.log(`   🛒 Products:   http://localhost:${PORT}/api/products`);
+  console.log(`   🛍️ Cart:       http://localhost:${PORT}/api/cart`);
+  console.log(`   👤 User Auth:  http://localhost:${PORT}/api/auth/login`);
+  console.log(`   🔐 Admin Auth: http://localhost:${PORT}/api/admin/auth/login`);
+  console.log('\n✨ Server is ready to accept requests!\n');
+});
+
+module.exports = app;
+backend/src/config/supabaseClient.js
+javascriptconst { createClient } = require('@supabase/supabase-js');
+
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+// Create Supabase client with service role key (backend only)
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
+
+module.exports = supabase;
+backend/src/config/cloudinary.js
+javascriptconst cloudinary = require('cloudinary').v2;
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+module.exports = cloudinary;
+backend/src/config/multer.js
+javascriptconst multer = require('multer');
+const path = require('path');
+
+// Store files in memory temporarily
+const storage = multer.memoryStorage();
+
+// File filter - only allow images
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed'), false);
+  }
+};
+
+// Configure multer
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB max file size
+  }
+});
+
+module.exports = upload;
+backend/src/middleware/userAuth.js
+javascript// backend/src/middleware/userAuth.js
+
+const jwt = require('jsonwebtoken');
+
+/**
+ * Middleware to verify JWT token and authenticate customer users
+ */
+const verifyCustomerToken = (req, res, next) => {
+  try {
+    // Extract token from Authorization header (format: "Bearer <token>")
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    
+    // Check token expiration explicitly
+    const currentTime = Math.floor(Date.now() / 1000);
+    if (decoded.exp && decoded.exp < currentTime) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token expired',
+        code: 'TOKEN_EXPIRED'
+      });
+    }
+    
+    // Attach user data to request object
+    req.user = decoded;
+    
+    // Log user activity for security audit (optional)
+    console.log(`[Customer Activity] ${decoded.email} accessed ${req.method} ${req.originalUrl}`);
+    
+    next();
+  } catch (error) {
+    // Handle specific JWT errors
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token expired',
+        code: 'TOKEN_EXPIRED'
+      });
+    }
+
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token',
+        code: 'INVALID_TOKEN'
+      });
+    }
+
+    // Generic error
+    console.error('Token verification error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Authentication failed'
+    });
+  }
+};
+
+/**
+ * Optional middleware to verify email is verified
+ */
+const requireEmailVerified = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication required'
+    });
+  }
+
+  if (!req.user.email_verified) {
+    return res.status(403).json({
+      success: false,
+      message: 'Email verification required',
+      code: 'EMAIL_NOT_VERIFIED'
+    });
+  }
+
+  next();
+};
+
+/**
+ * Rate limiting middleware for sensitive customer endpoints
+ * Simple in-memory rate limiter (for production, use Redis)
+ */
+const customerLoginAttempts = new Map();
+
+const rateLimitCustomerLogin = (req, res, next) => {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000; // 15 minutes
+  const maxAttempts = 5;
+
+  if (!customerLoginAttempts.has(ip)) {
+    customerLoginAttempts.set(ip, []);
+  }
+
+  const attempts = customerLoginAttempts.get(ip).filter(time => now - time < windowMs);
+  
+  if (attempts.length >= maxAttempts) {
+    console.warn(`[Security] Customer rate limit exceeded for IP: ${ip}`);
+    return res.status(429).json({
+      success: false,
+      message: 'Too many login attempts. Please try again later.',
+      retryAfter: Math.ceil((attempts[0] + windowMs - now) / 1000)
+    });
+  }
+
+  // Store the IP for cleanup on success
+  req.rateLimitIp = ip;
+  
+  attempts.push(now);
+  customerLoginAttempts.set(ip, attempts);
+
+  // Clean up old entries periodically
+  if (Math.random() < 0.01) {
+    for (const [key, value] of customerLoginAttempts.entries()) {
+      const filtered = value.filter(time => now - time < windowMs);
+      if (filtered.length === 0) {
+        customerLoginAttempts.delete(key);
+      } else {
+        customerLoginAttempts.set(key, filtered);
+      }
+    }
+  }
+
+  next();
+};
+
+/**
+ * Clear rate limit on successful login
+ */
+const clearCustomerRateLimit = (ip) => {
+  if (customerLoginAttempts.has(ip)) {
+    customerLoginAttempts.delete(ip);
+    console.log(`[Security] Customer rate limit cleared for IP: ${ip}`);
+  }
+};
+
+/**
+ * Security headers middleware for customer routes
+ */
+const customerSecurityHeaders = (req, res, next) => {
+  // Prevent clickjacking
+  res.setHeader('X-Frame-Options', 'DENY');
+  
+  // Prevent MIME type sniffing
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  
+  // Enable XSS protection
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  
+  // HTTPS only (if in production)
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  
+  next();
+};
+
+/**
+ * Optional middleware to attach user data from token without requiring authentication
+ * Useful for routes that work for both authenticated and guest users
+ */
+const optionalAuth = (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // No token provided, continue without auth
+      return next();
+    }
+
+    const token = authHeader.split(' ')[1];
+    
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      req.user = decoded;
+    }
+  } catch (error) {
+    // Token invalid, continue without auth
+    console.log('Optional auth: Invalid token, continuing as guest');
+  }
+  
+  next();
+};
+
+module.exports = {
+  verifyCustomerToken,
+  requireEmailVerified,
+  rateLimitCustomerLogin,
+  clearCustomerRateLimit,
+  customerSecurityHeaders,
+  optionalAuth
+};
+backend/src/middleware/adminAuth.js
+javascript// backend/src/middleware/adminAuth.js
+const jwt = require('jsonwebtoken');
+
+/**
+ * Middleware to verify JWT token and authenticate admin users
+ */
+const verifyAdminToken = (req, res, next) => {
+  try {
+    // Extract token from Authorization header (format: "Bearer <token>")
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Check token expiration explicitly
+    const currentTime = Math.floor(Date.now() / 1000);
+    if (decoded.exp && decoded.exp < currentTime) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token expired',
+        code: 'TOKEN_EXPIRED'
+      });
+    }
+    
+    // Attach admin data to request object
+    req.admin = decoded;
+    
+    // Optional: Log admin activity for security audit
+    console.log(`[Admin Activity] ${decoded.email} accessed ${req.method} ${req.originalUrl}`);
+    
+    next();
+  } catch (error) {
+    // Handle specific JWT errors
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token expired',
+        code: 'TOKEN_EXPIRED'
+      });
+    }
+
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token',
+        code: 'INVALID_TOKEN'
+      });
+    }
+
+    // Generic error
+    console.error('Token verification error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Authentication failed'
+    });
+  }
+};
+
+/**
+ * Middleware to check if admin has required role(s)
+ * @param {string|string[]} roles - Single role or array of allowed roles
+ */
+const requireRole = (roles) => {
+  return (req, res, next) => {
+    // Ensure admin is authenticated first
+    if (!req.admin) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    // Convert single role to array for consistency
+    const allowedRoles = Array.isArray(roles) ? roles : [roles];
+
+    // Check if admin's role is in allowed roles
+    if (!allowedRoles.includes(req.admin.role)) {
+      // Log unauthorized access attempt
+      console.warn(`[Security] Admin ${req.admin.email} attempted to access resource requiring roles: ${allowedRoles.join(', ')}`);
+      
+      return res.status(403).json({
+        success: false,
+        message: 'Insufficient permissions',
+        required: allowedRoles,
+        current: req.admin.role
+      });
+    }
+
+    next();
+  };
+};
+
+/**
+ * Middleware to check if admin has specific permission
+ * @param {string} permission - Required permission
+ */
+const requirePermission = (permission) => {
+  return (req, res, next) => {
+    if (!req.admin) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    // Admins have all permissions
+    if (req.admin.role === 'admin') {
+      return next();
+    }
+
+    // Check if admin has the specific permission
+    const permissions = req.admin.permissions || [];
+    if (!permissions.includes(permission)) {
+      // Log unauthorized access attempt
+      console.warn(`[Security] Admin ${req.admin.email} attempted to access resource requiring permission: ${permission}`);
+      
+      return res.status(403).json({
+        success: false,
+        message: 'Insufficient permissions',
+        required: permission
+      });
+    }
+
+    next();
+  };
+};
+
+/**
+ * Rate limiting middleware for sensitive endpoints
+ * Simple in-memory rate limiter (for production, use Redis)
+ */
+const loginAttempts = new Map();
+
+const rateLimitLogin = (req, res, next) => {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000; // 15 minutes
+  const maxAttempts = 5;
+
+  if (!loginAttempts.has(ip)) {
+    loginAttempts.set(ip, []);
+  }
+
+  const attempts = loginAttempts.get(ip).filter(time => now - time < windowMs);
+  
+  if (attempts.length >= maxAttempts) {
+    console.warn(`[Security] Rate limit exceeded for IP: ${ip}`);
+    return res.status(429).json({
+      success: false,
+      message: 'Too many login attempts. Please try again later.',
+      retryAfter: Math.ceil((attempts[0] + windowMs - now) / 1000)
+    });
+  }
+
+  // Store the IP for cleanup on success
+  req.rateLimitIp = ip;
+  
+  attempts.push(now);
+  loginAttempts.set(ip, attempts);
+
+  // Clean up old entries periodically
+  if (Math.random() < 0.01) {
+    for (const [key, value] of loginAttempts.entries()) {
+      const filtered = value.filter(time => now - time < windowMs);
+      if (filtered.length === 0) {
+        loginAttempts.delete(key);
+      } else {
+        loginAttempts.set(key, filtered);
+      }
+    }
+  }
+
+  next();
+};
+
+/**
+ * Clear rate limit on successful login
+ */
+const clearRateLimit = (ip) => {
+  if (loginAttempts.has(ip)) {
+    loginAttempts.delete(ip);
+    console.log(`[Security] Rate limit cleared for IP: ${ip}`);
+  }
+};
+
+/**
+ * Security headers middleware
+ */
+const securityHeaders = (req, res, next) => {
+  // Prevent clickjacking
+  res.setHeader('X-Frame-Options', 'DENY');
+  
+  // Prevent MIME type sniffing
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  
+  // Enable XSS protection
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  
+  // HTTPS only (if in production)
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  
+  next();
+};
+
+module.exports = {
+  verifyAdminToken,
+  requireRole,
+  requirePermission,
+  rateLimitLogin,
+  clearRateLimit,
+  securityHeaders
+};
+backend/src/middleware/addressValidation.js
+javascript// backend/src/middleware/addressValidation.js
+
+const { body, param, validationResult } = require('express-validator');
+
+/**
+ * Validation rules for creating a new address
+ */
+const validateCreateAddress = [
+  body('line1')
+    .notEmpty()
+    .withMessage('Address line 1 is required')
+    .isLength({ min: 5, max: 255 })
+    .withMessage('Address line 1 must be between 5 and 255 characters')
+    .trim(),
+
+  body('line2')
+    .optional()
+    .isLength({ max: 255 })
+    .withMessage('Address line 2 must not exceed 255 characters')
+    .trim(),
+
+  body('city')
+    .notEmpty()
+    .withMessage('City is required')
+    .isLength({ min: 2, max: 100 })
+    .withMessage('City must be between 2 and 100 characters')
+    .matches(/^[a-zA-Z\s\-'\.]+$/)
+    .withMessage('City can only contain letters, spaces, hyphens, apostrophes, and periods')
+    .trim(),
+
+  body('state')
+    .notEmpty()
+    .withMessage('State is required')
+    .isLength({ min: 2, max: 100 })
+    .withMessage('State must be between 2 and 100 characters')
+    .matches(/^[a-zA-Z\s\-'\.]+$/)
+    .withMessage('State can only contain letters, spaces, hyphens, apostrophes, and periods')
+    .trim(),
+
+  body('country')
+    .optional()
+    .isLength({ max: 100 })
+    .withMessage('Country must not exceed 100 characters')
+    .matches(/^[a-zA-Z\s\-'\.]+$/)
+    .withMessage('Country can only contain letters, spaces, hyphens, apostrophes, and periods')
+    .trim(),
+
+  body('zip_code')
+    .notEmpty()
+    .withMessage('ZIP code is required')
+    .matches(/^[0-9]{6}$/)
+    .withMessage('ZIP code must be exactly 6 digits for India')
+    .trim(),
+
+  body('address_type')
+    .optional()
+    .isIn(['home', 'work', 'other'])
+    .withMessage('Address type must be one of: home, work, other'),
+
+  body('phone')
+    .optional()
+    .matches(/^[+]?[0-9]{10,15}$/)
+    .withMessage('Phone number must be 10-15 digits, optionally starting with +')
+    .trim(),
+
+  body('landmark')
+    .optional()
+    .isLength({ max: 255 })
+    .withMessage('Landmark must not exceed 255 characters')
+    .trim(),
+
+  body('is_default')
+    .optional()
+    .isBoolean()
+    .withMessage('is_default must be a boolean value'),
+
+  // Custom validation middleware
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array().map(error => ({
+          field: error.path,
+          message: error.msg,
+          value: error.value
+        }))
+      });
+    }
+    next();
+  }
+];
+
+/**
+ * Validation rules for updating an address
+ */
+const validateUpdateAddress = [
+  param('id')
+    .isUUID()
+    .withMessage('Address ID must be a valid UUID'),
+
+  body('line1')
+    .optional()
+    .isLength({ min: 5, max: 255 })
+    .withMessage('Address line 1 must be between 5 and 255 characters')
+    .trim(),
+
+  body('line2')
+    .optional()
+    .isLength({ max: 255 })
+    .withMessage('Address line 2 must not exceed 255 characters')
+    .trim(),
+
+  body('city')
+    .optional()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('City must be between 2 and 100 characters')
+    .matches(/^[a-zA-Z\s\-'\.]+$/)
+    .withMessage('City can only contain letters, spaces, hyphens, apostrophes, and periods')
+    .trim(),
+
+  body('state')
+    .optional()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('State must be between 2 and 100 characters')
+    .matches(/^[a-zA-Z\s\-'\.]+$/)
+    .withMessage('State can only contain letters, spaces, hyphens, apostrophes, and periods')
+    .trim(),
+
+  body('country')
+    .optional()
+    .isLength({ max: 100 })
+    .withMessage('Country must not exceed 100 characters')
+    .matches(/^[a-zA-Z\s\-'\.]+$/)
+    .withMessage('Country can only contain letters, spaces, hyphens, apostrophes, and periods')
+    .trim(),
+
+  body('zip_code')
+    .optional()
+    .matches(/^[0-9]{6}$/)
+    .withMessage('ZIP code must be exactly 6 digits for India')
+    .trim(),
+
+  body('address_type')
+    .optional()
+    .isIn(['home', 'work', 'other'])
+    .withMessage('Address type must be one of: home, work, other'),
+
+  body('phone')
+    .optional()
+    .matches(/^[+]?[0-9]{10,15}$/)
+    .withMessage('Phone number must be 10-15 digits, optionally starting with +')
+    .trim(),
+
+  body('landmark')
+    .optional()
+    .isLength({ max: 255 })
+    .withMessage('Landmark must not exceed 255 characters')
+    .trim(),
+
+  body('is_default')
+    .optional()
+    .isBoolean()
+    .withMessage('is_default must be a boolean value'),
+
+  // Custom validation middleware
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array().map(error => ({
+          field: error.path,
+          message: error.msg,
+          value: error.value
+        }))
+      });
+    }
+    next();
+  }
+];
+
+/**
+ * Validation for address ID parameter
+ */
+const validateAddressId = [
+  param('id')
+    .isUUID()
+    .withMessage('Address ID must be a valid UUID'),
+
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid address ID',
+        errors: errors.array().map(error => ({
+          field: error.path,
+          message: error.msg,
+          value: error.value
+        }))
+      });
+    }
+    next();
+  }
+];
+
+/**
+ * Validation for geocoding search
+ */
+const validateGeocodeSearch = [
+  body('query')
+    .notEmpty()
+    .withMessage('Search query is required')
+    .isLength({ min: 3, max: 255 })
+    .withMessage('Search query must be between 3 and 255 characters')
+    .trim(),
+
+  body('lat')
+    .optional()
+    .isFloat({ min: -90, max: 90 })
+    .withMessage('Latitude must be between -90 and 90'),
+
+  body('lng')
+    .optional()
+    .isFloat({ min: -180, max: 180 })
+    .withMessage('Longitude must be between -180 and 180'),
+
+  body('country')
+    .optional()
+    .isLength({ max: 2 })
+    .withMessage('CountryPContinuecode must be 2 characters (ISO 3166-1 alpha-2)')
+.trim(),
+(req, res, next) => {
+const errors = validationResult(req);
+if (!errors.isEmpty()) {
+return res.status(400).json({
+success: false,
+message: 'Geocoding validation failed',
+errors: errors.array().map(error => ({
+field: error.path,
+message: error.msg,
+value: error.value
+}))
+});
+}
+next();
+}
+];
+/**
+
+Validation for setting default address
+*/
+const validateSetDefault = [
+param('id')
+.isUUID()
+.withMessage('Address ID must be a valid UUID'),
+
+(req, res, next) => {
+const errors = validationResult(req);
+if (!errors.isEmpty()) {
+return res.status(400).json({
+success: false,
+message: 'Invalid address ID for default setting',
+errors: errors.array().map(error => ({
+field: error.path,
+message: error.msg,
+value: error.value
+}))
+});
+}
+next();
+}
+];
+/**
+
+Custom middleware to check if user has reached address limit
+*/
+const checkAddressLimit = async (req, res, next) => {
+try {
+const userId = req.user?.id || req.admin?.id;
+if (!userId) {
+return res.status(401).json({
+success: false,
+message: 'User authentication required'
+});
+}
+// Import addressModel here to avoid circular dependency
+const { getAddressCount } = require('../models/addressModel');
+const addressCount = await getAddressCount(userId);
+// Limit to 10 addresses per user
+const ADDRESS_LIMIT = 10;
+if (addressCount >= ADDRESS_LIMIT) {
+return res.status(400).json({
+success: false,
+message: Maximum ${ADDRESS_LIMIT} addresses allowed per user,
+currentCount: addressCount,
+limit: ADDRESS_LIMIT
+});
+}
+next();
+} catch (error) {
+console.error('Address limit check error:', error);
+res.status(500).json({
+success: false,
+message: 'Failed to check address limit',
+error: error.message
+});
+}
+};
+
+/**
+
+Sanitize address data
+*/
+const sanitizeAddressData = (req, res, next) => {
+if (req.body) {
+// Trim all string fields
+const stringFields = ['line1', 'line2', 'city', 'state', 'country', 'zip_code', 'phone', 'landmark', 'address_type'];
+stringFields.forEach(field => {
+if (req.body[field] && typeof req.body[field] === 'string') {
+req.body[field] = req.body[field].trim();
+}
+});
+// Set default country to India if not provided
+if (!req.body.country) {
+req.body.country = 'India';
+}
+// Set default address_type to home if not provided
+if (!req.body.address_type) {
+req.body.address_type = 'home';
+}
+// Convert is_default to boolean if provided
+if (req.body.is_default !== undefined) {
+req.body.is_default = Boolean(req.body.is_default);
+}
+}
+
+next();
+};
+module.exports = {
+validateCreateAddress,
+validateUpdateAddress,
+validateAddressId,
+validateGeocodeSearch,
+validateSetDefault,
+checkAddressLimit,
+sanitizeAddressData
+};
+
+## backend/src/controllers/userAuthController.js
+```javascript
+// backend/src/controllers/userAuthController.js
+
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const supabase = require('../config/supabaseClient');
+const { clearCustomerRateLimit } = require('../middleware/userAuth');
+
+/**
+ * User Authentication Controller
+ * Handles customer registration, login, logout, password reset, email verification
+ */
+const UserAuthController = {
+
+  // ==================== REGISTRATION ====================
+  
+  /**
+   * Register a new customer
+   * POST /api/auth/register
+   */
+  register: async (req, res) => {
+    try {
+      const { name, email, password, phone } = req.body;
+
+      // Validation
+      if (!name || !email || !password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Name, email, and password are required'
+        });
+      }
+
+      // Email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid email format'
+        });
+      }
+
+      // Password strength validation (min 8 chars, 1 uppercase, 1 lowercase, 1 number)
+      if (password.length < 8) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must be at least 8 characters long'
+        });
+      }
+
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
+      if (!passwordRegex.test(password)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+        });
+      }
+
+      // Check if user already exists
+      const { data: existingUser } = await supabase
+        .from('Users')
+        .select('id')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          message: 'Email already registered',
+          code: 'EMAIL_EXISTS'
+        });
+      }
+
+      // Hash password
+      const saltRounds = 10;
+      const passwordHash = await bcrypt.hash(password, saltRounds);
+
+      // Insert new user
+      const { data: newUser, error } = await supabase
+        .from('Users')
+        .insert([{
+          name: name.trim(),
+          email: email.toLowerCase(),
+          password_hash: passwordHash,
+          phone: phone || null,
+          is_active: true,
+          email_verified: false
+        }])
+        .select('id, name, email, phone, created_at')
+        .single();
+
+      if (error) throw error;
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { 
+          id: newUser.id, 
+          email: newUser.email, 
+          name: newUser.name,
+          email_verified: false
+        },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' }
+      );
+
+      console.log(`[Registration] New user registered: ${newUser.email}`);
+
+      // TODO: Send verification email (implement emailService)
+
+      res.status(201).json({
+        success: true,
+        message: 'Registration successful. Please check your email for verification.',
+        data: {
+          user: {
+            id: newUser.id,
+            name: newUser.name,
+            email: newUser.email,
+            phone: newUser.phone,
+            email_verified: false
+          },
+          token
+        }
+      });
+
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Registration failed. Please try again.',
+        error: error.message
+      });
+    }
+  },
+
+  // ==================== LOGIN ====================
+
+  /**
+   * Login customer
+   * POST /api/auth/login
+   */
+  login: async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      // Validation
+      if (!email || !password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email and password are required'
+        });
+      }
+
+      // Find user by email
+      const { data: user, error: fetchError } = await supabase
+        .from('Users')
+        .select('id, name, email, password_hash, is_active, email_verified')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      if (fetchError || !user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid email or password',
+          code: 'INVALID_CREDENTIALS'
+        });
+      }
+
+      // Check if account is active
+      if (!user.is_active) {
+        return res.status(403).json({
+          success: false,
+          message: 'Account is deactivated. Please contact support.',
+          code: 'ACCOUNT_INACTIVE'
+        });
+      }
+
+      // Verify password
+      const passwordMatch = await bcrypt.compare(password, user.password_hash);
+
+      if (!passwordMatch) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid email or password',
+          code: 'INVALID_CREDENTIALS'
+        });
+      }
+
+      // Update last login
+      await supabase
+        .from('Users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', user.id);
+
+      // Clear rate limit on successful login
+      if (req.rateLimitIp) {
+        clearCustomerRateLimit(req.rateLimitIp);
+      }
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { 
+          id: user.id, 
+          email: user.email, 
+          name: user.name,
+          email_verified: user.email_verified
+        },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' }
+      );
+
+      console.log(`[Login] User logged in: ${user.email}`);
+
+      res.json({
+        success: true,
+        message: 'Login successful',
+        data: {
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            email_verified: user.email_verified
+          },
+          token
+        }
+      });
+
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Login failed. Please try again.',
+        error: error.message
+      });
+    }
+  },
+
+  // ==================== LOGOUT ====================
+
+  /**
+   * Logout customer (client-side token removal)
+   * POST /api/auth/logout
+   */
+  logout: async (req, res) => {
+    try {
+      // In JWT authentication, logout is typically handled client-side
+      // by removing the token from storage
+      
+      console.log(`[Logout] User logged out: ${req.user?.email || 'Unknown'}`);
+
+      res.json({
+        success: true,
+        message: 'Logout successful'
+      });
+
+    } catch (error) {
+      console.error('Logout error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Logout failed'
+      });
+    }
+  },
+
+  // ==================== GET CURRENT USER ====================
+
+  /**
+   * Get current authenticated user
+   * GET /api/auth/me
+   */
+  getCurrentUser: async (req, res) => {
+    try {
+      const { data: user, error } = await supabase
+        .from('Users')
+        .select('id, name, email, phone, email_verified, created_at, last_login')
+        .eq('id', req.user.id)
+        .eq('is_active', true)
+        .single();
+
+      if (error || !user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: { user }
+      });
+
+    } catch (error) {
+      console.error('Get current user error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch user data'
+      });
+    }
+  },
+
+  // ==================== REFRESH TOKEN ====================
+
+  /**
+   * Refresh JWT token
+   * POST /api/auth/refresh
+   */
+  refreshToken: async (req, res) => {
+    try {
+      // Get current user data from database to ensure it's up to date
+      const { data: user, error } = await supabase
+        .from('Users')
+        .select('id, name, email, email_verified, is_active')
+        .eq('id', req.user.id)
+        .single();
+
+      if (error || !user || !user.is_active) {
+        return res.status(401).json({
+          success: false,
+          message: 'User not found or inactive',
+          code: 'USER_INACTIVE'
+        });
+      }
+
+      // Generate new token
+      const token = jwt.sign(
+        { 
+          id: user.id, 
+          email: user.email, 
+          name: user.name,
+          email_verified: user.email_verified
+        },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' }
+      );
+
+      console.log(`[Refresh] Token refreshed for: ${user.email}`);
+
+      res.json({
+        success: true,
+        message: 'Token refreshed successfully',
+        data: { token }
+      });
+
+    } catch (error) {
+      console.error('Refresh token error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to refresh token'
+      });
+    }
+  },
+
+  // ==================== EMAIL VERIFICATION ====================
+
+  /**
+   * Request email verification
+   * POST /api/auth/verify-email/request
+   */
+  requestEmailVerification: async (req, res) => {
+    try {
+      const userId = req.user.id;
+
+      // Check if already verified
+      const { data: user, error } = await supabase
+        .from('Users')
+        .select('email_verified, email')
+        .eq('id', userId)
+        .single();
+
+      if (error || !user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      if (user.email_verified) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email already verified'
+        });
+      }
+
+      // Generate verification token
+      const verificationToken = jwt.sign(
+        { id: userId, email: user.email, type: 'email_verification' },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '24h' }
+      );
+
+      // TODO: Send verification email with token
+      console.log(`[Email Verification] Token generated for: ${user.email}`);
+      console.log(`Verification link: ${process.env.FRONTEND_URL}/verify-email/${verificationToken}`);
+
+      res.json({
+        success: true,
+        message: 'Verification email sent. Please check your inbox.',
+        // Remove in production - only for testing
+        ...(process.env.NODE_ENV === 'development' && { token: verificationToken })
+      });
+
+    } catch (error) {
+      console.error('Request email verification error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to send verification email'
+      });
+    }
+  },
+
+  /**
+   * Verify email with token
+   * POST /api/auth/verify-email/:token
+   */
+  verifyEmail: async (req, res) => {
+    try {
+      const { token } = req.params;
+
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+
+      if (decoded.type !== 'email_verification') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid verification token'
+        });
+      }
+
+      // Update user email_verified status
+      const { data: updatedUser, error } = await supabase
+        .from('Users')
+        .update({ 
+          email_verified: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', decoded.id)
+        .eq('email', decoded.email)
+        .select('id, email, email_verified')
+        .single();
+
+      if (error || !updatedUser) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      console.log(`[Email Verified] ${decoded.email}`);
+
+      res.json({
+        success: true,
+        message: 'Email verified successfully',
+        data: {
+          email_verified: true
+        }
+      });
+
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Verification link expired. Please request a new one.',
+          code: 'TOKEN_EXPIRED'
+        });
+      }
+
+      console.error('Verify email error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Email verification failed'
+      });
+    }
+  },
+
+  // ==================== PASSWORD RESET ====================
+
+  /**
+   * Request password reset
+   * POST /api/auth/forgot-password
+   */
+  forgotPassword: async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email is required'
+        });
+      }
+
+      // Check if user exists
+      const { data: user, error } = await supabase
+        .from('Users')
+        .select('id, email, name')
+        .eq('email', email.toLowerCase())
+        .eq('is_active', true)
+        .single();
+
+      // Always return success to prevent email enumeration
+      if (error || !user) {
+        return res.json({
+          success: true,
+          message: 'If the email exists, a password reset link has been sent.'
+        });
+      }
+
+      // Generate reset token
+      const resetToken = jwt.sign(
+        { id: user.id, email: user.email, type: 'password_reset' },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '1h' }
+      );
+
+      // TODO: Send password reset email
+      console.log(`[Password Reset] Token generated for: ${user.email}`);
+      console.log(`Reset link: ${process.env.FRONTEND_URL}/reset-password/${resetToken}`);
+
+      res.json({
+        success: true,
+        message: 'If the email exists, a password reset link has been sent.',
+        // Remove in production - only for testing
+        ...(process.env.NODE_ENV === 'development' && { token: resetToken })
+      });
+
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to process password reset request'
+      });
+    }
+  },
+
+  /**
+   * Reset password with token
+   * POST /api/auth/reset-password/:token
+   */
+  resetPassword: async (req, res) => {
+    try {
+      const { token } = req.params;
+      const { password } = req.body;
+
+      if (!password) {
+        return res.status(400).json({
+          success: false,
+          message: 'New password is required'
+        });
+      }
+
+      // Password validation
+      if (password.length < 8) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must be at least 8 characters long'
+        });
+      }
+
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+
+      if (decoded.type !== 'password_reset') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid reset token'
+        });
+      }
+
+      // Hash new password
+      const saltRounds = 10;
+      const passwordHash = await bcrypt.hash(password, saltRounds);
+
+      // Update password
+      const { data: updatedUser, error } = await supabase
+        .from('Users')
+        .update({ 
+          password_hash: passwordHash,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', decoded.id)
+        .eq('email', decoded.email)
+        .select('id, email')
+        .single();
+
+      if (error || !updatedUser) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      console.log(`[Password Reset] Password reset successful for: ${decoded.email}`);
+
+      res.json({
+        success: true,
+        message: 'Password reset successful. You can now login with your new password.'
+      });
+
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        return res.status(400).json({
+          success: false,
+          message: 'Reset link expired. Please request a new one.',
+          code: 'TOKEN_EXPIRED'
+        });
+      }
+
+      console.error('Reset password error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Password reset failed'
+      });
+    }
+  },
+
+  // ==================== CHANGE PASSWORD ====================
+
+  /**
+   * Change password (authenticated user)
+   * PUT /api/auth/change-password
+   */
+  changePassword: async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const userId = req.user.id;
+
+      // Validation
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password and new password are required'
+        });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({
+          success: false,
+          message: 'New password must be at least 8 characters long'
+        });
+      }
+
+      // Get current password hash
+      const { data: user, error } = await supabase
+        .from('Users')
+        .select('password_hash')
+        .eq('id', userId)
+        .single();
+
+      if (error || !user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      // Verify current password
+      const passwordMatch = await bcrypt.compare(currentPassword, user.password_hash);
+
+      if (!passwordMatch) {
+        return res.status(401).json({
+          success: false,
+          message: 'Current password is incorrect',
+          code: 'INVALID_PASSWORD'
+        });
+      }
+
+      // Hash new password
+      const saltRounds = 10;
+      const passwordHash = await bcrypt.hash(newPassword, saltRounds);
+
+      // Update password
+      await supabase
+        .from('Users')
+        .update({ 
+          password_hash: passwordHash,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      console.log(`[Password Change] Password changed for user ID: ${userId}`);
+
+      res.json({
+        success: true,
+        message: 'Password changed successfully'
+      });
+
+    } catch (error) {
+      console.error('Change password error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to change password'
+      });
+    }
+  }
+
+};
+
+module.exports = UserAuthController;
+```
+
+## backend/src/controllers/addressController.js
+```javascript
+// backend/src/controllers/addressController.js
+
+const supabase = require('../config/supabaseClient');
+const AddressModel = require('../models/addressModel'); // Import the model to use its methods
+
+/**
+ * Address Controller
+ * Handles customer address management with geocoding support
+ */
+const AddressController = {
+
+  // ==================== GET ADDRESSES ====================
+  
+  /**
+   * Get all addresses for authenticated user
+   * GET /api/addresses
+   */
+  getAddresses: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const result = await AddressModel.getUserAddresses(userId);
+
+      res.status(200).json({
+        success: true,
+        count: result.length,
+        addresses: result
+      });
+    } catch (error) {
+      console.error('Get addresses error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch addresses',
+        error: error.message
+      });
+    }
+  },
+
+  // ==================== GET ADDRESS BY ID ====================
+  
+  /**
+   * Get single address by ID
+   * GET /api/addresses/:id
+   */
+  getAddressById: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+      
+      const address = await AddressModel.getAddressById(id, userId);
+
+      res.status(200).json({
+        success: true,
+        address
+      });
+    } catch (error) {
+      if (error.code === 'ADDRESS_NOT_FOUND') {
+        return res.status(404).json({ success: false, message: 'Address not found' });
+      }
+      console.error('Get address error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch address',
+        error: error.message
+      });
+    }
+  },
+
+  // ==================== CREATE ADDRESS ====================
+  
+  /**
+   * Create new address
+   * POST /api/addresses
+   */
+  createAddress: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const address = await AddressModel.createAddress(userId, req.body);
+
+      res.status(201).json({
+        success: true,
+        message: 'Address created successfully',
+        address
+      });
+    } catch (error) {
+      console.error('Create address error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create address',
+        error: error.message
+      });
+    }
+  },
+
+  // ==================== UPDATE ADDRESS ====================
+  
+  /**
+   * Update existing address
+   * PUT /api/addresses/:id
+   */
+  updateAddress: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+      
+      const address = await AddressModel.updateAddress(id, userId, req.body);
+
+      res.status(200).json({
+        success: true,
+        message: 'Address updated successfully',
+        address
+      });
+    } catch (error) {
+      if (error.code === 'ADDRESS_NOT_FOUND') {
+        return res.status(404).json({ success: false, message: 'Address not found' });
+      }
+      console.error('Update address error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update address',
+        error: error.message
+      });
+    }
+  },
+
+  // ==================== DELETE ADDRESS ====================
+  
+  /**
+   * Delete address
+   * DELETE /api/addresses/:id
+   */
+  deleteAddress: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      const result = await AddressModel.deleteAddress(id, userId);
+
+      res.status(200).json({
+        success: true,
+        message: 'Address deleted successfully',
+        was_default: result.wasDefault,
+        new_default: result.newDefaultAddress
+      });
+    } catch (error) {
+      if (error.code === 'ADDRESS_NOT_FOUND') {
+        return res.status(404).json({ success: false, message: 'Address not found' });
+      }
+      console.error('Delete address error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to delete address',
+        error: error.message
+      });
+    }
+  },
+
+  // ==================== BULK DELETE ADDRESSES ====================
+
+  /**
+   * Bulk delete addresses
+   * DELETE /api/addresses/bulk
+   */
+  bulkDeleteAddresses: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const { addressIds } = req.body;
+
+      if (!addressIds || !Array.isArray(addressIds) || addressIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide an array of address IDs to delete'
+        });
+      }
+
+      const result = await AddressModel.batchDeleteAddresses(addressIds, userId);
+
+      res.status(200).json({
+        success: true,
+        message: `Successfully deleted ${result.deletedCount} addresses`,
+        result
+      });
+    } catch (error) {
+      if (error.code === 'CANNOT_DELETE_ALL') {
+        return res.status(400).json({ success: false, message: 'Cannot delete all addresses at once' });
+      }
+      console.error('Bulk delete error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to bulk delete addresses',
+        error: error.message
+      });
+    }
+  },
+
+  // ==================== SET DEFAULT ADDRESS ====================
+  
+  /**
+   * Set address as default
+   * PATCH /api/addresses/:id/default
+   */
+  setDefaultAddress: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      const address = await AddressModel.setDefaultAddress(id, userId);
+
+      res.status(200).json({
+        success: true,
+        message: 'Default address updated',
+        address
+      });
+    } catch (error) {
+      if (error.code === 'ADDRESS_NOT_FOUND') {
+        return res.status(404).json({ success: false, message: 'Address not found' });
+      }
+      console.error('Set default address error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to set default address',
+        error: error.message
+      });
+    }
+  },
+
+  // ==================== GET DEFAULT ADDRESS ====================
+  
+  /**
+   * Get user's default address
+   * GET /api/addresses/default
+   */
+  getDefaultAddress: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const address = await AddressModel.getDefaultAddress(userId);
+
+      if (!address) {
+        return res.status(404).json({
+          success: false,
+          message: 'No default address found'
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        address
+      });
+    } catch (error) {
+      console.error('Get default address error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch default address',
+        error: error.message
+      });
+    }
+  },
+
+  // ==================== GET ADDRESS STATS ====================
+
+  /**
+   * Get address count/stats
+   * GET /api/addresses/stats
+   */
+  getAddressStats: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const count = await AddressModel.getAddressCount(userId);
+      const hasAddresses = await AddressModel.userHasAddresses(userId);
+
+      res.status(200).json({
+        success: true,
+        stats: {
+          total_addresses: count,PContinuehas_addresses: hasAddresses
+}
+});
+} catch (error) {
+console.error('Get address stats error:', error);
+res.status(500).json({
+success: false,
+message: 'Failed to fetch address statistics',
+error: error.message
+});
+}
+},
+// ==================== GEOCODE ADDRESS ====================
+/**
+
+Geocode address (Placeholder)
+POST /api/addresses/geocode
+*/
+geocodeAddress: async (req, res) => {
+try {
+const { query } = req.body;
+// Mock response for now
+res.status(200).json({
+success: true,
+message: 'Geocoding service not yet implemented',
+results: []
+});
+} catch (error) {
+res.status(500).json({
+success: false,
+message: 'Geocoding failed',
+error: error.message
+});
+}
+}
+
+};
+module.exports = AddressController;
+
+## backend/src/routes/userAuth.js
+```javascript
+// backend/src/routes/userAuth.js
+
+const express = require('express');
+const router = express.Router();
+const UserAuthController = require('../controllers/userAuthController');
+const { 
+  verifyCustomerToken, 
+  rateLimitCustomerLogin,
+  customerSecurityHeaders 
+} = require('../middleware/userAuth');
+
+/**
+ * User Authentication Routes
+ * Base path: /api/auth
+ */
+
+// Apply security headers to all routes
+router.use(customerSecurityHeaders);
+
+// ==================== PUBLIC ROUTES ====================
+
+/**
+ * @route   POST /api/auth/register
+ * @desc    Register a new customer account
+ * @access  Public
+ * @body    { name, email, password, phone? }
+ */
+router.post('/register', UserAuthController.register);
+
+/**
+ * @route   POST /api/auth/login
+ * @desc    Login customer
+ * @access  Public
+ * @body    { email, password }
+ */
+router.post('/login', rateLimitCustomerLogin, UserAuthController.login);
+
+/**
+ * @route   POST /api/auth/forgot-password
+ * @desc    Request password reset email
+ * @access  Public
+ * @body    { email }
+ */
+router.post('/forgot-password', UserAuthController.forgotPassword);
+
+/**
+ * @route   POST /api/auth/reset-password/:token
+ * @desc    Reset password with token
+ * @access  Public
+ * @params  token (JWT token from email)
+ * @body    { password }
+ */
+router.post('/reset-password/:token', UserAuthController.resetPassword);
+
+/**
+ * @route   POST /api/auth/verify-email/:token
+ * @desc    Verify email with token
+ * @access  Public
+ * @params  token (JWT token from email)
+ */
+router.post('/verify-email/:token', UserAuthController.verifyEmail);
+
+// ==================== PROTECTED ROUTES ====================
+// All routes below require authentication
+
+router.use(verifyCustomerToken);
+
+/**
+ * @route   GET /api/auth/me
+ * @desc    Get current authenticated user
+ * @access  Private (Customer)
+ */
+router.get('/me', UserAuthController.getCurrentUser);
+
+/**
+ * @route   POST /api/auth/logout
+ * @desc    Logout customer (client-side token removal)
+ * @access  Private (Customer)
+ */
+router.post('/logout', UserAuthController.logout);
+
+/**
+ * @route   POST /api/auth/refresh
+ * @desc    Refresh JWT token
+ * @access  Private (Customer)
+ */
+router.post('/refresh', UserAuthController.refreshToken);
+
+/**
+ * @route   POST /api/auth/verify-email/request
+ * @desc    Request email verification (send email)
+ * @access  Private (Customer)
+ */
+router.post('/verify-email/request', UserAuthController.requestEmailVerification);
+
+/**
+ * @route   PUT /api/auth/change-password
+ * @desc    Change password (authenticated user)
+ * @access  Private (Customer)
+ * @body    { currentPassword, newPassword }
+ */
+router.put('/change-password', UserAuthController.changePassword);
+
+module.exports = router;
+```
+
+## backend/src/routes/addresses.js
+```javascript
+// backend/src/routes/addresses.js
+
+const express = require('express');
+const router = express.Router();
+const {
+  getAddresses,
+  getAddressById,
+  createAddress,
+  updateAddress,
+  deleteAddress,
+  setDefaultAddress,
+  getDefaultAddress,
+  bulkDeleteAddresses,
+  getAddressStats,
+  geocodeAddress
+} = require('../controllers/addressController');
+
+const { 
+  verifyCustomerToken, 
+  customerSecurityHeaders 
+} = require('../middleware/userAuth');
+
+// Apply security headers to all routes
+router.use(customerSecurityHeaders);
+
+// All routes require authentication
+router.use(verifyCustomerToken);
+
+// ==================== ADDRESS ROUTES ====================
+
+/**
+ * @route   GET /api/addresses
+ * @desc    Get all addresses for authenticated user
+ * @query   ?type=home&default_only=true
+ * @access  Private (Customer)
+ */
+router.get('/', getAddresses);
+
+/**
+ * @route   POST /api/addresses
+ * @desc    Create new address
+ * @access  Private (Customer)
+ */
+router.post('/', createAddress);
+
+/**
+ * @route   GET /api/addresses/default
+ * @desc    Get default address only
+ * @access  Private (Customer)
+ * @note    Must be BEFORE /:id route to prevent conflict
+ */
+router.get('/default', getDefaultAddress);
+
+/**
+ * @route   GET /api/addresses/stats
+ * @desc    Get address statistics (count, types, etc)
+ * @access  Private (Customer)
+ * @note    Must be BEFORE /:id route to prevent conflict
+ */
+router.get('/stats', getAddressStats);
+
+/**
+ * @route   POST /api/addresses/geocode
+ * @desc    Geocode address search (Mapbox/Nominatim)
+ * @access  Private (Customer)
+ */
+router.post('/geocode', geocodeAddress);
+
+/**
+ * @route   DELETE /api/addresses/bulk
+ * @desc    Bulk delete addresses
+ * @body    { addressIds: [uuid1, uuid2, ...] }
+ * @access  Private (Customer)
+ */
+router.delete('/bulk', bulkDeleteAddresses);
+
+/**
+ * @route   GET /api/addresses/:id
+ * @desc    Get single address by ID
+ * @access  Private (Customer)
+ */
+router.get('/:id', getAddressById);
+
+/**
+ * @route   PUT /api/addresses/:id
+ * @desc    Update existing address
+ * @access  Private (Customer)
+ */
+router.put('/:id', updateAddress);
+
+/**
+ * @route   DELETE /api/addresses/:id
+ * @desc    Delete address
+ * @access  Private (Customer)
+ */
+router.delete('/:id', deleteAddress);
+
+/**
+ * @route   PATCH /api/addresses/:id/default
+ * @desc    Set address as default
+ * @access  Private (Customer)
+ */
+router.patch('/:id/default', setDefaultAddress);
+
+module.exports = router;
+```
+
+## backend/src/routes/users.js
+```javascript
+// backend/src/routes/users.js
+
+const express = require('express');
+const router = express.Router();
+const UserProfileController = require('../controllers/userProfileController');
+const { verifyCustomerToken, customerSecurityHeaders } = require('../middleware/userAuth');
+
+/**
+ * User Profile Routes
+ * Base path: /api/users
+ * All routes require authentication
+ */
+
+// Apply security headers
+router.use(customerSecurityHeaders);
+
+// Apply authentication to all routes
+router.use(verifyCustomerToken);
+
+// ==================== PROFILE ROUTES ====================
+
+/**
+ * @route   GET /api/users/profile
+ * @desc    Get user profile with statistics
+ * @access  Private (Customer)
+ */
+router.get('/profile', UserProfileController.getProfile);
+
+/**
+ * @route   PUT /api/users/profile
+ * @desc    Update user profile (name, phone)
+ * @access  Private (Customer)
+ * @body    { name, phone? }
+ */
+router.put('/profile', UserProfileController.updateProfile);
+
+/**
+ * @route   PUT /api/users/email
+ * @desc    Update user email
+ * @access  Private (Customer)
+ * @body    { email, password }
+ */
+router.put('/email', UserProfileController.updateEmail);
+
+/**
+ * @route   DELETE /api/users/account
+ * @desc    Delete/deactivate user account
+ * @access  Private (Customer)
+ * @body    { password, confirmDelete: true }
+ */
+router.delete('/account', UserProfileController.deleteAccount);
+
+// ==================== DASHBOARD ROUTES ====================
+
+/**
+ * @route   GET /api/users/dashboard
+ * @desc    Get dashboard overview statistics
+ * @access  Private (Customer)
+ */
+router.get('/dashboard', UserProfileController.getDashboardStats);
+
+/**
+ * @route   GET /api/users/notifications
+ * @desc    Get user notifications
+ * @access  Private (Customer)
+ */
+router.get('/notifications', UserProfileController.getNotifications);
+
+module.exports = router;
+```
+
+## backend/src/routes/products.js
+```javascript
+// backend/src/routes/products.js
+const express = require('express');
+const router = express.Router();
+const { 
+  getAllProducts, 
+  getProductById 
+} = require('../controllers/productController');
+const supabase = require('../config/supabaseClient');
+
+// Public product routes (no multer needed - just reading data)
+router.get('/', getAllProducts);
+
+// Duplicate product route - place BEFORE the /:id route to avoid conflicts
+router.post('/admin/:id/duplicate', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get original product from Supabase
+    const { data: original, error: fetchError } = await supabase
+      .from('Products')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !original) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Product not found' 
+      });
+    }
+    
+    // Create duplicate product data
+    const duplicateData = {
+      title: `${original.title} (Copy)`,
+      description: original.description,
+      price: original.price,
+      stock: original.stock,
+      sku: `${original.sku}-COPY-${Date.now()}`,
+      category_id: original.category_id,
+      img_url: original.img_url,
+      has_variants: false
+    };
+
+    // Insert duplicate into Supabase
+    const { data: duplicate, error: createError } = await supabase
+      .from('Products')
+      .insert([duplicateData])
+      .select()
+      .single();
+
+    if (createError) {
+      throw createError;
+    }
+    
+    res.status(201).json({
+      success: true,
+      message: 'Product duplicated successfully',
+      data: duplicate
+    });
+  } catch (error) {
+    console.error('Duplicate product error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: error.message 
+    });
+  }
+});
+
+router.get('/:id', getProductById);
+
+module.exports = router;
+```
+
+## backend/src/routes/cart.js
+```javascript
+// backend/src/routes/cart.js
+
+const express = require('express');
+const router = express.Router();
+const CartController = require('../controllers/cartController');
+const { optionalAuth, customerSecurityHeaders } = require('../middleware/userAuth');
+
+/**
+ * Cart Routes
+ * Base path: /api/cart
+ * Supports both authenticated users and guest sessions
+ */
+
+// Apply security headers
+router.use(customerSecurityHeaders);
+
+// Apply optional authentication
+router.use(optionalAuth);
+
+// ==================== CART OPERATIONS ====================
+
+/**
+ * @route   GET /api/cart
+ * @desc    Get user's cart with items and totals
+ * @access  Public (requires user_id or x-session-id header)
+ */
+router.get('/', CartController.getCart);
+
+/**
+ * @route   POST /api/cart/items
+ * @desc    Add item to cart
+ * @access  Public (requires user_id or x-session-id header)
+ * @body    { product_variant_id, quantity?, bundle_origin?, bundle_id? }
+ * @header  x-session-id (for guest users)
+ */
+router.post('/items', CartController.addToCart);
+
+/**
+ * @route   PATCH /api/cart/items/:id
+ * @desc    Update cart item quantity
+ * @access  Public (requires user_id or x-session-id header)
+ * @params  id (cart_item_id)
+ * @body    { quantity }
+ */
+router.patch('/items/:id', CartController.updateCartItem);
+
+/**
+ * @route   DELETE /api/cart/items/:id
+ * @desc    Remove item from cart
+ * @access  Public (requires user_id or x-session-id header)
+ * @params  id (cart_item_id)
+ */
+router.delete('/items/:id', CartController.removeCartItem);
+
+/**
+ * @route   DELETE /api/cart
+ * @desc    Clear all items from cart
+ * @access  Public (requires user_id or x-session-id header)
+ */
+router.delete('/', CartController.clearCart);
+
+/**
+ * @route   POST /api/cart/merge
+ * @desc    Merge guest cart into user cart (on login)
+ * @access  Private (Customer)
+ * @body    { session_id }
+ */
+const { verifyCustomerToken } = require('../middleware/userAuth');
+router.post('/merge', verifyCustomerToken, CartController.mergeCarts);
+
+module.exports = router;
+```
+
+## backend/src/routes/orders.js
+```javascript
+// backend/src/routes/orders.js
+
+const express = require('express');
+const router = express.Router();
+const OrderController = require('../controllers/orderController');
+const { 
+  verifyCustomerToken, 
+  customerSecurityHeaders 
+} = require('../middleware/userAuth');
+
+/**
+ * Order Routes
+ * Base path: /api/orders
+ * All routes require authentication
+ */
+
+// Apply security headers
+router.use(customerSecurityHeaders);
+
+// Apply authentication to all routes
+router.use(verifyCustomerToken);
+
+// ==================== ORDER MANAGEMENT ====================
+
+/**
+ * @route   POST /api/orders
+ * @desc    Create a new order from cart
+ * @access  Private (Customer)
+ * @body    { address_id, payment_method, notes?, gift_wrap?, gift_message?, coupon_code? }
+ */
+router.post('/', OrderController.createOrder);
+
+/**
+ * @route   GET /api/orders
+ * @desc    Get all orders for logged-in user
+ * @access  Private (Customer)
+ * @query   page, limit, status, payment_status, from_date, to_date
+ */
+router.get('/', OrderController.getOrders);
+
+/**
+ * @route   GET /api/orders/stats
+ * @desc    Get order statistics for user
+ * @access  Private (Customer)
+ * @note    Must be BEFORE /:id route to prevent conflict
+ */
+router.get('/stats', OrderController.getOrderStats);
+
+/**
+ * @route   GET /api/orders/:id
+ * @desc    Get single order details
+ * @access  Private (Customer)
+ */
+router.get('/:id', OrderController.getOrderById);
+
+/**
+ * @route   POST /api/orders/:id/cancel
+ * @desc    Cancel an order
+ * @access  Private (Customer)
+ * @body    { reason? }
+ */
+router.post('/:id/cancel', OrderController.cancelOrder);
+
+/**
+ * @route   GET /api/orders/:id/tracking
+ * @desc    Get order tracking information
+ * @access  Private (Customer)
+ */
+router.get('/:id/tracking', OrderController.getOrderTracking);
+
+/**
+ * @route   POST /api/orders/:id/reorder
+ * @desc    Reorder - Add all items from previous order to cart
+ * @access  Private (Customer)
+ */
+router.post('/:id/reorder', OrderController.reorderItems);
+
+module.exports = router;
+```
+
+## backend/src/routes/payments.js
+```javascript
+// backend/src/routes/payments.js
+
+const express = require('express');
+const router = express.Router();
+const {
+  createRazorpayOrder,
+  verifyRazorpayPayment,
+  razorpayWebhook,
+  createStripeIntent,
+  stripeWebhook,
+  getPaymentHistory,
+  getPaymentDetails
+} = require('../controllers/paymentController');
+const { 
+  verifyCustomerToken, 
+  customerSecurityHeaders 
+} = require('../middleware/userAuth');
+
+// ==================== RAZORPAY ROUTES ====================
+
+/**
+ * @route   POST /api/payments/razorpay/create
+ * @desc    Create Razorpay order
+ * @body    { amount: number, orderId?: uuid }
+ * @access  Private (Customer)
+ */
+router.post('/razorpay/create', verifyCustomerToken, customerSecurityHeaders, createRazorpayOrder);
+
+/**
+ * @route   POST /api/payments/razorpay/verify
+ * @desc    Verify Razorpay payment signature
+ * @body    { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId }
+ * @access  Private (Customer)
+ */
+router.post('/razorpay/verify', verifyCustomerToken, customerSecurityHeaders, verifyRazorpayPayment);
+
+/**
+ * @route   POST /api/payments/razorpay/webhook
+ * @desc    Razorpay webhook endpoint
+ * @access  Public (Razorpay servers only - signature verified)
+ * @note    NO authentication middleware - Razorpay needs direct access
+ */
+router.post('/razorpay/webhook', razorpayWebhook);
+
+// ==================== STRIPE ROUTES ====================
+
+/**
+ * @route   POST /api/payments/stripe/intent
+ * @desc    Create Stripe payment intent
+ * @body    { amount: number, orderId?: uuid }
+ * @access  Private (Customer)
+ */
+router.post('/stripe/intent', verifyCustomerToken, customerSecurityHeaders, createStripeIntent);
+
+/**
+ * @route   POST /api/payments/stripe/webhook
+ * @desc    Stripe webhook endpoint
+ * @access  Public (Stripe servers only - signature verified)
+ * @note    NO authentication middleware - Stripe needs direct access
+ */
+router.post('/stripe/webhook', stripeWebhook);
+
+// ==================== PAYMENT QUERY ROUTES ====================
+
+// Apply security headers to all query routes
+router.use(customerSecurityHeaders);
+
+// All query routes require authentication
+router.use(verifyCustomerToken);
+
+/**
+ * @route   GET /api/payments/history
+ * @desc    Get user's payment history
+ * @query   ?page=1&limit=10&status=success
+ * @access  Private (Customer)
+ */
+router.get('/history', getPaymentHistory);
+
+/**
+ * @route   GET /api/payments/:id
+ * @desc    Get single payment details
+ * @access  Private (Customer)
+ */
+router.get('/:id', getPaymentDetails);
+
+module.exports = router;
+```
+
+## backend/src/routes/reviews.js
+```javascript
+// backend/src/routes/reviews.js
+
+const express = require('express');
+const router = express.Router();
+const ReviewController = require('../controllers/reviewController');
+const { 
+  verifyCustomerToken, 
+  optionalAuth,
+  customerSecurityHeaders 
+} = require('../middleware/userAuth');
+
+/**
+ * Review Routes
+ * Base path: /api/reviews
+ */
+
+// Apply security headers to all routes
+router.use(customerSecurityHeaders);
+
+// ==================== PUBLIC ROUTES ====================
+
+/**
+ * @route   GET /api/reviews/product/:product_id
+ * @desc    Get reviews for a product (public)
+ * @access  Public
+ * @query   page, limit, rating_filter (1-5), sort (recent/helpful/rating_high/rating_low)
+ */
+router.get('/product/:product_id', ReviewController.getProductReviews);
+
+// ==================== PROTECTED ROUTES ====================
+
+// All routes below require authentication
+router.use(verifyCustomerToken);
+
+/**
+ * @route   POST /api/reviews
+ * @desc    Create a product review
+ * @access  Private (must have purchased product)
+ * @body    { product_id, rating, comment?, order_id? }
+ */
+router.post('/', ReviewController.createReview);
+
+/**
+ * @route   GET /api/reviews/my-reviews
+ * @desc    Get all reviews by logged-in user
+ * @access  Private
+ * @query   page, limit
+ */
+router.get('/my-reviews', ReviewController.getMyReviews);
+
+/**
+ * @route   PUT /api/reviews/:id
+ * @desc    Update a review
+ * @access  Private (own reviews only)
+ * @body    { rating?, comment? }
+ */
+router.put('/:id', ReviewController.updateReview);
+
+/**
+ * @route   DELETE /api/reviews/:id
+ * @desc    Delete a review
+ * @access  Private (own reviews only)
+ */
+router.delete('/:id', ReviewController.deleteReview);
+
+/**
+ * @route   POST /api/reviews/:id/helpful
+ * @desc    Mark review as helpful
+ * @access  Private
+ */
+router.post('/:id/helpful', ReviewController.markHelpful);
+
+module.exports = router;
+```
+
+## backend/src/routes/wishlist.js
+```javascript
+// backend/src/routes/wishlist.js
+
+const express = require('express');
+const router = express.Router();
+const WishlistController = require('../controllers/wishlistController');
+const { 
+  verifyCustomerToken, 
+  customerSecurityHeaders 
+} = require('../middleware/userAuth');
+
+/**
+ * Wishlist Routes - All routes require authentication
+ * Base path: /api/wishlist
+ */
+
+// Apply security headers and authentication to all routes
+router.use(customerSecurityHeaders);
+router.use(verifyCustomerToken);
+
+// ==================== WISHLIST MANAGEMENT ====================
+
+/**
+ * @route   GET /api/wishlist
+ * @desc    Get user's wishlist with product details
+ * @access  Private
+ * @query   page, limit, sort (date/title/price), category_id
+ */
+router.get('/', WishlistController.getWishlist);
+
+/**
+ * @route   POST /api/wishlist
+ * @desc    Add product to wishlist
+ * @access  Private
+ * @body    { product_id }
+ */
+router.post('/', WishlistController.addToWishlist);
+
+/**
+ * @route   DELETE /api/wishlist
+ * @desc    Clear entire wishlist
+ * @access  Private
+ */
+router.delete('/', WishlistController.clearWishlist);
+
+// ==================== WISHLIST STATISTICS ====================
+
+/**
+ * @route   GET /api/wishlist/stats
+ * @desc    Get wishlist statistics (total items, value, avg price)
+ * @access  Private
+ */
+router.get('/stats', WishlistController.getWishlistStats);
+
+// ==================== CART OPERATIONS ====================
+
+/**
+ * @route   POST /api/wishlist/move-all-to-cart
+ * @desc    Move all wishlist items to cart (bulk operation)
+ * @access  Private
+ */
+router.post('/move-all-to-cart', WishlistController.moveAllToCart);
+
+/**
+ * @route   POST /api/wishlist/:id/move-to-cart
+ * @desc    Move single item from wishlist to cart
+ * @access  Private
+ * @body    { variant_id?, quantity? }
+ */
+router.post('/:id/move-to-cart', WishlistController.moveToCart);
+
+// ==================== CHECK PRODUCT ====================
+
+/**
+ * @route   GET /api/wishlist/check/:product_id
+ * @desc    Check if product is in wishlist
+ * @access  Private
+ */
+router.get('/check/:product_id', WishlistController.checkInWishlist);
+
+// ==================== ITEM OPERATIONS ====================
+
+/**
+ * @route   DELETE /api/wishlist/:id
+ * @desc    Remove single item from wishlist
+ * @access  Private
+ */
+router.delete('/:id', WishlistController.removeFromWishlist);
+
+module.exports = router;
+```
+
+## backend/src/routes/categories.js
+```javascript
+// backend/src/routes/categories.js
+const express = require('express');
+const router = express.Router();
+const {
+  getAllCategories,
+  getCategoryById,
+  createCategory,
+  updateCategory,
+  deleteCategory
+} = require('../controllers/categoryController');
+
+// Public routes
+router.get('/', getAllCategories);
+router.get('/:id', getCategoryById);
+
+// Admin routes (no multer needed - categories don't have images)
+router.post('/admin', createCategory);
+router.put('/admin/:id', updateCategory);
+router.delete('/admin/:id', deleteCategory);
+
+module.exports = router;
+```
+
+## backend/src/routes/bundles.js
+```javascript
+// backend/src/routes/bundles.js
+
+const express = require('express');
+const router = express.Router();
+const upload = require('../config/multer');
+const {
+  createBundle,
+  getAllBundles,
+  getBundleById,
+  updateBundle,
+  deleteBundle,
+  toggleBundleStatus,
+  duplicateBundle,
+  getBundleStock
+} = require('../controllers/bundleController');
+
+// ========================================
+// PUBLIC ROUTES (Customer-facing)
+// ========================================
+
+/**
+ * GET /api/bundles
+ * Get all bundles with optional filters
+ * Query params:
+ *   - active: 'true' | 'false' (filter by active status)
+ *   - page: number (default: 1)
+ *   - limit: number (default: 20)
+ *   - sort: 'created_at' | 'title' | 'price' | 'discount_percent'
+ */
+router.get('/', getAllBundles);
+
+/**
+ * GET /api/bundles/:id
+ * Get single bundle details with all products/variants
+ */
+router.get('/:id', getBundleById);
+
+/**
+ * GET /api/bundles/:id/stock
+ * Check stock availability for all items in bundle
+ * Returns which items are in stock or out of stock
+ */
+router.get('/:id/stock', getBundleStock);
+
+// ========================================
+// ADMIN ROUTES (Bundle Management)
+// ========================================
+
+/**
+ * POST /api/bundles/admin
+ * Create new bundle
+ * Content-Type: multipart/form-data
+ * Body:
+ *   - image: file (optional - bundle display image)
+ *   - title: string (required)
+ *   - description: string (optional)
+ *   - price: number (required - discounted bundle price)
+ *   - stock_limit: number (optional - max bundles available)
+ *   - items: JSON string (required - array of products/variants)
+ *     Format: [{ product_id: uuid, variant_id: uuid?, quantity: number }]
+ */
+router.post('/admin', upload.single('image'), createBundle);
+
+/**
+ * PUT /api/bundles/admin/:id
+ * Update existing bundle
+ * Content-Type: multipart/form-data
+ * Body: Same as POST, all fields optional except at least one must be provided
+ */
+router.put('/admin/:id', upload.single('image'), updateBundle);
+
+/**
+ * DELETE /api/bundles/admin/:id
+ * Delete bundle (CASCADE deletes bundle_items)
+ * Also deletes bundle image from Cloudinary
+ */
+router.delete('/admin/:id', deleteBundle);
+
+/**
+ * PATCH /api/bundles/admin/:id/toggle
+ * Toggle bundle active/inactive status
+ * No body required - automatically toggles current status
+ */
+router.patch('/admin/:id/toggle', toggleBundleStatus);
+
+/**
+ * POST /api/bundles/admin/:id/duplicate
+ * Duplicate existing bundle with "(Copy)" suffix
+ * Creates new bundle with same items but inactive by default
+ * No body required
+ */
+router.post('/admin/:id/duplicate', duplicateBundle);
+
+module.exports = router;
+```
+
+## backend/src/routes/variants.js
+```javascript
+// backend/src/routes/variants.js
+
+const express = require('express');
+const router = express.Router();
+const upload = require('../config/multer');
+const {
+  createVariant,
+  getVariantsByProductId,
+  getVariantById,
+  updateVariant,
+  deleteVariant,
+  updateVariantStock,
+  uploadVariantImage
+} = require('../controllers/variantController');
+
+// ========================================
+// PUBLIC ROUTES
+// ========================================
+
+// Get all variants for a product
+router.get('/products/:productId/variants', getVariantsByProductId);
+
+// Get single variant by ID
+router.get('/:variantId', getVariantById);
+
+// ========================================
+// ADMIN ROUTES
+// ========================================
+
+// Create variant
+router.post('/admin/products/:productId/variants', createVariant);
+
+// Update variant
+router.put('/admin/:variantId', updateVariant);
+
+// Update variant stock only
+router.patch('/admin/:variantId/stock', updateVariantStock);
+
+// Upload variant image
+router.post('/admin/:variantId/image', upload.single('image'), uploadVariantImage);
+
+// Delete variant
+router.delete('/admin/:variantId', deleteVariant);
+
+module.exports = router;
+```
+
+## backend/src/routes/adminAuth.js
+```javascript
+// backend/src/routes/adminAuth.js
+
+const express = require('express');
+const router = express.Router();
+const {
+  registerAdmin,
+  loginAdmin,
+  getCurrentAdmin,
+  logoutAdmin,
+  refreshToken,
+  verifyAdminPassword
+} = require('../controllers/adminAuthController');
+const { 
+  verifyAdminToken, 
+  rateLimitLogin, 
+  securityHeaders 
+} = require('../middleware/adminAuth');
+
+// Apply security headers to all admin routes
+router.use(securityHeaders);
+
+// Public routes with rate limiting for auth endpoints
+router.post('/register', rateLimitLogin, registerAdmin);
+router.post('/login', rateLimitLogin, loginAdmin);
+router.post('/verify', rateLimitLogin, verifyAdminPassword);
+router.post('/refresh', refreshToken);
+
+// Protected routes
+router.get('/me', verifyAdminToken, getCurrentAdmin);
+router.post('/logout', verifyAdminToken, logoutAdmin);
+
+module.exports = router;
+```
+
+## backend/src/routes/admin.js
+```javascript
+// backend/src/routes/admin.js
+const express = require('express');
+const router = express.Router();
+const upload = require('../config/multer');
+const {
+  createProduct,
+  updateProduct,
+  deleteProduct
+} = require('../controllers/productController');
+
+// Admin product routes
+router.post('/products', upload.single('image'), createProduct);
+router.put('/products/:id', upload.single('image'), updateProduct);
+router.delete('/products/:id', deleteProduct);
+
+module.exports = router;
+```
+backend/src/controllers/orderController.js (NEEDS IMPLEMENTATION UPDATES)
+The current implementation needs the following helper functions added:
+javascript// Add to orderController.js
+
+const OrderModel = require('../models/orderModel');
+const CartModel = require('../models/cartModel');
+const supabase = require('../config/supabaseClient');
+
+const createOrder = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { 
+      address_id, 
+      payment_method, 
+      notes,
+      gift_wrap,
+      gift_message,
+      coupon_code 
+    } = req.body;
+
+    // Validation
+    if (!address_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Delivery address is required'
+      });
+    }
+
+    if (!payment_method || !['razorpay', 'stripe', 'cod'].includes(payment_method)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid payment method is required (razorpay/stripe/cod)'
+      });
+    }
+
+    // Get user cart
+    const cartData = await CartModel.getCartWithItems(userId);
+    
+    if (!cartData.items || cartData.items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot create order. Cart is empty.',
+        code: 'CART_EMPTY'
+      });
+    }
+
+    // Verify address belongs to user
+    const { data: address, error: addressError } = await supabase
+      .from('Addresses')
+      .select('*')
+      .eq('id', address_id)
+      .eq('user_id', userId)
+      .single();
+
+    if (addressError || !address) {
+      return res.status(404).json({
+        success: false,
+        message: 'Address not found'
+      });
+    }
+
+    // Get cart totals
+    const cartTotals = await CartModel.getCartTotals(userId);
+
+    // Check stock
+    const stockCheck = await CartModel.checkStock(userId);
+    if (!stockCheck.all_in_stock) {
+      return res.status(400).json({
+        success: false,
+        message: 'Some items are out of stock',
+        out_of_stock_items: stockCheck.out_of_stock_items,
+        code: 'INSUFFICIENT_STOCK'
+      });
+    }
+
+    // Format items for order
+    const orderItems = cartData.items.map(item => ({
+      product_variant_id: item.product_variant_id,
+      quantity: item.quantity,
+      price: item.price,
+      bundle_origin: item.bundle_origin,
+      bundle_id: item.bundle_id
+    }));
+
+    // Create order
+    const order = await OrderModel.create(
+      {
+        user_id: userId,
+        subtotal: cartTotals.subtotal,
+        shipping_cost: cartTotals.shipping_cost,
+        final_total: cartTotals.final_total,
+        shipping_address: address,
+        payment_id: null,
+        bundle_type: 'single'
+      },
+      orderItems
+    );
+
+    // Clear cart after order creation
+    await CartModel.clearCart(userId);
+
+    console.log(`✅ Order created: ${order.id} for user ${userId}`);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Order created successfully',
+      order
+    });
+
+  } catch (error) {
+    console.error('❌ Create order error:', error);
+
+    if (error.message === 'CART_EMPTY') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot create order. Cart is empty.'
+      });
+    }
+
+    if (error.message === 'INSUFFICIENT_STOCK') {
+      return res.status(400).json({
+        success: false,
+        message: 'Some items are out of stock. Please update your cart.'
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create order'
+    });
+  }
+};
+
+const getOrders = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { 
+      page = 1, 
+      limit = 10, 
+      status, 
+      payment_status,
+      from_date,
+      to_date 
+    } = req.query;
+
+    const orders = await OrderModel.findByUser(userId, {
+      limit: parseInt(limit),
+      offset: (parseInt(page) - 1) * parseInt(limit),
+      status,
+      sortBy: 'created_at',
+      sortOrder: 'DESC'
+    });
+
+    // Get total count
+    let countQuery = supabase
+      .from('Orders')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (status) {
+      countQuery = countQuery.eq('status', status);
+    }
+
+    const { count } = await countQuery;
+
+    return res.status(200).json({
+      success: true,
+      orders,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count || 0,
+        pages: Math.ceil((count || 0) / parseInt(limit))
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Get orders error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch orders'
+    });
+  }
+};
+
+const getOrderById = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const orderId = req.params.id;
+
+    const order = await OrderModel.findById(orderId, userId);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      order
+    });
+
+  } catch (error) {
+    console.error('❌ Get order error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch order details'
+    });
+  }
+};
+
+const getOrderStats = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const stats = await OrderModel.getStatistics(userId);
+
+    return res.status(200).json({
+      success: true,
+      stats
+    });
+
+  } catch (error) {
+    console.error('❌ Get order stats error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch order statistics'
+    });
+  }
+};
+
+const cancelOrder = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const orderId = req.params.id;
+    const { reason } = req.body;
+
+    const order = await OrderModel.findById(orderId, userId);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    if (!['pending', 'confirmed'].includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot cancel order with status: ${order.status}`
+      });
+    }
+
+    const cancelled = await OrderModel.cancel(orderId, userId);
+
+    if (!cancelled) {
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to cancel order'
+      });
+    }
+
+    console.log(`✅ Order cancelled: ${orderId} by user ${userId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Order cancelled successfully',
+      order: cancelled
+    });
+
+  } catch (error) {
+    console.error('❌ Cancel order error:', error);
+
+    if (error.message === 'ORDER_CANNOT_BE_CANCELLED') {
+      return res.status(400).json({
+        success: false,
+        message: 'This order cannot be cancelled'
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to cancel order'
+    });
+  }
+};
+
+const getOrderTracking = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const orderId = req.params.id;
+
+    const order = await OrderModel.findById(orderId, userId);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    const tracking = {
+      order_id: order.id,
+      status: order.status,
+      tracking_number: order.tracking_number,
+      carrier: order.carrier,
+      estimated_delivery: order.estimated_delivery_date,
+      timeline: [
+        {
+          status: 'pending',
+          label: 'Order Placed',
+          date: order.created_at,
+          completed: true
+        },
+        {
+          status: 'confirmed',
+          label: 'Order Confirmed',
+          date: order.confirmed_at,
+          completed: ['confirmed', 'processing', 'shipped', 'delivered'].includes(order.status)
+        },
+        {
+          status: 'processing',
+          label: 'Processing',
+          date: order.processing_at,
+          completed: ['processing', 'shipped', 'delivered'].includes(order.status)
+        },
+        {
+          status: 'shipped',
+          label: 'Shipped',
+          date: order.shipped_at,
+          completed: ['shipped', 'delivered'].includes(order.status)
+        },
+        {
+          status: 'delivered',
+          label: 'Delivered',
+          date: order.delivered_at,
+          completed: order.status === 'delivered'
+        }
+      ]
+    };
+
+    return res.status(200).json({
+      success: true,
+      tracking
+    });
+
+  } catch (error) {
+    console.error('❌ Get tracking error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch tracking information'
+    });
+  }
+};
+
+const reorderItems = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const orderId = req.params.id;
+
+    const order = await OrderModel.findById(orderId, userId);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    for (const item of order.items) {
+      await CartModel.addItem(
+        userId,
+        item.product_variant_id,
+        item.quantity,
+        {
+          bundle_origin: item.bundle_origin || 'single',
+          bundle_id: item.bundle_id
+        }
+      );
+    }
+
+    console.log(`✅ Reordered: ${order.items.length} items from order ${orderId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Items added to cart successfully',
+      items_added: order.items.length
+    });
+
+  } catch (error) {
+    console.error('❌ Reorder error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to reorder items'
+    });
+  }
+};
+
+module.exports = {
+  createOrder,
+  getOrders,
+  getOrderById,
+  getOrderStats,
+  cancelOrder,
+  getOrderTracking,
+  reorderItems
+};
+
+3. backend/.env (Environment Configuration)
+env# ==================== SERVER ====================
+NODE_ENV=development
+PORT=5000
+FRONTEND_URL=http://localhost:5173
+
+# ==================== DATABASE - SUPABASE ====================
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+SUPABASE_ANON_KEY=your_anon_key
+
+# ==================== AUTHENTICATION ====================
+JWT_SECRET=your_super_secret_jwt_key_change_this_in_production
+
+# ==================== IMAGE UPLOAD - CLOUDINARY ====================
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+
+# ==================== PAYMENT GATEWAYS ====================
+RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+RAZORPAY_WEBHOOK_SECRET=your_webhook_secret
+
+STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+STRIPE_SECRET_KEY=your_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
+
+# ==================== EMAIL SERVICE (Optional) ====================
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+SMTP_FROM=noreply@petalpoaches.com
+
+# ==================== LOGGING ====================
+LOG_LEVEL=info
+
+4. backend/package.json
+json{
+  "name": "petal-pouches-backend",
+  "version": "1.2.0",
+  "description": "Backend API for Petal Pouches e-commerce platform",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest --detectOpenHandles",
+    "lint": "eslint src/",
+    "format": "prettier --write src/"
+  },
+  "keywords": [
+    "express",
+    "supabase",
+    "ecommerce",
+    "api"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.1.2",
+    "bcrypt": "^5.1.1",
+    "bcryptjs": "^2.4.3",
+    "@supabase/supabase-js": "^2.38.4",
+    "cloudinary": "^1.41.0",
+    "multer": "^1.4.5-lts.1",
+    "streamifier": "^0.1.1",
+    "razorpay": "^2.9.2",
+    "stripe": "^14.0.0",
+    "express-validator": "^7.0.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "prettier": "^3.1.0",
+    "eslint": "^8.54.0",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
+```
+
+---
+
+## 5. backend/.gitignore
+```
+# Dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Build
+dist/
+build/
+
+# Temp files
+temp/
+tmp/
+*.tmp
+
+# OS
+Thumbs.db
+.DS_Store
+
+6. backend/README.md
+markdown# Petal Pouches Backend API
+
+RESTful API backend for the Petal Pouches e-commerce platform built with Express.js and Supabase.
+
+## Features
+
+- 🔐 JWT-based authentication with role-based access control
+- 🛒 Shopping cart management with guest and authenticated users
+- 📦 Product catalog with variants and bundles
+- 💳 Payment integration (Razorpay & Stripe)
+- ⭐ Product reviews and ratings
+- 📍 Address management with default address logic
+- 🏪 Admin dashboard and product management
+- 🎁 Wishlist functionality
+- 📊 Order tracking and history
+- 🔒 Security middleware and rate limiting
+
+## Prerequisites
+
+- Node.js 18+
+- npm 9+
+- Supabase account and project
+- Cloudinary account (for image uploads)
+- Razorpay account (for payments)
+
+## Installation
+
+1. **Clone repository**
+```bash
+git clone 
+cd backend
+```
+
+2. **Install dependencies**
+```bash
+npm install
+```
+
+3. **Configure environment**
+```bash
+cp .env.example .env
+# Edit .env with your credentials
+```
+
+4. **Start development server**
+```bash
+npm run dev
+```
+
+Server runs on `http://localhost:5000`
+
+## API Documentation
+
+### Authentication Endpoints
+- `POST /api/auth/register` - Register new customer
+- `POST /api/auth/login` - Login customer
+- `POST /api/auth/logout` - Logout
+- `POST /api/auth/refresh` - Refresh JWT token
+- `POST /api/auth/forgot-password` - Request password reset
+- `POST /api/auth/reset-password/:token` - Reset password
+- `POST /api/auth/verify-email/:token` - Verify email
+
+### Products
+- `GET /api/products` - Get all products (with filters)
+- `GET /api/products/:id` - Get product details
+- `POST /api/admin/products` - Create product
+- `PUT /api/admin/products/:id` - Update product
+- `DELETE /api/admin/products/:id` - Delete product
+
+### Cart
+- `GET /api/cart` - Get cart with totals
+- `POST /api/cart/items` - Add to cart
+- `PATCH /api/cart/items/:id` - Update quantity
+- `DELETE /api/cart/items/:id` - Remove item
+- `DELETE /api/cart` - Clear cart
+
+### Orders
+- `POST /api/orders` - Create order
+- `GET /api/orders` - Get user orders
+- `GET /api/orders/:id` - Get order details
+- `POST /api/orders/:id/cancel` - Cancel order
+- `GET /api/orders/:id/tracking` - Get tracking info
+
+### Payments
+- `POST /api/payments/razorpay/create` - Create Razorpay order
+- `POST /api/payments/razorpay/verify` - Verify payment
+- `GET /api/payments/history` - Payment history
+
+### Wishlist
+- `GET /api/wishlist` - Get wishlist
+- `POST /api/wishlist` - Add to wishlist
+- `DELETE /api/wishlist/:id` - Remove from wishlist
+
+### Addresses
+- `GET /api/addresses` - Get user addresses
+- `POST /api/addresses` - Create address
+- `PUT /api/addresses/:id` - Update address
+- `DELETE /api/addresses/:id` - Delete address
+- `PATCH /api/addresses/:id/default` - Set default
+
+## Environment Variables
+```env
+NODE_ENV=development
+PORT=5000
+FRONTEND_URL=http://localhost:5173
+
+SUPABASE_URL=<your_supabase_url>
+SUPABASE_SERVICE_ROLE_KEY=<your_service_role_key>
+
+JWT_SECRET=<your_jwt_secret>
+
+CLOUDINARY_CLOUD_NAME=<your_cloud_name>
+CLOUDINARY_API_KEY=<your_api_key>
+CLOUDINARY_API_SECRET=<your_api_secret>
+
+RAZORPAY_KEY_ID=<your_razorpay_key>
+RAZORPAY_KEY_SECRET=<your_razorpay_secret>
+
+STRIPE_PUBLISHABLE_KEY=<your_stripe_publishable_key>
+STRIPE_SECRET_KEY=<your_stripe_secret_key>
+```
+
+## Project Structure
+```
+backend/
+├── src/
+│   ├── config/           # Configuration files
+│   ├── controllers/       # Request handlers
+│   ├── middleware/        # Express middleware
+│   ├── models/           # Database models
+│   ├── routes/           # API routes
+│   ├── services/         # Business logic
+│   ├── utils/            # Utility functions
+│   └── index.js          # Entry point
+├── .env                  # Environment variables
+├── .gitignore           # Git ignore rules
+├── package.json         # Dependencies
+└── README.md            # This file
+```
+
+## Error Handling
+
+All errors return consistent JSON format:
+```json
+{
+  "success": false,
+  "message": "Error description",
+  "code": "ERROR_CODE"
+}
+```
+
+## Security
+
+- JWT tokens expire in 7 days
+- Admin tokens expire in 30 minutes
+- Rate limiting on login attempts (5 attempts per 15 minutes)
+- Password hashing with bcrypt (10 salt rounds)
+- CORS configured for frontend URL
+- Security headers (helmet.js)
+- Input validation with express-validator
+
+## Database Schema
+
+See Supabase database documentation for complete schema.
+
+Key tables:
+- `Users` - Customer accounts
+- `Products` - Product catalog
+- `Product_variants` - Product variations
+- `Orders` - Customer orders
+- `Order_items` - Items in orders
+- `Carts` - Shopping carts
+- `Wishlist` - Saved products
+- `Addresses` - Delivery addresses
+- `Reviews` - Product reviews
+
+## Contributing
+
+1. Fork repository
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
+
+## License
+
+This project is licensed under the MIT License - see LICENSE file for details.
+
+## Support
+
+For support, email support@petalpoaches.com or create an issue in the repository.
+
+7. backend/Dockerfile (for containerization)
+dockerfileFROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy application files
+COPY src ./src
+
+# Expose port
+EXPOSE 5000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:5000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+# Start application
+CMD ["node", "src/index.js"]
+
+8. backend/docker-compose.yml (for development)
+yamlversion: '3.8'
+
+services:
+  backend:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - FRONTEND_URL=http://localhost:5173
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
+    volumes:
+      - .:/app
+      - /app/node_modules
+    restart: unless-stopped
+

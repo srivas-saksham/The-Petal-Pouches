@@ -50,6 +50,98 @@ const deleteAllVariantsForProduct = async (productId) => {
   }
 };
 
+/**
+ * ✅ NEW: Get price range statistics for products
+ * Used for filter range sliders
+ */
+const getPriceRange = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('Products')
+      .select('price')
+      .gt('stock', 0)
+      .order('price', { ascending: true });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      return { minPrice: 100, maxPrice: 50000 };
+    }
+
+    const prices = data.map(p => p.price).filter(p => p > 0);
+    const minPrice = Math.floor(Math.min(...prices) / 100) * 100;
+    const maxPrice = Math.ceil(Math.max(...prices) / 100) * 100;
+
+    return { minPrice, maxPrice };
+  } catch (error) {
+    console.error('Error getting price range:', error);
+    return { minPrice: 100, maxPrice: 50000 };
+  }
+};
+
+/**
+ * ✅ NEW: Get product statistics and aggregations
+ * Useful for dashboard and analytics
+ */
+const getProductStats = async (req, res) => {
+  try {
+    // Total products count
+    const { count: totalProducts, error: countError } = await supabase
+      .from('Products')
+      .select('id', { count: 'exact' });
+
+    // In stock count
+    const { count: inStockCount, error: inStockError } = await supabase
+      .from('Products')
+      .select('id', { count: 'exact' })
+      .gt('stock', 0);
+
+    // Out of stock count
+    const { count: outOfStockCount, error: outOfStockError } = await supabase
+      .from('Products')
+      .select('id', { count: 'exact' })
+      .eq('stock', 0);
+
+    // Low stock count (<=10)
+    const { count: lowStockCount, error: lowStockError } = await supabase
+      .from('Products')
+      .select('id', { count: 'exact' })
+      .gt('stock', 0)
+      .lte('stock', 10);
+
+    // Get price range
+    const priceRange = await getPriceRange();
+
+    if (countError || inStockError || outOfStockError || lowStockError) {
+      throw new Error('Failed to fetch statistics');
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalProducts: totalProducts || 0,
+        inStockProducts: inStockCount || 0,
+        outOfStockProducts: outOfStockCount || 0,
+        lowStockProducts: lowStockCount || 0,
+        priceRange: {
+          min: priceRange.minPrice,
+          max: priceRange.maxPrice
+        },
+        stockPercentage: totalProducts > 0 
+          ? Math.round((inStockCount / totalProducts) * 100)
+          : 0
+      }
+    });
+  } catch (error) {
+    console.error('Get product stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch product statistics',
+      error: error.message
+    });
+  }
+};
+
 // CREATE PRODUCT
 const createProduct = async (req, res) => {
   try {
@@ -450,7 +542,7 @@ const getAllProducts = async (req, res) => {
       success: true,
       data,
       metadata: {
-        totalCount: count,
+        total: count,
         totalPages,
         currentPage: pageNum,
         limit: limitNum,
@@ -472,5 +564,7 @@ module.exports = {
   getProductById,
   updateProduct,
   deleteProduct,
-  getAllProducts
+  getAllProducts,
+  getProductStats, // ✅ NEW: Export stats function
+  getPriceRange    // ✅ NEW: Export price range helper (can be used by other endpoints)
 };
