@@ -1,4 +1,4 @@
-// frontend/src/App.jsx (FIXED - uses /user/* paths)
+// frontend/src/App.jsx - CORRECTED
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AdminAuthProvider } from './context/AdminAuthContext';
@@ -10,6 +10,7 @@ import AdminLogin from './pages/admin/AdminLogin';
 import AdminRoutes from './routes/adminRoutes';
 import UserRoutes from './routes/userRoutes';
 import Shop from './pages/ShopNew';
+import BundleDetailPage from './pages/BundleDetailPage';
 import UserLogin from './pages/user/UserLogin';
 import UserRegister from './pages/user/UserRegister';
 
@@ -23,12 +24,13 @@ function App() {
               {/* Public Routes */}
               <Route path="/" element={<Navigate to="/shop" replace />} />
               <Route path="/shop" element={<Shop />} />
+              <Route path="/shop/bundles/:id" element={<BundleDetailPage />} />
               
               {/* User/Customer Auth Routes */}
               <Route path="/login" element={<UserLogin />} />
               <Route path="/register" element={<UserRegister />} />
               
-              {/* Protected User Routes - Changed to /user/* */}
+              {/* Protected User Routes - /user/* */}
               <Route
                 path="/user/*"
                 element={
@@ -41,7 +43,7 @@ function App() {
               {/* Admin Auth Routes */}
               <Route path="/admin/login" element={<AdminLogin />} />
               
-              {/* Protected Admin Routes */}
+              {/* Protected Admin Routes - /admin/* */}
               <Route
                 path="/admin/*"
                 element={

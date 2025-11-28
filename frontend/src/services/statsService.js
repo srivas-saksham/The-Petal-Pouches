@@ -1,10 +1,53 @@
-// frontend/src/services/statsService.js
+// frontend/src/services/statsService.js - FIXED
 
 import { getProductStats, getProducts } from './productService';
-import { getBundleStats } from './bundleService';
 import { getOrderStats, getRevenuByPeriod } from './orderService';
 import { getCategories } from './categoryService';
+import bundleService from './bundleService';
 import { apiRequest } from './api';
+
+/**
+ * Get bundle statistics (helper function since bundleService doesn't have getBundleStats)
+ */
+const getBundleStats = async () => {
+  try {
+    const result = await bundleService.getAllBundles({ limit: 10000 });
+    
+    if (!result || !result.data) {
+      return {
+        success: false,
+        data: {
+          total: 0,
+          active: 0,
+          inactive: 0,
+        },
+      };
+    }
+
+    const bundles = result.data || [];
+    
+    const stats = {
+      total: bundles.length,
+      active: bundles.filter(b => b.is_active).length,
+      inactive: bundles.filter(b => !b.is_active).length,
+    };
+
+    return {
+      success: true,
+      data: stats,
+    };
+  } catch (error) {
+    console.error('Error getting bundle stats:', error);
+    return {
+      success: false,
+      data: {
+        total: 0,
+        active: 0,
+        inactive: 0,
+      },
+    };
+  }
+};
 
 /**
  * Get complete dashboard statistics
@@ -61,6 +104,7 @@ export const getDashboardStats = async () => {
       },
     };
   } catch (error) {
+    console.error('Error getting dashboard stats:', error);
     return {
       success: false,
       error: error.message,
@@ -81,6 +125,7 @@ export const getStatsForDateRange = async (startDate, endDate) => {
       data: revenueResult.data,
     };
   } catch (error) {
+    console.error('Error getting stats for date range:', error);
     return {
       success: false,
       error: error.message,
@@ -156,6 +201,7 @@ export const getCategoryDistribution = async () => {
       data: distribution,
     };
   } catch (error) {
+    console.error('Error getting category distribution:', error);
     return {
       success: false,
       error: error.message,

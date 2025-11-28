@@ -1,4 +1,4 @@
-// frontend/src/routes/userRoutes.jsx
+// frontend/src/routes/userRoutes.jsx - CORRECTED
 
 import { Routes, Route, Navigate } from 'react-router-dom';
 import CustomerLayout from '../components/user/layout/CustomerLayout';
@@ -16,29 +16,29 @@ export default function UserRoutes() {
   return (
     <CustomerLayout>
       <Routes>
-        {/* Remove this line - it's causing the issue */}
-        {/* <Route path="/" element={<Navigate to="/user/dashboard" replace />} /> */}
+        {/* Default redirect to dashboard */}
+        <Route index element={<Navigate to="dashboard" replace />} />
         
         {/* Dashboard */}
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="dashboard" element={<Dashboard />} />
         
         {/* Profile */}
-        <Route path="/profile" element={<Profile />} />
+        <Route path="profile" element={<Profile />} />
         
         {/* Addresses */}
-        <Route path="/addresses" element={<Addresses />} />
+        <Route path="addresses" element={<Addresses />} />
         
         {/* Orders */}
-        <Route path="/orders" element={<Orders />} />
+        <Route path="orders" element={<Orders />} />
         
         {/* Wishlist */}
-        <Route path="/wishlist" element={<Wishlist />} />
+        <Route path="wishlist" element={<Wishlist />} />
         
         {/* Settings */}
-        <Route path="/settings" element={<Settings />} />
+        <Route path="settings" element={<Settings />} />
         
         {/* Notifications */}
-        <Route path="/notifications" element={<Notifications />} />
+        <Route path="notifications" element={<Notifications />} />
         
         {/* 404 - Catch all unmatched customer routes */}
         <Route 
