@@ -1,4 +1,4 @@
-// frontend/src/components/shop/BundleDetail.jsx
+// frontend/src/components/shop/BundleDetail.jsx - FIXED
 
 import React, { useState } from 'react';
 import { X, ShoppingBag, Heart, Share2, Check } from 'lucide-react';
@@ -9,6 +9,9 @@ import useBundleCart from '../../hooks/useBundleCart';
 const BundleDetail = ({ bundle, onClose }) => {
   const [quantity, setQuantity] = useState(1);
   const { addBundleToCart, loading } = useBundleCart();
+
+  // Handle both 'items' and 'Bundle_items' (from Supabase)
+  const bundleItems = bundle?.items || bundle?.Bundle_items || [];
 
   const handleAddToCart = async () => {
     const success = await addBundleToCart(bundle.id, quantity);
@@ -52,6 +55,9 @@ const BundleDetail = ({ bundle, onClose }) => {
                   src={bundle.img_url || '/placeholder-bundle.png'}
                   alt={bundle.title}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = '/placeholder-bundle.png';
+                  }}
                 />
               </div>
             </div>
@@ -157,9 +163,9 @@ const BundleDetail = ({ bundle, onClose }) => {
             </div>
           </div>
 
-          {/* Products List */}
+          {/* Products List - Pass bundleItems instead of bundle.items */}
           <div className="mt-8 border-t pt-8">
-            <BundleProducts items={bundle.items} />
+            <BundleProducts items={bundleItems} />
           </div>
         </div>
       </div>
