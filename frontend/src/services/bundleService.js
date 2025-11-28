@@ -1,334 +1,163 @@
 // frontend/src/services/bundleService.js
 
-import api, { createFormDataRequest, apiRequest } from './api';
+import api from './api';
 
 /**
- * Get all bundles with filters and pagination
+ * Bundle Service
+ * Handles all API calls related to bundles
  */
-export const getBundles = async (params = {}) => {
-  return apiRequest(() => 
-    api.get('/api/bundles', { params })
-  );
-};
 
-/**
- * Get single bundle by ID
- */
-export const getBundleById = async (bundleId) => {
-  return apiRequest(() => 
-    api.get(`/api/bundles/${bundleId}`)
-  );
-};
+const bundleService = {
+  /**
+   * Get all bundles with filters
+   * @param {Object} params - { page, limit, sort, search, min_price, max_price }
+   * @returns {Promise<Object>} { bundles, metadata }
+   */
+  getAllBundles: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      
+      if (params.page) queryParams.append('page', params.page);
+      if (params.limit) queryParams.append('limit', params.limit);
+      if (params.sort) queryParams.append('sort', params.sort);
+      if (params.search) queryParams.append('search', params.search);
+      if (params.min_price) queryParams.append('min_price', params.min_price);
+      if (params.max_price) queryParams.append('max_price', params.max_price);
+      queryParams.append('active', 'true'); // Only active bundles
 
-/**
- * Create new bundle
- */
-export const createBundle = async (bundleData) => {
-  const formData = createFormDataRequest(bundleData, 'image');
-  
-  return apiRequest(() => 
-    api.post('/api/bundles/admin', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-  );
-};
+      const response = await api.get(`/bundles?${queryParams.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Get bundles error:', error);
+      throw error.response?.data || error;
+    }
+  },
 
-/**
- * Update existing bundle
- */
-export const updateBundle = async (bundleId, bundleData) => {
-  const formData = createFormDataRequest(bundleData, 'image');
-  
-  return apiRequest(() => 
-    api.put(`/api/bundles/admin/${bundleId}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-  );
-};
+  /**
+   * Get bundle by ID (basic info only)
+   * @param {string} bundleId - Bundle UUID
+   * @returns {Promise<Object>} Bundle object
+   */
+  getBundleById: async (bundleId) => {
+    try {
+      const response = await api.get(`/bundles/${bundleId}`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Get bundle error:', error);
+      throw error.response?.data || error;
+    }
+  },
 
-/**
- * Delete bundle
- */
-export const deleteBundle = async (bundleId) => {
-  return apiRequest(() => 
-    api.delete(`/api/bundles/admin/${bundleId}`)
-  );
-};
+  /**
+   * Get bundle with all items and product details
+   * @param {string} bundleId - Bundle UUID
+   * @returns {Promise<Object>} Bundle with items array
+   */
+  getBundleDetails: async (bundleId) => {
+    try {
+      const response = await api.get(`/bundles/${bundleId}/details`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Get bundle details error:', error);
+      throw error.response?.data || error;
+    }
+  },
 
-/**
- * Toggle bundle active status
- */
-export const toggleBundleStatus = async (bundleId) => {
-  return apiRequest(() => 
-    api.patch(`/api/bundles/admin/${bundleId}/toggle`)
-  );
-};
+  /**
+   * Check bundle stock availability
+   * @param {string} bundleId - Bundle UUID
+   * @returns {Promise<Object>} { in_stock, stock_limit, issues }
+   */
+  checkBundleStock: async (bundleId) => {
+    try {
+      const response = await api.get(`/bundles/${bundleId}/stock`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Check stock error:', error);
+      throw error.response?.data || error;
+    }
+  },
 
-/**
- * Duplicate bundle
- */
-export const duplicateBundle = async (bundleId) => {
-  return apiRequest(() => 
-    api.post(`/api/bundles/admin/${bundleId}/duplicate`)
-  );
-};
-
-/**
- * Check bundle stock availability
- */
-export const checkBundleStock = async (bundleId) => {
-  return apiRequest(() => 
-    api.get(`/api/bundles/${bundleId}/stock`)
-  );
-};
-
-/**
- * Get bundle statistics
- */
-export const getBundleStats = async () => {
-  const result = await apiRequest(() => 
-    api.get('/api/bundles', { 
-      params: { limit: 1000 } // Get all for stats calculation
-    })
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      data: {
-        total: 0,
-        active: 0,
-        inactive: 0,
-        total_value: 0,
-      },
-    };
-  }
-
-  const bundles = result.data.data || [];
-  
-  const stats = {
-    total: bundles.length,
-    active: bundles.filter(b => b.is_active).length,
-    inactive: bundles.filter(b => !b.is_active).length,
-    total_value: bundles.reduce((sum, b) => sum + (b.price || 0), 0),
-    avg_discount: bundles.length > 0 
-      ? Math.round(
-          bundles.reduce((sum, b) => sum + (b.discount_percent || 0), 0) / bundles.length
-        )
-      : 0,
-  };
-
-  return {
-    success: true,
-    data: stats,
-  };
-};
-
-/**
- * Get active bundles only
- */
-export const getActiveBundles = async (params = {}) => {
-  return apiRequest(() => 
-    api.get('/api/bundles', { 
-      params: { 
-        active: 'true',
-        ...params,
-      } 
-    })
-  );
-};
-
-/**
- * Search bundles
- */
-export const searchBundles = async (searchTerm, filters = {}) => {
-  return apiRequest(() => 
-    api.get('/api/bundles', {
-      params: {
-        search: searchTerm,
-        ...filters,
-      },
-    })
-  );
-};
-
-/**
- * Validate bundle items stock
- */
-export const validateBundleItems = async (items) => {
-  // This would call the stock check endpoint with item details
-  return apiRequest(() => 
-    api.post('/api/bundles/validate-stock', { items })
-  );
-};
-
-/**
- * Calculate bundle pricing
- */
-export const calculateBundlePrice = (items, bundlePrice) => {
-  const originalPrice = items.reduce((total, item) => {
-    const price = item.variant ? item.variant.price : item.product.price;
-    return total + (price * item.quantity);
-  }, 0);
-
-  const savings = originalPrice - bundlePrice;
-  const discountPercent = originalPrice > 0 
-    ? Math.round((savings / originalPrice) * 100) 
-    : 0;
-
-  return {
-    originalPrice,
-    bundlePrice,
-    savings,
-    discountPercent,
-  };
-};
-
-/**
- * Get bundles by discount range
- */
-export const getBundlesByDiscount = async (minDiscount, maxDiscount) => {
-  const result = await getBundles();
-  
-  if (!result.success) {
-    return result;
-  }
-
-  const bundles = result.data.data || [];
-  const filtered = bundles.filter(b => {
-    const discount = b.discount_percent || 0;
-    return discount >= minDiscount && discount <= maxDiscount;
-  });
-
-  return {
-    success: true,
-    data: {
-      data: filtered,
-      count: filtered.length,
-    },
-  };
-};
-
-/**
- * Get top selling bundles (requires sales data)
- */
-export const getTopBundles = async (limit = 10) => {
-  // Note: This would require a sales tracking system
-  // For now, return all active bundles sorted by discount
-  const result = await getActiveBundles();
-  
-  if (!result.success) {
-    return result;
-  }
-
-  const bundles = result.data.data || [];
-  const sorted = bundles
-    .sort((a, b) => (b.discount_percent || 0) - (a.discount_percent || 0))
-    .slice(0, limit);
-
-  return {
-    success: true,
-    data: {
-      data: sorted,
-      count: sorted.length,
-    },
-  };
-};
-
-/**
- * Bulk activate bundles
- */
-export const bulkActivateBundles = async (bundleIds) => {
-  const results = await Promise.all(
-    bundleIds.map(id => toggleBundleStatus(id))
-  );
-  
-  return {
-    success: results.every(r => r.success),
-    data: results,
-  };
-};
-
-/**
- * Bulk deactivate bundles
- */
-export const bulkDeactivateBundles = async (bundleIds) => {
-  const results = await Promise.all(
-    bundleIds.map(id => toggleBundleStatus(id))
-  );
-  
-  return {
-    success: results.every(r => r.success),
-    data: results,
-  };
-};
-
-/**
- * Bulk delete bundles
- */
-export const bulkDeleteBundles = async (bundleIds) => {
-  const results = await Promise.all(
-    bundleIds.map(id => deleteBundle(id))
-  );
-  
-  return {
-    success: results.every(r => r.success),
-    data: results,
-    deleted: results.filter(r => r.success).length,
-    failed: results.filter(r => !r.success).length,
-  };
-};
-
-/**
- * Get bundles with low stock items
- */
-export const getBundlesWithLowStock = async () => {
-  const result = await getBundles();
-  
-  if (!result.success) {
-    return result;
-  }
-
-  const bundles = result.data.data || [];
-  const withLowStock = [];
-
-  for (const bundle of bundles) {
-    const stockCheck = await checkBundleStock(bundle.id);
-    if (stockCheck.success && !stockCheck.data.available) {
-      withLowStock.push({
-        ...bundle,
-        stockIssues: stockCheck.data.out_of_stock,
+  /**
+   * Search bundles
+   * @param {string} query - Search term
+   * @param {Object} params - { page, limit }
+   * @returns {Promise<Object>} Search results
+   */
+  searchBundles: async (query, params = {}) => {
+    try {
+      const queryParams = new URLSearchParams({
+        search: query,
+        page: params.page || 1,
+        limit: params.limit || 12,
+        active: 'true'
       });
+
+      const response = await api.get(`/bundles?${queryParams.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Search bundles error:', error);
+      throw error.response?.data || error;
+    }
+  },
+
+  /**
+   * Get bundles by price range
+   * @param {number} minPrice - Minimum price
+   * @param {number} maxPrice - Maximum price
+   * @param {Object} params - { page, limit }
+   * @returns {Promise<Object>} Filtered bundles
+   */
+  getBundlesByPrice: async (minPrice, maxPrice, params = {}) => {
+    try {
+      const queryParams = new URLSearchParams({
+        page: params.page || 1,
+        limit: params.limit || 12,
+        active: 'true'
+      });
+
+      if (minPrice) queryParams.append('min_price', minPrice);
+      if (maxPrice) queryParams.append('max_price', maxPrice);
+
+      const response = await api.get(`/bundles?${queryParams.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Get bundles by price error:', error);
+      throw error.response?.data || error;
+    }
+  },
+
+  /**
+   * Add bundle to cart
+   * @param {string} bundleId - Bundle UUID
+   * @param {number} quantity - Quantity (default: 1)
+   * @returns {Promise<Object>} Updated cart
+   */
+  addBundleToCart: async (bundleId, quantity = 1) => {
+    try {
+      // First, get bundle details to add all items
+      const bundleDetails = await bundleService.getBundleDetails(bundleId);
+      
+      // Add each item from bundle to cart with bundle metadata
+      const cartPromises = bundleDetails.data.items.map(item => {
+        return api.post('/cart/items', {
+          product_variant_id: item.product_variant_id,
+          quantity: item.quantity * quantity,
+          bundle_origin: 'brand_bundle',
+          bundle_id: bundleId
+        });
+      });
+
+      await Promise.all(cartPromises);
+
+      // Return updated cart
+      const cartResponse = await api.get('/cart');
+      return cartResponse.data;
+    } catch (error) {
+      console.error('❌ Add bundle to cart error:', error);
+      throw error.response?.data || error;
     }
   }
-
-  return {
-    success: true,
-    data: {
-      data: withLowStock,
-      count: withLowStock.length,
-    },
-  };
 };
 
-export default {
-  getBundles,
-  getBundleById,
-  createBundle,
-  updateBundle,
-  deleteBundle,
-  toggleBundleStatus,
-  duplicateBundle,
-  checkBundleStock,
-  getBundleStats,
-  getActiveBundles,
-  searchBundles,
-  validateBundleItems,
-  calculateBundlePrice,
-  getBundlesByDiscount,
-  getTopBundles,
-  bulkActivateBundles,
-  bulkDeactivateBundles,
-  bulkDeleteBundles,
-  getBundlesWithLowStock,
-};
+export default bundleService;

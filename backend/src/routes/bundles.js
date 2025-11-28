@@ -1,4 +1,4 @@
-// backend/src/routes/bundles.js
+// backend/src/routes/bundles.js - MODIFIED (preserving existing functionality)
 
 const express = require('express');
 const router = express.Router();
@@ -7,6 +7,7 @@ const {
   createBundle,
   getAllBundles,
   getBundleById,
+  getBundleDetails,
   updateBundle,
   deleteBundle,
   toggleBundleStatus,
@@ -24,16 +25,26 @@ const {
  * Query params:
  *   - active: 'true' | 'false' (filter by active status)
  *   - page: number (default: 1)
- *   - limit: number (default: 20)
- *   - sort: 'created_at' | 'title' | 'price' | 'discount_percent'
+ *   - limit: number (default: 12)
+ *   - sort: 'created_at' | 'price_asc' | 'price_desc'
+ *   - search: string (search in title/description)
+ *   - min_price: number (minimum price filter)
+ *   - max_price: number (maximum price filter)
  */
 router.get('/', getAllBundles);
 
 /**
  * GET /api/bundles/:id
- * Get single bundle details with all products/variants
+ * Get single bundle details with basic info only
  */
 router.get('/:id', getBundleById);
+
+/**
+ * GET /api/bundles/:id/details
+ * Get single bundle with all items and product details (NO PRICES)
+ * Returns bundle info + array of products/variants in the bundle
+ */
+router.get('/:id/details', getBundleDetails);
 
 /**
  * GET /api/bundles/:id/stock

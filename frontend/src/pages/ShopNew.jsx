@@ -1,239 +1,265 @@
 // frontend/src/pages/ShopNew.jsx
 
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import shopService from '../services/shopService';
-import useShopFilters from '../hooks/useShopFilters';
-import ShopHeader from '../components/shop/ShopHeader';
-import ShopFilters from '../components/shop/ShopFilters';
-import ProductGrid from '../components/shop/ProductGrid';
-import ShopPagination from '../components/shop/ShopPagination';
-import ShopEmpty from '../components/shop/ShopEmpty';
-import ShopLoading from '../components/shop/ShopLoading';
+import React, { useState, useEffect } from 'react';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
+import BundleGrid from '../components/shop/BundleGrid';
+import BundleEmpty from '../components/shop/BundleEmpty';
+import useBundleFilters from '../hooks/useBundleFilters';
+import bundleService from '../services/bundleService';
 
-const ShopNew = () => {
-  const navigate = useNavigate();
-  
-  // Filter state management
+const BundleShop = () => {
+  const [bundles, setBundles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [metadata, setMetadata] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
+
   const {
     filters,
-    updateFilter,
+    setSearch,
+    setSortBy,
+    setPriceRange,
+    setPage,
     resetFilters,
-    clearFilter,
     hasActiveFilters,
-    getActiveFilters,
-    setPage
-  } = useShopFilters();
+    getApiParams
+  } = useBundleFilters();
 
-  // Local state
-  const [products, setProducts] = useState([]);
-  const [metadata, setMetadata] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [layoutMode, setLayoutMode] = useState(() => {
-    // Get from localStorage or default to 3 columns
-    const saved = localStorage.getItem('shopGridLayout');
-    return saved || '3';
-  });
-  const [error, setError] = useState(null);
+  // Local state for filter inputs
+  const [searchInput, setSearchInput] = useState(filters.search);
+  const [minPrice, setMinPrice] = useState(filters.minPrice);
+  const [maxPrice, setMaxPrice] = useState(filters.maxPrice);
 
-  /**
-   * Fetch products based on current filters
-   */
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const result = await shopService.getProducts({
-        search: filters.search,
-        min_price: filters.min_price,
-        max_price: filters.max_price,
-        in_stock: filters.in_stock,
-        sort: filters.sort,
-        page: filters.page,
-        limit: filters.limit
-      });
-
-      if (result.success) {
-        setProducts(result.data);
-        setMetadata(result.metadata);
-      } else {
-        setError(result.error);
-        setProducts([]);
-      }
-    } catch (err) {
-      console.error('Error fetching products:', err);
-      setError('Failed to load products. Please try again.');
-      setProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters]);
-
-  /**
-   * Fetch products when filters change
-   */
+  // Fetch bundles
   useEffect(() => {
-    fetchProducts();
-    // Scroll to top when filters change
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [fetchProducts]);
+    const fetchBundles = async () => {
+      setLoading(true);
+      setError(null);
 
-  /**
-   * Handle filter change
-   */
-  const handleFilterChange = useCallback((key, value) => {
-    updateFilter(key, value);
-  }, [updateFilter]);
+      try {
+        const response = await bundleService.getAllBundles(getApiParams());
+        setBundles(response.data || []);
+        setMetadata(response.metadata);
+      } catch (err) {
+        console.error('Failed to fetch bundles:', err);
+        setError(err.message || 'Failed to load bundles');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  /**
-   * Handle layout toggle
-   */
-  const handleLayoutChange = useCallback((newLayout) => {
-    setLayoutMode(newLayout);
-    localStorage.setItem('shopGridLayout', newLayout);
-  }, []);
+    fetchBundles();
+  }, [filters, getApiParams]);
 
-  /**
-   * Handle page change
-   */
-  const handlePageChange = useCallback((newPage) => {
-    setPage(newPage);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [setPage]);
+  // Handle search
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setSearch(searchInput);
+  };
 
-  /**
-   * Handle product click - navigate to product detail page
-   */
-  const handleProductClick = useCallback((productId) => {
-    navigate(`/product/${productId}`);
-  }, [navigate]);
+  // Handle price filter
+  const handlePriceFilter = () => {
+    setPriceRange(minPrice, maxPrice);
+    setShowFilters(false);
+  };
 
-  /**
-   * Handle reset filters
-   */
-  const handleResetFilters = useCallback(() => {
+  // Handle reset
+  const handleReset = () => {
     resetFilters();
-  }, [resetFilters]);
-
-  /**
-   * Handle clear single filter
-   */
-  const handleClearFilter = useCallback((filterKey) => {
-    clearFilter(filterKey);
-  }, [clearFilter]);
+    setSearchInput('');
+    setMinPrice('');
+    setMaxPrice('');
+    setShowFilters(false);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-tpppeach/5 via-white to-tpppink/5">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <ShopHeader layoutMode={layoutMode} onLayoutChange={handleLayoutChange} />
+      <div className="bg-white border-b sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-6">
+            Bundle Collections
+          </h1>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Sticky Filters Section */}
-        <div className="sticky top-0 z-40 bg-white/95 backdrop-blur rounded-lg shadow-sm mb-6 p-4">
-          <ShopFilters
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            activeFilters={getActiveFilters()}
-            onClearFilter={handleClearFilter}
-            onResetAll={handleResetFilters}
-            hasActiveFilters={hasActiveFilters()}
-          />
-        </div>
-
-        {/* Loading State */}
-        {loading && (
-          <ShopLoading layoutMode={layoutMode} />
-        )}
-
-        {/* Error State */}
-        {error && !loading && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg mb-6">
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
+          {/* Search & Filters Bar */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Search */}
+            <form onSubmit={handleSearch} className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Search bundles..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                />
               </div>
-              <div>
-                <h3 className="text-sm font-medium text-red-800">
-                  Error Loading Products
-                </h3>
-                <p className="text-sm text-red-700 mt-1">
-                  {error}
-                </p>
+            </form>
+
+            {/* Sort */}
+            <select
+              value={filters.sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+            >
+              <option value="newest">Newest First</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+              <option value="oldest">Oldest First</option>
+            </select>
+
+            {/* Filter Toggle */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <SlidersHorizontal size={20} />
+              Filters
+              {hasActiveFilters() && (
+                <span className="ml-1 w-2 h-2 bg-pink-600 rounded-full" />
+              )}
+            </button>
+          </div>
+
+          {/* Active Filters */}
+          {hasActiveFilters() && (
+            <div className="mt-4 flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-gray-600">Active filters:</span>
+              {filters.search && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-sm">
+                  Search: {filters.search}
+                  <button onClick={() => setSearch('')} className="hover:bg-pink-200 rounded-full p-0.5">
+                    <X size={14} />
+                  </button>
+                </span>
+              )}
+              {(filters.minPrice || filters.maxPrice) && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-sm">
+                  Price: ₹{filters.minPrice || '0'} - ₹{filters.maxPrice || '∞'}
+                  <button onClick={() => setPriceRange('', '')} className="hover:bg-pink-200 rounded-full p-0.5">
+                    <X size={14} />
+                  </button>
+                </span>
+              )}
+              <button
+                onClick={handleReset}
+                className="text-sm text-pink-600 hover:text-pink-700 font-medium"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
+
+          {/* Price Filter Dropdown */}
+          {showFilters && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <h3 className="font-medium text-gray-900 mb-3">Price Range</h3>
+              <div className="flex gap-3 items-center">
+                <input
+                  type="number"
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(e.target.value)}
+                  placeholder="Min"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+                <span className="text-gray-500">-</span>
+                <input
+                  type="number"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  placeholder="Max"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
                 <button
-                  onClick={fetchProducts}
-                  className="mt-3 text-sm font-medium text-red-600 hover:text-red-500 underline"
+                  onClick={handlePriceFilter}
+                  className="px-6 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors whitespace-nowrap"
                 >
-                  Try Again
+                  Apply
                 </button>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+      </div>
 
-        {/* Empty State */}
-        {!loading && products.length === 0 && !error && (
-          <ShopEmpty
-            hasFilters={hasActiveFilters()}
-            onResetFilters={handleResetFilters}
+      {/* Results Count */}
+      {!loading && metadata && (
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <p className="text-sm text-gray-600">
+            Showing {bundles.length} of {metadata.total} bundles
+          </p>
+        </div>
+      )}
+
+      {/* Bundle Grid */}
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <BundleGrid bundles={bundles} loading={loading} error={error} />
+
+        {/* Empty with filters */}
+        {!loading && bundles.length === 0 && hasActiveFilters() && (
+          <BundleEmpty
+            message="No bundles match your filters"
+            showReset={true}
+            onReset={handleReset}
           />
-        )}
-
-        {/* Products Grid */}
-        {!loading && products.length > 0 && (
-          <>
-            {/* Results Summary */}
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-slate-600">
-                Showing{' '}
-                <span className="font-semibold text-slate-900">
-                  {(filters.page - 1) * filters.limit + 1}
-                </span>
-                {' '}to{' '}
-                <span className="font-semibold text-slate-900">
-                  {Math.min(filters.page * filters.limit, metadata?.total || products.length)}
-                </span>
-                {' '}of{' '}
-                <span className="font-semibold text-slate-900">
-                  {metadata?.total || products.length}
-                </span>
-                {' '}products
-              </p>
-              <p className="text-xs text-slate-500">
-                Page {metadata?.currentPage || 1} of {metadata?.totalPages || 1}
-              </p>
-            </div>
-
-            {/* Product Grid */}
-            <ProductGrid
-              products={products}
-              layoutMode={layoutMode}
-              onProductClick={handleProductClick}
-            />
-
-            {/* Pagination */}
-            {metadata && metadata.totalPages > 1 && (
-              <div className="mt-8">
-                <ShopPagination
-                  currentPage={metadata.currentPage || 1}
-                  totalPages={metadata.totalPages || 1}
-                  hasMore={metadata.hasMore || false}
-                  onPageChange={handlePageChange}
-                  isLoading={loading}
-                />
-              </div>
-            )}
-          </>
         )}
       </div>
 
-      {/* Footer Spacing */}
-      <div className="h-12" />
+      {/* Pagination */}
+      {!loading && metadata && metadata.totalPages > 1 && (
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="flex justify-center gap-2">
+            <button
+              onClick={() => setPage(filters.page - 1)}
+              disabled={filters.page <= 1}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            
+            {[...Array(metadata.totalPages)].map((_, i) => {
+              const page = i + 1;
+              // Show first, last, current, and adjacent pages
+              if (
+                page === 1 ||
+                page === metadata.totalPages ||
+                (page >= filters.page - 1 && page <= filters.page + 1)
+              ) {
+                return (
+                  <button
+                    key={page}
+                    onClick={() => setPage(page)}
+                    className={`px-4 py-2 border rounded-lg transition-colors ${
+                      page === filters.page
+                        ? 'bg-pink-600 text-white border-pink-600'
+                        : 'border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              } else if (
+                page === filters.page - 2 ||
+                page === filters.page + 2
+              ) {
+                return <span key={page} className="px-2">...</span>;
+              }
+              return null;
+            })}
+
+            <button
+              onClick={() => setPage(filters.page + 1)}
+              disabled={filters.page >= metadata.totalPages}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default ShopNew;
+export default BundleShop;
