@@ -97,19 +97,32 @@ export const createFormDataRequest = (data, fileField = 'image') => {
   return formData;
 };
 
-// API request wrapper with error handling
+/**
+ * API request wrapper with error handling
+ * FIXED: Returns backend response directly without double-wrapping
+ * Backend already returns: {success: true/false, data: {...}, message?: "..."}
+ */
 export const apiRequest = async (requestFn) => {
   try {
     const response = await requestFn();
+    
+    // Backend already returns {success, data, message}
+    // Just pass it through directly
+    const backendResponse = response.data;
+    
     return {
-      success: true,
-      data: response.data,
+      success: backendResponse.success !== false,
+      data: backendResponse.data || backendResponse,
+      message: backendResponse.message,
       status: response.status,
     };
   } catch (error) {
+    console.error('❌ API Request Error:', error);
+    
     return {
       success: false,
       error: error.message || 'Request failed',
+      message: error.message || 'Request failed',
       status: error.status || 0,
       data: null,
     };

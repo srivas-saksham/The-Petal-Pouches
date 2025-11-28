@@ -1,5 +1,4 @@
-// frontend/src/services/bundleService.js - FINAL COMPLETE VERSION
-// This file combines BOTH public shop functions AND admin functions
+// frontend/src/services/bundleService.js - FIXED API PATHS
 
 import api, { createFormDataRequest, apiRequest } from './api';
 
@@ -156,8 +155,24 @@ export const getAllBundles = async (params = {}) => {
     if (params.max_price) queryParams.append('max_price', params.max_price);
     queryParams.append('active', 'true'); // Only active bundles
 
-    const response = await api.get(`/bundles?${queryParams.toString()}`);
-    return response.data;
+    // ✅ FIX: Use /api/bundles instead of /bundles
+    const response = await api.get(`/api/bundles?${queryParams.toString()}`);
+    
+    // Handle response format
+    if (response.data.success) {
+      return response.data;
+    }
+    
+    return {
+      success: true,
+      data: response.data.data || [],
+      metadata: response.data.metadata || {
+        currentPage: 1,
+        totalPages: 1,
+        hasMore: false,
+        total: 0
+      }
+    };
   } catch (error) {
     console.error('❌ Get bundles error:', error);
     throw error.response?.data || error;
@@ -179,7 +194,7 @@ export const searchBundles = async (query, params = {}) => {
       active: 'true'
     });
 
-    const response = await api.get(`/bundles?${queryParams.toString()}`);
+    const response = await api.get(`/api/bundles?${queryParams.toString()}`);
     return response.data;
   } catch (error) {
     console.error('❌ Search bundles error:', error);
@@ -205,7 +220,7 @@ export const getBundlesByPrice = async (minPrice, maxPrice, params = {}) => {
     if (minPrice) queryParams.append('min_price', minPrice);
     if (maxPrice) queryParams.append('max_price', maxPrice);
 
-    const response = await api.get(`/bundles?${queryParams.toString()}`);
+    const response = await api.get(`/api/bundles?${queryParams.toString()}`);
     return response.data;
   } catch (error) {
     console.error('❌ Get bundles by price error:', error);
@@ -226,7 +241,7 @@ export const addBundleToCart = async (bundleId, quantity = 1) => {
     
     // Add each item from bundle to cart with bundle metadata
     const cartPromises = bundleDetails.data.items.map(item => {
-      return api.post('/cart/items', {
+      return api.post('/api/cart/items', {
         product_variant_id: item.product_variant_id,
         quantity: item.quantity * quantity,
         bundle_origin: 'brand_bundle',
@@ -237,7 +252,7 @@ export const addBundleToCart = async (bundleId, quantity = 1) => {
     await Promise.all(cartPromises);
 
     // Return updated cart
-    const cartResponse = await api.get('/cart');
+    const cartResponse = await api.get('/api/cart');
     return cartResponse.data;
   } catch (error) {
     console.error('❌ Add bundle to cart error:', error);

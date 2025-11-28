@@ -1,95 +1,157 @@
 // frontend/src/components/shop/BundleProducts.jsx
 
 import React from 'react';
-import { Package } from 'lucide-react';
-import { getItemDisplayName, getItemImageUrl } from '../../utils/bundleHelpers';
+import { Package, AlertCircle } from 'lucide-react';
+import { formatBundlePrice } from '../../utils/bundleHelpers';
 
-const BundleProducts = ({ items }) => {
+/**
+ * BundleProducts Component
+ * Displays all products included in a bundle
+ * 
+ * Accepts items with structure:
+ * {
+ *   id, quantity, product_id, product_variant_id,
+ *   Products: { id, title, price, img_url, sku, description, stock },
+ *   Product_variants: { id, sku, attributes, img_url, price, stock }
+ * }
+ */
+const BundleProducts = ({ items = [] }) => {
   if (!items || items.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        <Package size={48} className="mx-auto mb-2 text-gray-400" />
-        <p>No items in this bundle</p>
+      <div className="text-center py-12">
+        <Package size={48} className="mx-auto mb-4 text-gray-400" />
+        <p className="text-gray-600">No products in this bundle</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">
-        What's Included ({items.length} {items.length === 1 ? 'item' : 'items'})
-      </h3>
+    <div className="space-y-4">
+      {items.map((item, index) => {
+        // Extract product data - handle both Products and product keys
+        const product = item.Products || item.product;
+        const variant = item.Product_variants || item.variant;
 
-      <div className="space-y-3">
-        {items.map((item) => (
+        if (!product) {
+          return (
+            <div key={item.id || index} className="p-4 bg-red-50 rounded-lg border border-red-200">
+              <div className="flex items-start gap-3">
+                <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-1" />
+                <div>
+                  <p className="text-red-900 font-medium">Product data missing</p>
+                  <p className="text-sm text-red-700">Item ID: {item.product_id}</p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // Get image - prioritize variant image
+        const imageUrl = variant?.img_url || product?.img_url || '/placeholder-product.png';
+
+        // Get price - prioritize variant price
+        const price = variant?.price || product?.price || 0;
+
+        // Get SKU - prioritize variant SKU
+        const sku = variant?.sku || product?.sku || 'N/A';
+
+        // Get title
+        const title = product.title || 'Unknown Product';
+
+        // Get description
+        const description = product.description || '';
+
+        // Get attributes for display
+        const attributes = variant?.attributes || {};
+        const attributesText = Object.entries(attributes)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(' • ');
+
+        return (
           <div
-            key={item.id}
-            className="flex gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            key={item.id || index}
+            className="flex gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
           >
             {/* Product Image */}
-            <div className="flex-shrink-0 w-20 h-20 bg-white rounded-md overflow-hidden">
-              <img
-                src={getItemImageUrl(item)}
-                alt={getItemDisplayName(item)}
-                className="w-full h-full object-cover"
-              />
+            <div className="flex-shrink-0">
+              <div className="w-24 h-24 rounded-lg overflow-hidden bg-white border border-gray-200">
+                <img
+                  src={imageUrl}
+                  alt={title}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = '/placeholder-product.png';
+                  }}
+                />
+              </div>
             </div>
 
             {/* Product Details */}
             <div className="flex-1 min-w-0">
-              {/* Product Name */}
-              <h4 className="font-medium text-gray-900 mb-1">
-                {getItemDisplayName(item)}
-              </h4>
+              {/* Title */}
+              <h3 className="font-semibold text-gray-900 text-base mb-1">
+                {title}
+              </h3>
 
-              {/* Product Description (if available) */}
-              {item.product?.description && (
-                <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                  {item.product.description}
+              {/* Attributes (if variant) */}
+              {attributesText && (
+                <p className="text-sm text-gray-600 mb-2">
+                  {attributesText}
                 </p>
               )}
 
-              {/* Quantity Badge */}
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
-                  Qty: {item.quantity}
-                </span>
-
-                {/* Category Badge */}
-                {item.product?.category?.name && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
-                    {item.product.category.name}
-                  </span>
-                )}
-              </div>
-
-              {/* Variant Attributes */}
-              {item.variant?.attributes && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {Object.entries(item.variant.attributes).map(([key, value]) => (
-                    <span
-                      key={key}
-                      className="text-xs text-gray-500 bg-white px-2 py-1 rounded"
-                    >
-                      {key}: {value}
-                    </span>
-                  ))}
-                </div>
+              {/* Description */}
+              {description && (
+                <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                  {description}
+                </p>
               )}
+
+              {/* Meta Info */}
+              <div className="flex flex-wrap gap-4 text-sm">
+                {/* Price */}
+                <div>
+                  <p className="text-gray-500">Price</p>
+                  <p className="font-semibold text-gray-900">
+                    {formatBundlePrice(price)}
+                  </p>
+                </div>
+
+                {/* SKU */}
+                <div>
+                  <p className="text-gray-500">SKU</p>
+                  <p className="font-mono text-gray-900">{sku}</p>
+                </div>
+
+                {/* Quantity in Bundle */}
+                <div>
+                  <p className="text-gray-500">Quantity</p>
+                  <p className="font-semibold text-gray-900">{item.quantity}</p>
+                </div>
+
+                {/* Stock Status */}
+                <div>
+                  <p className="text-gray-500">Stock</p>
+                  {(product?.stock || 0) > 0 ? (
+                    <p className="font-semibold text-green-700">
+                      {product.stock} available
+                    </p>
+                  ) : (
+                    <p className="font-semibold text-red-700">Out of stock</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Quantity Badge */}
+            <div className="flex-shrink-0 flex items-start pt-1">
+              <div className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
+                x{item.quantity}
+              </div>
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* Total Items Summary */}
-      <div className="mt-4 p-4 bg-pink-50 rounded-lg">
-        <p className="text-sm text-gray-700">
-          <span className="font-medium">Total Items in Bundle:</span>{' '}
-          <span className="font-semibold text-pink-600">
-            {items.reduce((sum, item) => sum + item.quantity, 0)} pieces
-          </span>
-        </p>
-      </div>
+        );
+      })}
     </div>
   );
 };
