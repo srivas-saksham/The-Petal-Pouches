@@ -1,4 +1,4 @@
-// frontend/src/pages/admin/Dashboard.jsx
+// frontend/src/pages/admin/Dashboard.jsx - FIXED
 
 import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, ArrowRight, Package, ShoppingCart, Users, DollarSign } from 'lucide-react';
@@ -55,26 +55,48 @@ export default function Dashboard() {
         getSalesTrends(),
       ]);
 
+      // ✅ FIXED: Handle stats response
       if (statsResult.success) {
         setStats(statsResult.data);
       }
 
+      // ✅ FIXED: Handle orders response (check for nested data)
       if (ordersResult.success) {
-        setRecentOrders(ordersResult.data.data || []);
+        const ordersData = Array.isArray(ordersResult.data)
+          ? ordersResult.data
+          : ordersResult.data.data || [];
+        setRecentOrders(ordersData);
+        console.log('✅ Recent orders loaded:', ordersData.length);
       }
 
+      // ✅ FIXED: Handle products response (check for nested data)
       if (productsResult.success) {
-        setTopProducts(productsResult.data || []);
+        const productsData = Array.isArray(productsResult.data)
+          ? productsResult.data
+          : productsResult.data.data || productsResult.data || [];
+        setTopProducts(productsData);
+        console.log('✅ Top products loaded:', productsData.length);
       }
 
+      // ✅ FIXED: Handle revenue response (check for nested data)
       if (revenueResult.success) {
-        setMonthlyRevenue(revenueResult.data || []);
+        const revenueData = Array.isArray(revenueResult.data)
+          ? revenueResult.data
+          : revenueResult.data.data || revenueResult.data || [];
+        setMonthlyRevenue(revenueData);
+        console.log('✅ Monthly revenue loaded:', revenueData.length);
       }
 
+      // ✅ FIXED: Handle category response (check for nested data)
       if (categoryResult.success) {
-        setCategoryDist(categoryResult.data || []);
+        const categoryData = Array.isArray(categoryResult.data)
+          ? categoryResult.data
+          : categoryResult.data.data || categoryResult.data || [];
+        setCategoryDist(categoryData);
+        console.log('✅ Category distribution loaded:', categoryData.length);
       }
 
+      // ✅ FIXED: Handle trends response
       if (trendsResult.success) {
         setTrends(trendsResult.data);
       }

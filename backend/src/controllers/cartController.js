@@ -1,32 +1,42 @@
-// backend/src/controllers/cartController.js - FULLY FIXED
+// backend/src/controllers/cartController.js - DEBUGGING USER ID ISSUE
 
 const supabase = require('../config/supabaseClient');
 
 /**
- * Cart Controller - cart_id approach with CORRECT error handling
- * NO .catch() - Supabase doesn't support it!
+ * Cart Controller - Bundles only in cart
+ * FIXED: Proper user_id handling from cart record
  */
 
-// ✅ CRITICAL: Case-sensitive table names from your Supabase
 const TABLES = {
-  PRODUCTS: 'Products',              // Capitalized
-  PRODUCT_VARIANTS: 'Product_variants',  // Capitalized
-  CART_ITEMS: 'cart_items',          // lowercase
-  CARTS: 'Carts',                    // Capitalized
-  CATEGORIES: 'Categories'           // Capitalized
+  CART_ITEMS: 'Cart_items',
+  CARTS: 'Carts',
+  BUNDLES: 'Bundles',
+  BUNDLE_ITEMS: 'Bundle_items',
 };
 
 const CartController = {
 
   // ==================== HELPER: GET OR CREATE CART ====================
 
-  /**
-   * Get or create cart for user/session
-   * Returns cart_id to use for cart_items
-   */
   getOrCreateCart: async (userId, sessionId) => {
     try {
-      // Build query based on what we have
+      console.log('🔍 getOrCreateCart called with:', { userId, sessionId });
+
+      // 🔥 CRITICAL FIX: Verify user exists before proceeding
+      if (userId) {
+        const { data: userExists, error: userCheckError } = await supabase
+          .from('Users')
+          .select('id')
+          .eq('id', userId)
+          .single();
+
+        if (userCheckError || !userExists) {
+          console.error('❌ User does not exist in database:', userId);
+          throw new Error(`User ${userId} not found in database`);
+        }
+        console.log('✅ User verified:', userId);
+      }
+
       let query = supabase
         .from(TABLES.CARTS)
         .select('id, user_id, session_id, expires_at');
@@ -35,22 +45,34 @@ const CartController = {
         query = query.eq('user_id', userId);
       } else if (sessionId) {
         query = query.eq('session_id', sessionId)
-          .gt('expires_at', new Date().toISOString()); // Not expired
+          .gt('expires_at', new Date().toISOString());
       } else {
         throw new Error('Either user_id or session_id required');
       }
 
       const { data: existingCart, error: fetchError } = await query.single();
 
-      // If cart exists, return it
       if (existingCart && !fetchError) {
-        console.log('✅ Found existing cart:', existingCart.id);
-        return existingCart.id;
+        console.log('✅ Found existing cart:', existingCart);
+        
+        // If cart has a user_id but it doesn't match the request, something is wrong
+        if (userId && existingCart.user_id && existingCart.user_id !== userId) {
+          console.error('❌ CRITICAL: Cart user_id mismatch!');
+          console.error('   Request user_id:', userId);
+          console.error('   Cart user_id:', existingCart.user_id);
+          
+          // Delete the invalid cart and create a new one
+          await supabase.from(TABLES.CARTS).delete().eq('id', existingCart.id);
+          console.log('🗑️ Deleted mismatched cart, will create new one');
+        } else {
+          return existingCart;
+        }
       }
 
-      // Create new cart
+      console.log('📝 Creating new cart for:', { userId, sessionId });
+
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
+      expiresAt.setDate(expiresAt.getDate() + 7);
 
       const { data: newCart, error: insertError } = await supabase
         .from(TABLES.CARTS)
@@ -61,13 +83,16 @@ const CartController = {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])
-        .select('id')
+        .select('id, user_id, session_id')
         .single();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('❌ Error creating cart:', insertError);
+        throw insertError;
+      }
 
-      console.log('✅ Created new cart:', newCart.id);
-      return newCart.id;
+      console.log('✅ Created new cart:', newCart);
+      return newCart;
 
     } catch (error) {
       console.error('❌ Error getting/creating cart:', error);
@@ -78,7 +103,7 @@ const CartController = {
   // ==================== GET CART ====================
 
   /**
-   * Get user's cart with items and totals
+   * Get user's cart with bundle items
    * GET /api/cart
    */
   getCart: async (req, res) => {
@@ -95,47 +120,25 @@ const CartController = {
         });
       }
 
-      // Step 1: Get or create cart
-      const cartId = await CartController.getOrCreateCart(userId, sessionId);
+      const cart = await CartController.getOrCreateCart(userId, sessionId);
+      const cartId = cart.id;
 
-      // Step 2: Get cart items with product details
+      // Get cart items with bundle details
       const { data: items, error: itemsError } = await supabase
         .from(TABLES.CART_ITEMS)
         .select(`
           id,
           quantity,
-          bundle_origin,
           bundle_id,
-          product_variant_id,
-          Product_variants (
-            id,
-            sku,
-            price,
-            stock_quantity,
-            attributes,
-            product_id,
-            Products (
-              id,
-              title,
-              description,
-              img_url,
-              category_id,
-              Categories (
-                name
-              )
-            )
-          ),
-          Products (
+          user_id,
+          created_at,
+          Bundles (
             id,
             title,
             description,
             img_url,
             price,
-            stock,
-            category_id,
-            Categories (
-              name
-            )
+            is_active
           )
         `)
         .eq('cart_id', cartId)
@@ -145,50 +148,24 @@ const CartController = {
 
       // Transform items to flat structure
       const transformedItems = (items || []).map(item => {
-        // If has variant, use variant data
-        if (item.Product_variants) {
-          return {
-            id: item.id,
-            variant_id: item.Product_variants.id,
-            product_id: item.Product_variants.Products.id,
-            title: item.Product_variants.Products.title,
-            description: item.Product_variants.Products.description,
-            image_url: item.Product_variants.Products.img_url,
-            category: item.Product_variants.Products.Categories?.name || null,
-            sku: item.Product_variants.sku,
-            price: parseFloat(item.Product_variants.price),
-            quantity: item.quantity,
-            stock_quantity: item.Product_variants.stock_quantity,
-            attributes: item.Product_variants.attributes,
-            bundle_origin: item.bundle_origin,
-            bundle_id: item.bundle_id,
-            item_total: parseFloat(item.Product_variants.price) * item.quantity,
-            in_stock: item.Product_variants.stock_quantity > 0
-          };
+        if (!item.Bundles) {
+          console.warn('⚠️ Cart item has no bundle:', item.id);
+          return null;
         }
-        // Otherwise use direct product data (no variants)
-        else if (item.Products) {
-          return {
-            id: item.id,
-            variant_id: null,
-            product_id: item.Products.id,
-            title: item.Products.title,
-            description: item.Products.description,
-            image_url: item.Products.img_url,
-            category: item.Products.Categories?.name || null,
-            sku: null,
-            price: parseFloat(item.Products.price),
-            quantity: item.quantity,
-            stock_quantity: item.Products.stock,
-            attributes: null,
-            bundle_origin: item.bundle_origin,
-            bundle_id: item.bundle_id,
-            item_total: parseFloat(item.Products.price) * item.quantity,
-            in_stock: item.Products.stock > 0
-          };
-        }
-        return null;
-      }).filter(Boolean); // Remove any null items
+
+        return {
+          id: item.id,
+          bundle_id: item.Bundles.id,
+          title: item.Bundles.title,
+          description: item.Bundles.description,
+          image_url: item.Bundles.img_url,
+          price: parseFloat(item.Bundles.price),
+          quantity: item.quantity,
+          item_total: parseFloat(item.Bundles.price) * item.quantity,
+          is_active: item.Bundles.is_active,
+          type: 'bundle'
+        };
+      }).filter(Boolean);
 
       // Calculate totals
       const subtotal = transformedItems.reduce((sum, item) => sum + item.item_total, 0);
@@ -225,21 +202,22 @@ const CartController = {
   // ==================== ADD TO CART ====================
 
   /**
-   * Add item to cart
+   * Add bundle to cart
    * POST /api/cart/items
+   * Body: { bundle_id, quantity }
    */
   addToCart: async (req, res) => {
     try {
       const userId = req.user?.id || req.get('x-user-id');
       const sessionId = req.get('x-session-id');
-      const { product_variant_id, quantity = 1, bundle_origin = 'single', bundle_id = null } = req.body;
+      const { bundle_id, quantity = 1 } = req.body;
 
-      console.log(`🛒 Add to cart - userId: ${userId}, sessionId: ${sessionId}, variant: ${product_variant_id}`);
+      console.log(`🛒 Add to cart - userId: ${userId}, sessionId: ${sessionId}, bundle: ${bundle_id}`);
 
-      if (!product_variant_id) {
+      if (!bundle_id) {
         return res.status(400).json({
           success: false,
-          message: 'Product variant ID is required'
+          message: 'Bundle ID is required'
         });
       }
 
@@ -257,73 +235,48 @@ const CartController = {
         });
       }
 
-      // Step 1: Get or create cart
-      const cartId = await CartController.getOrCreateCart(userId, sessionId);
+      // Get or create cart - THIS RETURNS THE FULL CART OBJECT
+      const cart = await CartController.getOrCreateCart(userId, sessionId);
+      const cartId = cart.id;
+      
+      // 🔥 FIX: Use the user_id from the REQUEST, not from the cart
+      // The cart might have been created with a different/old user_id
+      const actualUserId = userId || cart.user_id;
+      
       console.log('✅ Cart ID:', cartId);
+      console.log('✅ Using user_id:', actualUserId);
+      console.log('   (from request):', userId);
+      console.log('   (from cart):', cart.user_id);
 
-      // Step 2: Verify product/variant exists and get stock
-      const { data: variant, error: variantError } = await supabase
-        .from(TABLES.PRODUCT_VARIANTS)
-        .select(`
-          id,
-          stock_quantity,
-          price,
-          product_id,
-          Products (
-            id,
-            title
-          )
-        `)
-        .eq('id', product_variant_id)
+      // Verify bundle exists and is active
+      const { data: bundle, error: bundleError } = await supabase
+        .from(TABLES.BUNDLES)
+        .select('id, title, price, is_active')
+        .eq('id', bundle_id)
         .single();
 
-      // ✅ FIX: Proper error handling without .catch()
-      let product = null;
-      if (variantError || !variant) {
-        console.log('⚠️ Variant not found, checking if it\'s a product ID:', product_variant_id);
-        
-        const { data: directProduct, error: productError } = await supabase
-          .from(TABLES.PRODUCTS)
-          .select('id, title, price, stock')
-          .eq('id', product_variant_id)
-          .single();
-
-        if (productError || !directProduct) {
-          console.error('❌ Not found:', product_variant_id);
-          return res.status(404).json({
-            success: false,
-            message: 'Product variant or product not found'
-          });
-        }
-
-        product = directProduct;
-        console.log('✅ Found product (no variant):', product.id);
-      } else {
-        console.log('✅ Found variant:', variant.id);
-      }
-
-      // Get stock and price
-      const stockQuantity = variant ? variant.stock_quantity : product.stock;
-      const price = variant ? variant.price : product.price;
-
-      if (stockQuantity < quantity) {
-        return res.status(400).json({
+      if (bundleError || !bundle) {
+        return res.status(404).json({
           success: false,
-          message: `Only ${stockQuantity} items available in stock`,
-          code: 'INSUFFICIENT_STOCK'
+          message: 'Bundle not found'
         });
       }
 
-      // Step 3: Check if item already in cart
-      // ✅ FIX: NO .catch() - handle error properly
+      if (!bundle.is_active) {
+        return res.status(400).json({
+          success: false,
+          message: 'This bundle is not available'
+        });
+      }
+
+      // Check if bundle already in cart
       const { data: existingItem, error: existError } = await supabase
         .from(TABLES.CART_ITEMS)
         .select('id, quantity')
         .eq('cart_id', cartId)
-        .eq('product_variant_id', product_variant_id)
+        .eq('bundle_id', bundle_id)
         .single();
 
-      // Handle "not found" as normal flow (not an error)
       const itemExists = !existError && existingItem;
 
       let cartItem;
@@ -331,14 +284,6 @@ const CartController = {
       if (itemExists) {
         // Update quantity
         const newQuantity = existingItem.quantity + quantity;
-        
-        if (stockQuantity < newQuantity) {
-          return res.status(400).json({
-            success: false,
-            message: `Cannot add more. Only ${stockQuantity} items available`,
-            code: 'INSUFFICIENT_STOCK'
-          });
-        }
 
         const { data: updated, error: updateError } = await supabase
           .from(TABLES.CART_ITEMS)
@@ -350,40 +295,50 @@ const CartController = {
           .select('id, quantity')
           .single();
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('❌ Update error:', updateError);
+          throw updateError;
+        }
         cartItem = updated;
 
         console.log(`✅ Updated cart item ${existingItem.id} quantity to ${newQuantity}`);
       } else {
         // Add new item
+        console.log('📝 Inserting new cart item with:', {
+          cart_id: cartId,
+          bundle_id: bundle_id,
+          quantity,
+          user_id: actualUserId  // This MUST exist in Users table
+        });
+
         const { data: inserted, error: insertError } = await supabase
           .from(TABLES.CART_ITEMS)
           .insert([{
             cart_id: cartId,
-            product_variant_id,
+            bundle_id: bundle_id,
             quantity,
-            bundle_origin,
-            bundle_id,
+            user_id: actualUserId,  // 🔥 CRITICAL: This must be a valid Users.id
             created_at: new Date().toISOString()
           }])
           .select('id, quantity')
           .single();
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('❌ Insert error details:', insertError);
+          throw insertError;
+        }
         cartItem = inserted;
 
         console.log(`✅ Added new cart item ${cartItem.id}`);
       }
 
-      const productTitle = variant ? variant.Products.title : product.title;
-
       res.json({
         success: true,
-        message: 'Item added to cart successfully',
+        message: 'Bundle added to cart successfully',
         data: {
           cart_item_id: cartItem.id,
           quantity: cartItem.quantity,
-          product_title: productTitle
+          bundle_title: bundle.title
         }
       });
 
@@ -391,7 +346,7 @@ const CartController = {
       console.error('❌ Add to cart error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to add item to cart',
+        message: 'Failed to add bundle to cart',
         error: error.message
       });
     }
@@ -417,23 +372,13 @@ const CartController = {
         });
       }
 
-      // Get cart ID
-      const cartId = await CartController.getOrCreateCart(userId, sessionId);
+      const cart = await CartController.getOrCreateCart(userId, sessionId);
+      const cartId = cart.id;
 
       // Verify cart item belongs to this cart
       const { data: item, error: itemError } = await supabase
         .from(TABLES.CART_ITEMS)
-        .select(`
-          id,
-          cart_id,
-          product_variant_id,
-          Product_variants (
-            stock_quantity
-          ),
-          Products (
-            stock
-          )
-        `)
+        .select('id, cart_id')
         .eq('id', id)
         .single();
 
@@ -444,22 +389,10 @@ const CartController = {
         });
       }
 
-      // Verify ownership
       if (item.cart_id !== cartId) {
         return res.status(403).json({
           success: false,
           message: 'Unauthorized'
-        });
-      }
-
-      // Check stock
-      const availableStock = item.Product_variants?.stock_quantity || item.Products?.stock;
-      
-      if (availableStock < quantity) {
-        return res.status(400).json({
-          success: false,
-          message: `Only ${availableStock} items available in stock`,
-          code: 'INSUFFICIENT_STOCK'
         });
       }
 
@@ -504,10 +437,9 @@ const CartController = {
       const userId = req.user?.id || req.get('x-user-id');
       const sessionId = req.get('x-session-id');
 
-      // Get cart ID
-      const cartId = await CartController.getOrCreateCart(userId, sessionId);
+      const cart = await CartController.getOrCreateCart(userId, sessionId);
+      const cartId = cart.id;
 
-      // Verify the item belongs to this cart
       const { data: item, error: itemError } = await supabase
         .from(TABLES.CART_ITEMS)
         .select('id, cart_id')
@@ -521,7 +453,6 @@ const CartController = {
         });
       }
 
-      // Verify ownership
       if (item.cart_id !== cartId) {
         return res.status(403).json({
           success: false,
@@ -529,7 +460,6 @@ const CartController = {
         });
       }
 
-      // Delete the item
       const { error } = await supabase
         .from(TABLES.CART_ITEMS)
         .delete()
@@ -572,10 +502,9 @@ const CartController = {
         });
       }
 
-      // Get cart ID
-      const cartId = await CartController.getOrCreateCart(userId, sessionId);
+      const cart = await CartController.getOrCreateCart(userId, sessionId);
+      const cartId = cart.id;
 
-      // Delete all cart items for this cart
       const { data: deletedItems, error } = await supabase
         .from(TABLES.CART_ITEMS)
         .delete()
@@ -622,7 +551,6 @@ const CartController = {
 
       console.log(`🔀 Merging cart for user ${userId} from session ${session_id}`);
 
-      // Get guest cart
       const { data: guestCart, error: guestCartError } = await supabase
         .from(TABLES.CARTS)
         .select('id')
@@ -636,19 +564,17 @@ const CartController = {
         });
       }
 
-      // Get or create user cart
-      const userCartId = await CartController.getOrCreateCart(userId, null);
+      const userCart = await CartController.getOrCreateCart(userId, null);
+      const userCartId = userCart.id;
 
-      // Get guest cart items
       const { data: guestItems, error: guestItemsError } = await supabase
         .from(TABLES.CART_ITEMS)
-        .select('product_variant_id, quantity, bundle_origin, bundle_id')
+        .select('bundle_id, quantity')
         .eq('cart_id', guestCart.id);
 
       if (guestItemsError) throw guestItemsError;
 
       if (!guestItems || guestItems.length === 0) {
-        // Delete guest cart
         await supabase.from(TABLES.CARTS).delete().eq('id', guestCart.id);
         
         return res.json({
@@ -657,21 +583,18 @@ const CartController = {
         });
       }
 
-      // Merge items one by one
       let mergedCount = 0;
       for (const item of guestItems) {
-        // Check if item exists in user cart
         const { data: existingItem, error: existError } = await supabase
           .from(TABLES.CART_ITEMS)
           .select('id, quantity')
           .eq('cart_id', userCartId)
-          .eq('product_variant_id', item.product_variant_id)
+          .eq('bundle_id', item.bundle_id)
           .single();
 
         const itemExists = !existError && existingItem;
 
         if (itemExists) {
-          // Update quantity
           await supabase
             .from(TABLES.CART_ITEMS)
             .update({ quantity: existingItem.quantity + item.quantity })
@@ -679,15 +602,13 @@ const CartController = {
           
           mergedCount++;
         } else {
-          // Insert new item
           await supabase
             .from(TABLES.CART_ITEMS)
             .insert([{
               cart_id: userCartId,
-              product_variant_id: item.product_variant_id,
-              quantity: item.quantity,
-              bundle_origin: item.bundle_origin,
               bundle_id: item.bundle_id,
+              quantity: item.quantity,
+              user_id: userId,  // 🔥 Use the actual logged-in user ID
               created_at: new Date().toISOString()
             }]);
           
@@ -695,7 +616,6 @@ const CartController = {
         }
       }
 
-      // Delete guest cart and its items
       await supabase.from(TABLES.CART_ITEMS).delete().eq('cart_id', guestCart.id);
       await supabase.from(TABLES.CARTS).delete().eq('id', guestCart.id);
 

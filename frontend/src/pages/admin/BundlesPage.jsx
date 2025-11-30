@@ -1,4 +1,4 @@
-// frontend/src/pages/admin/BundlesPage.jsx
+// frontend/src/pages/admin/BundlesPage.jsx - FIXED
 
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Copy, Power, ChevronDown, ChevronUp } from 'lucide-react';
@@ -60,9 +60,16 @@ export default function BundlesPage() {
     const result = await getBundles({ page: 1, limit: 100 });
     
     if (result.success) {
-      setBundles(result.data.data || []);
+      // ✅ FIXED: Handle both response formats
+      const bundlesData = Array.isArray(result.data) 
+        ? result.data 
+        : result.data.data || [];
+      
+      setBundles(bundlesData);
+      console.log('✅ Bundles loaded:', bundlesData.length);
     } else {
       toast.error(result.error || 'Failed to load bundles');
+      setBundles([]);
     }
     
     setLoading(false);
@@ -120,8 +127,6 @@ export default function BundlesPage() {
     } else {
       toast.error(result.error || 'Failed to toggle status');
     }
-    
-    
   };
 
   const handleDuplicate = async (bundleId) => {
@@ -134,8 +139,6 @@ export default function BundlesPage() {
     } else {
       toast.error(result.error || 'Failed to duplicate bundle');
     }
-    
-    
   };
 
   const handleFormSuccess = (successMessage) => {
@@ -145,7 +148,6 @@ export default function BundlesPage() {
     toast.success(successMessage);
     fetchBundles();
     fetchStats();
-    
   };
 
   const handleModalClose = () => {

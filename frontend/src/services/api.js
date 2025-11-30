@@ -97,19 +97,48 @@ export const createFormDataRequest = (data, fileField = 'image') => {
   return formData;
 };
 
-// API request wrapper with error handling
+/**
+ * API request wrapper with error handling
+ * 
+ * This wrapper handles both response formats:
+ * 1. Backend responses that already have {success, data, message} structure
+ * 2. Raw responses that need to be wrapped
+ * 
+ * @param {Function} requestFn - The axios request function to execute
+ * @returns {Promise<Object>} Normalized response with {success, data, message, status}
+ */
 export const apiRequest = async (requestFn) => {
   try {
     const response = await requestFn();
+    
+    // Check if backend already returned a structured response
+    const backendResponse = response.data;
+    
+    // If backend response has a 'success' field, it's already structured
+    if (backendResponse && typeof backendResponse.success === 'boolean') {
+      // Backend already returns {success, data, message}
+      // Pass it through directly with status added
+      return {
+        success: backendResponse.success,
+        data: backendResponse.data || backendResponse,
+        message: backendResponse.message,
+        status: response.status,
+      };
+    }
+    
+    // Otherwise, wrap the raw response
     return {
       success: true,
       data: response.data,
       status: response.status,
     };
   } catch (error) {
+    console.error('❌ API Request Error:', error);
+    
     return {
       success: false,
       error: error.message || 'Request failed',
+      message: error.message || 'Request failed',
       status: error.status || 0,
       data: null,
     };

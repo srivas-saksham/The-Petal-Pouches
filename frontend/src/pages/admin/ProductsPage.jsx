@@ -1,4 +1,4 @@
-// frontend/src/pages/admin/ProductsPage.jsx
+// frontend/src/pages/admin/ProductsPage.jsx - FIXED
 
 import { useState, useEffect } from 'react';
 import { Plus, LayoutGrid, List } from 'lucide-react';
@@ -80,7 +80,8 @@ export default function ProductsPage() {
   const fetchCategories = async () => {
     const result = await getCategories();
     if (result.success) {
-      setCategories(result.data.data || []);
+      // ✅ FIXED: Access result.data directly, not result.data.data
+      setCategories(Array.isArray(result.data) ? result.data : result.data.data || []);
     } else {
       toast.error('Failed to load categories');
     }
@@ -140,10 +141,25 @@ export default function ProductsPage() {
     const result = await getProducts(params);
     
     if (result.success) {
-      setProducts(result.data.data || []);
-      setMetadata(result.data.metadata || null);
+      // ✅ FIXED: Handle both response formats
+      // If result.data is already an array, use it directly
+      // Otherwise check for result.data.data (nested structure from backend)
+      const productsData = Array.isArray(result.data) 
+        ? result.data 
+        : result.data.data || [];
+      
+      const metadataData = Array.isArray(result.data)
+        ? null
+        : result.data.metadata || null;
+      
+      setProducts(productsData);
+      setMetadata(metadataData);
+      
+      console.log('✅ Products loaded:', productsData.length);
     } else {
       toast.error(result.error || 'Failed to load products');
+      setProducts([]);
+      setMetadata(null);
     }
     
     setLoading(false);

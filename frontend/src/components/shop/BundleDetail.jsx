@@ -1,22 +1,50 @@
-// frontend/src/components/shop/BundleDetail.jsx - FIXED
+// frontend/src/components/shop/BundleDetail.jsx - FIXED WITH CART SERVICE
 
 import React, { useState } from 'react';
 import { X, ShoppingBag, Heart, Share2, Check } from 'lucide-react';
 import { formatBundlePrice, getBundleStockMessage, isBundleInStock } from '../../utils/bundleHelpers';
 import BundleProducts from './BundleProducts';
-import useBundleCart from '../../hooks/useBundleCart';
+import { addBundleToCart } from '../../services/cartService';
 
 const BundleDetail = ({ bundle, onClose }) => {
   const [quantity, setQuantity] = useState(1);
-  const { addBundleToCart, loading } = useBundleCart();
+  const [loading, setLoading] = useState(false);
 
   // Handle both 'items' and 'Bundle_items' (from Supabase)
   const bundleItems = bundle?.items || bundle?.Bundle_items || [];
 
   const handleAddToCart = async () => {
-    const success = await addBundleToCart(bundle.id, quantity);
-    if (success && onClose) {
-      setTimeout(() => onClose(), 500);
+    if (!bundle.stock_status?.in_stock) {
+      alert('This bundle is out of stock');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      console.log('🛒 Adding bundle to cart:', bundle.id, 'Quantity:', quantity);
+
+      const result = await addBundleToCart(bundle.id, quantity);
+
+      if (result.success) {
+        console.log('✅ Bundle added successfully');
+        
+        // Optional: Show success message with toast
+        // toast.success('Bundle added to cart!');
+        
+        // Close modal after short delay
+        if (onClose) {
+          setTimeout(() => onClose(), 500);
+        }
+      } else {
+        console.error('❌ Failed to add bundle:', result.error);
+        alert(result.error || 'Failed to add bundle to cart');
+      }
+    } catch (error) {
+      console.error('❌ Add to cart error:', error);
+      alert('Failed to add to cart. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -1,4 +1,4 @@
-// frontend/src/pages/ShopNew.jsx
+// frontend/src/pages/ShopNew.jsx - WITH CART INTEGRATION
 
 import React, { useState, useEffect } from 'react';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
@@ -6,6 +6,7 @@ import BundleGrid from '../components/shop/BundleGrid';
 import BundleEmpty from '../components/shop/BundleEmpty';
 import useBundleFilters from '../hooks/useBundleFilters';
 import bundleService from '../services/bundleService';
+import { getCart } from '../services/cartService';
 
 const BundleShop = () => {
   const [bundles, setBundles] = useState([]);
@@ -13,6 +14,10 @@ const BundleShop = () => {
   const [error, setError] = useState(null);
   const [metadata, setMetadata] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
+  
+  // 🛒 Cart state
+  const [cartItems, setCartItems] = useState([]);
+  const [cartLoading, setCartLoading] = useState(true);
 
   const {
     filters,
@@ -29,6 +34,38 @@ const BundleShop = () => {
   const [searchInput, setSearchInput] = useState(filters.search);
   const [minPrice, setMinPrice] = useState(filters.minPrice);
   const [maxPrice, setMaxPrice] = useState(filters.maxPrice);
+
+  // 🛒 Fetch cart items
+  useEffect(() => {
+    const fetchCart = async () => {
+      setCartLoading(true);
+      try {
+        const result = await getCart();
+        if (result.success && result.data) {
+          setCartItems(result.data.items || []);
+          console.log('✅ Cart loaded:', result.data.items?.length || 0, 'items');
+        }
+      } catch (err) {
+        console.error('❌ Failed to fetch cart:', err);
+      } finally {
+        setCartLoading(false);
+      }
+    };
+
+    fetchCart();
+  }, []);
+
+  // 🛒 Refresh cart function (call this after cart updates)
+  const refreshCart = async () => {
+    try {
+      const result = await getCart();
+      if (result.success && result.data) {
+        setCartItems(result.data.items || []);
+      }
+    } catch (err) {
+      console.error('❌ Failed to refresh cart:', err);
+    }
+  };
 
   // Fetch bundles
   useEffect(() => {
@@ -192,9 +229,15 @@ const BundleShop = () => {
         </div>
       )}
 
-      {/* Bundle Grid */}
+      {/* Bundle Grid - NOW WITH CART ITEMS */}
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <BundleGrid bundles={bundles} loading={loading} error={error} />
+        <BundleGrid 
+          bundles={bundles} 
+          loading={loading} 
+          error={error}
+          cartItems={cartItems}
+          onCartUpdate={refreshCart}
+        />
 
         {/* Empty with filters */}
         {!loading && bundles.length === 0 && hasActiveFilters() && (

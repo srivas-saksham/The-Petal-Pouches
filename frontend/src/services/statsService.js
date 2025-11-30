@@ -24,7 +24,10 @@ const getBundleStats = async () => {
       };
     }
 
-    const bundles = result.data || [];
+    // ✅ FIXED: Handle both array and nested data structure
+    const bundles = Array.isArray(result.data) 
+      ? result.data 
+      : result.data.data || [];
     
     const stats = {
       total: bundles.length,
@@ -71,7 +74,12 @@ export const getDashboardStats = async () => {
     const productStats = productStatsResult.success ? productStatsResult.data : {};
     const bundleStats = bundleStatsResult.success ? bundleStatsResult.data : {};
     const orderStats = orderStatsResult.success ? orderStatsResult.data : {};
-    const categories = categoryResult.success ? categoryResult.data.data : [];
+    
+    // ✅ FIXED: Handle categories data structure properly
+    const categoriesData = categoryResult.success ? categoryResult.data : [];
+    const categories = Array.isArray(categoriesData) 
+      ? categoriesData 
+      : categoriesData.data || [];
 
     return {
       success: true,
@@ -178,8 +186,18 @@ export const getCategoryDistribution = async () => {
       };
     }
 
-    const categories = categoryResult.data.data || [];
-    const products = productResult.data.data || [];
+    // ✅ FIXED: Handle both response formats properly
+    const categoriesData = categoryResult.data;
+    const categories = Array.isArray(categoriesData) 
+      ? categoriesData 
+      : categoriesData.data || [];
+
+    const productsData = productResult.data;
+    const products = Array.isArray(productsData) 
+      ? productsData 
+      : productsData.data || [];
+
+    console.log('📊 Category distribution - Categories:', categories.length, 'Products:', products.length);
 
     const distribution = categories.map(cat => {
       const count = products.filter(p => p.category_id === cat.id).length;
@@ -214,34 +232,54 @@ export const getCategoryDistribution = async () => {
  * Get top performing products (by sales - would need order_items data)
  */
 export const getTopProducts = async (limit = 5) => {
-  // Note: This requires order_items tracking
-  // For now, return products sorted by stock (lower stock = more sold)
-  const result = await getProducts({ limit: 1000 });
-  
-  if (!result.success) {
+  try {
+    // Note: This requires order_items tracking
+    // For now, return products sorted by stock (lower stock = more sold)
+    const result = await getProducts({ limit: 1000 });
+    
+    if (!result.success) {
+      console.error('❌ Failed to get products for top products');
+      return {
+        success: false,
+        data: [],
+      };
+    }
+
+    // ✅ FIXED: Handle both response formats properly
+    const productsData = result.data;
+    const products = Array.isArray(productsData) 
+      ? productsData 
+      : productsData.data || [];
+
+    console.log('📦 Top products - Total products fetched:', products.length);
+
+    // Filter out products without images
+    const productsWithImages = products.filter(p => p.img_url);
+
+    // Mock sales data based on stock levels (lower stock = higher sales)
+    const withSalesData = productsWithImages.map(product => ({
+      ...product,
+      sales: Math.max(0, 100 - (product.stock || 0)), // Mock calculation
+      revenue: Math.max(0, 100 - (product.stock || 0)) * (product.price || 0),
+    }));
+
+    const topProducts = withSalesData
+      .sort((a, b) => b.sales - a.sales)
+      .slice(0, limit);
+
+    console.log('✅ Top products selected:', topProducts.length);
+
+    return {
+      success: true,
+      data: topProducts,
+    };
+  } catch (error) {
+    console.error('❌ Error in getTopProducts:', error);
     return {
       success: false,
       data: [],
     };
   }
-
-  const products = result.data.data || [];
-  
-  // Mock sales data based on stock levels (lower stock = higher sales)
-  const withSalesData = products.map(product => ({
-    ...product,
-    sales: Math.max(0, 100 - product.stock), // Mock calculation
-    revenue: Math.max(0, 100 - product.stock) * product.price,
-  }));
-
-  const topProducts = withSalesData
-    .sort((a, b) => b.sales - a.sales)
-    .slice(0, limit);
-
-  return {
-    success: true,
-    data: topProducts,
-  };
 };
 
 /**
@@ -260,7 +298,11 @@ export const getInventoryAlerts = async () => {
     };
   }
 
-  const products = result.data.data || [];
+  // ✅ FIXED: Handle both response formats properly
+  const productsData = result.data;
+  const products = Array.isArray(productsData) 
+    ? productsData 
+    : productsData.data || [];
   
   const lowStock = products.filter(p => p.stock > 0 && p.stock <= 10);
   const outOfStock = products.filter(p => p.stock === 0);

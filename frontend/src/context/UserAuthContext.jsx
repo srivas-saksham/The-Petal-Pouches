@@ -1,6 +1,7 @@
-// frontend/src/context/UserAuthContext.jsx
+// frontend/src/context/UserAuthContext.jsx - WITH CART MERGE
 
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { mergeCarts } from '../services/cartService';
 
 const UserAuthContext = createContext();
 
@@ -78,6 +79,16 @@ export function UserAuthProvider({ children }) {
       localStorage.setItem('customer_token', newToken);
       localStorage.setItem('customer_user', JSON.stringify(newUser));
 
+      // ✅ Merge guest cart after registration
+      if (newUser.id) {
+        try {
+          await mergeCarts(newUser.id);
+          console.log('✅ Guest cart merged after registration');
+        } catch (mergeError) {
+          console.error('⚠️ Cart merge failed:', mergeError);
+        }
+      }
+
       return { success: true };
     } catch (err) {
       const errorMsg = err.message || 'Registration error';
@@ -110,6 +121,16 @@ export function UserAuthProvider({ children }) {
       localStorage.setItem('customer_token', newToken);
       localStorage.setItem('customer_user', JSON.stringify(newUser));
 
+      // ✅ Merge guest cart after login
+      if (newUser.id) {
+        try {
+          await mergeCarts(newUser.id);
+          console.log('✅ Guest cart merged after login');
+        } catch (mergeError) {
+          console.error('⚠️ Cart merge failed:', mergeError);
+        }
+      }
+
       return { success: true };
     } catch (err) {
       const errorMsg = err.message || 'Login error';
@@ -138,6 +159,9 @@ export function UserAuthProvider({ children }) {
       localStorage.removeItem('customer_token');
       localStorage.removeItem('customer_user');
       setError(null);
+      
+      // Clear guest session on logout (optional - keeps guest cart)
+      // localStorage.removeItem('guest_session_id');
     }
   }, [token, API_URL]);
 
