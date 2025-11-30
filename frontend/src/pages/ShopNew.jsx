@@ -1,4 +1,4 @@
-// frontend/src/pages/ShopNew.jsx - WITH CART INTEGRATION
+// frontend/src/pages/ShopNew.jsx - WITH CART CONTEXT
 
 import React, { useState, useEffect } from 'react';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
@@ -6,7 +6,7 @@ import BundleGrid from '../components/shop/BundleGrid';
 import BundleEmpty from '../components/shop/BundleEmpty';
 import useBundleFilters from '../hooks/useBundleFilters';
 import bundleService from '../services/bundleService';
-import { getCart } from '../services/cartService';
+import { useCart } from '../hooks/useCart';
 
 const BundleShop = () => {
   const [bundles, setBundles] = useState([]);
@@ -15,9 +15,8 @@ const BundleShop = () => {
   const [metadata, setMetadata] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   
-  // 🛒 Cart state
-  const [cartItems, setCartItems] = useState([]);
-  const [cartLoading, setCartLoading] = useState(true);
+  // ⭐ Use Cart Context instead of local state
+  const { cartItems, refreshCart } = useCart();
 
   const {
     filters,
@@ -34,38 +33,6 @@ const BundleShop = () => {
   const [searchInput, setSearchInput] = useState(filters.search);
   const [minPrice, setMinPrice] = useState(filters.minPrice);
   const [maxPrice, setMaxPrice] = useState(filters.maxPrice);
-
-  // 🛒 Fetch cart items
-  useEffect(() => {
-    const fetchCart = async () => {
-      setCartLoading(true);
-      try {
-        const result = await getCart();
-        if (result.success && result.data) {
-          setCartItems(result.data.items || []);
-          console.log('✅ Cart loaded:', result.data.items?.length || 0, 'items');
-        }
-      } catch (err) {
-        console.error('❌ Failed to fetch cart:', err);
-      } finally {
-        setCartLoading(false);
-      }
-    };
-
-    fetchCart();
-  }, []);
-
-  // 🛒 Refresh cart function (call this after cart updates)
-  const refreshCart = async () => {
-    try {
-      const result = await getCart();
-      if (result.success && result.data) {
-        setCartItems(result.data.items || []);
-      }
-    } catch (err) {
-      console.error('❌ Failed to refresh cart:', err);
-    }
-  };
 
   // Fetch bundles
   useEffect(() => {
@@ -229,7 +196,7 @@ const BundleShop = () => {
         </div>
       )}
 
-      {/* Bundle Grid - NOW WITH CART ITEMS */}
+      {/* Bundle Grid - NOW WITH CART CONTEXT */}
       <div className="max-w-7xl mx-auto px-4 py-6">
         <BundleGrid 
           bundles={bundles} 

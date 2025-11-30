@@ -1,4 +1,4 @@
-// frontend/src/services/cartService.js - COMPLETE CART SERVICE
+// frontend/src/services/cartService.js - WITH STOCK LIMIT VALIDATION
 
 import axios from 'axios';
 
@@ -60,22 +60,82 @@ export const getCart = async () => {
   }
 };
 
-// NOTE: addToCart is now only for bundles
-// For backwards compatibility, this function is kept but renamed internally
+/**
+ * ⭐ NEW: Validate stock limit before adding to cart
+ * @param {string} bundleId - Bundle UUID
+ * @param {number} requestedQuantity - Quantity user wants to add
+ * @param {number} currentQuantityInCart - Current quantity already in cart
+ * @param {number} stockLimit - Bundle stock limit from API
+ * @returns {Object} { valid: boolean, maxAllowed: number, message: string }
+ */
+export const validateStockLimit = (bundleId, requestedQuantity, currentQuantityInCart, stockLimit) => {
+  console.log('🔍 Validating stock limit:', {
+    bundleId,
+    requestedQuantity,
+    currentQuantityInCart,
+    stockLimit
+  });
+
+  if (!stockLimit) {
+    // No stock limit set - allow any quantity
+    return {
+      valid: true,
+      maxAllowed: Infinity,
+      message: 'No stock limit'
+    };
+  }
+
+  const totalQuantity = currentQuantityInCart + requestedQuantity;
+
+  if (totalQuantity > stockLimit) {
+    const remainingStock = Math.max(0, stockLimit - currentQuantityInCart);
+    return {
+      valid: false,
+      maxAllowed: remainingStock,
+      message: remainingStock > 0
+        ? `Only ${remainingStock} more unit${remainingStock === 1 ? '' : 's'} available (${stockLimit} total in stock)`
+        : `Maximum ${stockLimit} units allowed per bundle`
+    };
+  }
+
+  return {
+    valid: true,
+    maxAllowed: stockLimit - currentQuantityInCart,
+    message: 'Stock available'
+  };
+};
 
 /**
- * Add bundle to cart (as a single item)
+ * ⭐ UPDATED: Add bundle to cart with stock validation
  * POST /api/cart/items
  * 
  * @param {string} bundleId - Bundle UUID
  * @param {number} quantity - Number of bundles to add (default: 1)
+ * @param {number} stockLimit - Optional stock limit to validate against
+ * @param {number} currentQuantityInCart - Optional current quantity already in cart
  */
-export const addBundleToCart = async (bundleId, quantity = 1) => {
+export const addBundleToCart = async (bundleId, quantity = 1, stockLimit = null, currentQuantityInCart = 0) => {
   try {
     console.log('📦 Adding bundle to cart:', {
       bundleId,
-      quantity
+      quantity,
+      stockLimit,
+      currentQuantityInCart
     });
+
+    // ⭐ Validate stock limit if provided
+    if (stockLimit) {
+      const validation = validateStockLimit(bundleId, quantity, currentQuantityInCart, stockLimit);
+      
+      if (!validation.valid) {
+        return {
+          success: false,
+          error: validation.message,
+          code: 'STOCK_LIMIT_EXCEEDED',
+          maxAllowed: validation.maxAllowed
+        };
+      }
+    }
 
     // Backend expects: { bundle_id, quantity }
     const response = await axios.post(
@@ -107,15 +167,22 @@ export const addBundleToCart = async (bundleId, quantity = 1) => {
   }
 };
 
-// Alias for backwards compatibility
-export const addToCart = addBundleToCart;
-
 /**
- * Update cart item quantity
+ * ⭐ UPDATED: Update cart item quantity with stock validation
  * PATCH /api/cart/items/:id
  */
-export const updateCartItem = async (cartItemId, quantity) => {
+export const updateCartItem = async (cartItemId, quantity, stockLimit = null) => {
   try {
+    // ⭐ Validate against stock limit if provided
+    if (stockLimit && quantity > stockLimit) {
+      return {
+        success: false,
+        error: `Maximum ${stockLimit} units allowed per bundle`,
+        code: 'STOCK_LIMIT_EXCEEDED',
+        maxAllowed: stockLimit
+      };
+    }
+
     const response = await axios.patch(
       `${API_URL}/api/cart/items/${cartItemId}`,
       { quantity },
@@ -251,11 +318,11 @@ export const getCartItemCount = async () => {
 
 export default {
   getCart,
-  addToCart,
   addBundleToCart,
   updateCartItem,
   removeFromCart,
   clearCart,
   mergeCarts,
   getCartItemCount,
+  validateStockLimit,
 };

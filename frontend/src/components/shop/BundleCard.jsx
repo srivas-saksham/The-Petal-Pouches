@@ -1,22 +1,30 @@
-// frontend/src/components/shop/BundleCard.jsx - WITH DEBOUNCED QUANTITY UPDATES
+// frontend/src/components/shop/BundleCard.jsx - WITH STOCK LIMITS & LOW STOCK WARNINGS
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, Star, ShoppingCart, Eye, Check, Plus, Minus, Trash2 } from 'lucide-react';
+import { Package, Star, ShoppingCart, Eye, Check, Plus, Minus, Trash2, AlertTriangle } from 'lucide-react';
 import { formatBundlePrice, getItemDisplayName, getItemImageUrl, isBundleInStock } from '../../utils/bundleHelpers';
 import { getDisplayRating, formatRating } from '../../utils/reviewHelpers';
 import { addBundleToCart, updateCartItem, removeFromCart } from '../../services/cartService';
+import { useCart } from '../../hooks/useCart';
 
 /**
- * Enhanced BundleCard Component with Debounced Quantity Controls
+ * Enhanced BundleCard Component with:
+ * - Cart Context integration
+ * - Stock limit validation
+ * - Low stock warnings
+ * - Debounced quantity updates
  */
-const BundleCard = ({ bundle, onQuickView, cartItems = [], onCartUpdate }) => {
+const BundleCard = ({ bundle, onQuickView }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [adding, setAdding] = useState(false);
   const [updating, setUpdating] = useState(false);
   
+  // ⭐ Use Cart Context instead of props
+  const { cartItems, refreshCart, getBundleQuantityInCart, getCartItemByBundleId } = useCart();
+  
   // Find if this bundle is in cart
-  const cartItem = cartItems.find(item => item.bundle_id === bundle.id);
+  const cartItem = getCartItemByBundleId(bundle.id);
   
   // Local quantity for immediate UI updates
   const [localQuantity, setLocalQuantity] = useState(cartItem?.quantity || 0);
@@ -25,18 +33,18 @@ const BundleCard = ({ bundle, onQuickView, cartItems = [], onCartUpdate }) => {
   const [pendingQuantity, setPendingQuantity] = useState(null);
   const debounceTimerRef = useRef(null);
   
+  // ⭐ Extract stock limit from bundle
+  const stockLimit = bundle.stock_limit;
+  const isLowStock = stockLimit && stockLimit < 5;
+  
   // Get rating info (real or placeholder)
   const ratingInfo = getDisplayRating(bundle.reviews, bundle.average_rating);
 
-  // Sync local quantity when cart items change (on page load or after cart refresh)
+  // Sync local quantity when cart items change
   useEffect(() => {
-    const cartItem = cartItems.find(item => item.bundle_id === bundle.id);
-    if (cartItem) {
-      setLocalQuantity(cartItem.quantity);
-    } else {
-      setLocalQuantity(0);
-    }
-  }, [cartItems, bundle.id]);
+    const currentQuantity = getBundleQuantityInCart(bundle.id);
+    setLocalQuantity(currentQuantity);
+  }, [cartItems, bundle.id, getBundleQuantityInCart]);
 
   // Debounced update to server
   useEffect(() => {
@@ -60,20 +68,21 @@ const BundleCard = ({ bundle, onQuickView, cartItems = [], onCartUpdate }) => {
           const result = await removeFromCart(cartItem.id);
           if (result.success) {
             console.log('✅ Item removed from cart');
-            if (onCartUpdate) onCartUpdate();
+            refreshCart();
           } else {
             console.error('❌ Failed to remove:', result.error);
             // Revert local quantity on error
             setLocalQuantity(cartItem.quantity);
           }
         } else {
-          // Update quantity
-          const result = await updateCartItem(cartItem.id, pendingQuantity);
+          // ⭐ Update quantity with stock limit validation
+          const result = await updateCartItem(cartItem.id, pendingQuantity, stockLimit);
           if (result.success) {
             console.log(`✅ Quantity synced: ${pendingQuantity}`);
-            if (onCartUpdate) onCartUpdate();
+            refreshCart();
           } else {
             console.error('❌ Failed to update:', result.error);
+            alert(result.error); // Show stock limit error
             // Revert local quantity on error
             setLocalQuantity(cartItem.quantity);
           }
@@ -94,7 +103,7 @@ const BundleCard = ({ bundle, onQuickView, cartItems = [], onCartUpdate }) => {
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [pendingQuantity, cartItem, onCartUpdate]);
+  }, [pendingQuantity, cartItem, stockLimit, refreshCart]);
 
   const handleQuickView = (e) => {
     e.preventDefault();
@@ -114,13 +123,13 @@ const BundleCard = ({ bundle, onQuickView, cartItems = [], onCartUpdate }) => {
     setAdding(true);
 
     try {
-      const result = await addBundleToCart(bundle.id, 1);
+      // ⭐ Add with stock limit validation
+      const result = await addBundleToCart(bundle.id, 1, stockLimit, localQuantity);
 
       if (result.success) {
         setLocalQuantity(1);
         console.log('✅ Bundle added successfully');
-        // Refresh cart immediately after adding
-        if (onCartUpdate) onCartUpdate();
+        refreshCart();
       } else {
         console.error('❌ Failed to add bundle:', result.error);
         alert(result.error || 'Failed to add bundle to cart');
@@ -136,6 +145,12 @@ const BundleCard = ({ bundle, onQuickView, cartItems = [], onCartUpdate }) => {
   const handleIncrement = (e) => {
     e.preventDefault();
     e.stopPropagation();
+
+    // ⭐ Check stock limit before incrementing
+    if (stockLimit && localQuantity >= stockLimit) {
+      alert(`Maximum ${stockLimit} units allowed per bundle`);
+      return;
+    }
 
     const newQuantity = localQuantity + 1;
     setLocalQuantity(newQuantity);
@@ -175,7 +190,7 @@ const BundleCard = ({ bundle, onQuickView, cartItems = [], onCartUpdate }) => {
         setLocalQuantity(0);
         setPendingQuantity(null);
         console.log('✅ Item removed from cart');
-        if (onCartUpdate) onCartUpdate();
+        refreshCart();
       } else {
         console.error('❌ Failed to remove:', result.error);
         alert(result.error || 'Failed to remove item');
@@ -333,6 +348,14 @@ const BundleCard = ({ bundle, onQuickView, cartItems = [], onCartUpdate }) => {
               </span>
             )}
           </div>
+          
+          {/* ⭐ LOW STOCK WARNING */}
+          {isLowStock && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 px-2 py-1.5 rounded-md">
+              <AlertTriangle size={14} className="flex-shrink-0" />
+              <span className="font-medium">Only {stockLimit} unit{stockLimit === 1 ? '' : 's'} left!</span>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -342,9 +365,9 @@ const BundleCard = ({ bundle, onQuickView, cartItems = [], onCartUpdate }) => {
             <>
               <button
                 onClick={handleAddToCart}
-                disabled={adding || (bundle.stock_status && !bundle.stock_status.in_stock)}
+                disabled={adding || (bundle.stock_status && !bundle.stock_status.in_stock) || (stockLimit === 0)}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold text-sm transition-all duration-200 ${
-                  bundle.stock_status && !bundle.stock_status.in_stock
+                  bundle.stock_status && !bundle.stock_status.in_stock || stockLimit === 0
                     ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                     : adding
                     ? 'bg-purple-400 text-white cursor-wait'
@@ -418,9 +441,9 @@ const BundleCard = ({ bundle, onQuickView, cartItems = [], onCartUpdate }) => {
                   {/* Increase Button */}
                   <button
                     onClick={handleIncrement}
-                    disabled={updating}
+                    disabled={updating || (stockLimit && localQuantity >= stockLimit)}
                     className={`flex items-center justify-center w-9 h-9 rounded-lg border-2 transition-all ${
-                      updating
+                      updating || (stockLimit && localQuantity >= stockLimit)
                         ? 'border-slate-300 text-slate-400 cursor-not-allowed'
                         : 'border-purple-600 text-purple-600 hover:bg-purple-50 active:scale-95'
                     }`}
