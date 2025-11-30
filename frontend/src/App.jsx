@@ -1,4 +1,4 @@
-// frontend/src/App.jsx - WITH CART PROVIDER
+// frontend/src/App.jsx - FULL WITH CHECKOUT
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AdminAuthProvider } from './context/AdminAuthContext';
@@ -7,13 +7,18 @@ import { CartProvider } from './context/CartContext';
 import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './components/admin/ProtectedRoute';
 import ProtectedCustomerRoute from './components/user/ProtectedCustomerRoute';
+
+// Admin Pages
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminRoutes from './routes/adminRoutes';
+
+// User/Customer Pages
 import UserRoutes from './routes/userRoutes';
 import Shop from './pages/ShopNew';
 import BundleDetailPage from './pages/BundleDetailPage';
 import UserLogin from './pages/user/UserLogin';
 import UserRegister from './pages/user/UserRegister';
+import Checkout from './pages/Checkout';
 
 function App() {
   return (
@@ -24,16 +29,35 @@ function App() {
             {/* 🛒 CartProvider wraps all routes to provide global cart state */}
             <CartProvider>
               <Routes>
-                {/* Public Routes */}
+                {/* ==================== PUBLIC ROUTES ==================== */}
+                
+                {/* Root redirect */}
                 <Route path="/" element={<Navigate to="/shop" replace />} />
+                
+                {/* Shop Pages */}
                 <Route path="/shop" element={<Shop />} />
                 <Route path="/shop/bundles/:id" element={<BundleDetailPage />} />
                 
-                {/* User/Customer Auth Routes */}
+                {/* ==================== USER/CUSTOMER AUTH ROUTES ==================== */}
+                
+                {/* User Authentication */}
                 <Route path="/login" element={<UserLogin />} />
                 <Route path="/register" element={<UserRegister />} />
                 
-                {/* Protected User Routes - /user/* */}
+                {/* ==================== CHECKOUT ROUTE (Public but Protected) ==================== */}
+                
+                <Route
+                  path="/checkout"
+                  element={
+                    <ProtectedCustomerRoute>
+                      <Checkout />
+                    </ProtectedCustomerRoute>
+                  }
+                />
+                
+                {/* ==================== PROTECTED USER ROUTES ==================== */}
+                
+                {/* Protected User Dashboard & Settings */}
                 <Route
                   path="/user/*"
                   element={
@@ -43,10 +67,14 @@ function App() {
                   }
                 />
 
-                {/* Admin Auth Routes */}
+                {/* ==================== ADMIN AUTH ROUTES ==================== */}
+                
+                {/* Admin Login */}
                 <Route path="/admin/login" element={<AdminLogin />} />
                 
-                {/* Protected Admin Routes - /admin/* */}
+                {/* ==================== PROTECTED ADMIN ROUTES ==================== */}
+                
+                {/* Protected Admin Dashboard & Management */}
                 <Route
                   path="/admin/*"
                   element={
@@ -56,7 +84,8 @@ function App() {
                   }
                 />
 
-                {/* 404 - Catch all */}
+                {/* ==================== 404 - CATCH ALL ==================== */}
+                
                 <Route path="*" element={<Navigate to="/shop" replace />} />
               </Routes>
             </CartProvider>
