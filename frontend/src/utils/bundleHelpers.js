@@ -63,19 +63,22 @@ export const getBundleStockMessage = (stockStatus) => {
 };
 
 /**
- * Get product display name (handles variants)
+ * Get product display name (handles variants and both naming conventions)
  * @param {Object} item - Bundle item with product and variant data
  * @returns {string} Display name
  */
 export const getItemDisplayName = (item) => {
-  if (!item?.product) return 'Unknown Product';
+  // Handle both naming conventions: Products/product and Product_variants/variant
+  const product = item?.Products || item?.product;
+  const variant = item?.Product_variants || item?.variant;
   
-  let name = item.product.title;
+  if (!product) return 'Unknown Product';
+  
+  let name = product.title || 'Unknown Product';
   
   // Add variant attributes if available
-  if (item.variant?.attributes) {
-    const attrs = item.variant.attributes;
-    const attrString = Object.entries(attrs)
+  if (variant?.attributes && Object.keys(variant.attributes).length > 0) {
+    const attrString = Object.entries(variant.attributes)
       .map(([key, value]) => value)
       .join(', ');
     
@@ -88,19 +91,23 @@ export const getItemDisplayName = (item) => {
 };
 
 /**
- * Get product image URL (prioritize variant image)
+ * Get product image URL (prioritize variant image, handles both naming conventions)
  * @param {Object} item - Bundle item with product and variant data
  * @returns {string} Image URL or placeholder
  */
 export const getItemImageUrl = (item) => {
+  // Handle both naming conventions: Products/product and Product_variants/variant
+  const product = item?.Products || item?.product;
+  const variant = item?.Product_variants || item?.variant;
+  
   // Prioritize variant image
-  if (item?.variant?.img_url) {
-    return item.variant.img_url;
+  if (variant?.img_url) {
+    return variant.img_url;
   }
   
   // Fallback to product image
-  if (item?.product?.img_url) {
-    return item.product.img_url;
+  if (product?.img_url) {
+    return product.img_url;
   }
   
   // Placeholder
@@ -116,7 +123,9 @@ export const groupItemsByCategory = (items) => {
   if (!items || !Array.isArray(items)) return {};
   
   return items.reduce((groups, item) => {
-    const categoryName = item.product?.category?.name || 'Other';
+    // Handle both naming conventions
+    const product = item?.Products || item?.product;
+    const categoryName = product?.category?.name || 'Other';
     
     if (!groups[categoryName]) {
       groups[categoryName] = [];
@@ -160,7 +169,10 @@ export const formatBundleDescription = (description, maxLength = 150) => {
  */
 export const hasVariants = (items) => {
   if (!items || !Array.isArray(items)) return false;
-  return items.some(item => item.variant !== null);
+  return items.some(item => {
+    const variant = item?.Product_variants || item?.variant;
+    return variant !== null;
+  });
 };
 
 /**
@@ -172,8 +184,12 @@ export const getBundleSkus = (items) => {
   if (!items || !Array.isArray(items)) return [];
   
   return items.map(item => {
-    if (item.variant?.sku) return item.variant.sku;
-    if (item.product?.sku) return item.product.sku;
+    // Handle both naming conventions
+    const product = item?.Products || item?.product;
+    const variant = item?.Product_variants || item?.variant;
+    
+    if (variant?.sku) return variant.sku;
+    if (product?.sku) return product.sku;
     return null;
   }).filter(Boolean);
 };
@@ -264,4 +280,35 @@ export const searchBundles = (bundles, searchTerm) => {
     
     return title.includes(term) || description.includes(term);
   });
+};
+
+/**
+ * Check if bundle has low stock (less than 5 units)
+ * @param {Object} bundle - Bundle object
+ * @returns {boolean} True if low stock
+ */
+export const isBundleLowStock = (bundle) => {
+  const stockLimit = bundle?.stock_limit;
+  return stockLimit !== null && stockLimit !== undefined && stockLimit < 5;
+};
+
+/**
+ * Get stock limit display message
+ * @param {number} stockLimit - Stock limit value
+ * @returns {string|null} Stock message or null
+ */
+export const getStockLimitMessage = (stockLimit) => {
+  if (stockLimit === null || stockLimit === undefined) {
+    return null;
+  }
+  
+  if (stockLimit === 0) {
+    return 'Out of stock';
+  }
+  
+  if (stockLimit < 5) {
+    return `Only ${stockLimit} left in stock!`;
+  }
+  
+  return `${stockLimit} available`;
 };

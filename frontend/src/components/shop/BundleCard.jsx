@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, Star, ShoppingCart, Eye, Check, Plus, Minus, Trash2, AlertTriangle } from 'lucide-react';
+import { Package, Star, ShoppingCart, Eye, Check, Plus, Minus, Trash2, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatBundlePrice, getItemDisplayName, getItemImageUrl, isBundleInStock } from '../../utils/bundleHelpers';
 import { getDisplayRating, formatRating } from '../../utils/reviewHelpers';
 import { addBundleToCart, updateCartItem, removeFromCart } from '../../services/cartService';
@@ -14,11 +14,13 @@ import { useCart } from '../../hooks/useCart';
  * - Stock limit validation
  * - Low stock warnings
  * - Debounced quantity updates
+ * - Collapsible products dropdown
  */
 const BundleCard = ({ bundle, onQuickView }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [adding, setAdding] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [productsExpanded, setProductsExpanded] = useState(false);
   
   // ⭐ Use Cart Context instead of props
   const { cartItems, refreshCart, getBundleQuantityInCart, getCartItemByBundleId } = useCart();
@@ -298,37 +300,54 @@ const BundleCard = ({ bundle, onQuickView }) => {
           </div>
         </div>
 
-        {/* Products Included Section */}
+        {/* Products Included Section - Collapsible */}
         <div className="mb-3 pb-3 border-b border-tppgrey/40">
-          <p className="text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">
-            Products Included
-          </p>
-          <div className="space-y-1.5">
-            {displayProducts.map((item, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-md overflow-hidden bg-tpppeach flex-shrink-0 border border-tppgrey/30">
-                  <img
-                    src={getItemImageUrl(item)}
-                    alt={getItemDisplayName(item)}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.src = '/placeholder-product.png';
-                    }}
-                  />
-                </div>
-                <span className="text-xs text-slate-600 line-clamp-1 flex-1">
-                  {getItemDisplayName(item)}
-                  {item.quantity > 1 && (
-                    <span className="text-slate-400 ml-1">×{item.quantity}</span>
-                  )}
-                </span>
-              </div>
-            ))}
-            {hasMoreProducts && (
-              <p className="text-xs text-purple-600 font-medium pl-10">
-                +{bundleItems.length - 3} more items
-              </p>
+          {/* Header with Click Toggle */}
+          <button
+            onClick={() => setProductsExpanded(!productsExpanded)}
+            className="w-full flex items-center justify-between text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide hover:text-purple-600 transition-colors"
+          >
+            <span>Products Included ({bundleItems.length})</span>
+            {productsExpanded ? (
+              <ChevronUp size={16} className="text-slate-400" />
+            ) : (
+              <ChevronDown size={16} className="text-slate-400" />
             )}
+          </button>
+          
+          {/* Animated Dropdown Content */}
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${
+              productsExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+            }`}
+          >
+            <div className="space-y-1.5 pt-1">
+              {displayProducts.map((item, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-md overflow-hidden bg-tpppeach flex-shrink-0 border border-tppgrey/30">
+                    <img
+                      src={getItemImageUrl(item)}
+                      alt={getItemDisplayName(item)}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.src = '/placeholder-product.png';
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs text-slate-600 line-clamp-1 flex-1">
+                    {getItemDisplayName(item)}
+                    {item.quantity > 1 && (
+                      <span className="text-slate-400 ml-1">×{item.quantity}</span>
+                    )}
+                  </span>
+                </div>
+              ))}
+              {hasMoreProducts && (
+                <p className="text-xs text-purple-600 font-medium pl-10">
+                  +{bundleItems.length - 3} more items
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
