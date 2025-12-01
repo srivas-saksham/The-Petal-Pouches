@@ -18,6 +18,13 @@ const {
 /**
  * Get all bundles with pagination, filters, and search
  * GET /api/bundles
+ * 
+ * FEATURES:
+ * - Proper sort handling (price_asc, price_desc, etc.)
+ * - Stock filtering (in_stock parameter)
+ * - Price range filtering
+ * - Search by title
+ * - Pagination with metadata
  */
 const getAllBundles = async (req, res) => {
   try {
@@ -26,10 +33,14 @@ const getAllBundles = async (req, res) => {
       page = 1,
       limit = 20,
       sort = 'created_at',
+      order = 'desc',
       search = '',
       min_price = '',
-      max_price = ''
+      max_price = '',
+      in_stock = ''
     } = req.query;
+
+    console.log('📥 Get bundles request:', { active, page, limit, sort, order, search, min_price, max_price, in_stock });
 
     // Build base query
     let query = supabase
@@ -64,6 +75,14 @@ const getAllBundles = async (req, res) => {
       query = query.eq('is_active', true);
     }
 
+    // Filter by stock availability
+    if (in_stock === 'true') {
+      // Exclude bundles with stock_limit = 0 or null
+      query = query.not('stock_limit', 'is', null);
+      query = query.gt('stock_limit', 0);
+      console.log('📦 Filtering for in-stock bundles only');
+    }
+
     // Search filter
     if (search && search.trim()) {
       query = query.ilike('title', `%${search.trim()}%`);
@@ -77,10 +96,30 @@ const getAllBundles = async (req, res) => {
       query = query.lte('price', parseInt(max_price));
     }
 
-    // Sorting
+    // Sorting with proper ascending/descending
     const validSorts = ['created_at', 'title', 'price', 'discount_percent', 'updated_at'];
     const sortField = validSorts.includes(sort) ? sort : 'created_at';
-    query = query.order(sortField, { ascending: false });
+    
+    // Determine sort order
+    let ascending = order === 'asc';
+    
+    // Special handling for different sort types
+    if (sortField === 'created_at' || sortField === 'updated_at') {
+      // For dates, default to descending (newest first)
+      ascending = order === 'asc' ? true : false;
+    } else if (sortField === 'price') {
+      // For price: ascending = low to high, descending = high to low
+      ascending = order === 'asc' ? true : false;
+    } else if (sortField === 'title') {
+      // For title: ascending = A to Z
+      ascending = true;
+    } else if (sortField === 'discount_percent') {
+      // For discount: descending = highest first
+      ascending = false;
+    }
+    
+    console.log(`🔄 Sorting by ${sortField} (${ascending ? 'ascending' : 'descending'})`);
+    query = query.order(sortField, { ascending });
 
     // Pagination
     const pageNum = parseInt(page);
@@ -91,17 +130,32 @@ const getAllBundles = async (req, res) => {
 
     const { data: bundles, error, count } = await query;
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Query error:', error);
+      throw error;
+    }
 
-    // Add product count and calculate savings for each bundle
-    const bundlesWithExtras = (bundles || []).map(bundle => ({
-      ...bundle,
-      product_count: bundle.Bundle_items?.length || 0,
-      savings: bundle.original_price ? bundle.original_price - bundle.price : 0
-    }));
+    // Add stock status and product count for each bundle
+    const bundlesWithExtras = (bundles || []).map(bundle => {
+      const stockLimit = bundle.stock_limit;
+      const isOutOfStock = stockLimit === 0 || stockLimit === null;
+      
+      return {
+        ...bundle,
+        product_count: bundle.Bundle_items?.length || 0,
+        savings: bundle.original_price ? bundle.original_price - bundle.price : 0,
+        stock_status: {
+          in_stock: !isOutOfStock,
+          stock_limit: stockLimit,
+          is_low_stock: stockLimit !== null && stockLimit > 0 && stockLimit < 5
+        }
+      };
+    });
 
     // Calculate metadata
     const totalPages = Math.ceil(count / limitNum);
+
+    console.log(`✅ Returning ${bundlesWithExtras.length} bundles (page ${pageNum}/${totalPages})`);
 
     res.status(200).json({
       success: true,
@@ -175,6 +229,10 @@ const getBundleById = async (req, res) => {
       throw error;
     }
 
+    // Add stock status
+    const stockLimit = bundle.stock_limit;
+    const isOutOfStock = stockLimit === 0 || stockLimit === null;
+    
     // Calculate savings
     const savings = bundle.original_price ? bundle.original_price - bundle.price : 0;
 
@@ -183,7 +241,12 @@ const getBundleById = async (req, res) => {
       data: {
         ...bundle,
         savings,
-        product_count: bundle.Bundle_items?.length || 0
+        product_count: bundle.Bundle_items?.length || 0,
+        stock_status: {
+          in_stock: !isOutOfStock,
+          stock_limit: stockLimit,
+          is_low_stock: stockLimit !== null && stockLimit > 0 && stockLimit < 5
+        }
       }
     });
 
@@ -248,6 +311,10 @@ const getBundleDetails = async (req, res) => {
       throw error;
     }
 
+    // Add stock status
+    const stockLimit = bundle.stock_limit;
+    const isOutOfStock = stockLimit === 0 || stockLimit === null;
+    
     // Calculate total savings
     const savings = bundle.original_price ? bundle.original_price - bundle.price : 0;
 
@@ -256,7 +323,12 @@ const getBundleDetails = async (req, res) => {
       data: {
         ...bundle,
         savings,
-        product_count: bundle.Bundle_items?.length || 0
+        product_count: bundle.Bundle_items?.length || 0,
+        stock_status: {
+          in_stock: !isOutOfStock,
+          stock_limit: stockLimit,
+          is_low_stock: stockLimit !== null && stockLimit > 0 && stockLimit < 5
+        }
       }
     });
 
@@ -278,7 +350,31 @@ const getBundleStock = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Fetch bundle items
+    // First check bundle's stock_limit
+    const { data: bundle, error: bundleError } = await supabase
+      .from('Bundles')
+      .select('stock_limit')
+      .eq('id', id)
+      .single();
+
+    if (bundleError) throw bundleError;
+
+    const stockLimit = bundle.stock_limit;
+    const isOutOfStock = stockLimit === 0 || stockLimit === null;
+
+    // If out of stock at bundle level, return immediately
+    if (isOutOfStock) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          available: false,
+          stock_limit: stockLimit,
+          message: 'Bundle is out of stock'
+        }
+      });
+    }
+
+    // Fetch bundle items to check individual product stock
     const { data: bundleItems, error } = await supabase
       .from('Bundle_items')
       .select('product_id, product_variant_id, quantity')
@@ -293,13 +389,14 @@ const getBundleStock = async (req, res) => {
       });
     }
 
-    // Check stock availability
+    // Check stock availability of individual items
     const stockCheck = await validateBundleStock(bundleItems);
 
     res.status(200).json({
       success: true,
       data: {
-        available: stockCheck.available,
+        available: stockCheck.available && !isOutOfStock,
+        stock_limit: stockLimit,
         items_stock: stockCheck.items_stock,
         out_of_stock: stockCheck.out_of_stock
       }
@@ -321,7 +418,7 @@ const getBundleStock = async (req, res) => {
 
 /**
  * Create a new bundle
- * POST /api/admin/bundles
+ * POST /api/bundles/admin
  */
 const createBundle = async (req, res) => {
   try {
@@ -464,7 +561,7 @@ const createBundle = async (req, res) => {
 
 /**
  * Update existing bundle
- * PUT /api/admin/bundles/:id
+ * PUT /api/bundles/admin/:id
  */
 const updateBundle = async (req, res) => {
   try {
@@ -604,7 +701,7 @@ const updateBundle = async (req, res) => {
 
 /**
  * Delete bundle (with cascading delete of items)
- * DELETE /api/admin/bundles/:id
+ * DELETE /api/bundles/admin/:id
  */
 const deleteBundle = async (req, res) => {
   try {
@@ -674,7 +771,7 @@ const deleteBundle = async (req, res) => {
 
 /**
  * Toggle bundle active status
- * PATCH /api/admin/bundles/:id/toggle
+ * PATCH /api/bundles/admin/:id/toggle
  */
 const toggleBundleStatus = async (req, res) => {
   try {
@@ -727,7 +824,7 @@ const toggleBundleStatus = async (req, res) => {
 
 /**
  * Duplicate bundle with all items
- * POST /api/admin/bundles/:id/duplicate
+ * POST /api/bundles/admin/:id/duplicate
  */
 const duplicateBundle = async (req, res) => {
   try {

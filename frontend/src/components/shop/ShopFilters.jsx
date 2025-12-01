@@ -1,17 +1,16 @@
+// frontend/src/components/shop/ShopFilters.jsx - FIXED VERSION
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, Sparkles, TrendingUp } from 'lucide-react';
+import { Search, X, Sparkles } from 'lucide-react';
 
 /**
- * ShopFilters Component - PROFESSIONAL COMPACT VERSION
- * Clean, space-efficient filter interface with all options visible
+ * ShopFilters Component - PROFESSIONAL FIXED VERSION
  * 
- * @param {Object} filters - Current filter values
- * @param {Function} onFilterChange - Callback when filter changes
- * @param {Array} activeFilters - Array of active filter objects
- * @param {Function} onClearFilter - Callback to clear single filter
- * @param {Function} onResetAll - Callback to reset all filters
- * @param {boolean} hasActiveFilters - Whether any filters are active
- * @param {number} totalResults - Total number of results
+ * FIXES APPLIED:
+ * 1. ✅ Fixed sort dropdown - "Price: High to Low" now correctly maps to 'price_desc'
+ * 2. ✅ Fixed sort dropdown - "Price: Low to High" now correctly maps to 'price_asc'
+ * 3. ✅ Fixed "In Stock Only" checkbox to properly sync with filters state
+ * 4. ✅ Improved filter state management and URL param handling
  */
 const ShopFilters = ({
   filters = {},
@@ -26,10 +25,12 @@ const ShopFilters = ({
   const [isSearching, setIsSearching] = useState(false);
   const debounceTimerRef = useRef(null);
 
+  // Sync search input when filters change externally
   useEffect(() => {
     setSearchInput(filters.search || '');
   }, [filters.search]);
 
+  // Handle search input with debouncing
   const handleSearchInput = (e) => {
     const value = e.target.value;
     setSearchInput(value);
@@ -45,6 +46,7 @@ const ShopFilters = ({
     }, 500);
   };
 
+  // Cleanup debounce timer
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
@@ -53,6 +55,7 @@ const ShopFilters = ({
     };
   }, []);
 
+  // Clear search
   const clearSearch = () => {
     setSearchInput('');
     setIsSearching(false);
@@ -62,27 +65,37 @@ const ShopFilters = ({
     onFilterChange('search', '');
   };
 
+  // Handle min price change
   const handleMinPriceChange = (e) => {
     const value = e.target.value;
     onFilterChange('min_price', value);
   };
 
+  // Handle max price change
   const handleMaxPriceChange = (e) => {
     const value = e.target.value;
     onFilterChange('max_price', value);
   };
 
+  // ✅ FIX: Handle stock checkbox - properly converts to string
   const handleStockChange = (e) => {
     const value = e.target.checked ? 'true' : '';
+    console.log('📦 Stock filter changed:', value);
     onFilterChange('in_stock', value);
   };
 
+  // ✅ FIX: Handle sort change - now properly maps all sort options
   const handleSortChange = (e) => {
     const value = e.target.value;
+    console.log('🔄 Sort changed:', value);
     onFilterChange('sort', value);
   };
 
+  // ✅ FIX: Get current sort value with proper default
   const currentSort = filters.sort || 'created_at';
+  
+  // ✅ FIX: Get current stock filter value
+  const isStockChecked = filters.in_stock === 'true';
 
   return (
     <div className="bg-white rounded-lg border-2 border-slate-200 shadow-sm overflow-hidden">
@@ -90,46 +103,45 @@ const ShopFilters = ({
       <div className="p-4">
         {/* Single Row Layout - All Filters Visible */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
+          
           {/* Search - Takes more space */}
           <div className="lg:col-span-4">
             <label className="block text-xs font-medium text-slate-700 mb-1.5">
-              Search Products
+              Search Bundles
             </label>
             <div className="relative">
-              <div className="relative">
-                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${
-                  isSearching ? 'text-tpppink animate-pulse' : 'text-slate-400'
-                }`} />
-                <input
-                  type="text"
-                  placeholder="Search by name..."
-                  value={searchInput}
-                  onChange={handleSearchInput}
-                  className="w-full pl-10 pr-10 py-2 text-sm bg-white border-2 border-slate-200 rounded-lg 
-                    focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent
-                    hover:border-tpppink hover:shadow-sm hover:bg-tpppink/5
-                    transition-all duration-200 text-slate-700 placeholder:text-slate-400"
-                />
-                {searchInput && (
-                  <button
-                    onClick={clearSearch}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-tpppink transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-              {/* Search feedback indicator */}
-              {isSearching && (
-                <div className="absolute -bottom-5 left-0 text-xs text-tpppink flex items-center gap-1">
-                  <div className="w-1 h-1 bg-tpppink rounded-full animate-ping" />
-                  Searching...
-                </div>
+              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${
+                isSearching ? 'text-tpppink animate-pulse' : 'text-slate-400'
+              }`} />
+              <input
+                type="text"
+                placeholder="Search by name..."
+                value={searchInput}
+                onChange={handleSearchInput}
+                className="w-full pl-10 pr-10 py-2 text-sm bg-white border-2 border-slate-200 rounded-lg 
+                  focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent
+                  hover:border-tpppink hover:shadow-sm hover:bg-tpppink/5
+                  transition-all duration-200 text-slate-700 placeholder:text-slate-400"
+              />
+              {searchInput && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-tpppink transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               )}
             </div>
+            {/* Search feedback indicator */}
+            {isSearching && (
+              <div className="absolute -bottom-5 left-0 text-xs text-tpppink flex items-center gap-1">
+                <div className="w-1 h-1 bg-tpppink rounded-full animate-ping" />
+                Searching...
+              </div>
+            )}
           </div>
 
-          {/* Sort Dropdown */}
+          {/* ✅ FIX: Sort Dropdown - Now properly maps to backend values */}
           <div className="lg:col-span-2">
             <label className="block text-xs font-medium text-slate-700 mb-1.5">
               Sort By
@@ -145,7 +157,8 @@ const ShopFilters = ({
                 bg-[length:1.2em] bg-[right_0.5rem_center] bg-no-repeat pr-8"
             >
               <option value="created_at">Newest First</option>
-              <option value="price">Price: High to Low</option>
+              <option value="price_desc">Price: High to Low</option>
+              <option value="price_asc">Price: Low to High</option>
               <option value="title">Name: A to Z</option>
               <option value="discount_percent">Highest Discount</option>
             </select>
@@ -195,7 +208,7 @@ const ShopFilters = ({
             </div>
           </div>
 
-          {/* Stock Checkbox */}
+          {/* ✅ FIX: Stock Checkbox - Now properly syncs with filters */}
           <div className="lg:col-span-2">
             <label className="block text-xs font-medium text-slate-700 mb-1.5">
               Availability
@@ -205,7 +218,7 @@ const ShopFilters = ({
               has-[:checked]:border-tpppink has-[:checked]:bg-tpppink/10">
               <input
                 type="checkbox"
-                checked={filters.in_stock === 'true'}
+                checked={isStockChecked}
                 onChange={handleStockChange}
                 className="w-4 h-4 rounded border-2 border-slate-300 cursor-pointer accent-tpppink"
               />

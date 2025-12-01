@@ -1,4 +1,4 @@
-// frontend/src/pages/ShopNew.jsx - FIXED VERSION
+// frontend/src/pages/ShopNew.jsx - FIXED FILTER INTEGRATION
 
 import React, { useState, useEffect } from 'react';
 import { LayoutGrid, Grid3x2, Grid2x2, Grid3x3, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -9,13 +9,22 @@ import useBundleFilters from '../hooks/useBundleFilters';
 import bundleService from '../services/bundleService';
 import { useCart } from '../hooks/useCart';
 
+/**
+ * BundleShop Component - FIXED VERSION
+ * 
+ * FIXES APPLIED:
+ * 1. ✅ Proper filter state management
+ * 2. ✅ Correct sort parameter mapping
+ * 3. ✅ In-stock filter working correctly
+ * 4. ✅ Better error handling
+ */
 const BundleShop = () => {
   const [bundles, setBundles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [metadata, setMetadata] = useState(null);
   
-  // Layout state - load from localStorage or default to '5'
+  // Layout state - load from localStorage or default to '4'
   const [layoutMode, setLayoutMode] = useState(() => {
     return localStorage.getItem('bundleLayoutMode') || '4';
   });
@@ -23,6 +32,7 @@ const BundleShop = () => {
   // Cart Context
   const { cartItems, refreshCart } = useCart();
 
+  // ✅ Use fixed filter hook
   const {
     filters,
     setSearch,
@@ -40,18 +50,24 @@ const BundleShop = () => {
     localStorage.setItem('bundleLayoutMode', layoutMode);
   }, [layoutMode]);
 
-  // Fetch bundles
+  // ✅ FIX: Fetch bundles with proper parameter mapping
   useEffect(() => {
     const fetchBundles = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        const response = await bundleService.getAllBundles(getApiParams());
+        const apiParams = getApiParams();
+        console.log('📤 Fetching bundles with params:', apiParams);
+        
+        const response = await bundleService.getAllBundles(apiParams);
+        
+        console.log('📥 Received response:', response);
+        
         setBundles(response.data || []);
         setMetadata(response.metadata);
       } catch (err) {
-        console.error('Failed to fetch bundles:', err);
+        console.error('❌ Failed to fetch bundles:', err);
         setError(err.message || 'Failed to load bundles');
       } finally {
         setLoading(false);
@@ -66,8 +82,10 @@ const BundleShop = () => {
     setLayoutMode(mode);
   };
 
-  // Handle filter changes from ShopFilters component
+  // ✅ FIX: Handle filter changes with proper type conversion
   const handleFilterChange = (filterType, value) => {
+    console.log(`🔧 Filter change: ${filterType} = ${value}`);
+    
     switch (filterType) {
       case 'search':
         setSearch(value);
@@ -76,20 +94,21 @@ const BundleShop = () => {
         setSortBy(value);
         break;
       case 'min_price':
-        setPriceRange(value, filters.maxPrice);
+        setPriceRange(value, filters.max_price);
         break;
       case 'max_price':
-        setPriceRange(filters.minPrice, value);
+        setPriceRange(filters.min_price, value);
         break;
       case 'in_stock':
         setInStock(value);
         break;
       default:
+        console.warn('Unknown filter type:', filterType);
         break;
     }
   };
 
-  // Build active filters array for ShopFilters component
+  // ✅ Build active filters array for display
   const getActiveFilters = () => {
     const active = [];
     
@@ -100,31 +119,33 @@ const BundleShop = () => {
       });
     }
     
-    if (filters.minPrice || filters.maxPrice) {
-      const min = filters.minPrice || '0';
-      const max = filters.maxPrice || '∞';
+    if (filters.min_price || filters.max_price) {
+      const min = filters.min_price || '0';
+      const max = filters.max_price || '∞';
       active.push({
         key: 'price',
         label: `Price: ₹${min} - ₹${max}`
       });
     }
 
-    if (filters.inStock === 'true') {
+    if (filters.in_stock === 'true') {
       active.push({
         key: 'in_stock',
         label: 'In Stock Only'
       });
     }
     
-    if (filters.sortBy && filters.sortBy !== 'created_at') {
+    // ✅ FIX: Show sort filter with proper labels
+    if (filters.sort && filters.sort !== 'created_at') {
       const sortLabels = {
-        'price': 'Price: High to Low',
+        'price_desc': 'Price: High to Low',
+        'price_asc': 'Price: Low to High',
         'title': 'Name: A to Z',
         'discount_percent': 'Highest Discount'
       };
       active.push({
         key: 'sort',
-        label: sortLabels[filters.sortBy] || filters.sortBy
+        label: sortLabels[filters.sort] || filters.sort
       });
     }
     
@@ -133,6 +154,8 @@ const BundleShop = () => {
 
   // Handle clearing individual filter
   const handleClearFilter = (filterKey) => {
+    console.log('🗑️ Clearing filter:', filterKey);
+    
     switch (filterKey) {
       case 'search':
         setSearch('');
@@ -177,7 +200,7 @@ const BundleShop = () => {
                 </h1>
                 {!loading && metadata && (
                   <p className="text-xs text-tppslate/60 mt-1">
-                    {bundles.length} of {metadata.total} bundles
+                    {bundles.length} of {metadata.totalCount} bundles
                   </p>
                 )}
               </div>
@@ -215,29 +238,29 @@ const BundleShop = () => {
                   }`}
                   title="6 Column Layout"
                 >
-                  <Grid3x3  size={16} />
+                  <Grid3x3 size={16} />
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Enhanced Filters Component */}
+        {/* ✅ Enhanced Filters Component with Fixed Props */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
           <ShopFilters
             filters={{
               search: filters.search,
-              sort: filters.sortBy,
-              min_price: filters.minPrice,
-              max_price: filters.maxPrice,
-              in_stock: filters.inStock
+              sort: filters.sort,
+              min_price: filters.min_price,
+              max_price: filters.max_price,
+              in_stock: filters.in_stock
             }}
             onFilterChange={handleFilterChange}
             activeFilters={getActiveFilters()}
             onClearFilter={handleClearFilter}
             onResetAll={resetFilters}
             hasActiveFilters={hasActiveFilters()}
-            totalResults={metadata?.total || 0}
+            totalResults={metadata?.totalCount || 0}
           />
         </div>
 

@@ -1,4 +1,4 @@
-// frontend/src/services/bundleService.js - FIXED API PATHS
+// frontend/src/services/bundleService.js - COMPLETE WITH ALL FEATURES
 
 import api, { createFormDataRequest, apiRequest } from './api';
 
@@ -139,8 +139,8 @@ export const getBundleStats = async () => {
 // ==================== PUBLIC SHOP METHODS ====================
 
 /**
- * Get all bundles for shop (public - only active bundles)
- * @param {Object} params - { page, limit, sort, search, min_price, max_price }
+ * Get all bundles for shop with proper sort mapping (public - only active bundles)
+ * @param {Object} params - { page, limit, sort, search, min_price, max_price, in_stock }
  * @returns {Promise<Object>} { bundles, metadata }
  */
 export const getAllBundles = async (params = {}) => {
@@ -149,13 +149,50 @@ export const getAllBundles = async (params = {}) => {
     
     if (params.page) queryParams.append('page', params.page);
     if (params.limit) queryParams.append('limit', params.limit);
-    if (params.sort) queryParams.append('sort', params.sort);
+    
+    // Map frontend sort values to backend expectations
+    if (params.sort) {
+      let backendSort = params.sort;
+      
+      // Map frontend sort values to backend
+      switch (params.sort) {
+        case 'price_asc':
+          // Backend needs 'price' with ascending order
+          backendSort = 'price';
+          queryParams.append('order', 'asc');
+          break;
+        case 'price_desc':
+          // Backend needs 'price' with descending order (default)
+          backendSort = 'price';
+          queryParams.append('order', 'desc');
+          break;
+        case 'created_at':
+        case 'title':
+        case 'discount_percent':
+          // These can pass through directly
+          backendSort = params.sort;
+          break;
+        default:
+          backendSort = 'created_at';
+      }
+      
+      queryParams.append('sort', backendSort);
+    }
+    
     if (params.search) queryParams.append('search', params.search);
     if (params.min_price) queryParams.append('min_price', params.min_price);
     if (params.max_price) queryParams.append('max_price', params.max_price);
+    
+    // Handle in_stock filter properly
+    if (params.in_stock === 'true' || params.in_stock === true) {
+      queryParams.append('in_stock', 'true');
+    }
+    
     queryParams.append('active', 'true'); // Only active bundles
 
-    // ✅ FIX: Use /api/bundles instead of /bundles
+    console.log('📤 Fetching bundles with params:', queryParams.toString());
+
+    // Use /api/bundles instead of /bundles
     const response = await api.get(`/api/bundles?${queryParams.toString()}`);
     
     // Handle response format
@@ -431,6 +468,8 @@ export const getBundlesWithLowStock = async () => {
     },
   };
 };
+
+// ==================== DEFAULT EXPORT ====================
 
 // Default export with all functions
 export default {

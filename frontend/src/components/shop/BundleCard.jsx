@@ -1,17 +1,29 @@
-// frontend/src/components/shop/BundleCard.jsx - ENHANCED MINIMAL UI
+// frontend/src/components/shop/BundleCard.jsx - WITH PRODUCTS DROPDOWN
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, Star, ShoppingCart, Eye, Check, Plus, Minus, Trash2, AlertTriangle } from 'lucide-react';
+import { Package, Star, ShoppingCart, Eye, Check, Plus, Minus, Trash2, AlertTriangle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatBundlePrice, getItemDisplayName, getItemImageUrl, isBundleInStock } from '../../utils/bundleHelpers';
 import { getDisplayRating, formatRating } from '../../utils/reviewHelpers';
 import { addBundleToCart, updateCartItem, removeFromCart } from '../../services/cartService';
 import { useCart } from '../../hooks/useCart';
 
+/**
+ * BundleCard Component - COMPLETE VERSION
+ * 
+ * FEATURES:
+ * 1. ✅ Shows "Out of Stock" badge when stock_limit === 0
+ * 2. ✅ Hides price when out of stock
+ * 3. ✅ "Add to Cart" button shows "Out of Stock" when unavailable
+ * 4. ✅ Animated collapsible Products Included section
+ * 5. ✅ Low stock warnings
+ * 6. ✅ Cart integration with debounced updates
+ */
 const BundleCard = ({ bundle, onQuickView }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [adding, setAdding] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [productsExpanded, setProductsExpanded] = useState(false);
   
   // Cart Context
   const { cartItems, refreshCart, getBundleQuantityInCart, getCartItemByBundleId } = useCart();
@@ -26,9 +38,11 @@ const BundleCard = ({ bundle, onQuickView }) => {
   const [pendingQuantity, setPendingQuantity] = useState(null);
   const debounceTimerRef = useRef(null);
   
-  // Extract stock limit from bundle
+  // Extract stock status from bundle
   const stockLimit = bundle.stock_limit;
-  const isLowStock = stockLimit && stockLimit < 5;
+  const isOutOfStock = stockLimit === 0 || stockLimit === null;
+  const isLowStock = !isOutOfStock && stockLimit && stockLimit < 5;
+  const isInStock = !isOutOfStock;
   
   // Get rating info (real or placeholder)
   const ratingInfo = getDisplayRating(bundle.reviews, bundle.average_rating);
@@ -95,7 +109,7 @@ const BundleCard = ({ bundle, onQuickView }) => {
     e.preventDefault();
     e.stopPropagation();
 
-    if (!isBundleInStock) {
+    if (isOutOfStock) {
       alert('This bundle is out of stock');
       return;
     }
@@ -174,6 +188,8 @@ const BundleCard = ({ bundle, onQuickView }) => {
 
   // Get bundle items
   const bundleItems = bundle?.items || bundle?.Bundle_items || [];
+  const displayProducts = bundleItems.slice(0, 3);
+  const hasMoreProducts = bundleItems.length > 3;
   const isInCart = localQuantity > 0;
 
   return (
@@ -190,7 +206,7 @@ const BundleCard = ({ bundle, onQuickView }) => {
           alt={bundle.title}
           className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${
             imageLoaded ? 'opacity-100' : 'opacity-0'
-          }`}
+          } ${isOutOfStock ? 'grayscale opacity-60' : ''}`}
           onLoad={() => setImageLoaded(true)}
           onError={(e) => {
             e.target.src = '/placeholder-bundle.png';
@@ -198,23 +214,33 @@ const BundleCard = ({ bundle, onQuickView }) => {
           }}
         />
 
-        {/* Items Count Badge */}
-        {bundleItems.length > 0 && (
+        {/* Out of Stock Badge */}
+        {isOutOfStock && (
+          <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-md flex items-center gap-1 shadow-lg">
+            <XCircle size={14} />
+            OUT OF STOCK
+          </div>
+        )}
+
+        {/* Items Count Badge (only if in stock) */}
+        {!isOutOfStock && bundleItems.length > 0 && (
           <div className="absolute top-2 right-2 bg-tpppink text-white text-xs font-semibold px-2 py-1 rounded-md flex items-center gap-1 shadow-sm">
             <Package size={12} />
             {bundleItems.length}
           </div>
         )}
 
-        {/* Quick View on Hover */}
-        <div className="hidden md:flex absolute inset-0 bg-tppslate/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 items-end justify-end p-2">
-          <button
-            onClick={handleQuickView}
-            className="bg-tpppink text-white hover:bg-tpppink/90 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 hover:bg-tpppeach transition-colors shadow-sm"
-          >
-            <Eye size={16} />
-          </button>
-        </div>
+        {/* Quick View on Hover (only if in stock) */}
+        {!isOutOfStock && (
+          <div className="hidden md:flex absolute inset-0 bg-tppslate/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 items-end justify-end p-2">
+            <button
+              onClick={handleQuickView}
+              className="bg-tpppink text-white hover:bg-tpppink/90 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors shadow-sm"
+            >
+              <Eye size={16} />
+            </button>
+          </div>
+        )}
       </Link>
 
       {/* Content Section */}
@@ -254,29 +280,86 @@ const BundleCard = ({ bundle, onQuickView }) => {
           )}
         </div>
 
-        {/* Price & Stock */}
+        {/* ⭐ Products Included Section - Collapsible */}
         <div className="mb-3 pb-3 border-b border-tppgrey/30">
-          <div className="flex items-baseline gap-2">
-            <span className="text-lg font-bold text-tpppink">
-              {formatBundlePrice(bundle.price)}
-            </span>
-            {bundle.stock_status && (
-              <span className={`text-xs font-medium ${
-                bundle.stock_status.in_stock 
-                  ? 'text-green-600' 
-                  : 'text-red-500'
-              }`}>
-                • {bundle.stock_status.in_stock ? 'In Stock' : 'Out of Stock'}
-              </span>
+          {/* Collapsible Header */}
+          <button
+            onClick={() => setProductsExpanded(!productsExpanded)}
+            className="w-full flex items-center justify-between text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide hover:text-tpppink transition-colors"
+          >
+            <span>Products Included ({bundleItems.length})</span>
+            {productsExpanded ? (
+              <ChevronUp size={14} className="text-slate-400" />
+            ) : (
+              <ChevronDown size={14} className="text-slate-400" />
             )}
-          </div>
+          </button>
           
-          {/* Low Stock Warning */}
-          {isLowStock && (
-            <div className="mt-1.5 flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
-              <AlertTriangle size={12} className="flex-shrink-0" />
-              <span className="font-medium">Only {stockLimit} left!</span>
+          {/* ⭐ Animated Dropdown Content */}
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${
+              productsExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+            }`}
+          >
+            <div className="space-y-1.5 pt-1">
+              {displayProducts.map((item, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-md overflow-hidden bg-tpppeach/20 flex-shrink-0 border border-tppgrey/30">
+                    <img
+                      src={getItemImageUrl(item)}
+                      alt={getItemDisplayName(item)}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.src = '/placeholder-product.png';
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs text-slate-600 line-clamp-1 flex-1">
+                    {getItemDisplayName(item)}
+                    {item.quantity > 1 && (
+                      <span className="text-slate-400 ml-1">×{item.quantity}</span>
+                    )}
+                  </span>
+                </div>
+              ))}
+              {hasMoreProducts && (
+                <p className="text-xs text-tpppink font-medium pl-10">
+                  +{bundleItems.length - 3} more items
+                </p>
+              )}
             </div>
+          </div>
+        </div>
+
+        {/* Price & Stock Section */}
+        <div className="mb-3">
+          {isOutOfStock ? (
+            // Hide price when out of stock, show unavailable message
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-red-600">
+                Currently Unavailable
+              </span>
+            </div>
+          ) : (
+            // Show price when in stock
+            <>
+              <div className="flex items-baseline gap-2">
+                <span className="text-lg font-bold text-tpppink">
+                  {formatBundlePrice(bundle.price)}
+                </span>
+                <span className="text-xs font-medium text-green-600">
+                  • In Stock
+                </span>
+              </div>
+              
+              {/* Low Stock Warning */}
+              {isLowStock && (
+                <div className="mt-1.5 flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                  <AlertTriangle size={12} className="flex-shrink-0" />
+                  <span className="font-medium">Only {stockLimit} left!</span>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -286,16 +369,21 @@ const BundleCard = ({ bundle, onQuickView }) => {
           <div className="flex gap-2">
             <button
               onClick={handleAddToCart}
-              disabled={adding || (bundle.stock_status && !bundle.stock_status.in_stock) || (stockLimit === 0)}
+              disabled={adding || isOutOfStock}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg font-semibold text-sm transition-all ${
-                bundle.stock_status && !bundle.stock_status.in_stock || stockLimit === 0
-                  ? 'bg-tppgrey/20 text-tppslate/40 cursor-not-allowed'
+                isOutOfStock
+                  ? 'bg-red-100 text-red-600 cursor-not-allowed border border-red-300'
                   : adding
                   ? 'bg-tpppink/70 text-white cursor-wait'
                   : 'bg-tpppink text-white hover:bg-tpppink/90 active:scale-95'
               }`}
             >
-              {adding ? (
+              {isOutOfStock ? (
+                <>
+                  <XCircle size={14} />
+                  Out of Stock
+                </>
+              ) : adding ? (
                 <>
                   <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   <span className="text-xs">Adding...</span>
@@ -309,15 +397,17 @@ const BundleCard = ({ bundle, onQuickView }) => {
             </button>
 
             {/* Mobile Quick View */}
-            <button
-              onClick={handleQuickView}
-              className="md:hidden flex items-center justify-center w-10 py-2 rounded-lg border border-tpppink text-tpppink hover:bg-tpppink/10 transition-colors"
-            >
-              <Eye size={14} />
-            </button>
+            {!isOutOfStock && (
+              <button
+                onClick={handleQuickView}
+                className="md:hidden flex items-center justify-center w-10 py-2 rounded-lg border border-tpppink text-tpppink hover:bg-tpppink/10 transition-colors"
+              >
+                <Eye size={14} />
+              </button>
+            )}
           </div>
         ) : (
-          // Quantity Controls
+          // Quantity Controls (only when in cart and in stock)
           <div className="space-y-2">
             {/* Quantity Row */}
             <div className="flex items-center gap-1.5 relative">

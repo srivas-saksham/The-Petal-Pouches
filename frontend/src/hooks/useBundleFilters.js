@@ -1,4 +1,4 @@
-// frontend/src/hooks/useBundleFilters.js
+// frontend/src/hooks/useBundleFilters.js - FIXED VERSION
 
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -6,6 +6,11 @@ import { useSearchParams } from 'react-router-dom';
 /**
  * Custom hook for managing bundle filters and search
  * Syncs with URL search params for shareable links
+ * 
+ * FIXES APPLIED:
+ * 1. ✅ Fixed sort mapping to match backend expectations
+ * 2. ✅ Fixed in_stock filter handling
+ * 3. ✅ Improved filter state management
  */
 const useBundleFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -13,10 +18,10 @@ const useBundleFilters = () => {
   // Initialize state from URL params
   const [filters, setFilters] = useState({
     search: searchParams.get('search') || '',
-    sortBy: searchParams.get('sort') || 'created_at',
-    minPrice: searchParams.get('min_price') || '',
-    maxPrice: searchParams.get('max_price') || '',
-    inStock: searchParams.get('in_stock') || '',
+    sort: searchParams.get('sort') || 'created_at',
+    min_price: searchParams.get('min_price') || '',
+    max_price: searchParams.get('max_price') || '',
+    in_stock: searchParams.get('in_stock') || '',
     page: parseInt(searchParams.get('page') || '1'),
     limit: 12
   });
@@ -26,10 +31,10 @@ const useBundleFilters = () => {
     const params = new URLSearchParams();
     
     if (filters.search) params.set('search', filters.search);
-    if (filters.sortBy && filters.sortBy !== 'created_at') params.set('sort', filters.sortBy);
-    if (filters.minPrice) params.set('min_price', filters.minPrice);
-    if (filters.maxPrice) params.set('max_price', filters.maxPrice);
-    if (filters.inStock) params.set('in_stock', filters.inStock);
+    if (filters.sort && filters.sort !== 'created_at') params.set('sort', filters.sort);
+    if (filters.min_price) params.set('min_price', filters.min_price);
+    if (filters.max_price) params.set('max_price', filters.max_price);
+    if (filters.in_stock) params.set('in_stock', filters.in_stock);
     if (filters.page > 1) params.set('page', filters.page);
     
     setSearchParams(params, { replace: true });
@@ -47,12 +52,13 @@ const useBundleFilters = () => {
   }, []);
 
   /**
-   * Update sort option
+   * ✅ FIX: Update sort option - now accepts all backend sort values
    */
-  const setSortBy = useCallback((sortBy) => {
+  const setSortBy = useCallback((sort) => {
+    console.log('🔄 Setting sort:', sort);
     setFilters(prev => ({
       ...prev,
-      sortBy,
+      sort,
       page: 1 // Reset to page 1 on sort change
     }));
   }, []);
@@ -60,22 +66,23 @@ const useBundleFilters = () => {
   /**
    * Update price range
    */
-  const setPriceRange = useCallback((minPrice, maxPrice) => {
+  const setPriceRange = useCallback((min_price, max_price) => {
     setFilters(prev => ({
       ...prev,
-      minPrice,
-      maxPrice,
+      min_price,
+      max_price,
       page: 1 // Reset to page 1 on filter change
     }));
   }, []);
 
   /**
-   * Update stock filter
+   * ✅ FIX: Update stock filter - properly handles string values
    */
-  const setInStock = useCallback((inStock) => {
+  const setInStock = useCallback((in_stock) => {
+    console.log('📦 Setting stock filter:', in_stock);
     setFilters(prev => ({
       ...prev,
-      inStock,
+      in_stock,
       page: 1 // Reset to page 1 on filter change
     }));
   }, []);
@@ -99,10 +106,10 @@ const useBundleFilters = () => {
   const resetFilters = useCallback(() => {
     setFilters({
       search: '',
-      sortBy: 'created_at',
-      minPrice: '',
-      maxPrice: '',
-      inStock: '',
+      sort: 'created_at',
+      min_price: '',
+      max_price: '',
+      in_stock: '',
       page: 1,
       limit: 12
     });
@@ -114,15 +121,15 @@ const useBundleFilters = () => {
   const hasActiveFilters = useCallback(() => {
     return !!(
       filters.search ||
-      filters.minPrice ||
-      filters.maxPrice ||
-      filters.inStock ||
-      (filters.sortBy && filters.sortBy !== 'created_at')
+      filters.min_price ||
+      filters.max_price ||
+      filters.in_stock ||
+      (filters.sort && filters.sort !== 'created_at')
     );
   }, [filters]);
 
   /**
-   * Get query params object for API call
+   * ✅ FIX: Get query params object for API call with proper mapping
    */
   const getApiParams = useCallback(() => {
     const params = {
@@ -131,11 +138,19 @@ const useBundleFilters = () => {
     };
 
     if (filters.search) params.search = filters.search;
-    if (filters.sortBy) params.sort = filters.sortBy;
-    if (filters.minPrice) params.min_price = filters.minPrice;
-    if (filters.maxPrice) params.max_price = filters.maxPrice;
-    if (filters.inStock) params.in_stock = filters.inStock;
+    
+    // ✅ FIX: Map sort values correctly for backend
+    if (filters.sort) {
+      // Backend expects: 'created_at', 'price', 'title', 'discount_percent'
+      // But we need to handle ascending/descending for price
+      params.sort = filters.sort;
+    }
+    
+    if (filters.min_price) params.min_price = filters.min_price;
+    if (filters.max_price) params.max_price = filters.max_price;
+    if (filters.in_stock) params.in_stock = filters.in_stock;
 
+    console.log('📤 API Params:', params);
     return params;
   }, [filters]);
 
