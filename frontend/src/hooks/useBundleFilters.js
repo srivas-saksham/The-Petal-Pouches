@@ -13,9 +13,10 @@ const useBundleFilters = () => {
   // Initialize state from URL params
   const [filters, setFilters] = useState({
     search: searchParams.get('search') || '',
-    sortBy: searchParams.get('sort') || 'newest',
+    sortBy: searchParams.get('sort') || 'created_at',
     minPrice: searchParams.get('min_price') || '',
     maxPrice: searchParams.get('max_price') || '',
+    inStock: searchParams.get('in_stock') || '',
     page: parseInt(searchParams.get('page') || '1'),
     limit: 12
   });
@@ -25,9 +26,10 @@ const useBundleFilters = () => {
     const params = new URLSearchParams();
     
     if (filters.search) params.set('search', filters.search);
-    if (filters.sortBy && filters.sortBy !== 'newest') params.set('sort', filters.sortBy);
+    if (filters.sortBy && filters.sortBy !== 'created_at') params.set('sort', filters.sortBy);
     if (filters.minPrice) params.set('min_price', filters.minPrice);
     if (filters.maxPrice) params.set('max_price', filters.maxPrice);
+    if (filters.inStock) params.set('in_stock', filters.inStock);
     if (filters.page > 1) params.set('page', filters.page);
     
     setSearchParams(params, { replace: true });
@@ -68,6 +70,17 @@ const useBundleFilters = () => {
   }, []);
 
   /**
+   * Update stock filter
+   */
+  const setInStock = useCallback((inStock) => {
+    setFilters(prev => ({
+      ...prev,
+      inStock,
+      page: 1 // Reset to page 1 on filter change
+    }));
+  }, []);
+
+  /**
    * Update page number
    */
   const setPage = useCallback((page) => {
@@ -86,9 +99,10 @@ const useBundleFilters = () => {
   const resetFilters = useCallback(() => {
     setFilters({
       search: '',
-      sortBy: 'newest',
+      sortBy: 'created_at',
       minPrice: '',
       maxPrice: '',
+      inStock: '',
       page: 1,
       limit: 12
     });
@@ -102,7 +116,8 @@ const useBundleFilters = () => {
       filters.search ||
       filters.minPrice ||
       filters.maxPrice ||
-      (filters.sortBy && filters.sortBy !== 'newest')
+      filters.inStock ||
+      (filters.sortBy && filters.sortBy !== 'created_at')
     );
   }, [filters]);
 
@@ -119,6 +134,7 @@ const useBundleFilters = () => {
     if (filters.sortBy) params.sort = filters.sortBy;
     if (filters.minPrice) params.min_price = filters.minPrice;
     if (filters.maxPrice) params.max_price = filters.maxPrice;
+    if (filters.inStock) params.in_stock = filters.inStock;
 
     return params;
   }, [filters]);
@@ -131,6 +147,7 @@ const useBundleFilters = () => {
     setSearch,
     setSortBy,
     setPriceRange,
+    setInStock,
     setPage,
     resetFilters,
     
