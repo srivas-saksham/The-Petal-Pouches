@@ -1,9 +1,10 @@
-// frontend/src/components/shop/BundleGrid.jsx - FIXED WITH LAYOUT MODES
+// frontend/src/components/shop/BundleGrid.jsx - FIXED WITH LAYOUT MODES & QUICKVIEW
 
-import React from 'react';
+import React, { useState } from 'react';
 import BundleCard from './BundleCard';
 import BundleLoading from './BundleLoading';
 import BundleEmpty from './BundleEmpty';
+import BundleQuickView from './BundleQuickView';
 
 const BundleGrid = ({ 
   bundles, 
@@ -13,6 +14,20 @@ const BundleGrid = ({
   onCartUpdate,
   layoutMode = '5' // Default to 5 columns
 }) => {
+  // QuickView state
+  const [quickViewBundle, setQuickViewBundle] = useState(null);
+
+  // Handle QuickView open
+  const handleQuickView = (bundle) => {
+    console.log('📦 Opening QuickView for bundle:', bundle.title);
+    setQuickViewBundle(bundle);
+  };
+
+  // Handle QuickView close
+  const handleCloseQuickView = () => {
+    console.log('❌ Closing QuickView');
+    setQuickViewBundle(null);
+  };
   
   // Dynamic grid classes based on layout mode
   const getGridClasses = () => {
@@ -68,18 +83,28 @@ const BundleGrid = ({
 
   // Success state - render grid with dynamic layout
   return (
-    <div className="bg-white rounded-lg border border-tppgrey shadow-sm p-4 sm:p-6">
-      <div className={getGridClasses()}>
-        {bundles.map((bundle) => (
-          <BundleCard 
-            key={bundle.id} 
-            bundle={bundle}
-            cartItems={cartItems}
-            onCartUpdate={onCartUpdate}
-          />
-        ))}
+    <>
+      <div className="bg-white rounded-lg border border-tppgrey shadow-sm p-4 sm:p-6">
+        <div className={getGridClasses()}>
+          {bundles.map((bundle) => (
+            <BundleCard 
+              key={bundle.id} 
+              bundle={bundle}
+              cartItems={cartItems}
+              onCartUpdate={onCartUpdate}
+              onQuickView={handleQuickView}
+            />
+          ))}
+        </div>
       </div>
-    </div>
+
+      {/* QuickView Modal */}
+      <BundleQuickView
+        bundle={quickViewBundle}
+        isOpen={!!quickViewBundle}
+        onClose={handleCloseQuickView}
+      />
+    </>
   );
 };
 
