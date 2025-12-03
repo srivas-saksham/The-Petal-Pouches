@@ -1,4 +1,4 @@
-// frontend/src/services/bundleService.js - COMPLETE WITH ALL FEATURES
+// frontend/src/services/bundleService.js - COMPLETE WITH ALL FEATURES + TAGS SUPPORT
 
 import api, { createFormDataRequest, apiRequest } from './api';
 
@@ -140,7 +140,7 @@ export const getBundleStats = async () => {
 
 /**
  * Get all bundles for shop with proper sort mapping (public - only active bundles)
- * @param {Object} params - { page, limit, sort, search, min_price, max_price, in_stock }
+ * @param {Object} params - { page, limit, sort, search, min_price, max_price, in_stock, tags }
  * @returns {Promise<Object>} { bundles, metadata }
  */
 export const getAllBundles = async (params = {}) => {
@@ -186,6 +186,12 @@ export const getAllBundles = async (params = {}) => {
     // Handle in_stock filter properly
     if (params.in_stock === 'true' || params.in_stock === true) {
       queryParams.append('in_stock', 'true');
+    }
+    
+    // TAGS FILTER - NEW
+    if (params.tags && params.tags.trim()) {
+      queryParams.append('tags', params.tags.trim());
+      console.log(`🏷️ [BundleService] Including tags in request: ${params.tags}`);
     }
     
     queryParams.append('active', 'true'); // Only active bundles

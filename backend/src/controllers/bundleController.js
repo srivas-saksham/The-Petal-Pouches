@@ -27,6 +27,10 @@ const {
  * - TAG FILTERING (NEW!) - filter by bundle tags
  * - Pagination with metadata
  */
+// backend/src/controllers/bundleController.js
+// TAG FILTERING - FIXED FOR SUPABASE JSONB
+// Replace the entire getAllBundles function
+
 const getAllBundles = async (req, res) => {
   try {
     const {
@@ -39,7 +43,7 @@ const getAllBundles = async (req, res) => {
       min_price = '',
       max_price = '',
       in_stock = '',
-      tags = '' // NEW: tag filtering parameter
+      tags = ''
     } = req.query;
 
     console.log('📥 Get bundles request:', { 
@@ -52,7 +56,7 @@ const getAllBundles = async (req, res) => {
       min_price, 
       max_price, 
       in_stock,
-      tags // Log tags parameter
+      tags
     });
 
     // Build base query
@@ -89,10 +93,10 @@ const getAllBundles = async (req, res) => {
     }
 
     // ========================================
-    // TAG FILTERING (NEW!)
+    // TAG FILTERING - JSONB @> OPERATOR
+    // Uses PostgreSQL's JSONB containment operator
     // ========================================
     if (tags && tags.trim()) {
-      // Parse comma-separated tag names
       const tagArray = tags
         .split(',')
         .map(t => t.trim().toLowerCase())
@@ -101,22 +105,29 @@ const getAllBundles = async (req, res) => {
       console.log(`🏷️ Filtering by tags:`, tagArray);
 
       if (tagArray.length > 0) {
-        // Filter bundles where the 'tags' JSONB array contains ANY of the specified tags
-        // Using OR condition: bundle must have at least one of the tags
+        // For Supabase JSONB, use the @> (contains) operator with JSON array string
+        // Format: tags.@>."[\"tag1\"]" for single tag
+        // Format: tags.@>."[\"tag1\"]" OR tags.@>."[\"tag2\"]" for multiple tags
         
-        // Build filter condition for JSONB array overlap
-        // This requires checking if the bundle's tags array contains any of the specified tags
-        let tagFilters = tagArray.map(tag => `tags.cs.["${tag}"]`).join(',');
-        
-        query = query.or(tagFilters);
-        
-        console.log(`✅ Applied tag filter - bundles must contain at least one of: ${tagArray.join(', ')}`);
+        if (tagArray.length === 1) {
+          // Single tag - use @> operator with JSON array string
+          const jsonArrayString = `["${tagArray[0]}"]`;
+          query = query.filter('tags', 'cs', jsonArrayString);
+          console.log(`✅ Single tag filter: tags @> '${jsonArrayString}'`);
+        } else {
+          // Multiple tags - use OR logic with @> operator
+          const orConditions = tagArray
+            .map(tag => `tags.cs.["${tag}"]`)
+            .join(',');
+          
+          query = query.or(orConditions);
+          console.log(`✅ Multiple tags filter (OR): ${orConditions}`);
+        }
       }
     }
 
     // Filter by stock availability
     if (in_stock === 'true') {
-      // Exclude bundles with stock_limit = 0 or null
       query = query.not('stock_limit', 'is', null);
       query = query.gt('stock_limit', 0);
       console.log('📦 Filtering for in-stock bundles only');
@@ -140,21 +151,15 @@ const getAllBundles = async (req, res) => {
     const validSorts = ['created_at', 'title', 'price', 'discount_percent', 'updated_at'];
     const sortField = validSorts.includes(sort) ? sort : 'created_at';
     
-    // Determine sort order
     let ascending = order === 'asc';
     
-    // Special handling for different sort types
     if (sortField === 'created_at' || sortField === 'updated_at') {
-      // For dates, default to descending (newest first)
       ascending = order === 'asc' ? true : false;
     } else if (sortField === 'price') {
-      // For price: ascending = low to high, descending = high to low
       ascending = order === 'asc' ? true : false;
     } else if (sortField === 'title') {
-      // For title: ascending = A to Z
       ascending = true;
     } else if (sortField === 'discount_percent') {
-      // For discount: descending = highest first
       ascending = false;
     }
     
@@ -172,8 +177,16 @@ const getAllBundles = async (req, res) => {
 
     if (error) {
       console.error('❌ Query error:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
       throw error;
     }
+
+    console.log('📊 Query results:', {
+      bundlesFound: bundles?.length,
+      totalCount: count,
+      firstBundleTags: bundles?.[0]?.tags,
+      tagsFilter: tags || 'none'
+    });
 
     // Add stock status and product count for each bundle
     const bundlesWithExtras = (bundles || []).map(bundle => {

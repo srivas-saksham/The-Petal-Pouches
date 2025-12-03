@@ -1,7 +1,7 @@
-// frontend/src/pages/ShopNew.jsx - DYNAMIC TAGS FROM BUNDLES
+// frontend/src/pages/ShopNew.jsx - COMPACT HEADER WITH SEARCH & TAGS
 
-import React, { useState, useEffect } from 'react';
-import { LayoutGrid, Grid3x2, Grid2x2, Grid3x3, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { LayoutGrid, Grid3x2, Grid2x2, Grid3x3, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
 import BundleGrid from '../components/shop/BundleGrid';
 import BundleEmpty from '../components/shop/BundleEmpty';
 import SidebarFilters from '../components/shop/SidebarFilters';
@@ -10,12 +10,14 @@ import bundleService from '../services/bundleService';
 import { useCart } from '../hooks/useCart';
 
 /**
- * BundleShop Component - FULL WIDTH LAYOUT
+ * BundleShop Component - COMPACT HEADER LAYOUT
  * 
  * FEATURES:
+ * - Compact sticky header with search & tags
  * - Extracts all unique tags from fetched bundles
  * - Shows tag counts based on actual bundle data
  * - Dynamic tag filtering that updates as bundles change
+ * - Horizontal scrolling tags with modern design
  */
 const BundleShop = () => {
   const [bundles, setBundles] = useState([]);
@@ -23,6 +25,11 @@ const BundleShop = () => {
   const [error, setError] = useState(null);
   const [metadata, setMetadata] = useState(null);
   const [availableTags, setAvailableTags] = useState([]);
+  
+  // Search state with debouncing
+  const [searchInput, setSearchInput] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const debounceTimerRef = useRef(null);
   
   // Layout state - load from localStorage or default to '4'
   const [layoutMode, setLayoutMode] = useState(() => {
@@ -50,6 +57,20 @@ const BundleShop = () => {
   useEffect(() => {
     localStorage.setItem('bundleLayoutMode', layoutMode);
   }, [layoutMode]);
+
+  // Sync search input when filters change externally
+  useEffect(() => {
+    setSearchInput(filters.search || '');
+  }, [filters.search]);
+
+  // Cleanup debounce timer
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   // Extract unique tags from bundles
   const extractTagsFromBundles = (bundlesData) => {
@@ -148,6 +169,32 @@ const BundleShop = () => {
     }
   };
 
+  // Handle search input with debouncing
+  const handleSearchInput = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    setIsSearching(true);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      handleFilterChange('search', value);
+      setIsSearching(false);
+    }, 500);
+  };
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchInput('');
+    setIsSearching(false);
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    handleFilterChange('search', '');
+  };
+
   // Handle tag click (toggle tag in filters)
   const handleTagClick = (tagName) => {
     const currentTags = filters.tags 
@@ -181,61 +228,139 @@ const BundleShop = () => {
 
       {/* Content */}
       <div className="relative z-10">
-        {/* HEADER - Full Width */}
-        <div className="bg-white/95 backdrop-blur-sm border-b-2 border-slate-200 sticky top-0 z-30 shadow-sm">
-          <div className="px-6 py-4">
-            {/* Title & Results Count */}
-            <div className="flex items-center justify-between">
+        {/* COMPACT STICKY HEADER - Full Width */}
+        <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+          <div className="px-6 py-3">
+            {/* Title & Layout Switcher Row */}
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
-                  <LayoutGrid className="w-7 h-7 text-tpppink" />
+                <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <LayoutGrid className="w-5 h-5 text-tpppink" />
                   Bundle Collections
                 </h1>
                 {!loading && metadata && (
-                  <p className="text-xs text-slate-600 mt-1.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Showing {bundles.length} of {metadata.totalCount} bundles
                     {filters.page > 1 && ` • Page ${filters.page} of ${metadata.totalPages}`}
                   </p>
                 )}
               </div>
 
-              {/* Layout Switcher */}
-              <div className="flex items-center gap-1.5 bg-slate-100 rounded-lg p-1 border-2 border-slate-200">
+              {/* Layout Switcher - Compact */}
+              <div className="flex items-center gap-1 bg-slate-100 rounded-md p-0.5 border border-slate-200">
                 <button
                   onClick={() => handleLayoutChange('4')}
-                  className={`p-2 rounded transition-all ${
+                  className={`p-1.5 rounded transition-all ${
                     layoutMode === '4'
-                      ? 'bg-white text-tpppink shadow-sm border-2 border-tpppink'
+                      ? 'bg-white text-tpppink shadow-sm border border-tpppink'
                       : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                   }`}
                   title="4 Column Layout"
                 >
-                  <Grid2x2 size={18} />
+                  <Grid2x2 size={14} />
                 </button>
                 <button
                   onClick={() => handleLayoutChange('5')}
-                  className={`p-2 rounded transition-all ${
+                  className={`p-1.5 rounded transition-all ${
                     layoutMode === '5'
-                      ? 'bg-white text-tpppink shadow-sm border-2 border-tpppink'
+                      ? 'bg-white text-tpppink shadow-sm border border-tpppink'
                       : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                   }`}
                   title="5 Column Layout"
                 >
-                  <Grid3x2 size={18} />
+                  <Grid3x2 size={14} />
                 </button>
                 <button
                   onClick={() => handleLayoutChange('6')}
-                  className={`p-2 rounded transition-all ${
+                  className={`p-1.5 rounded transition-all ${
                     layoutMode === '6'
-                      ? 'bg-white text-tpppink shadow-sm border-2 border-tpppink'
+                      ? 'bg-white text-tpppink shadow-sm border border-tpppink'
                       : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                   }`}
                   title="6 Column Layout"
                 >
-                  <Grid3x3 size={18} />
+                  <Grid3x3 size={16} />
                 </button>
               </div>
             </div>
+
+            {/* Search Bar - Compact */}
+            <div className="relative mb-2">
+              <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 transition-colors ${
+                isSearching ? 'text-tpppink animate-pulse' : 'text-slate-400'
+              }`} />
+              <input
+                type="text"
+                placeholder="Search bundles..."
+                value={searchInput}
+                onChange={handleSearchInput}
+                className="w-full pl-8 pr-8 py-1.5 text-xs bg-white border border-slate-200 rounded-md
+                  focus:outline-none focus:ring-1 focus:ring-tpppink focus:border-tpppink
+                  hover:border-slate-300 transition-all text-slate-700 placeholder:text-slate-400"
+              />
+              {searchInput && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-tpppink transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Tags Pills - Compact & Horizontal Scroll */}
+            {!loading && availableTags.length > 0 ? (
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+                {availableTags.map((tag) => {
+                  const isSelected = selectedTags.includes(tag.name);
+                  return (
+                    <button
+                      key={tag.name}
+                      onClick={() => handleTagClick(tag.name)}
+                      className={`
+                        flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
+                        transition-all border whitespace-nowrap
+                        ${isSelected 
+                          ? 'bg-tpppink text-white border-tpppink shadow-sm' 
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-tpppink hover:text-tpppink hover:bg-pink-50'
+                        }
+                      `}
+                    >
+                      <span>{tag.label}</span>
+                      <span className={`
+                        text-[10px] font-semibold px-1.5 py-0.5 rounded-full
+                        ${isSelected 
+                          ? 'bg-white/25 text-white' 
+                          : 'bg-slate-100 text-slate-500'
+                        }
+                      `}>
+                        {tag.count}
+                      </span>
+                    </button>
+                  );
+                })}
+                
+                {/* Clear Tags Button */}
+                {selectedTags.length > 0 && (
+                  <button
+                    onClick={() => handleFilterChange('tags', '')}
+                    className="flex-shrink-0 text-xs text-tpppink hover:text-tpppink/80 font-medium px-2 underline whitespace-nowrap"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+            ) : loading ? (
+              // Loading skeleton for tags
+              <div className="flex gap-1.5 overflow-x-auto pb-1">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div
+                    key={i}
+                    className="flex-shrink-0 h-7 w-20 bg-slate-100 rounded-full animate-pulse"
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -243,89 +368,6 @@ const BundleShop = () => {
         <div className="flex">
           {/* LEFT SECTION - Bundles (Full Width) */}
           <div className="flex-1 px-6 py-6">
-            {/* Quick Tag Access - Compact - DYNAMICALLY EXTRACTED FROM BUNDLES */}
-            {!loading && availableTags && availableTags.length > 0 && (
-              <div className="mb-6 bg-white/95 backdrop-blur-sm rounded-lg border-2 border-slate-200 shadow-sm p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
-                    Browse by Tag
-                  </span>
-                  <span className="text-xs text-slate-500">
-                    ({availableTags.length} {availableTags.length === 1 ? 'tag' : 'tags'})
-                  </span>
-                </div>
-                
-                <div className="flex flex-wrap gap-2">
-                  {availableTags.map((tag) => {
-                    const isSelected = selectedTags.includes(tag.name);
-                    return (
-                      <button
-                        key={tag.name}
-                        onClick={() => handleTagClick(tag.name)}
-                        className={`
-                          group relative px-4 py-2 rounded-full text-sm font-medium transition-all
-                          border-2 shadow-sm hover:shadow-md
-                          ${isSelected 
-                            ? 'bg-tpppink text-white border-tpppink scale-105' 
-                            : 'bg-white text-slate-700 border-slate-200 hover:border-tpppink hover:text-tpppink'
-                          }
-                        `}
-                      >
-                        <span className="flex items-center gap-2">
-                          {tag.label || tag.name}
-                          <span className={`
-                            text-xs px-2 py-0.5 rounded-full font-semibold
-                            ${isSelected 
-                              ? 'bg-white/20 text-white' 
-                              : 'bg-slate-100 text-slate-600 group-hover:bg-tpppink/10 group-hover:text-tpppink'
-                            }
-                          `}>
-                            {tag.count}
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Show active tag filter count */}
-                {selectedTags.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-slate-200">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-600">
-                        Filtering by <span className="font-semibold text-tpppink">{selectedTags.length}</span> {selectedTags.length === 1 ? 'tag' : 'tags'}
-                      </span>
-                      <button
-                        onClick={() => handleFilterChange('tags', '')}
-                        className="text-tpppink hover:text-tpppink/80 font-semibold underline"
-                      >
-                        Clear tags
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Loading state for tags */}
-            {loading && (
-              <div className="mb-6 bg-white/95 backdrop-blur-sm rounded-lg border-2 border-slate-200 shadow-sm p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
-                    Browse by Tag
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div
-                      key={i}
-                      className="h-9 w-24 bg-slate-100 rounded-full animate-pulse"
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
             <BundleGrid 
               bundles={bundles} 
               loading={loading} 
@@ -439,6 +481,17 @@ const BundleShop = () => {
           </div>
         </div>
       </div>
+
+      {/* Custom Scrollbar Hide Styles */}
+      <style jsx>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   );
 };

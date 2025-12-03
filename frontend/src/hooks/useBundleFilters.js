@@ -1,4 +1,4 @@
-// frontend/src/hooks/useBundleFilters.js - UPDATED WITH TAGS SUPPORT
+// frontend/src/hooks/useBundleFilters.js - FIXED TAGS SUPPORT
 
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -7,12 +7,13 @@ import { useSearchParams } from 'react-router-dom';
  * Custom hook for managing bundle filters and search
  * Syncs with URL search params for shareable links
  * 
- * UPDATED FEATURES:
- * 1. ✅ Tag filtering support
+ * FIXED FEATURES:
+ * 1. ✅ Tag filtering support - ACCEPTS BOTH STRING AND ARRAY
  * 2. ✅ Multiple tags can be selected
  * 3. ✅ Tags stored in URL as comma-separated: ?tags=birthday,anniversary
  * 4. ✅ Proper URL sync
  * 5. ✅ All existing filter functionality preserved
+ * 6. ✅ Flexible setTags() that handles both string and array input
  */
 const useBundleFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -24,7 +25,7 @@ const useBundleFilters = () => {
     min_price: searchParams.get('min_price') || '',
     max_price: searchParams.get('max_price') || '',
     in_stock: searchParams.get('in_stock') || '',
-    tags: searchParams.get('tags') || '', // NEW: tags as comma-separated string
+    tags: searchParams.get('tags') || '', // tags as comma-separated string
     page: parseInt(searchParams.get('page') || '1'),
     limit: 12
   });
@@ -40,7 +41,7 @@ const useBundleFilters = () => {
     if (filters.min_price) params.set('min_price', filters.min_price);
     if (filters.max_price) params.set('max_price', filters.max_price);
     if (filters.in_stock) params.set('in_stock', filters.in_stock);
-    if (filters.tags) params.set('tags', filters.tags); // NEW: sync tags to URL
+    if (filters.tags) params.set('tags', filters.tags);
     if (filters.page > 1) params.set('page', filters.page);
     
     setSearchParams(params, { replace: true });
@@ -94,22 +95,43 @@ const useBundleFilters = () => {
   }, []);
 
   /**
-   * NEW: Update tags filter
-   * @param {Array<string>} selectedTags - Array of tag names to filter by
+   * FIXED: Update tags filter - NOW ACCEPTS BOTH STRING AND ARRAY
+   * @param {Array<string>|string} selectedTags - Array of tag names OR comma-separated string
    * 
    * @example
-   * setTags(['birthday'])                    // Filter by birthday tag only
-   * setTags(['birthday', 'anniversary'])     // Filter by birthday OR anniversary
-   * setTags([])                              // Clear all tag filters
+   * setTags(['birthday'])                          // Array input
+   * setTags('birthday,anniversary')                // String input (from SidebarFilters)
+   * setTags([])                                    // Clear all tag filters
+   * setTags('')                                    // Clear all tag filters
    */
   const setTags = useCallback((selectedTags = []) => {
-    // Convert array to comma-separated string for URL
-    const tagsString = selectedTags
-      .map(tag => tag.toLowerCase().trim())
-      .filter(tag => tag.length > 0)
-      .join(',');
+    let tagsArray = [];
+    
+    // Handle both string and array input
+    if (typeof selectedTags === 'string') {
+      // If string (e.g., "birthday,anniversary"), split it
+      if (selectedTags.trim().length > 0) {
+        tagsArray = selectedTags
+          .split(',')
+          .map(tag => tag.toLowerCase().trim())
+          .filter(tag => tag.length > 0);
+      }
+    } else if (Array.isArray(selectedTags)) {
+      // If array (e.g., ['birthday', 'anniversary']), use as-is
+      tagsArray = selectedTags
+        .map(tag => tag.toLowerCase().trim())
+        .filter(tag => tag.length > 0);
+    }
 
-    console.log('🏷️ Setting tags filter:', selectedTags, '→', tagsString);
+    // Convert to comma-separated string for storage
+    const tagsString = tagsArray.join(',');
+
+    console.log('🏷️ Setting tags filter:', {
+      input: selectedTags,
+      inputType: typeof selectedTags,
+      parsed: tagsArray,
+      stored: tagsString
+    });
 
     setFilters(prev => ({
       ...prev,
@@ -119,15 +141,17 @@ const useBundleFilters = () => {
   }, []);
 
   /**
-   * NEW: Get tags as array (for UI checkboxes/selections)
-   * @returns {Array<string>} Array of selected tag names
+   * Get tags as array (for UI checkboxes/selections)
+   * @returns {Array<string>} Array of selected tag names (lowercase)
    * 
    * @example
    * const selectedTags = getSelectedTags();
    * // ["birthday", "anniversary"]
    */
   const getSelectedTags = useCallback(() => {
-    if (!filters.tags) return [];
+    if (!filters.tags || filters.tags.trim().length === 0) {
+      return [];
+    }
     return filters.tags
       .split(',')
       .map(tag => tag.trim().toLowerCase())
@@ -135,7 +159,7 @@ const useBundleFilters = () => {
   }, [filters.tags]);
 
   /**
-   * NEW: Toggle single tag on/off
+   * Toggle single tag on/off
    * @param {string} tagName - Tag name to toggle
    * 
    * @example
@@ -159,7 +183,7 @@ const useBundleFilters = () => {
   }, [getSelectedTags, setTags]);
 
   /**
-   * NEW: Check if specific tag is selected
+   * Check if specific tag is selected
    * @param {string} tagName - Tag name to check
    * @returns {boolean} True if tag is selected
    */
@@ -185,6 +209,7 @@ const useBundleFilters = () => {
    * Reset all filters
    */
   const resetFilters = useCallback(() => {
+    console.log('🔄 Resetting all filters');
     setFilters({
       search: '',
       sort: 'created_at',
@@ -207,7 +232,7 @@ const useBundleFilters = () => {
       filters.max_price ||
       filters.in_stock ||
       (filters.sort && filters.sort !== 'created_at') ||
-      filters.tags // NEW: check for active tags
+      filters.tags
     );
   }, [filters]);
 
@@ -226,23 +251,25 @@ const useBundleFilters = () => {
     if (filters.min_price) params.min_price = filters.min_price;
     if (filters.max_price) params.max_price = filters.max_price;
     if (filters.in_stock) params.in_stock = filters.in_stock;
-    if (filters.tags) params.tags = filters.tags; // NEW: include tags
+    if (filters.tags) params.tags = filters.tags; // Send as comma-separated string
 
     console.log('📤 API Params:', params);
     return params;
   }, [filters]);
 
   /**
-   * NEW: Clear only tag filters (keep other filters)
+   * Clear only tag filters (keep other filters)
    */
   const clearTagFilters = useCallback(() => {
+    console.log('🏷️ Clearing tag filters');
     setTags([]);
   }, [setTags]);
 
   /**
-   * NEW: Clear all filters except tags
+   * Clear all filters except tags
    */
   const clearNonTagFilters = useCallback(() => {
+    console.log('🔄 Clearing non-tag filters');
     setFilters(prev => ({
       ...prev,
       search: '',
@@ -263,11 +290,11 @@ const useBundleFilters = () => {
     setSortBy,
     setPriceRange,
     setInStock,
-    setTags,        // NEW
+    setTags,        // FIXED: Now accepts both string and array
     setPage,
     resetFilters,
     
-    // ==================== TAG UTILITIES (NEW) ====================
+    // ==================== TAG UTILITIES ====================
     getSelectedTags,      // Get selected tags as array
     toggleTag,            // Toggle single tag
     isTagSelected,        // Check if tag is selected
