@@ -1,28 +1,28 @@
-// frontend/src/pages/ShopNew.jsx - FIXED FILTER INTEGRATION
+// frontend/src/pages/ShopNew.jsx - DYNAMIC TAGS FROM BUNDLES
 
 import React, { useState, useEffect } from 'react';
 import { LayoutGrid, Grid3x2, Grid2x2, Grid3x3, ChevronLeft, ChevronRight } from 'lucide-react';
 import BundleGrid from '../components/shop/BundleGrid';
 import BundleEmpty from '../components/shop/BundleEmpty';
-import ShopFilters from '../components/shop/ShopFilters';
+import SidebarFilters from '../components/shop/SidebarFilters';
 import useBundleFilters from '../hooks/useBundleFilters';
 import bundleService from '../services/bundleService';
 import { useCart } from '../hooks/useCart';
 
 /**
- * BundleShop Component - FIXED VERSION
+ * BundleShop Component - FULL WIDTH LAYOUT
  * 
- * FIXES APPLIED:
- * 1. ✅ Proper filter state management
- * 2. ✅ Correct sort parameter mapping
- * 3. ✅ In-stock filter working correctly
- * 4. ✅ Better error handling
+ * FEATURES:
+ * - Extracts all unique tags from fetched bundles
+ * - Shows tag counts based on actual bundle data
+ * - Dynamic tag filtering that updates as bundles change
  */
 const BundleShop = () => {
   const [bundles, setBundles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [metadata, setMetadata] = useState(null);
+  const [availableTags, setAvailableTags] = useState([]);
   
   // Layout state - load from localStorage or default to '4'
   const [layoutMode, setLayoutMode] = useState(() => {
@@ -32,7 +32,7 @@ const BundleShop = () => {
   // Cart Context
   const { cartItems, refreshCart } = useCart();
 
-  // ✅ Use fixed filter hook
+  // Use filter hook
   const {
     filters,
     setSearch,
@@ -40,6 +40,7 @@ const BundleShop = () => {
     setPriceRange,
     setInStock,
     setPage,
+    setTags,
     resetFilters,
     hasActiveFilters,
     getApiParams
@@ -50,7 +51,37 @@ const BundleShop = () => {
     localStorage.setItem('bundleLayoutMode', layoutMode);
   }, [layoutMode]);
 
-  // ✅ FIX: Fetch bundles with proper parameter mapping
+  // Extract unique tags from bundles
+  const extractTagsFromBundles = (bundlesData) => {
+    console.log('🏷️ Extracting tags from bundles...');
+    
+    const tagCounts = {};
+    
+    bundlesData.forEach(bundle => {
+      if (bundle.tags && Array.isArray(bundle.tags)) {
+        bundle.tags.forEach(tag => {
+          if (tag && tag.trim()) {
+            const normalizedTag = tag.toLowerCase().trim();
+            tagCounts[normalizedTag] = (tagCounts[normalizedTag] || 0) + 1;
+          }
+        });
+      }
+    });
+
+    // Convert to array format with counts, sorted by count (descending)
+    const tagsArray = Object.entries(tagCounts)
+      .map(([name, count]) => ({
+        name,
+        count,
+        label: name.charAt(0).toUpperCase() + name.slice(1) // Capitalize first letter
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    console.log('✅ Extracted tags:', tagsArray);
+    return tagsArray;
+  };
+
+  // Fetch bundles
   useEffect(() => {
     const fetchBundles = async () => {
       setLoading(true);
@@ -64,8 +95,14 @@ const BundleShop = () => {
         
         console.log('📥 Received response:', response);
         
-        setBundles(response.data || []);
+        const bundlesData = response.data || [];
+        setBundles(bundlesData);
         setMetadata(response.metadata);
+
+        // Extract tags from bundles
+        const extractedTags = extractTagsFromBundles(bundlesData);
+        setAvailableTags(extractedTags);
+        
       } catch (err) {
         console.error('❌ Failed to fetch bundles:', err);
         setError(err.message || 'Failed to load bundles');
@@ -82,7 +119,7 @@ const BundleShop = () => {
     setLayoutMode(mode);
   };
 
-  // ✅ FIX: Handle filter changes with proper type conversion
+  // Handle filter changes
   const handleFilterChange = (filterType, value) => {
     console.log(`🔧 Filter change: ${filterType} = ${value}`);
     
@@ -102,77 +139,33 @@ const BundleShop = () => {
       case 'in_stock':
         setInStock(value);
         break;
+      case 'tags':
+        setTags(value);
+        break;
       default:
         console.warn('Unknown filter type:', filterType);
         break;
     }
   };
 
-  // ✅ Build active filters array for display
-  const getActiveFilters = () => {
-    const active = [];
+  // Handle tag click (toggle tag in filters)
+  const handleTagClick = (tagName) => {
+    const currentTags = filters.tags 
+      ? filters.tags.split(',').filter(t => t.trim())
+      : [];
     
-    if (filters.search) {
-      active.push({
-        key: 'search',
-        label: `Search: "${filters.search}"`
-      });
-    }
+    const isSelected = currentTags.includes(tagName);
+    const newTags = isSelected
+      ? currentTags.filter(t => t !== tagName)
+      : [...currentTags, tagName];
     
-    if (filters.min_price || filters.max_price) {
-      const min = filters.min_price || '0';
-      const max = filters.max_price || '∞';
-      active.push({
-        key: 'price',
-        label: `Price: ₹${min} - ₹${max}`
-      });
-    }
-
-    if (filters.in_stock === 'true') {
-      active.push({
-        key: 'in_stock',
-        label: 'In Stock Only'
-      });
-    }
-    
-    // ✅ FIX: Show sort filter with proper labels
-    if (filters.sort && filters.sort !== 'created_at') {
-      const sortLabels = {
-        'price_desc': 'Price: High to Low',
-        'price_asc': 'Price: Low to High',
-        'title': 'Name: A to Z',
-        'discount_percent': 'Highest Discount'
-      };
-      active.push({
-        key: 'sort',
-        label: sortLabels[filters.sort] || filters.sort
-      });
-    }
-    
-    return active;
+    handleFilterChange('tags', newTags.join(','));
   };
 
-  // Handle clearing individual filter
-  const handleClearFilter = (filterKey) => {
-    console.log('🗑️ Clearing filter:', filterKey);
-    
-    switch (filterKey) {
-      case 'search':
-        setSearch('');
-        break;
-      case 'price':
-        setPriceRange('', '');
-        break;
-      case 'in_stock':
-        setInStock('');
-        break;
-      case 'sort':
-        setSortBy('created_at');
-        break;
-      default:
-        break;
-    }
-  };
+  // Get currently selected tags
+  const selectedTags = filters.tags 
+    ? filters.tags.split(',').filter(t => t.trim())
+    : [];
 
   return (
     <div 
@@ -184,180 +177,267 @@ const BundleShop = () => {
       }}
     >
       {/* Overlay for better readability */}
-      <div className="absolute inset-0 bg-white/70"></div>
+      <div className="absolute inset-0 bg-white/30"></div>
 
       {/* Content */}
       <div className="relative z-10">
-        {/* Header with Title and Layout Switcher */}
-        <div className="bg-white/95 backdrop-blur-sm border-b border-tppgrey sticky top-0 z-30 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+        {/* HEADER - Full Width */}
+        <div className="bg-white/95 backdrop-blur-sm border-b-2 border-slate-200 sticky top-0 z-30 shadow-sm">
+          <div className="px-6 py-4">
             {/* Title & Results Count */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-tppslate flex items-center gap-2">
-                  <LayoutGrid className="w-6 h-6 text-tpppink" />
+                <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
+                  <LayoutGrid className="w-7 h-7 text-tpppink" />
                   Bundle Collections
                 </h1>
                 {!loading && metadata && (
-                  <p className="text-xs text-tppslate/60 mt-1">
-                    {bundles.length} of {metadata.totalCount} bundles
+                  <p className="text-xs text-slate-600 mt-1.5">
+                    Showing {bundles.length} of {metadata.totalCount} bundles
+                    {filters.page > 1 && ` • Page ${filters.page} of ${metadata.totalPages}`}
                   </p>
                 )}
               </div>
 
               {/* Layout Switcher */}
-              <div className="flex items-center gap-1 bg-tppslate/5 rounded-lg p-1 border border-tppgrey">
+              <div className="flex items-center gap-1.5 bg-slate-100 rounded-lg p-1 border-2 border-slate-200">
                 <button
                   onClick={() => handleLayoutChange('4')}
                   className={`p-2 rounded transition-all ${
                     layoutMode === '4'
-                      ? 'bg-white text-tpppink shadow-sm border border-tpppink'
-                      : 'text-tppslate/50 hover:text-tppslate hover:bg-white/50'
+                      ? 'bg-white text-tpppink shadow-sm border-2 border-tpppink'
+                      : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                   }`}
                   title="4 Column Layout"
                 >
-                  <Grid2x2 size={16} />
+                  <Grid2x2 size={18} />
                 </button>
                 <button
                   onClick={() => handleLayoutChange('5')}
                   className={`p-2 rounded transition-all ${
                     layoutMode === '5'
-                      ? 'bg-white text-tpppink shadow-sm border border-tpppink'
-                      : 'text-tppslate/50 hover:text-tppslate hover:bg-white/50'
+                      ? 'bg-white text-tpppink shadow-sm border-2 border-tpppink'
+                      : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                   }`}
                   title="5 Column Layout"
                 >
-                  <Grid3x2 size={16} />
+                  <Grid3x2 size={18} />
                 </button>
                 <button
                   onClick={() => handleLayoutChange('6')}
                   className={`p-2 rounded transition-all ${
                     layoutMode === '6'
-                      ? 'bg-white text-tpppink shadow-sm border border-tpppink'
-                      : 'text-tppslate/50 hover:text-tppslate hover:bg-white/50'
+                      ? 'bg-white text-tpppink shadow-sm border-2 border-tpppink'
+                      : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
                   }`}
                   title="6 Column Layout"
                 >
-                  <Grid3x3 size={16} />
+                  <Grid3x3 size={18} />
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ✅ Enhanced Filters Component with Fixed Props */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-          <ShopFilters
-            filters={{
-              search: filters.search,
-              sort: filters.sort,
-              min_price: filters.min_price,
-              max_price: filters.max_price,
-              in_stock: filters.in_stock
-            }}
-            onFilterChange={handleFilterChange}
-            activeFilters={getActiveFilters()}
-            onClearFilter={handleClearFilter}
-            onResetAll={resetFilters}
-            hasActiveFilters={hasActiveFilters()}
-            totalResults={metadata?.totalCount || 0}
-          />
-        </div>
-
-        {/* Bundle Grid with Layout Mode */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-          <BundleGrid 
-            bundles={bundles} 
-            loading={loading} 
-            error={error}
-            cartItems={cartItems}
-            onCartUpdate={refreshCart}
-            layoutMode={layoutMode}
-          />
-
-          {/* Empty State */}
-          {!loading && bundles.length === 0 && hasActiveFilters() && (
-            <div className="bg-white rounded-lg border border-tppgrey shadow-sm">
-              <BundleEmpty
-                message="No bundles match your filters"
-                showReset={true}
-                onReset={resetFilters}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Compact Pagination */}
-        {!loading && metadata && metadata.totalPages > 1 && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-8">
-            <div className="bg-white/95 backdrop-blur-sm rounded-lg border border-tppgrey shadow-sm p-4">
-              <div className="flex items-center justify-between gap-4">
-                {/* Page Info */}
-                <div className="text-xs text-tppslate/60">
-                  Page <span className="font-semibold text-tppslate">{filters.page}</span> of{' '}
-                  <span className="font-semibold text-tppslate">{metadata.totalPages}</span>
+        {/* CONTENT AREA - Bundles (Left) + Sidebar (Right) */}
+        <div className="flex">
+          {/* LEFT SECTION - Bundles (Full Width) */}
+          <div className="flex-1 px-6 py-6">
+            {/* Quick Tag Access - Compact - DYNAMICALLY EXTRACTED FROM BUNDLES */}
+            {!loading && availableTags && availableTags.length > 0 && (
+              <div className="mb-6 bg-white/95 backdrop-blur-sm rounded-lg border-2 border-slate-200 shadow-sm p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
+                    Browse by Tag
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    ({availableTags.length} {availableTags.length === 1 ? 'tag' : 'tags'})
+                  </span>
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                  {availableTags.map((tag) => {
+                    const isSelected = selectedTags.includes(tag.name);
+                    return (
+                      <button
+                        key={tag.name}
+                        onClick={() => handleTagClick(tag.name)}
+                        className={`
+                          group relative px-4 py-2 rounded-full text-sm font-medium transition-all
+                          border-2 shadow-sm hover:shadow-md
+                          ${isSelected 
+                            ? 'bg-tpppink text-white border-tpppink scale-105' 
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-tpppink hover:text-tpppink'
+                          }
+                        `}
+                      >
+                        <span className="flex items-center gap-2">
+                          {tag.label || tag.name}
+                          <span className={`
+                            text-xs px-2 py-0.5 rounded-full font-semibold
+                            ${isSelected 
+                              ? 'bg-white/20 text-white' 
+                              : 'bg-slate-100 text-slate-600 group-hover:bg-tpppink/10 group-hover:text-tpppink'
+                            }
+                          `}>
+                            {tag.count}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
 
-                {/* Pagination Controls */}
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setPage(filters.page - 1)}
-                    disabled={filters.page <= 1}
-                    className="p-2 border border-tppgrey rounded-lg hover:bg-tppslate/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-tppslate"
-                    title="Previous"
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-                  
-                  {/* Page Numbers */}
-                  <div className="flex items-center gap-1">
-                    {[...Array(metadata.totalPages)].map((_, i) => {
-                      const page = i + 1;
-                      if (
-                        page === 1 ||
-                        page === metadata.totalPages ||
-                        (page >= filters.page - 1 && page <= filters.page + 1)
-                      ) {
-                        return (
-                          <button
-                            key={page}
-                            onClick={() => setPage(page)}
-                            className={`min-w-[36px] h-9 px-3 text-sm font-medium border rounded-lg transition-all ${
-                              page === filters.page
-                                ? 'bg-tpppink text-white border-tpppink shadow-sm'
-                                : 'border-tppgrey text-tppslate hover:bg-tppslate/5'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        );
-                      } else if (
-                        page === filters.page - 2 ||
-                        page === filters.page + 2
-                      ) {
-                        return (
-                          <span key={page} className="px-1 text-tppslate/40 text-sm">
-                            ···
-                          </span>
-                        );
-                      }
-                      return null;
-                    })}
+                {/* Show active tag filter count */}
+                {selectedTags.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-slate-200">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-600">
+                        Filtering by <span className="font-semibold text-tpppink">{selectedTags.length}</span> {selectedTags.length === 1 ? 'tag' : 'tags'}
+                      </span>
+                      <button
+                        onClick={() => handleFilterChange('tags', '')}
+                        className="text-tpppink hover:text-tpppink/80 font-semibold underline"
+                      >
+                        Clear tags
+                      </button>
+                    </div>
                   </div>
+                )}
+              </div>
+            )}
 
-                  <button
-                    onClick={() => setPage(filters.page + 1)}
-                    disabled={filters.page >= metadata.totalPages}
-                    className="p-2 border border-tppgrey rounded-lg hover:bg-tppslate/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-tppslate"
-                    title="Next"
-                  >
-                    <ChevronRight size={18} />
-                  </button>
+            {/* Loading state for tags */}
+            {loading && (
+              <div className="mb-6 bg-white/95 backdrop-blur-sm rounded-lg border-2 border-slate-200 shadow-sm p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
+                    Browse by Tag
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div
+                      key={i}
+                      className="h-9 w-24 bg-slate-100 rounded-full animate-pulse"
+                    />
+                  ))}
                 </div>
               </div>
-            </div>
+            )}
+
+            <BundleGrid 
+              bundles={bundles} 
+              loading={loading} 
+              error={error}
+              cartItems={cartItems}
+              onCartUpdate={refreshCart}
+              layoutMode={layoutMode}
+            />
+
+            {/* Empty State */}
+            {!loading && bundles.length === 0 && hasActiveFilters() && (
+              <div className="bg-white rounded-lg border-2 border-slate-200 shadow-sm">
+                <BundleEmpty
+                  message="No bundles match your filters"
+                  showReset={true}
+                  onReset={resetFilters}
+                />
+              </div>
+            )}
+
+            {/* Pagination */}
+            {!loading && metadata && metadata.totalPages > 1 && (
+              <div className="mt-6">
+                <div className="bg-white/95 backdrop-blur-sm rounded-lg border-2 border-slate-200 shadow-sm p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    {/* Page Info */}
+                    <div className="text-sm text-slate-600">
+                      Page <span className="font-semibold text-slate-900">{filters.page}</span> of{' '}
+                      <span className="font-semibold text-slate-900">{metadata.totalPages}</span>
+                    </div>
+
+                    {/* Pagination Controls */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setPage(filters.page - 1)}
+                        disabled={filters.page <= 1}
+                        className="p-2 border-2 border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-slate-700"
+                        title="Previous"
+                      >
+                        <ChevronLeft size={20} />
+                      </button>
+                      
+                      {/* Page Numbers */}
+                      <div className="flex items-center gap-1">
+                        {[...Array(metadata.totalPages)].map((_, i) => {
+                          const page = i + 1;
+                          if (
+                            page === 1 ||
+                            page === metadata.totalPages ||
+                            (page >= filters.page - 1 && page <= filters.page + 1)
+                          ) {
+                            return (
+                              <button
+                                key={page}
+                                onClick={() => setPage(page)}
+                                className={`min-w-[40px] h-10 px-3 text-sm font-semibold border-2 rounded-lg transition-all ${
+                                  page === filters.page
+                                    ? 'bg-tpppink text-white border-tpppink shadow-sm'
+                                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            );
+                          } else if (
+                            page === filters.page - 2 ||
+                            page === filters.page + 2
+                          ) {
+                            return (
+                              <span key={page} className="px-1 text-slate-400 text-sm">
+                                ···
+                              </span>
+                            );
+                          }
+                          return null;
+                        })}
+                      </div>
+
+                      <button
+                        onClick={() => setPage(filters.page + 1)}
+                        disabled={filters.page >= metadata.totalPages}
+                        className="p-2 border-2 border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-slate-700"
+                        title="Next"
+                      >
+                        <ChevronRight size={20} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+
+          {/* RIGHT SECTION - Filters Sidebar (Scrolls with content) */}
+          <div className="flex-shrink-0 py-6 pr-6">
+            <SidebarFilters
+              filters={{
+                search: filters.search,
+                sort: filters.sort,
+                min_price: filters.min_price,
+                max_price: filters.max_price,
+                in_stock: filters.in_stock,
+                tags: filters.tags
+              }}
+              onFilterChange={handleFilterChange}
+              onResetFilters={resetFilters}
+              availableTags={availableTags}
+              tagsLoading={loading}
+              metadata={metadata}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

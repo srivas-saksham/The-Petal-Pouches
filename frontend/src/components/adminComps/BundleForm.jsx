@@ -1,5 +1,3 @@
-// frontend/src/components/adminComps/BundleForm.jsx
-
 import { useState, useEffect } from 'react';
 import { 
   Package, 
@@ -58,6 +56,10 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
   const [imagePreview, setImagePreview] = useState('');
   const [currentImage, setCurrentImage] = useState('');
   
+  // Tags state
+  const [tagsInput, setTagsInput] = useState('');
+  const [tags, setTags] = useState([]);
+  
   // Bundle items
   const [items, setItems] = useState([]);
   
@@ -90,6 +92,11 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
         setBundlePrice(bundle.price.toString());
         setStockLimit(bundle.stock_limit ? bundle.stock_limit.toString() : '');
         setCurrentImage(bundle.img_url || '');
+
+        // Load tags
+        if (bundle.tags && Array.isArray(bundle.tags)) {
+          setTags(bundle.tags);
+        }
 
         if (bundle.Bundle_items && Array.isArray(bundle.Bundle_items)) {
           const mappedItems = bundle.Bundle_items.map(item => ({
@@ -169,6 +176,33 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
     setTouched(prev => ({ ...prev, [fieldName]: true }));
     const error = validateField(fieldName, value);
     setErrors(prev => ({ ...prev, [fieldName]: error }));
+  };
+
+  // Tags handling
+  const handleTagsKeyDown = (e) => {
+    if (e.key === 'Enter' && tagsInput.trim()) {
+      e.preventDefault();
+      
+      const newTag = tagsInput.trim().toLowerCase();
+      
+      if (newTag.length < 2) {
+        setErrors(prev => ({ ...prev, tags: 'Tag must be at least 2 characters' }));
+        return;
+      }
+      
+      if (tags.includes(newTag)) {
+        setErrors(prev => ({ ...prev, tags: 'Tag already added' }));
+        return;
+      }
+      
+      setTags(prev => [...prev, newTag]);
+      setTagsInput('');
+      setErrors(prev => ({ ...prev, tags: '' }));
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    setTags(prev => prev.filter(tag => tag !== tagToRemove));
   };
 
   // Handle image selection
@@ -322,6 +356,11 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
       formData.append('price', bundlePrice);
       if (stockLimit) formData.append('stock_limit', stockLimit);
       if (image) formData.append('image', image);
+
+      // Add tags as JSON array string (for JSONB column)
+      if (tags.length > 0) {
+        formData.append('tags', JSON.stringify(tags));
+      }
 
       const itemsData = items.map(item => ({
         product_id: item.product_id,
@@ -539,6 +578,77 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
                 }`}
               />
             </InputWrapper>
+          </div>
+        </div>
+
+        {/* Tags Section */}
+        <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
+          <h3 className="text-base font-bold text-tppslate mb-4 flex items-center gap-2">
+            <Tag className="w-5 h-5" />
+            Tags
+          </h3>
+          
+          <div className="space-y-4">
+            <InputWrapper 
+              label="Add Tags" 
+              name="tags" 
+              icon={Tag}
+              error={errors.tags}
+              hint="Type a tag and press Enter (e.g., birthday, gift, romantic)"
+            >
+              <input
+                type="text"
+                id="tags"
+                name="tags"
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                onKeyDown={handleTagsKeyDown}
+                placeholder="Type a tag and press Enter"
+                className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
+                  errors.tags
+                    ? 'border-red-300 bg-red-50'
+                    : 'border-tpppink/30 hover:border-tpppink focus:border-tpppink bg-white hover:bg-tpppeach/10'
+                }`}
+              />
+            </InputWrapper>
+
+            {/* Tags Display */}
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 p-4 bg-tpppeach/10 rounded-lg border-2 border-tpppink/20">
+                {tags.map((tag, index) => (
+                  <span
+                    key={tag}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
+                      index === 0
+                        ? 'bg-tpppink text-white border-2 border-tpppink shadow-sm'
+                        : 'bg-white text-tppslate border-2 border-tpppink/30 hover:border-tpppink'
+                    }`}
+                  >
+                    {tag}
+                    {index === 0 && (
+                      <span className="text-xs bg-white text-tpppink px-1.5 py-0.5 rounded font-bold">
+                        PRIMARY
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      className="hover:bg-red-500/20 rounded-full p-0.5 transition-colors"
+                      aria-label={`Remove ${tag} tag`}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            
+            {tags.length === 0 && (
+              <div className="text-center py-4 text-tppslate/60 border-2 border-dashed border-tpppink/30 rounded-lg bg-slate-50">
+                <Tag className="w-8 h-8 mx-auto mb-2 text-tppslate/30" />
+                <p className="text-sm">No tags added yet. The first tag will be the primary tag.</p>
+              </div>
+            )}
           </div>
         </div>
 

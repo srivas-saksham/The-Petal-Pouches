@@ -24,6 +24,7 @@ const {
  * - Stock filtering (in_stock parameter)
  * - Price range filtering
  * - Search by title
+ * - TAG FILTERING (NEW!) - filter by bundle tags
  * - Pagination with metadata
  */
 const getAllBundles = async (req, res) => {
@@ -37,10 +38,22 @@ const getAllBundles = async (req, res) => {
       search = '',
       min_price = '',
       max_price = '',
-      in_stock = ''
+      in_stock = '',
+      tags = '' // NEW: tag filtering parameter
     } = req.query;
 
-    console.log('📥 Get bundles request:', { active, page, limit, sort, order, search, min_price, max_price, in_stock });
+    console.log('📥 Get bundles request:', { 
+      active, 
+      page, 
+      limit, 
+      sort, 
+      order, 
+      search, 
+      min_price, 
+      max_price, 
+      in_stock,
+      tags // Log tags parameter
+    });
 
     // Build base query
     let query = supabase
@@ -75,6 +88,32 @@ const getAllBundles = async (req, res) => {
       query = query.eq('is_active', true);
     }
 
+    // ========================================
+    // TAG FILTERING (NEW!)
+    // ========================================
+    if (tags && tags.trim()) {
+      // Parse comma-separated tag names
+      const tagArray = tags
+        .split(',')
+        .map(t => t.trim().toLowerCase())
+        .filter(t => t.length > 0);
+
+      console.log(`🏷️ Filtering by tags:`, tagArray);
+
+      if (tagArray.length > 0) {
+        // Filter bundles where the 'tags' JSONB array contains ANY of the specified tags
+        // Using OR condition: bundle must have at least one of the tags
+        
+        // Build filter condition for JSONB array overlap
+        // This requires checking if the bundle's tags array contains any of the specified tags
+        let tagFilters = tagArray.map(tag => `tags.cs.["${tag}"]`).join(',');
+        
+        query = query.or(tagFilters);
+        
+        console.log(`✅ Applied tag filter - bundles must contain at least one of: ${tagArray.join(', ')}`);
+      }
+    }
+
     // Filter by stock availability
     if (in_stock === 'true') {
       // Exclude bundles with stock_limit = 0 or null
@@ -86,6 +125,7 @@ const getAllBundles = async (req, res) => {
     // Search filter
     if (search && search.trim()) {
       query = query.ilike('title', `%${search.trim()}%`);
+      console.log(`🔍 Searching for: ${search}`);
     }
 
     // Price range filters
@@ -422,7 +462,7 @@ const getBundleStock = async (req, res) => {
  */
 const createBundle = async (req, res) => {
   try {
-    const { title, description, price, stock_limit, items } = req.body;
+    const { title, description, price, stock_limit, items, tags } = req.body;
 
     // Validate required fields
     if (!title || !title.trim()) {
@@ -458,6 +498,41 @@ const createBundle = async (req, res) => {
         message: 'Bundle validation failed',
         errors: validation.errors
       });
+    }
+
+    // Parse and validate tags if provided
+    let bundleTags = [];
+    let primaryTag = null;
+    
+    if (tags) {
+      try {
+        // Parse tags JSON string
+        bundleTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+        
+        // Validate it's an array
+        if (!Array.isArray(bundleTags)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Tags must be an array'
+          });
+        }
+        
+        // Normalize tag names (lowercase, trim) and remove empty strings
+        bundleTags = bundleTags
+          .map(tag => tag.toLowerCase().trim())
+          .filter(tag => tag.length > 0);
+        
+        // Set primary tag (first tag in array)
+        primaryTag = bundleTags.length > 0 ? bundleTags[0] : null;
+        
+        console.log('📌 Parsed tags:', bundleTags, '| Primary tag:', primaryTag);
+      } catch (error) {
+        console.error('❌ Tags parsing error:', error);
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid tags format. Must be valid JSON array.'
+        });
+      }
     }
 
     // Calculate original price from items
@@ -496,8 +571,16 @@ const createBundle = async (req, res) => {
       markup_percent: markup_percent !== null ? Math.round(markup_percent) : null,
       img_url,
       stock_limit: stock_limit ? parseInt(stock_limit) : null,
+      tags: bundleTags.length > 0 ? bundleTags : [], // Store as JSONB array
+      primary_tag: primaryTag, // Store primary tag (first tag)
       is_active: true
     };
+
+    console.log('💾 Creating bundle with data:', {
+      title: bundleData.title,
+      tags: bundleData.tags,
+      primary_tag: bundleData.primary_tag
+    });
 
     const { data: bundle, error: bundleError } = await supabase
       .from('Bundles')
@@ -506,6 +589,7 @@ const createBundle = async (req, res) => {
       .single();
 
     if (bundleError) {
+      console.error('❌ Bundle insert error:', bundleError);
       // Rollback: Delete uploaded image if bundle creation fails
       if (img_url) {
         const publicId = extractPublicIdFromUrl(img_url);
@@ -528,6 +612,7 @@ const createBundle = async (req, res) => {
       .select();
 
     if (itemsError) {
+      console.error('❌ Bundle items insert error:', itemsError);
       // Rollback: Delete bundle and image if items insertion fails
       await supabase.from('Bundles').delete().eq('id', bundle.id);
       if (img_url) {
@@ -538,6 +623,8 @@ const createBundle = async (req, res) => {
     }
 
     console.log(`✅ Bundle created successfully: ${bundle.id}`);
+    console.log(`   Tags: ${bundle.tags?.join(', ') || 'none'}`);
+    console.log(`   Primary tag: ${bundle.primary_tag || 'none'}`);
 
     res.status(201).json({
       success: true,
@@ -566,12 +653,12 @@ const createBundle = async (req, res) => {
 const updateBundle = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, price, stock_limit, items } = req.body;
+    const { title, description, price, stock_limit, items, tags } = req.body;
 
     // Check if bundle exists
     const { data: existingBundle, error: fetchError } = await supabase
       .from('Bundles')
-      .select('img_url, original_price')
+      .select('img_url, original_price, tags, primary_tag')
       .eq('id', id)
       .single();
 
@@ -582,12 +669,46 @@ const updateBundle = async (req, res) => {
       });
     }
 
+    console.log(`📝 Updating bundle: ${id}`);
+    console.log(`   Current tags:`, existingBundle.tags);
+
     // Prepare update data
     const updateData = {};
     
     if (title) updateData.title = title.trim();
     if (description !== undefined) updateData.description = description?.trim() || null;
     if (stock_limit !== undefined) updateData.stock_limit = stock_limit ? parseInt(stock_limit) : null;
+
+    // Handle tags update
+    if (tags !== undefined) {
+      try {
+        let bundleTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+        
+        if (!Array.isArray(bundleTags)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Tags must be an array'
+          });
+        }
+        
+        // Normalize tag names
+        bundleTags = bundleTags
+          .map(tag => tag.toLowerCase().trim())
+          .filter(tag => tag.length > 0);
+        
+        updateData.tags = bundleTags.length > 0 ? bundleTags : [];
+        updateData.primary_tag = bundleTags.length > 0 ? bundleTags[0] : null;
+        
+        console.log('📌 Updated tags:', bundleTags);
+        console.log('   New primary tag:', updateData.primary_tag);
+      } catch (error) {
+        console.error('❌ Tags parsing error:', error);
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid tags format'
+        });
+      }
+    }
 
     // Handle items update if provided
     if (items) {
@@ -672,6 +793,11 @@ const updateBundle = async (req, res) => {
     // Update bundle
     updateData.updated_at = new Date().toISOString();
 
+    console.log('💾 Updating bundle with data:', {
+      tags: updateData.tags,
+      primary_tag: updateData.primary_tag
+    });
+
     const { data: updatedBundle, error: updateError } = await supabase
       .from('Bundles')
       .update(updateData)
@@ -679,9 +805,14 @@ const updateBundle = async (req, res) => {
       .select()
       .single();
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error('❌ Bundle update error:', updateError);
+      throw updateError;
+    }
 
     console.log(`✅ Bundle updated successfully: ${id}`);
+    console.log(`   New tags: ${updatedBundle.tags?.join(', ') || 'none'}`);
+    console.log(`   New primary tag: ${updatedBundle.primary_tag || 'none'}`);
 
     res.status(200).json({
       success: true,
