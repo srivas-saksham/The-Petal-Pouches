@@ -1,23 +1,23 @@
-// frontend/src/pages/ShopNew.jsx - COMPACT HEADER WITH SEARCH & TAGS
+// frontend/src/pages/ShopNew.jsx - FIXED TAG COUNTING
 
-import React, { useState, useEffect, useRef } from 'react';
-import { LayoutGrid, Grid3x2, Grid2x2, Grid3x3, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import BundleGrid from '../components/shop/BundleGrid';
 import BundleEmpty from '../components/shop/BundleEmpty';
 import SidebarFilters from '../components/shop/SidebarFilters';
+import ShopHeader from '../components/shop/ShopHeader';
 import useBundleFilters from '../hooks/useBundleFilters';
 import bundleService from '../services/bundleService';
+import api from '../services/api'; // ✅ IMPORT API CLIENT
 import { useCart } from '../hooks/useCart';
 
 /**
- * BundleShop Component - COMPACT HEADER LAYOUT
+ * BundleShop Component - FIXED TAG COUNTING
  * 
- * FEATURES:
- * - Compact sticky header with search & tags
- * - Extracts all unique tags from fetched bundles
- * - Shows tag counts based on actual bundle data
- * - Dynamic tag filtering that updates as bundles change
- * - Horizontal scrolling tags with modern design
+ * KEY FIX:
+ * - Tags are now fetched from backend API that scans ALL bundles
+ * - Tag counts remain consistent regardless of page/filters
+ * - Separate API call for tags ensures accurate counts
  */
 const BundleShop = () => {
   const [bundles, setBundles] = useState([]);
@@ -25,11 +25,7 @@ const BundleShop = () => {
   const [error, setError] = useState(null);
   const [metadata, setMetadata] = useState(null);
   const [availableTags, setAvailableTags] = useState([]);
-  
-  // Search state with debouncing
-  const [searchInput, setSearchInput] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const debounceTimerRef = useRef(null);
+  const [tagsLoading, setTagsLoading] = useState(false); // ✅ Separate loading for tags
   
   // Layout state - load from localStorage or default to '4'
   const [layoutMode, setLayoutMode] = useState(() => {
@@ -58,51 +54,40 @@ const BundleShop = () => {
     localStorage.setItem('bundleLayoutMode', layoutMode);
   }, [layoutMode]);
 
-  // Sync search input when filters change externally
+  // ==========================================
+  // ✅ FETCH TAGS FROM BACKEND (RUNS ONCE)
+  // ==========================================
   useEffect(() => {
-    setSearchInput(filters.search || '');
-  }, [filters.search]);
-
-  // Cleanup debounce timer
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
+    const fetchTags = async () => {
+      setTagsLoading(true);
+      try {
+        console.log('🏷️ Fetching tags with counts from backend API...');
+        
+        // Direct API call since tagsService might have wrong endpoint
+        const response = await api.get('/api/tags/with-counts');
+        
+        if (response.data.success && response.data.data) {
+          console.log('✅ Received tags from backend:', response.data.data);
+          setAvailableTags(response.data.data);
+        } else {
+          console.warn('⚠️ No tags returned from backend');
+          setAvailableTags([]);
+        }
+      } catch (err) {
+        console.error('❌ Failed to fetch tags:', err);
+        console.error('Error details:', err.response?.data || err.message);
+        setAvailableTags([]);
+      } finally {
+        setTagsLoading(false);
       }
     };
-  }, []);
 
-  // Extract unique tags from bundles
-  const extractTagsFromBundles = (bundlesData) => {
-    console.log('🏷️ Extracting tags from bundles...');
-    
-    const tagCounts = {};
-    
-    bundlesData.forEach(bundle => {
-      if (bundle.tags && Array.isArray(bundle.tags)) {
-        bundle.tags.forEach(tag => {
-          if (tag && tag.trim()) {
-            const normalizedTag = tag.toLowerCase().trim();
-            tagCounts[normalizedTag] = (tagCounts[normalizedTag] || 0) + 1;
-          }
-        });
-      }
-    });
+    fetchTags();
+  }, []); // ✅ Empty dependency array - fetch tags ONCE on mount
 
-    // Convert to array format with counts, sorted by count (descending)
-    const tagsArray = Object.entries(tagCounts)
-      .map(([name, count]) => ({
-        name,
-        count,
-        label: name.charAt(0).toUpperCase() + name.slice(1) // Capitalize first letter
-      }))
-      .sort((a, b) => b.count - a.count);
-
-    console.log('✅ Extracted tags:', tagsArray);
-    return tagsArray;
-  };
-
-  // Fetch bundles
+  // ==========================================
+  // FETCH BUNDLES (RUNS ON FILTER CHANGES)
+  // ==========================================
   useEffect(() => {
     const fetchBundles = async () => {
       setLoading(true);
@@ -118,11 +103,16 @@ const BundleShop = () => {
         
         const bundlesData = response.data || [];
         setBundles(bundlesData);
-        setMetadata(response.metadata);
-
-        // Extract tags from bundles
-        const extractedTags = extractTagsFromBundles(bundlesData);
-        setAvailableTags(extractedTags);
+        
+        // Update metadata with current count
+        const updatedMetadata = {
+          ...response.metadata,
+          currentCount: bundlesData.length
+        };
+        setMetadata(updatedMetadata);
+        
+        // ❌ REMOVED: No longer extracting tags from current page bundles
+        // Tags are fetched separately from backend API above
         
       } catch (err) {
         console.error('❌ Failed to fetch bundles:', err);
@@ -169,34 +159,19 @@ const BundleShop = () => {
     }
   };
 
-  // Handle search input with debouncing
-  const handleSearchInput = (e) => {
-    const value = e.target.value;
-    setSearchInput(value);
-    setIsSearching(true);
-
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      handleFilterChange('search', value);
-      setIsSearching(false);
-    }, 500);
-  };
-
-  // Clear search
-  const clearSearch = () => {
-    setSearchInput('');
-    setIsSearching(false);
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    handleFilterChange('search', '');
+  // Handle search change (from ShopHeader)
+  const handleSearchChange = (value) => {
+    handleFilterChange('search', value);
   };
 
   // Handle tag click (toggle tag in filters)
   const handleTagClick = (tagName) => {
+    // If tagName is null, clear all tags
+    if (tagName === null) {
+      handleFilterChange('tags', '');
+      return;
+    }
+
     const currentTags = filters.tags 
       ? filters.tags.split(',').filter(t => t.trim())
       : [];
@@ -228,141 +203,18 @@ const BundleShop = () => {
 
       {/* Content */}
       <div className="relative z-10">
-        {/* COMPACT STICKY HEADER - Full Width */}
-        <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-          <div className="px-6 py-3">
-            {/* Title & Layout Switcher Row */}
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                  <LayoutGrid className="w-5 h-5 text-tpppink" />
-                  Bundle Collections
-                </h1>
-                {!loading && metadata && (
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Showing {bundles.length} of {metadata.totalCount} bundles
-                    {filters.page > 1 && ` • Page ${filters.page} of ${metadata.totalPages}`}
-                  </p>
-                )}
-              </div>
-
-              {/* Layout Switcher - Compact */}
-              <div className="flex items-center gap-1 bg-slate-100 rounded-md p-0.5 border border-slate-200">
-                <button
-                  onClick={() => handleLayoutChange('4')}
-                  className={`p-1.5 rounded transition-all ${
-                    layoutMode === '4'
-                      ? 'bg-white text-tpppink shadow-sm border border-tpppink'
-                      : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-                  }`}
-                  title="4 Column Layout"
-                >
-                  <Grid2x2 size={14} />
-                </button>
-                <button
-                  onClick={() => handleLayoutChange('5')}
-                  className={`p-1.5 rounded transition-all ${
-                    layoutMode === '5'
-                      ? 'bg-white text-tpppink shadow-sm border border-tpppink'
-                      : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-                  }`}
-                  title="5 Column Layout"
-                >
-                  <Grid3x2 size={14} />
-                </button>
-                <button
-                  onClick={() => handleLayoutChange('6')}
-                  className={`p-1.5 rounded transition-all ${
-                    layoutMode === '6'
-                      ? 'bg-white text-tpppink shadow-sm border border-tpppink'
-                      : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-                  }`}
-                  title="6 Column Layout"
-                >
-                  <Grid3x3 size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Search Bar - Compact */}
-            <div className="relative mb-2">
-              <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 transition-colors ${
-                isSearching ? 'text-tpppink animate-pulse' : 'text-slate-400'
-              }`} />
-              <input
-                type="text"
-                placeholder="Search bundles..."
-                value={searchInput}
-                onChange={handleSearchInput}
-                className="w-full pl-8 pr-8 py-1.5 text-xs bg-white border border-slate-200 rounded-md
-                  focus:outline-none focus:ring-1 focus:ring-tpppink focus:border-tpppink
-                  hover:border-slate-300 transition-all text-slate-700 placeholder:text-slate-400"
-              />
-              {searchInput && (
-                <button
-                  onClick={clearSearch}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-tpppink transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Tags Pills - Compact & Horizontal Scroll */}
-            {!loading && availableTags.length > 0 ? (
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-                {availableTags.map((tag) => {
-                  const isSelected = selectedTags.includes(tag.name);
-                  return (
-                    <button
-                      key={tag.name}
-                      onClick={() => handleTagClick(tag.name)}
-                      className={`
-                        flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
-                        transition-all border whitespace-nowrap
-                        ${isSelected 
-                          ? 'bg-tpppink text-white border-tpppink shadow-sm' 
-                          : 'bg-white text-slate-600 border-slate-200 hover:border-tpppink hover:text-tpppink hover:bg-pink-50'
-                        }
-                      `}
-                    >
-                      <span>{tag.label}</span>
-                      <span className={`
-                        text-[10px] font-semibold px-1.5 py-0.5 rounded-full
-                        ${isSelected 
-                          ? 'bg-white/25 text-white' 
-                          : 'bg-slate-100 text-slate-500'
-                        }
-                      `}>
-                        {tag.count}
-                      </span>
-                    </button>
-                  );
-                })}
-                
-                {/* Clear Tags Button */}
-                {selectedTags.length > 0 && (
-                  <button
-                    onClick={() => handleFilterChange('tags', '')}
-                    className="flex-shrink-0 text-xs text-tpppink hover:text-tpppink/80 font-medium px-2 underline whitespace-nowrap"
-                  >
-                    Clear all
-                  </button>
-                )}
-              </div>
-            ) : loading ? (
-              // Loading skeleton for tags
-              <div className="flex gap-1.5 overflow-x-auto pb-1">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div
-                    key={i}
-                    className="flex-shrink-0 h-7 w-20 bg-slate-100 rounded-full animate-pulse"
-                  />
-                ))}
-              </div>
-            ) : null}
-          </div>
-        </div>
+        {/* SHOP HEADER - Compact Sticky Header */}
+        <ShopHeader
+          filters={filters}
+          onSearchChange={handleSearchChange}
+          onTagClick={handleTagClick}
+          availableTags={availableTags}
+          selectedTags={selectedTags}
+          loading={tagsLoading} // ✅ Use tagsLoading for header
+          metadata={metadata}
+          layoutMode={layoutMode}
+          onLayoutChange={handleLayoutChange}
+        />
 
         {/* CONTENT AREA - Bundles (Left) + Sidebar (Right) */}
         <div className="flex">
@@ -406,6 +258,7 @@ const BundleShop = () => {
                         disabled={filters.page <= 1}
                         className="p-2 border-2 border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-slate-700"
                         title="Previous"
+                        aria-label="Previous page"
                       >
                         <ChevronLeft size={20} />
                       </button>
@@ -428,6 +281,8 @@ const BundleShop = () => {
                                     ? 'bg-tpppink text-white border-tpppink shadow-sm'
                                     : 'border-slate-200 text-slate-700 hover:bg-slate-50'
                                 }`}
+                                aria-label={`Go to page ${page}`}
+                                aria-current={page === filters.page ? 'page' : undefined}
                               >
                                 {page}
                               </button>
@@ -437,7 +292,7 @@ const BundleShop = () => {
                             page === filters.page + 2
                           ) {
                             return (
-                              <span key={page} className="px-1 text-slate-400 text-sm">
+                              <span key={page} className="px-1 text-slate-400 text-sm" aria-hidden="true">
                                 ···
                               </span>
                             );
@@ -451,6 +306,7 @@ const BundleShop = () => {
                         disabled={filters.page >= metadata.totalPages}
                         className="p-2 border-2 border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-slate-700"
                         title="Next"
+                        aria-label="Next page"
                       >
                         <ChevronRight size={20} />
                       </button>
@@ -475,23 +331,12 @@ const BundleShop = () => {
               onFilterChange={handleFilterChange}
               onResetFilters={resetFilters}
               availableTags={availableTags}
-              tagsLoading={loading}
+              tagsLoading={tagsLoading}
               metadata={metadata}
             />
           </div>
         </div>
       </div>
-
-      {/* Custom Scrollbar Hide Styles */}
-      <style jsx>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
     </div>
   );
 };

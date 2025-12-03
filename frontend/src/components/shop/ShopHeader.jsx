@@ -1,88 +1,284 @@
-// frontend/src/components/shop/ShopHeader.jsx
+// frontend/src/components/shop/ShopHeader.jsx - REDESIGNED LAYOUT
 
-import React from 'react';
-import { Grid3x3, Grid2x2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { LayoutGrid, Grid3x3, Search, X, User, ShoppingCart, Grid3x2 } from 'lucide-react';
 
 /**
- * ShopHeader Component
- * Displays page title, subtitle, and layout toggle buttons
+ * ShopHeader Component - Redesigned Layout
  * 
- * @param {string} layoutMode - Current layout mode ('3' or '5')
- * @param {Function} onLayoutChange - Callback when layout changes
+ * LAYOUT CHANGES:
+ * - Title on left, Search bar in middle, Profile & Cart on right (all in one row)
+ * - Grid layout buttons moved to tag pills section on the right end
+ * - Sticky section contains only tag pills with grid buttons
+ * 
+ * @param {Object} filters - Current filter values
+ * @param {Function} onSearchChange - Search input change handler
+ * @param {Function} onTagClick - Tag click handler
+ * @param {Array} availableTags - Array of available tags with counts
+ * @param {Array} selectedTags - Array of currently selected tag names
+ * @param {boolean} loading - Loading state
+ * @param {Object} metadata - Pagination metadata
+ * @param {string} layoutMode - Current layout mode ('4', '5', or '6')
+ * @param {Function} onLayoutChange - Layout change handler
+ * @param {Function} onProfileClick - Profile button click handler
+ * @param {Function} onCartClick - Cart button click handler
+ * @param {number} cartCount - Number of items in cart
  */
-const ShopHeader = ({ layoutMode = '3', onLayoutChange }) => {
+const ShopHeader = ({
+  filters = {},
+  onSearchChange,
+  onTagClick,
+  availableTags = [],
+  selectedTags = [],
+  loading = false,
+  metadata = null,
+  layoutMode = '4',
+  onLayoutChange,
+  onProfileClick,
+  onCartClick,
+  cartCount = 0
+}) => {
+  // Search state with debouncing
+  const [searchInput, setSearchInput] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const debounceTimerRef = useRef(null);
+
+  // Sync search input when filters change externally
+  useEffect(() => {
+    setSearchInput(filters.search || '');
+  }, [filters.search]);
+
+  // Cleanup debounce timer
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Handle search input with debouncing
+  const handleSearchInput = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    setIsSearching(true);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      onSearchChange(value);
+      setIsSearching(false);
+    }, 500);
+  };
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchInput('');
+    setIsSearching(false);
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    onSearchChange('');
+  };
+
   return (
-    <div className="bg-gradient-to-r from-tpppink/10 via-white to-tppslate/10 border-b-2 border-tppslate/10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        {/* Header Content */}
-        <div className="flex items-start justify-between gap-4">
-          {/* Title Section */}
-          <div className="flex-1">
-            <h1 className="text-3xl sm:text-4xl font-bold text-tppslate mb-2">
-              Shop Our Collection
-            </h1>
-            <p className="text-slate-600 text-base sm:text-lg">
-              Discover beautiful gifts and treasures from The Petal Pouches
-            </p>
-          </div>
+    <>
+      {/* STICKY SECTION - Tag Pills with Grid Layout Buttons on Right */}
+      <div className="sticky top-0 z-30">
+        <div className="bg-white/95 backdrop-blur-sm  border-b border-slate-200 shadow-sm">
+          <div className="px-6 py-4">
+            {/* Main Row: Title | Search Bar | Navigation Buttons */}
+            <div className="flex items-center justify-between gap-4">
+              {/* Left: Title Section */}
+              <div className="flex-shrink-0">
+                <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <LayoutGrid className="w-5 h-5 text-tpppink" />
+                  Bundle Collections
+                </h1>
+                {!loading && metadata && (
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Showing {metadata.currentCount || 0} of {metadata.totalCount} bundles
+                    {filters.page > 1 && ` • Page ${filters.page} of ${metadata.totalPages}`}
+                  </p>
+                )}
+              </div>
 
-          {/* Layout Toggle Buttons */}
-          <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1 flex-shrink-0">
-            {/* 3 Column Layout Button */}
-            <button
-              onClick={() => onLayoutChange('3')}
-              className={`
-                flex items-center justify-center w-10 h-10 rounded-md
-                transition-all duration-200 font-medium text-sm
-                ${layoutMode === '3'
-                  ? 'bg-white text-tpppink shadow-sm border-2 border-tpppink'
-                  : 'text-slate-600 hover:text-tppslate hover:bg-white/50 border-2 border-transparent'
-                }
-              `}
-              title="3 Column Layout"
-              aria-label="Switch to 3 column layout"
-            >
-              <Grid2x2 className="w-5 h-5" />
-              <span className="ml-1">3</span>
-            </button>
+              {/* Middle: Search Bar - Flex Grow */}
+              <div className="relative flex-1 max-w-md">
+                <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 transition-colors ${
+                  isSearching ? 'text-tpppink animate-pulse' : 'text-slate-400'
+                }`} />
+                <input
+                  type="text"
+                  placeholder="Search bundles..."
+                  value={searchInput}
+                  onChange={handleSearchInput}
+                  className="w-full pl-8 pr-8 py-2 text-sm bg-slate-50 border border-slate-300 rounded-lg
+                    focus:outline-none focus:border-tpppink focus:bg-white
+                    hover:border-tppslate/60 transition-all text-tpppink placeholder:text-slate-400
+                    font-medium"
+                />
+                {searchInput && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-tpppink transition-colors"
+                    aria-label="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
 
-            {/* 5 Column Layout Button */}
-            <button
-              onClick={() => onLayoutChange('5')}
-              className={`
-                flex items-center justify-center w-10 h-10 rounded-md
-                transition-all duration-200 font-medium text-sm
-                ${layoutMode === '5'
-                  ? 'bg-white text-tpppink shadow-sm border-2 border-tpppink'
-                  : 'text-slate-600 hover:text-tppslate hover:bg-white/50 border-2 border-transparent'
-                }
-              `}
-              title="5 Column Layout"
-              aria-label="Switch to 5 column layout"
-            >
-              <Grid3x3 className="w-5 h-5" />
-              <span className="ml-1">5</span>
-            </button>
+              {/* Right: Navigation Buttons */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {/* User Profile Button */}
+                <button
+                  onClick={onProfileClick}
+                  className="p-2.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 
+                    hover:border-tpppink hover:text-tpppink transition-all text-slate-600
+                    focus:outline-none focus:ring-2 focus:ring-tpppink"
+                  title="User Profile"
+                  aria-label="User Profile"
+                >
+                  <User size={18} />
+                </button>
+
+                {/* Cart Button with Badge */}
+                <button
+                  onClick={onCartClick}
+                  className="relative p-2.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 
+                    hover:border-tpppink hover:text-tpppink transition-all text-slate-600
+                    focus:outline-none focus:ring-2 focus:ring-tpppink"
+                  title="Shopping Cart"
+                  aria-label={`Shopping Cart (${cartCount} items)`}
+                >
+                  <ShoppingCart size={18} />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-tpppink text-white text-[10px] font-bold 
+                      rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1
+                      border-2 border-white shadow-sm">
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
+        <div className="px-6 py-3">
+          <div className="flex items-center gap-3">
+            {/* Tags Pills - Scrollable */}
+            <div className="flex-1 overflow-x-auto scrollbar-hide">
+              {!loading && availableTags.length > 0 ? (
+                <div className="flex items-center gap-1.5">
+                  {availableTags.map((tag) => {
+                    const isSelected = selectedTags.includes(tag.name);
+                    return (
+                      <button
+                        key={tag.name}
+                        onClick={() => onTagClick(tag.name)}
+                        className={`
+                          flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold
+                          transition-all whitespace-nowrap shadow-md backdrop-blur-md
+                          ${isSelected 
+                            ? 'bg-tpppink text-white border-2 border-tpppink' 
+                            : 'bg-white text-slate-700 border-2 border-slate-300 hover:border-tpppink hover:text-tpppink hover:bg-pink-50 hover:shadow-lg'
+                          }
+                        `}
+                      >
+                        <span>{tag.label}</span>
+                        <span className={`
+                          text-[10px] font-bold px-1.5 py-0.5 rounded-full
+                          ${isSelected 
+                            ? 'bg-white/30 text-white' 
+                            : 'bg-slate-100 text-slate-600'
+                          }
+                        `}>
+                          {tag.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  
+                  {/* Clear Tags Button */}
+                  {selectedTags.length > 0 && (
+                    <button
+                      onClick={() => onTagClick(null)}
+                      className="flex-shrink-0 text-xs text-white font-bold px-3 py-1.5 whitespace-nowrap bg-tpppink backdrop-blur-md rounded-full shadow-md border-2 border-tpppink hover:bg-tpppink/90 hover:shadow-lg transition-all"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
+              ) : loading ? (
+                // Loading skeleton for tags
+                <div className="flex gap-1.5">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div
+                      key={i}
+                      className="flex-shrink-0 h-8 w-20 bg-white backdrop-blur-md rounded-full animate-pulse shadow-md border-2 border-slate-200"
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </div>
 
-        {/* Stats Bar */}
-        <div className="mt-6 pt-6 border-t border-slate-200 flex items-center gap-6 text-sm text-slate-600 flex-wrap">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-tpppink"></div>
-            <span>Premium Quality Products</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-tppslate"></div>
-            <span>Fast & Free Shipping</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-            <span>Secure Checkout</span>
+            {/* Grid Layout Switcher - Right End */}
+            <div className="flex items-center gap-1 bg-slate-100 rounded-md p-0.5 border border-slate-200 flex-shrink-0">
+              <button
+                onClick={() => onLayoutChange('4')}
+                className={`p-1.5 rounded transition-all ${
+                  layoutMode === '4'
+                    ? 'bg-white text-tpppink shadow-sm border border-tpppink'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                }`}
+                title="4 Column Layout"
+                aria-label="4 Column Layout"
+              >
+                <LayoutGrid size={16} />
+              </button>
+              <button
+                onClick={() => onLayoutChange('5')}
+                className={`p-1.5 rounded transition-all ${
+                  layoutMode === '5'
+                    ? 'bg-white text-tpppink shadow-sm border border-tpppink'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                }`}
+                title="5 Column Layout"
+                aria-label="5 Column Layout"
+              >
+                <Grid3x2 size={16} />
+              </button>
+              <button
+                onClick={() => onLayoutChange('6')}
+                className={`p-1.5 rounded transition-all ${
+                  layoutMode === '6'
+                    ? 'bg-white text-tpppink shadow-sm border border-tpppink'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                }`}
+                title="6 Column Layout"
+                aria-label="6 Column Layout"
+              >
+                <Grid3x3 size={16} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Custom Scrollbar Hide Styles */}
+      <style jsx>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+    </>
   );
 };
 

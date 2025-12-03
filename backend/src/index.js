@@ -68,6 +68,7 @@ app.use('/api/addresses', require('./routes/addresses'));  // Address Book
 // 3. CATALOG (PUBLIC & ADMIN MIXED)
 // --------------------------------------------
 app.use('/api/categories', require('./routes/categories'));
+app.use('/api/tags', require('./routes/tagsRoutes'));
 app.use('/api/bundles', require('./routes/bundles'));      // Must be before products to avoid conflicts
 app.use('/api/products', require('./routes/products'));
 app.use('/api/variants', require('./routes/variants'));
@@ -144,6 +145,7 @@ app.get('/', (req, res) => {
         products: '/api/products',
         categories: '/api/categories',
         bundles: '/api/bundles',
+        tags: '/api/tags',
         reviews: '/api/reviews'
       }
     }

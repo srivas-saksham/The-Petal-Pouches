@@ -65,48 +65,52 @@ const getAllTags = async (req, res) => {
 };
 
 /**
- * Get tags with bundle counts for filter UI
+ * Get tags with bundle counts for filter UI - FIXED VERSION
  * GET /api/tags/with-counts
  * 
  * Returns tags with the number of bundles that have each tag
- * Perfect for building filter checkboxes
+ * COUNTS ALL ACTIVE BUNDLES IN DATABASE (not just filtered results)
  */
 const getTagsWithCounts = async (req, res) => {
   try {
-    console.log('📊 Get tags with bundle counts request');
+    console.log('📊 Get tags with bundle counts - SCANNING ALL BUNDLES');
 
-    // Fetch all active tags
-    const { data: tags, error: tagsError } = await supabase
-      .from('Tags')
-      .select('*')
+    // Fetch ALL active bundles with their tags (no filters, no pagination)
+    const { data: bundles, error } = await supabase
+      .from('Bundles')
+      .select('tags')
       .eq('is_active', true)
-      .order('display_order', { ascending: true });
+      .not('tags', 'is', null);
 
-    if (tagsError) throw tagsError;
+    if (error) throw error;
 
-    // For each tag, count bundles that have this tag
-    const tagsWithCounts = await Promise.all(
-      (tags || []).map(async (tag) => {
-        // Count bundles where tags JSONB array contains this tag name
-        const { count, error } = await supabase
-          .from('Bundles')
-          .select('*', { count: 'exact', head: true })
-          .eq('is_active', true)
-          .filter('tags', 'cs', `["${tag.name}"]`); // JSONB contains search
+    console.log(`📦 Scanned ${bundles?.length || 0} active bundles for tags`);
 
-        if (error) {
-          console.warn(`⚠️ Error counting bundles for tag ${tag.name}:`, error);
-          return { ...tag, bundle_count: 0 };
-        }
+    // Count occurrences of each tag across ALL bundles
+    const tagCounts = {};
+    
+    (bundles || []).forEach(bundle => {
+      if (Array.isArray(bundle.tags)) {
+        bundle.tags.forEach(tag => {
+          if (tag && tag.trim()) {
+            const normalizedTag = tag.toLowerCase().trim();
+            tagCounts[normalizedTag] = (tagCounts[normalizedTag] || 0) + 1;
+          }
+        });
+      }
+    });
 
-        return {
-          ...tag,
-          bundle_count: count || 0
-        };
-      })
-    );
+    // Convert to array format with label and sort by count (descending)
+    const tagsWithCounts = Object.entries(tagCounts)
+      .map(([name, count]) => ({
+        name,
+        label: name.charAt(0).toUpperCase() + name.slice(1), // Capitalize first letter
+        count
+      }))
+      .sort((a, b) => b.count - a.count); // Sort by count descending
 
-    console.log(`✅ Returning ${tagsWithCounts.length} tags with counts`);
+    console.log(`✅ Found ${tagsWithCounts.length} unique tags across database`);
+    console.log('📊 Top 5 tags:', tagsWithCounts.slice(0, 5).map(t => `${t.name}(${t.count})`).join(', '));
 
     res.status(200).json({
       success: true,

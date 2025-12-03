@@ -84,7 +84,7 @@ const BundleGrid = ({
   // Success state - render grid with dynamic layout
   return (
     <>
-      <div className="bg-white rounded-lg border border-tppgrey shadow-sm p-4 sm:p-6">
+      <div className="bg-transparent">
         <div className={getGridClasses()}>
           {bundles.map((bundle) => (
             <BundleCard 
