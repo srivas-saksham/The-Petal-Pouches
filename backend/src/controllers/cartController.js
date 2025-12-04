@@ -1,11 +1,7 @@
-// backend/src/controllers/cartController.js - DEBUGGING USER ID ISSUE
+// backend/src/controllers/cartController.js
+// UPDATED: Include stock_limit in cart items response
 
 const supabase = require('../config/supabaseClient');
-
-/**
- * Cart Controller - Bundles only in cart
- * FIXED: Proper user_id handling from cart record
- */
 
 const TABLES = {
   CART_ITEMS: 'Cart_items',
@@ -22,7 +18,6 @@ const CartController = {
     try {
       console.log('🔍 getOrCreateCart called with:', { userId, sessionId });
 
-      // 🔥 CRITICAL FIX: Verify user exists before proceeding
       if (userId) {
         const { data: userExists, error: userCheckError } = await supabase
           .from('Users')
@@ -55,13 +50,8 @@ const CartController = {
       if (existingCart && !fetchError) {
         console.log('✅ Found existing cart:', existingCart);
         
-        // If cart has a user_id but it doesn't match the request, something is wrong
         if (userId && existingCart.user_id && existingCart.user_id !== userId) {
           console.error('❌ CRITICAL: Cart user_id mismatch!');
-          console.error('   Request user_id:', userId);
-          console.error('   Cart user_id:', existingCart.user_id);
-          
-          // Delete the invalid cart and create a new one
           await supabase.from(TABLES.CARTS).delete().eq('id', existingCart.id);
           console.log('🗑️ Deleted mismatched cart, will create new one');
         } else {
@@ -105,6 +95,7 @@ const CartController = {
   /**
    * Get user's cart with bundle items
    * GET /api/cart
+   * ⭐ UPDATED: Now includes stock_limit for each bundle
    */
   getCart: async (req, res) => {
     try {
@@ -123,7 +114,7 @@ const CartController = {
       const cart = await CartController.getOrCreateCart(userId, sessionId);
       const cartId = cart.id;
 
-      // Get cart items with bundle details
+      // ⭐ UPDATED: Include stock_limit in the select query
       const { data: items, error: itemsError } = await supabase
         .from(TABLES.CART_ITEMS)
         .select(`
@@ -138,7 +129,8 @@ const CartController = {
             description,
             img_url,
             price,
-            is_active
+            is_active,
+            stock_limit
           )
         `)
         .eq('cart_id', cartId)
@@ -146,7 +138,7 @@ const CartController = {
 
       if (itemsError) throw itemsError;
 
-      // Transform items to flat structure
+      // Transform items to flat structure with stock_limit
       const transformedItems = (items || []).map(item => {
         if (!item.Bundles) {
           console.warn('⚠️ Cart item has no bundle:', item.id);
@@ -163,6 +155,7 @@ const CartController = {
           quantity: item.quantity,
           item_total: parseFloat(item.Bundles.price) * item.quantity,
           is_active: item.Bundles.is_active,
+          stock_limit: item.Bundles.stock_limit, // ⭐ NOW INCLUDED
           type: 'bundle'
         };
       }).filter(Boolean);
@@ -235,23 +228,17 @@ const CartController = {
         });
       }
 
-      // Get or create cart - THIS RETURNS THE FULL CART OBJECT
       const cart = await CartController.getOrCreateCart(userId, sessionId);
       const cartId = cart.id;
-      
-      // 🔥 FIX: Use the user_id from the REQUEST, not from the cart
-      // The cart might have been created with a different/old user_id
       const actualUserId = userId || cart.user_id;
       
       console.log('✅ Cart ID:', cartId);
       console.log('✅ Using user_id:', actualUserId);
-      console.log('   (from request):', userId);
-      console.log('   (from cart):', cart.user_id);
 
       // Verify bundle exists and is active
       const { data: bundle, error: bundleError } = await supabase
         .from(TABLES.BUNDLES)
-        .select('id, title, price, is_active')
+        .select('id, title, price, is_active, stock_limit')
         .eq('id', bundle_id)
         .single();
 
@@ -269,6 +256,14 @@ const CartController = {
         });
       }
 
+      // ⭐ Validate stock limit
+      if (bundle.stock_limit !== null && bundle.stock_limit === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'This bundle is out of stock'
+        });
+      }
+
       // Check if bundle already in cart
       const { data: existingItem, error: existError } = await supabase
         .from(TABLES.CART_ITEMS)
@@ -282,8 +277,15 @@ const CartController = {
       let cartItem;
 
       if (itemExists) {
-        // Update quantity
         const newQuantity = existingItem.quantity + quantity;
+
+        // ⭐ Validate against stock limit
+        if (bundle.stock_limit !== null && newQuantity > bundle.stock_limit) {
+          return res.status(400).json({
+            success: false,
+            message: `Maximum ${bundle.stock_limit} units allowed per bundle`
+          });
+        }
 
         const { data: updated, error: updateError } = await supabase
           .from(TABLES.CART_ITEMS)
@@ -303,12 +305,19 @@ const CartController = {
 
         console.log(`✅ Updated cart item ${existingItem.id} quantity to ${newQuantity}`);
       } else {
-        // Add new item
+        // ⭐ Validate new quantity against stock limit
+        if (bundle.stock_limit !== null && quantity > bundle.stock_limit) {
+          return res.status(400).json({
+            success: false,
+            message: `Maximum ${bundle.stock_limit} units allowed per bundle`
+          });
+        }
+
         console.log('📝 Inserting new cart item with:', {
           cart_id: cartId,
           bundle_id: bundle_id,
           quantity,
-          user_id: actualUserId  // This MUST exist in Users table
+          user_id: actualUserId
         });
 
         const { data: inserted, error: insertError } = await supabase
@@ -317,7 +326,7 @@ const CartController = {
             cart_id: cartId,
             bundle_id: bundle_id,
             quantity,
-            user_id: actualUserId,  // 🔥 CRITICAL: This must be a valid Users.id
+            user_id: actualUserId,
             created_at: new Date().toISOString()
           }])
           .select('id, quantity')
@@ -357,6 +366,7 @@ const CartController = {
   /**
    * Update cart item quantity
    * PATCH /api/cart/items/:id
+   * ⭐ UPDATED: Validates against stock_limit
    */
   updateCartItem: async (req, res) => {
     try {
@@ -375,10 +385,17 @@ const CartController = {
       const cart = await CartController.getOrCreateCart(userId, sessionId);
       const cartId = cart.id;
 
-      // Verify cart item belongs to this cart
+      // ⭐ Get cart item WITH bundle stock_limit
       const { data: item, error: itemError } = await supabase
         .from(TABLES.CART_ITEMS)
-        .select('id, cart_id')
+        .select(`
+          id, 
+          cart_id, 
+          bundle_id,
+          Bundles (
+            stock_limit
+          )
+        `)
         .eq('id', id)
         .single();
 
@@ -393,6 +410,15 @@ const CartController = {
         return res.status(403).json({
           success: false,
           message: 'Unauthorized'
+        });
+      }
+
+      // ⭐ Validate against stock limit
+      const stockLimit = item.Bundles?.stock_limit;
+      if (stockLimit !== null && stockLimit !== undefined && quantity > stockLimit) {
+        return res.status(400).json({
+          success: false,
+          message: `Maximum ${stockLimit} units allowed per bundle`
         });
       }
 
@@ -427,10 +453,6 @@ const CartController = {
 
   // ==================== REMOVE CART ITEM ====================
 
-  /**
-   * Remove item from cart
-   * DELETE /api/cart/items/:id
-   */
   removeCartItem: async (req, res) => {
     try {
       const { id } = req.params;
@@ -486,10 +508,6 @@ const CartController = {
 
   // ==================== CLEAR CART ====================
 
-  /**
-   * Clear all items from cart
-   * DELETE /api/cart
-   */
   clearCart: async (req, res) => {
     try {
       const userId = req.user?.id || req.get('x-user-id');
@@ -533,10 +551,6 @@ const CartController = {
 
   // ==================== MERGE CARTS (ON LOGIN) ====================
 
-  /**
-   * Merge guest cart into user cart on login
-   * POST /api/cart/merge
-   */
   mergeCarts: async (req, res) => {
     try {
       const userId = req.user?.id || req.get('x-user-id');
@@ -608,7 +622,7 @@ const CartController = {
               cart_id: userCartId,
               bundle_id: item.bundle_id,
               quantity: item.quantity,
-              user_id: userId,  // 🔥 Use the actual logged-in user ID
+              user_id: userId,
               created_at: new Date().toISOString()
             }]);
           

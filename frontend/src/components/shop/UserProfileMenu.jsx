@@ -139,7 +139,13 @@ const UserProfileMenu = ({ user }) => {
       {/* Dropdown Menu */}
       {isOpen && (
         <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl border border-slate-200 shadow-xl 
-          overflow-hidden z-[60] animate-in fade-in slide-in-from-top-2 duration-200">
+          overflow-hidden z-[60] animate-in fade-in slide-in-from-top-2 duration-200"
+          // style={{
+          //   backgroundImage: 'url(/assets/doodle_bg.png)',
+          //   backgroundRepeat: 'repeat',
+          //   backgroundSize: 'auto',
+          // }}
+        >
           
           {/* User Info Header */}
           <div className="p-4 bg-gradient-to-br from-pink-50 to-orange-50 border-b border-slate-100">

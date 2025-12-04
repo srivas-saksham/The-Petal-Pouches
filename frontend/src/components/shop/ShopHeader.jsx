@@ -1,18 +1,20 @@
-// frontend/src/components/shop/ShopHeader.jsx - REDESIGNED LAYOUT
+// frontend/src/components/shop/ShopHeader.jsx - WITH CART SIDEBAR INTEGRATION
 import React, { useState, useEffect, useRef } from 'react';
 import { LayoutGrid, Grid3x3, Search, X, ShoppingCart, Grid3x2, LogIn, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useCart } from '../../hooks/useCart';
+import { useCartSidebar } from '../../hooks/useCartSidebar'; // ✅ NEW IMPORT
 import UserProfileMenu from './UserProfileMenu';
 
 /**
- * ShopHeader Component - WITH AUTHENTICATION
+ * ShopHeader Component - WITH CART SIDEBAR INTEGRATION
  * 
  * FEATURES:
  * - Shows user profile menu when authenticated
  * - Shows Sign In / Sign Up buttons when not authenticated
  * - Dynamic cart count from CartContext
+ * - ✅ NEW: Opens cart sidebar on cart button click
  * - Professional animations and transitions
  * 
  * @param {Object} filters - Current filter values
@@ -39,6 +41,7 @@ const ShopHeader = ({
   // Auth & Cart Context
   const { isAuthenticated, user, loading: authLoading } = useUserAuth();
   const { cartTotals } = useCart();
+  const { openCart } = useCartSidebar(); // ✅ NEW: Cart sidebar hook
   const navigate = useNavigate();
 
   // Search state with debouncing
@@ -86,15 +89,9 @@ const ShopHeader = ({
     onSearchChange('');
   };
 
-  // Handle cart click
+  // ✅ MODIFIED: Handle cart click - Opens cart sidebar
   const handleCartClick = () => {
-    if (!isAuthenticated) {
-      // Redirect to login if not authenticated
-      navigate('/login', { state: { from: '/checkout' } });
-    } else {
-      // Go to checkout if authenticated
-      navigate('/checkout');
-    }
+    openCart(); // Simply opens the cart sidebar
   };
 
   // Get cart count
@@ -157,11 +154,11 @@ const ShopHeader = ({
                     <div className="w-9 h-9 bg-slate-100 rounded-lg animate-pulse"></div>
                   </div>
                 ) : isAuthenticated && user ? (
-                  // Authenticated: Show Profile Menu
+                  // Authenticated: Show Profile Menu + Cart Button
                   <>
                     <UserProfileMenu user={user} />
                     
-                    {/* Cart Button with Badge */}
+                    {/* ✅ Cart Button - Opens Sidebar */}
                     <button
                       onClick={handleCartClick}
                       className="relative p-2.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 
@@ -181,7 +178,7 @@ const ShopHeader = ({
                     </button>
                   </>
                 ) : (
-                  // Not Authenticated: Show Sign In / Sign Up Buttons
+                  // Not Authenticated: Show Sign In / Sign Up + Cart Button
                   <>
                     {/* Sign In Button */}
                     <button
@@ -208,16 +205,24 @@ const ShopHeader = ({
                       <span className="hidden sm:inline">Sign Up</span>
                     </button>
 
-                    {/* Cart Button (redirects to login) */}
+                    {/* ✅ Cart Button - Opens Sidebar (even if not logged in) */}
                     <button
                       onClick={handleCartClick}
                       className="relative p-2.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 
                         hover:border-tpppink hover:text-tpppink transition-all text-slate-600
                         focus:outline-none focus:ring-2 focus:ring-tpppink/30"
-                      title="Shopping Cart (Login Required)"
+                      title="Shopping Cart"
                       aria-label="Shopping Cart"
                     >
                       <ShoppingCart size={18} />
+                      {/* Show badge even for guest users if they have items */}
+                      {cartCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-tpppink text-white text-[10px] font-bold 
+                          rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1
+                          border-2 border-white shadow-sm animate-in zoom-in-50 duration-200">
+                          {cartCount > 99 ? '99+' : cartCount}
+                        </span>
+                      )}
                     </button>
                   </>
                 )}

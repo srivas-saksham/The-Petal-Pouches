@@ -1,15 +1,19 @@
-// frontend/src/components/user/layout/TopBar.jsx
+// frontend/src/components/user/layout/TopBar.jsx - WITH CART SIDEBAR INTEGRATION
 
 import { Menu, Search, ShoppingBag, Bell, User, LogOut, X } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserAuth } from '../../../context/UserAuthContext';
 import { useToast } from '../../../hooks/useToast';
+import { useCart } from '../../../hooks/useCart'; // ✅ NEW IMPORT
+import { useCartSidebar } from '../../../hooks/useCartSidebar'; // ✅ NEW IMPORT
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 export default function UserTopBar({ onMenuClick }) {
   const { logout, user } = useUserAuth();
+  const { cartTotals } = useCart(); // ✅ NEW: Get cart data from context
+  const { openCart } = useCartSidebar(); // ✅ NEW: Get cart sidebar functions
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -17,7 +21,6 @@ export default function UserTopBar({ onMenuClick }) {
   const [searchFocused, setSearchFocused] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [cartCount, setCartCount] = useState(0);
   const [notificationCount, setNotificationCount] = useState(3);
 
   const userMenuRef = useRef(null);
@@ -33,26 +36,8 @@ export default function UserTopBar({ onMenuClick }) {
     return name.slice(0, 2).toUpperCase();
   };
 
-  // ✅ Fetch cart count
-  useEffect(() => {
-    const fetchCartCount = async () => {
-      try {
-        // TODO: Replace with actual cart API call
-        // const response = await fetch(`${API_URL}/api/cart`, {
-        //   headers: { 'Authorization': `Bearer ${token}` }
-        // });
-        // const data = await response.json();
-        // setCartCount(data.items?.length || 0);
-        
-        // Placeholder
-        setCartCount(2);
-      } catch (error) {
-        console.error('Error fetching cart:', error);
-      }
-    };
-
-    fetchCartCount();
-  }, []);
+  // ✅ MODIFIED: Get cart count from CartContext instead of API
+  const cartCount = cartTotals?.item_count || 0;
 
   // ✅ Close dropdowns when clicking outside
   useEffect(() => {
@@ -93,9 +78,9 @@ export default function UserTopBar({ onMenuClick }) {
     }
   };
 
-  // ✅ Navigate to cart
+  // ✅ MODIFIED: Open cart sidebar instead of navigating
   const handleCartClick = () => {
-    navigate('/cart');
+    openCart(); // Opens the cart sidebar
   };
 
   return (
@@ -143,16 +128,17 @@ export default function UserTopBar({ onMenuClick }) {
 
           {/* Right Section - Cart, Notifications, User */}
           <div className="flex items-center gap-3 ml-4">
-            {/* Shopping Cart */}
+            {/* ✅ MODIFIED: Shopping Cart Button - Opens Sidebar */}
             <button
               onClick={handleCartClick}
               className="relative p-2 hover:bg-tpppeach/30 rounded-lg transition-all duration-200 text-tppslate border-2 border-transparent hover:border-tppslate group"
-              aria-label="Shopping cart"
+              aria-label={`Shopping cart (${cartCount} items)`}
+              title="Shopping Cart"
             >
               <ShoppingBag className="w-5 h-5" />
               {cartCount > 0 && (
-                <span className="absolute top-0 right-0 flex items-center justify-center w-5 h-5 bg-tpppink text-white text-xs font-bold rounded-full border-2 border-white">
-                  {cartCount}
+                <span className="absolute top-0 right-0 flex items-center justify-center w-5 h-5 bg-tpppink text-white text-xs font-bold rounded-full border-2 border-white animate-in zoom-in-50 duration-200">
+                  {cartCount > 99 ? '99+' : cartCount}
                 </span>
               )}
             </button>
