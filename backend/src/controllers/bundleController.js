@@ -31,6 +31,10 @@ const {
 // TAG FILTERING - FIXED FOR SUPABASE JSONB
 // Replace the entire getAllBundles function
 
+// backend/src/controllers/bundleController.js
+// TAG FILTERING - MODIFIED FOR AND LOGIC (INTERSECTION)
+// Replace the getAllBundles function with this version
+
 const getAllBundles = async (req, res) => {
   try {
     const {
@@ -93,8 +97,8 @@ const getAllBundles = async (req, res) => {
     }
 
     // ========================================
-    // TAG FILTERING - JSONB @> OPERATOR
-    // Uses PostgreSQL's JSONB containment operator
+    // TAG FILTERING - AND LOGIC (INTERSECTION)
+    // Bundles must have ALL selected tags
     // ========================================
     if (tags && tags.trim()) {
       const tagArray = tags
@@ -102,27 +106,20 @@ const getAllBundles = async (req, res) => {
         .map(t => t.trim().toLowerCase())
         .filter(t => t.length > 0);
 
-      console.log(`🏷️ Filtering by tags:`, tagArray);
+      console.log(`🏷️ Filtering by tags (AND logic):`, tagArray);
 
       if (tagArray.length > 0) {
-        // For Supabase JSONB, use the @> (contains) operator with JSON array string
-        // Format: tags.@>."[\"tag1\"]" for single tag
-        // Format: tags.@>."[\"tag1\"]" OR tags.@>."[\"tag2\"]" for multiple tags
+        // For AND logic: tags column must contain ALL specified tags
+        // Use the @> (contains) operator for each tag
+        // This ensures the JSONB array contains all required tags
         
-        if (tagArray.length === 1) {
-          // Single tag - use @> operator with JSON array string
-          const jsonArrayString = `["${tagArray[0]}"]`;
+        tagArray.forEach(tag => {
+          const jsonArrayString = `["${tag}"]`;
           query = query.filter('tags', 'cs', jsonArrayString);
-          console.log(`✅ Single tag filter: tags @> '${jsonArrayString}'`);
-        } else {
-          // Multiple tags - use OR logic with @> operator
-          const orConditions = tagArray
-            .map(tag => `tags.cs.["${tag}"]`)
-            .join(',');
-          
-          query = query.or(orConditions);
-          console.log(`✅ Multiple tags filter (OR): ${orConditions}`);
-        }
+          console.log(`✅ Added AND filter: tags @> '${jsonArrayString}'`);
+        });
+        
+        console.log(`✅ Applied ${tagArray.length} AND filters - bundles must have ALL tags`);
       }
     }
 
@@ -185,7 +182,8 @@ const getAllBundles = async (req, res) => {
       bundlesFound: bundles?.length,
       totalCount: count,
       firstBundleTags: bundles?.[0]?.tags,
-      tagsFilter: tags || 'none'
+      tagsFilter: tags || 'none',
+      filterLogic: tags ? 'AND (intersection)' : 'none'
     });
 
     // Add stock status and product count for each bundle

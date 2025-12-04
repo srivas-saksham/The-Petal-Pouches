@@ -25,25 +25,26 @@ export const getAllTags = async () => {
 };
 
 /**
- * Get tags with bundle counts for filter UI
- * Returns tags with the number of bundles that have each tag
- * Perfect for displaying tag counts in sidebar filters
+ * Get tags with bundle counts for filter UI - CONTEXT-AWARE
+ * Returns tags with counts based on current filter context
  * 
+ * @param {Object} filterContext - Current filters { tags, search, min_price, max_price, in_stock }
  * @returns {Promise<Object>} { success, data: [tags with counts], error }
- * 
- * Response format:
- * [
- *   { name: "birthday", count: 24 },
- *   { name: "anniversary", count: 18 },
- *   { name: "romantic", count: 15 },
- *   ...
- * ]
  */
-export const getTagsWithCounts = async () => {
-  console.log('📊 Fetching tags with bundle counts...');
+export const getTagsWithCounts = async (filterContext = {}) => {
+  console.log('📊 Fetching context-aware tag counts with filters:', filterContext);
+  
+  const params = new URLSearchParams();
+  
+  // Add filter context to get dynamic counts
+  if (filterContext.tags) params.append('tags', filterContext.tags);
+  if (filterContext.search) params.append('search', filterContext.search);
+  if (filterContext.min_price) params.append('min_price', filterContext.min_price);
+  if (filterContext.max_price) params.append('max_price', filterContext.max_price);
+  if (filterContext.in_stock) params.append('in_stock', filterContext.in_stock);
   
   return apiRequest(() =>
-    api.get('/api/bundles/tags/with-counts')
+    api.get(`/api/tags/with-counts${params.toString() ? `?${params}` : ''}`)
   );
 };
 

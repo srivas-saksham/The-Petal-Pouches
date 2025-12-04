@@ -61,13 +61,28 @@ const BundleShop = () => {
     const fetchTags = async () => {
       setTagsLoading(true);
       try {
-        console.log('🏷️ Fetching tags with counts from backend API...');
+        console.log('🏷️ Fetching tags with dynamic counts based on current filters...');
         
-        // Direct API call since tagsService might have wrong endpoint
-        const response = await api.get('/api/tags/with-counts');
+        // Build query params to get context-aware counts
+        const params = new URLSearchParams();
+        
+        // Pass current filters to get counts based on filtered bundles
+        if (filters.search) params.append('search', filters.search);
+        if (filters.min_price) params.append('min_price', filters.min_price);
+        if (filters.max_price) params.append('max_price', filters.max_price);
+        if (filters.in_stock) params.append('in_stock', filters.in_stock);
+        if (filters.tags) params.append('tags', filters.tags);
+        
+        const queryString = params.toString();
+        const endpoint = `/api/tags/with-counts${queryString ? `?${queryString}` : ''}`;
+        
+        console.log('📤 Fetching tags from:', endpoint);
+        
+        const response = await api.get(endpoint);
         
         if (response.data.success && response.data.data) {
-          console.log('✅ Received tags from backend:', response.data.data);
+          console.log('✅ Received dynamic tag counts:', response.data.data);
+          console.log('   Context:', response.data.context);
           setAvailableTags(response.data.data);
         } else {
           console.warn('⚠️ No tags returned from backend');
@@ -83,7 +98,7 @@ const BundleShop = () => {
     };
 
     fetchTags();
-  }, []); // ✅ Empty dependency array - fetch tags ONCE on mount
+  }, [filters.search, filters.min_price, filters.max_price, filters.in_stock, filters.tags]);
 
   // ==========================================
   // FETCH BUNDLES (RUNS ON FILTER CHANGES)

@@ -1,15 +1,19 @@
 // frontend/src/components/shop/ShopHeader.jsx - REDESIGNED LAYOUT
-
 import React, { useState, useEffect, useRef } from 'react';
-import { LayoutGrid, Grid3x3, Search, X, User, ShoppingCart, Grid3x2 } from 'lucide-react';
+import { LayoutGrid, Grid3x3, Search, X, ShoppingCart, Grid3x2, LogIn, UserPlus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useUserAuth } from '../../context/UserAuthContext';
+import { useCart } from '../../hooks/useCart';
+import UserProfileMenu from './UserProfileMenu';
 
 /**
- * ShopHeader Component - Redesigned Layout
+ * ShopHeader Component - WITH AUTHENTICATION
  * 
- * LAYOUT CHANGES:
- * - Title on left, Search bar in middle, Profile & Cart on right (all in one row)
- * - Grid layout buttons moved to tag pills section on the right end
- * - Sticky section contains only tag pills with grid buttons
+ * FEATURES:
+ * - Shows user profile menu when authenticated
+ * - Shows Sign In / Sign Up buttons when not authenticated
+ * - Dynamic cart count from CartContext
+ * - Professional animations and transitions
  * 
  * @param {Object} filters - Current filter values
  * @param {Function} onSearchChange - Search input change handler
@@ -20,9 +24,6 @@ import { LayoutGrid, Grid3x3, Search, X, User, ShoppingCart, Grid3x2 } from 'luc
  * @param {Object} metadata - Pagination metadata
  * @param {string} layoutMode - Current layout mode ('4', '5', or '6')
  * @param {Function} onLayoutChange - Layout change handler
- * @param {Function} onProfileClick - Profile button click handler
- * @param {Function} onCartClick - Cart button click handler
- * @param {number} cartCount - Number of items in cart
  */
 const ShopHeader = ({
   filters = {},
@@ -34,10 +35,12 @@ const ShopHeader = ({
   metadata = null,
   layoutMode = '4',
   onLayoutChange,
-  onProfileClick,
-  onCartClick,
-  cartCount = 0
 }) => {
+  // Auth & Cart Context
+  const { isAuthenticated, user, loading: authLoading } = useUserAuth();
+  const { cartTotals } = useCart();
+  const navigate = useNavigate();
+
   // Search state with debouncing
   const [searchInput, setSearchInput] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -83,13 +86,27 @@ const ShopHeader = ({
     onSearchChange('');
   };
 
+  // Handle cart click
+  const handleCartClick = () => {
+    if (!isAuthenticated) {
+      // Redirect to login if not authenticated
+      navigate('/login', { state: { from: '/checkout' } });
+    } else {
+      // Go to checkout if authenticated
+      navigate('/checkout');
+    }
+  };
+
+  // Get cart count
+  const cartCount = cartTotals?.item_count || 0;
+
   return (
     <>
       {/* STICKY SECTION - Tag Pills with Grid Layout Buttons on Right */}
       <div className="sticky top-0 z-30">
-        <div className="bg-white/95 backdrop-blur-sm  border-b border-slate-200 shadow-sm">
+        <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm relative z-20">
           <div className="px-6 py-4">
-            {/* Main Row: Title | Search Bar | Navigation Buttons */}
+            {/* Main Row: Title | Search Bar | Auth & Cart Buttons */}
             <div className="flex items-center justify-between gap-4">
               {/* Left: Title Section */}
               <div className="flex-shrink-0">
@@ -117,7 +134,7 @@ const ShopHeader = ({
                   onChange={handleSearchInput}
                   className="w-full pl-8 pr-8 py-2 text-sm bg-slate-50 border border-slate-300 rounded-lg
                     focus:outline-none focus:border-tpppink focus:bg-white
-                    hover:border-tppslate/60 transition-all text-tpppink placeholder:text-slate-400
+                    hover:border-slate-400 transition-all text-slate-900 placeholder:text-slate-400
                     font-medium"
                 />
                 {searchInput && (
@@ -131,43 +148,86 @@ const ShopHeader = ({
                 )}
               </div>
 
-              {/* Right: Navigation Buttons */}
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {/* User Profile Button */}
-                <button
-                  onClick={onProfileClick}
-                  className="p-2.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 
-                    hover:border-tpppink hover:text-tpppink transition-all text-slate-600
-                    focus:outline-none focus:ring-2 focus:ring-tpppink"
-                  title="User Profile"
-                  aria-label="User Profile"
-                >
-                  <User size={18} />
-                </button>
+              {/* Right: Authentication & Cart Buttons */}
+              <div className="flex items-center gap-2 flex-shrink-0 relative z-50">
+                {authLoading ? (
+                  // Loading State
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 bg-slate-100 rounded-lg animate-pulse"></div>
+                    <div className="w-9 h-9 bg-slate-100 rounded-lg animate-pulse"></div>
+                  </div>
+                ) : isAuthenticated && user ? (
+                  // Authenticated: Show Profile Menu
+                  <>
+                    <UserProfileMenu user={user} />
+                    
+                    {/* Cart Button with Badge */}
+                    <button
+                      onClick={handleCartClick}
+                      className="relative p-2.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 
+                        hover:border-tpppink hover:text-tpppink transition-all text-slate-600
+                        focus:outline-none focus:ring-2 focus:ring-tpppink/30"
+                      title="Shopping Cart"
+                      aria-label={`Shopping Cart (${cartCount} items)`}
+                    >
+                      <ShoppingCart size={18} />
+                      {cartCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-tpppink text-white text-[10px] font-bold 
+                          rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1
+                          border-2 border-white shadow-sm animate-in zoom-in-50 duration-200">
+                          {cartCount > 99 ? '99+' : cartCount}
+                        </span>
+                      )}
+                    </button>
+                  </>
+                ) : (
+                  // Not Authenticated: Show Sign In / Sign Up Buttons
+                  <>
+                    {/* Sign In Button */}
+                    <button
+                      onClick={() => navigate('/login')}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 
+                        bg-white hover:bg-slate-50 hover:border-slate-400 transition-all text-slate-700
+                        text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-300"
+                      title="Sign In"
+                    >
+                      <LogIn size={16} />
+                      <span className="hidden sm:inline">Sign In</span>
+                    </button>
 
-                {/* Cart Button with Badge */}
-                <button
-                  onClick={onCartClick}
-                  className="relative p-2.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 
-                    hover:border-tpppink hover:text-tpppink transition-all text-slate-600
-                    focus:outline-none focus:ring-2 focus:ring-tpppink"
-                  title="Shopping Cart"
-                  aria-label={`Shopping Cart (${cartCount} items)`}
-                >
-                  <ShoppingCart size={18} />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-tpppink text-white text-[10px] font-bold 
-                      rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1
-                      border-2 border-white shadow-sm">
-                      {cartCount > 99 ? '99+' : cartCount}
-                    </span>
-                  )}
-                </button>
+                    {/* Sign Up Button (Highlighted) */}
+                    <button
+                      onClick={() => navigate('/register')}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg 
+                        bg-tpppink hover:bg-tpppink/90 transition-all text-white
+                        text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-tpppink/50
+                        shadow-sm hover:shadow-md"
+                      title="Sign Up"
+                    >
+                      <UserPlus size={16} />
+                      <span className="hidden sm:inline">Sign Up</span>
+                    </button>
+
+                    {/* Cart Button (redirects to login) */}
+                    <button
+                      onClick={handleCartClick}
+                      className="relative p-2.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 
+                        hover:border-tpppink hover:text-tpppink transition-all text-slate-600
+                        focus:outline-none focus:ring-2 focus:ring-tpppink/30"
+                      title="Shopping Cart (Login Required)"
+                      aria-label="Shopping Cart"
+                    >
+                      <ShoppingCart size={18} />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
         </div>
-        <div className="px-6 py-3">
+
+        {/* Tags Section */}
+        <div className="px-6 py-3 bg-white border-b border-slate-100 relative z-10">
           <div className="flex items-center gap-3">
             {/* Tags Pills - Scrollable */}
             <div className="flex-1 overflow-x-auto scrollbar-hide">

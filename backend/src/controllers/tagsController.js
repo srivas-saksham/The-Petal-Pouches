@@ -65,28 +65,92 @@ const getAllTags = async (req, res) => {
 };
 
 /**
- * Get tags with bundle counts for filter UI - FIXED VERSION
+ * Get tags with bundle counts for filter UI - CONTEXT-AWARE VERSION
  * GET /api/tags/with-counts
  * 
- * Returns tags with the number of bundles that have each tag
- * COUNTS ALL ACTIVE BUNDLES IN DATABASE (not just filtered results)
+ * NOW ACCEPTS QUERY PARAMS TO FILTER THE BASE SET:
+ * - tags: comma-separated list of already-selected tags
+ * - search: search term
+ * - min_price, max_price: price range
+ * - in_stock: stock filter
+ * 
+ * Returns counts based on the FILTERED set of bundles
+ * Example: If tag A is selected, counts for tag B show bundles with BOTH A and B
  */
 const getTagsWithCounts = async (req, res) => {
   try {
-    console.log('📊 Get tags with bundle counts - SCANNING ALL BUNDLES');
+    const {
+      tags = '',           // Currently selected tags
+      search = '',
+      min_price = '',
+      max_price = '',
+      in_stock = ''
+    } = req.query;
 
-    // Fetch ALL active bundles with their tags (no filters, no pagination)
-    const { data: bundles, error } = await supabase
+    console.log('📊 Get tags with counts - CONTEXT-AWARE');
+    console.log('   Current filters:', { tags, search, min_price, max_price, in_stock });
+
+    // Start with base query for active bundles
+    let query = supabase
       .from('Bundles')
       .select('tags')
       .eq('is_active', true)
       .not('tags', 'is', null);
 
+    // ==========================================
+    // APPLY CURRENT FILTERS TO GET BASE SET
+    // ==========================================
+
+    // If tags are already selected, filter by them (AND logic)
+    if (tags && tags.trim()) {
+      const selectedTags = tags
+        .split(',')
+        .map(t => t.trim().toLowerCase())
+        .filter(t => t.length > 0);
+
+      console.log('🏷️ Filtering base set by selected tags:', selectedTags);
+
+      // Apply AND logic - bundles must have ALL selected tags
+      selectedTags.forEach(tag => {
+        const jsonArrayString = `["${tag}"]`;
+        query = query.filter('tags', 'cs', jsonArrayString);
+      });
+    }
+
+    // Apply search filter
+    if (search && search.trim()) {
+      query = query.ilike('title', `%${search.trim()}%`);
+      console.log('🔍 Applying search filter:', search);
+    }
+
+    // Apply price filters
+    if (min_price) {
+      query = query.gte('price', parseInt(min_price));
+      console.log('💰 Applying min price:', min_price);
+    }
+    if (max_price) {
+      query = query.lte('price', parseInt(max_price));
+      console.log('💰 Applying max price:', max_price);
+    }
+
+    // Apply stock filter
+    if (in_stock === 'true') {
+      query = query.not('stock_limit', 'is', null);
+      query = query.gt('stock_limit', 0);
+      console.log('📦 Applying stock filter');
+    }
+
+    // Execute query to get filtered bundles
+    const { data: bundles, error } = await query;
+
     if (error) throw error;
 
-    console.log(`📦 Scanned ${bundles?.length || 0} active bundles for tags`);
+    console.log(`📦 Found ${bundles?.length || 0} bundles matching current filters`);
 
-    // Count occurrences of each tag across ALL bundles
+    // ==========================================
+    // COUNT TAG OCCURRENCES IN FILTERED SET
+    // ==========================================
+
     const tagCounts = {};
     
     (bundles || []).forEach(bundle => {
@@ -100,21 +164,25 @@ const getTagsWithCounts = async (req, res) => {
       }
     });
 
-    // Convert to array format with label and sort by count (descending)
+    // Convert to array format and sort by count (descending)
     const tagsWithCounts = Object.entries(tagCounts)
       .map(([name, count]) => ({
         name,
-        label: name.charAt(0).toUpperCase() + name.slice(1), // Capitalize first letter
+        label: name.charAt(0).toUpperCase() + name.slice(1),
         count
       }))
-      .sort((a, b) => b.count - a.count); // Sort by count descending
+      .sort((a, b) => b.count - a.count);
 
-    console.log(`✅ Found ${tagsWithCounts.length} unique tags across database`);
+    console.log(`✅ Returning ${tagsWithCounts.length} tags with dynamic counts`);
     console.log('📊 Top 5 tags:', tagsWithCounts.slice(0, 5).map(t => `${t.name}(${t.count})`).join(', '));
 
     res.status(200).json({
       success: true,
-      data: tagsWithCounts
+      data: tagsWithCounts,
+      context: {
+        appliedFilters: { tags, search, min_price, max_price, in_stock },
+        bundlesInContext: bundles?.length || 0
+      }
     });
 
   } catch (error) {
