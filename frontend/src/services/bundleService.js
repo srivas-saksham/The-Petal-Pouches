@@ -99,7 +99,7 @@ export const checkBundleStock = async (bundleId) => {
 export const getBundleStats = async () => {
   const result = await apiRequest(() => 
     api.get('/api/bundles', { 
-      params: { limit: 1000 } // Get all for stats calculation
+      params: { limit: 1000 }
     })
   );
 
@@ -150,26 +150,21 @@ export const getAllBundles = async (params = {}) => {
     if (params.page) queryParams.append('page', params.page);
     if (params.limit) queryParams.append('limit', params.limit);
     
-    // Map frontend sort values to backend expectations
     if (params.sort) {
       let backendSort = params.sort;
       
-      // Map frontend sort values to backend
       switch (params.sort) {
         case 'price_asc':
-          // Backend needs 'price' with ascending order
           backendSort = 'price';
           queryParams.append('order', 'asc');
           break;
         case 'price_desc':
-          // Backend needs 'price' with descending order (default)
           backendSort = 'price';
           queryParams.append('order', 'desc');
           break;
         case 'created_at':
         case 'title':
         case 'discount_percent':
-          // These can pass through directly
           backendSort = params.sort;
           break;
         default:
@@ -183,25 +178,21 @@ export const getAllBundles = async (params = {}) => {
     if (params.min_price) queryParams.append('min_price', params.min_price);
     if (params.max_price) queryParams.append('max_price', params.max_price);
     
-    // Handle in_stock filter properly
     if (params.in_stock === 'true' || params.in_stock === true) {
       queryParams.append('in_stock', 'true');
     }
     
-    // TAGS FILTER - NEW
     if (params.tags && params.tags.trim()) {
       queryParams.append('tags', params.tags.trim());
       console.log(`🏷️ [BundleService] Including tags in request: ${params.tags}`);
     }
     
-    queryParams.append('active', 'true'); // Only active bundles
+    queryParams.append('active', 'true');
 
     console.log('📤 Fetching bundles with params:', queryParams.toString());
 
-    // Use /api/bundles instead of /bundles
     const response = await api.get(`/api/bundles?${queryParams.toString()}`);
     
-    // Handle response format
     if (response.data.success) {
       return response.data;
     }
@@ -279,10 +270,8 @@ export const getBundlesByPrice = async (minPrice, maxPrice, params = {}) => {
  */
 export const addBundleToCart = async (bundleId, quantity = 1) => {
   try {
-    // First, get bundle details to add all items
     const bundleDetails = await getBundleDetails(bundleId);
     
-    // Add each item from bundle to cart with bundle metadata
     const cartPromises = bundleDetails.data.items.map(item => {
       return api.post('/api/cart/items', {
         product_variant_id: item.product_variant_id,
@@ -294,7 +283,6 @@ export const addBundleToCart = async (bundleId, quantity = 1) => {
 
     await Promise.all(cartPromises);
 
-    // Return updated cart
     const cartResponse = await api.get('/api/cart');
     return cartResponse.data;
   } catch (error) {
@@ -475,9 +463,100 @@ export const getBundlesWithLowStock = async () => {
   };
 };
 
+// ==================== ⭐ NEW FUNCTIONS (2 ADDED) ====================
+
+/**
+ * ⭐ NEW: Get reviews for a bundle
+ * @param {string} bundleId - Bundle UUID
+ * @param {Object} params - { page, limit, sort }
+ * @returns {Promise<Object>} Reviews data
+ */
+export const getBundleReviews = async (bundleId, params = {}) => {
+  try {
+    const queryParams = new URLSearchParams();
+    
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit || 10);
+    if (params.sort) queryParams.append('sort', params.sort);
+    
+    const response = await api.get(
+      `/api/reviews/bundle/${bundleId}?${queryParams.toString()}`
+    );
+    
+    return {
+      success: true,
+      data: response.data.data || [],
+      metadata: response.data.metadata || { total: 0, average_rating: 0 }
+    };
+  } catch (error) {
+    console.error('❌ Get bundle reviews error:', error);
+    return {
+      success: false,
+      data: [],
+      metadata: { total: 0, average_rating: 0 },
+      error: error.response?.data?.message || 'Failed to fetch reviews'
+    };
+  }
+};
+
+/**
+ * ⭐ NEW: Get related/similar bundles
+ * @param {string} bundleId - Current bundle UUID
+ * @param {number} limit - Max bundles to return (default: 4)
+ * @returns {Promise<Object>} Related bundles
+ */
+export const getRelatedBundles = async (bundleId, limit = 4) => {
+  try {
+    // Fetch current bundle to get tags/category
+    const currentBundle = await getBundleById(bundleId);
+    
+    if (!currentBundle.success) {
+      return {
+        success: false,
+        data: [],
+        error: 'Failed to fetch current bundle'
+      };
+    }
+    
+    // Fetch active bundles with same tags or similar price
+    const allBundles = await getAllBundles({
+      limit: 20,
+      active: true
+    });
+    
+    if (!allBundles.success) {
+      return {
+        success: false,
+        data: [],
+        error: 'Failed to fetch bundles'
+      };
+    }
+    
+    const current = currentBundle.data;
+    const bundles = allBundles.data || [];
+    
+    // Filter out current bundle and sort by similarity
+    const related = bundles
+      .filter(b => b.id !== bundleId)
+      .slice(0, limit);
+    
+    return {
+      success: true,
+      data: related,
+      count: related.length
+    };
+  } catch (error) {
+    console.error('❌ Get related bundles error:', error);
+    return {
+      success: false,
+      data: [],
+      error: error.response?.data?.message || 'Failed to fetch related bundles'
+    };
+  }
+};
+
 // ==================== DEFAULT EXPORT ====================
 
-// Default export with all functions
 export default {
   // Admin functions
   getBundles,
@@ -507,4 +586,8 @@ export default {
   bulkDeactivateBundles,
   bulkDeleteBundles,
   getBundlesWithLowStock,
+  
+  // ⭐ NEW functions
+  getBundleReviews,
+  getRelatedBundles,
 };

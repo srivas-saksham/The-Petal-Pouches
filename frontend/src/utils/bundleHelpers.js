@@ -68,7 +68,6 @@ export const getBundleStockMessage = (stockStatus) => {
  * @returns {string} Display name
  */
 export const getItemDisplayName = (item) => {
-  // Handle both naming conventions: Products/product and Product_variants/variant
   const product = item?.Products || item?.product;
   const variant = item?.Product_variants || item?.variant;
   
@@ -76,7 +75,6 @@ export const getItemDisplayName = (item) => {
   
   let name = product.title || 'Unknown Product';
   
-  // Add variant attributes if available
   if (variant?.attributes && Object.keys(variant.attributes).length > 0) {
     const attrString = Object.entries(variant.attributes)
       .map(([key, value]) => value)
@@ -96,21 +94,17 @@ export const getItemDisplayName = (item) => {
  * @returns {string} Image URL or placeholder
  */
 export const getItemImageUrl = (item) => {
-  // Handle both naming conventions: Products/product and Product_variants/variant
   const product = item?.Products || item?.product;
   const variant = item?.Product_variants || item?.variant;
   
-  // Prioritize variant image
   if (variant?.img_url) {
     return variant.img_url;
   }
   
-  // Fallback to product image
   if (product?.img_url) {
     return product.img_url;
   }
   
-  // Placeholder
   return '/placeholder-product.png';
 };
 
@@ -123,7 +117,6 @@ export const groupItemsByCategory = (items) => {
   if (!items || !Array.isArray(items)) return {};
   
   return items.reduce((groups, item) => {
-    // Handle both naming conventions
     const product = item?.Products || item?.product;
     const categoryName = product?.category?.name || 'Other';
     
@@ -138,13 +131,11 @@ export const groupItemsByCategory = (items) => {
 
 /**
  * Calculate savings (if original price data available)
- * Note: Since we don't show individual prices, this is for future use
  * @param {number} bundlePrice - Bundle price
  * @param {Array} items - Bundle items (would need price data)
  * @returns {number} Savings amount
  */
 export const calculateSavings = (bundlePrice, items) => {
-  // Placeholder - would need individual product prices
   return 0;
 };
 
@@ -184,7 +175,6 @@ export const getBundleSkus = (items) => {
   if (!items || !Array.isArray(items)) return [];
   
   return items.map(item => {
-    // Handle both naming conventions
     const product = item?.Products || item?.product;
     const variant = item?.Product_variants || item?.variant;
     
@@ -223,20 +213,16 @@ export const sortBundles = (bundles, sortBy = 'newest') => {
   switch (sortBy) {
     case 'price_asc':
       return sorted.sort((a, b) => a.price - b.price);
-    
     case 'price_desc':
       return sorted.sort((a, b) => b.price - a.price);
-    
     case 'newest':
       return sorted.sort((a, b) => 
         new Date(b.created_at) - new Date(a.created_at)
       );
-    
     case 'oldest':
       return sorted.sort((a, b) => 
         new Date(a.created_at) - new Date(b.created_at)
       );
-    
     default:
       return sorted;
   }
@@ -311,4 +297,87 @@ export const getStockLimitMessage = (stockLimit) => {
   }
   
   return `${stockLimit} available`;
+};
+
+// ==================== ⭐ NEW FUNCTIONS (3 ADDED) ====================
+
+/**
+ * ⭐ NEW: Get bundle badges configuration
+ * @param {Object} bundle - Bundle object
+ * @returns {Array} Array of badge configs { text, variant, icon? }
+ */
+export const getBundleBadges = (bundle) => {
+  const badges = [];
+  
+  // Out of stock badge
+  if (bundle.stock_limit === 0 || bundle.stock_limit === null) {
+    badges.push({
+      text: 'OUT OF STOCK',
+      variant: 'error',
+      priority: 1
+    });
+  }
+  
+  // Low stock warning
+  if (bundle.stock_limit && bundle.stock_limit < 5 && bundle.stock_limit > 0) {
+    badges.push({
+      text: `Only ${bundle.stock_limit} left!`,
+      variant: 'warning',
+      priority: 2
+    });
+  }
+  
+  // Discount badge
+  if (bundle.discount_percent && bundle.discount_percent > 0) {
+    badges.push({
+      text: `${bundle.discount_percent}% OFF`,
+      variant: 'success',
+      priority: 3
+    });
+  }
+  
+  // Items count badge
+  if (bundle.items && bundle.items.length > 0) {
+    badges.push({
+      text: `${bundle.items.length} Items`,
+      variant: 'info',
+      priority: 4
+    });
+  }
+  
+  // Sort by priority
+  return badges.sort((a, b) => a.priority - b.priority);
+};
+
+/**
+ * ⭐ NEW: Generate breadcrumb items for bundle
+ * @param {Object} bundle - Bundle object
+ * @returns {Array} Array of breadcrumb items { label, path }
+ */
+export const generateBreadcrumbs = (bundle) => {
+  const breadcrumbs = [
+    { label: 'Shop', path: '/shop' },
+    { label: 'Bundles', path: '/shop' }
+  ];
+  
+  if (bundle && bundle.title) {
+    breadcrumbs.push({
+      label: bundle.title,
+      path: `/shop/bundles/${bundle.id}`
+    });
+  }
+  
+  return breadcrumbs;
+};
+
+/**
+ * ⭐ NEW: Check if should show low stock warning
+ * @param {number} stockLimit - Stock limit value
+ * @returns {boolean} True if should show warning
+ */
+export const shouldShowLowStockWarning = (stockLimit) => {
+  return stockLimit !== null && 
+         stockLimit !== undefined && 
+         stockLimit > 0 && 
+         stockLimit < 5;
 };
