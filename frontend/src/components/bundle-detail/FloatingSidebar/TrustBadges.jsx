@@ -17,16 +17,6 @@ const TrustBadges = () => {
       icon: RotateCcw,
       title: '30-Day Returns',
       color: 'text-blue-600 bg-blue-50'
-    },
-    {
-      icon: Headphones,
-      title: '24/7 Support',
-      color: 'text-purple-600 bg-purple-50'
-    },
-    {
-      icon: CreditCard,
-      title: 'Safe Payments',
-      color: 'text-tpppink bg-pink-50'
     }
   ];
 

@@ -260,7 +260,7 @@ const BundleDetailPage = () => {
 
       {/* Main Content - 70/30 Layout */}
       <div className="max-w-9xl mx-auto px-4 py-6">
-        <div className="grid lg:grid-cols-[1fr_380px] gap-6">
+        <div className="grid lg:grid-cols-[1fr_280px] gap-6">
           
           {/* LEFT COLUMN - Main Content (70%) */}
           <div className="space-y-6">
