@@ -1,18 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronDown, ChevronUp, X } from 'lucide-react';
 
 /**
- * SidebarFilters Component - Updated Design
+ * SidebarFilters Component - Enhanced UI
  * 
  * FEATURES:
  * - Clean, compact professional design
- * - All filters except search (moved to header)
- * - TPP Pink headings
+ * - Clear All button in top right corner
+ * - TPP Pink headings with collapsible sections
  * - TPP Pink horizontal rules for categorization
- * - Sticky bottom: scrolls naturally until bottom is visible, then sticks
- * - Collapsible sections
- * - Tag filtering support
+ * - Tag filtering support with counts
  * - Active filter indicators
+ * - Smooth animations
  */
 const SidebarFilters = ({
   filters = {},
@@ -53,16 +52,12 @@ const SidebarFilters = ({
   // Handle tag checkbox change
   const handleTagChange = (tagName) => {
     const normalizedTagName = tagName.toLowerCase().trim();
-    
-    // Check if tag is currently selected
     const isSelected = selectedTags.includes(normalizedTagName);
     
-    // Create new tags array
     const newSelectedTags = isSelected
       ? selectedTags.filter(t => t !== normalizedTagName)
       : [...selectedTags, normalizedTagName];
     
-    // Join as comma-separated string and pass to parent
     const tagsString = newSelectedTags.join(',');
     
     console.log('🏷️ Tag toggled:', {
@@ -98,50 +93,67 @@ const SidebarFilters = ({
   const currentSort = filters.sort || 'created_at';
   const isStockChecked = filters.in_stock === 'true';
 
-  const SectionHeader = ({ title, section, icon }) => (
+  const SectionHeader = ({ title, section }) => (
     <button
       onClick={() => toggleSection(section)}
-      className="w-full flex items-center justify-between py-2 text-xs font-semibold text-tpppink uppercase tracking-wide hover:text-tpppink/80 transition-colors group"
+      className="w-full flex items-center justify-between py-2 text-xs font-bold text-tpppink uppercase tracking-wider hover:text-tpppink/80 transition-colors group"
     >
-      <span className="flex items-center gap-2">
-        {icon && <span className="text-tpppink/70 group-hover:text-tpppink transition-colors">{icon}</span>}
-        {title}
-      </span>
+      <span>{title}</span>
       {expandedSections[section] ? (
-        <ChevronUp size={14} className="text-tpppink/60" />
+        <ChevronUp size={16} className="text-tpppink/70 group-hover:text-tpppink transition-colors" />
       ) : (
-        <ChevronDown size={14} className="text-tpppink/60" />
+        <ChevronDown size={16} className="text-tpppink/70 group-hover:text-tpppink transition-colors" />
       )}
     </button>
   );
 
   return (
-    <div className="w-80 bg-white border-l-2 border-slate-200 shadow-sm rounded-lg overflow-hidden sticky bottom-0 self-end">
-      {/* Header */}
-      <div className="bg-white border-b-2 border-tpppink px-6 py-4">
-        <h2 className="text-sm font-bold text-tpppink uppercase tracking-wide">Filters</h2>
-        {metadata?.totalCount !== undefined && (
-          <p className="text-xs text-slate-500 mt-1">
-            {metadata.totalCount} {metadata.totalCount === 1 ? 'result' : 'results'}
-          </p>
-        )}
+    <div className="w-80 bg-white border-l border-slate-200 shadow-lg overflow-hidden flex flex-col h-full">
+      {/* Header with Clear All Button */}
+      <div className="bg-gradient-to-r from-tpppeach to-white border-b-2 border-tpppink/20 px-6 py-4 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-bold text-tpppink uppercase tracking-wide">Filters</h2>
+            {metadata?.totalCount !== undefined && (
+              <p className="text-xs text-slate-500 mt-0.5">
+                {metadata.totalCount} {metadata.totalCount === 1 ? 'result' : 'results'}
+              </p>
+            )}
+          </div>
+          
+          {/* Clear All Button - Top Right */}
+          {hasActiveFilters && (
+            <button
+              onClick={onResetFilters}
+              className="flex items-center gap-1.5 text-xs font-semibold text-tpppink hover:text-white 
+                hover:bg-tpppink transition-all px-3 py-1.5 rounded-lg border border-tpppink
+                hover:shadow-md"
+              title="Clear all active filters"
+            >
+              <span>Clear All</span>
+              <X size={14} />
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="px-6 py-4 space-y-6">
-        {/* SORT */}
-        <div>
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 scrollbar-thin">
+        {/* SORT BY */}
+        <div className="space-y-2">
           <SectionHeader title="Sort By" section="sort" />
           
           {expandedSections.sort && (
-            <div className="mt-3">
+            <div className="animate-fade-in">
               <select
                 value={currentSort}
                 onChange={handleSortChange}
-                className="w-full px-3 py-2 text-sm bg-white border-2 border-slate-200 rounded-lg 
-                  focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent
-                  hover:border-slate-300 transition-all text-slate-700 cursor-pointer
-                  appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] 
-                  bg-[length:1.2em] bg-[right_0.5rem_center] bg-no-repeat pr-8"
+                className="w-full px-4 py-2.5 text-sm bg-white border-2 border-slate-200 rounded-lg 
+                  focus:outline-none focus:ring-2 focus:ring-tpppink/50 focus:border-tpppink
+                  hover:border-slate-300 transition-all text-slate-700 cursor-pointer font-medium
+                  appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%23d95669%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] 
+                  bg-[length:1.2em] bg-[right_0.7rem_center] bg-no-repeat pr-10
+                  shadow-sm hover:shadow"
               >
                 <option value="created_at">Newest First</option>
                 <option value="price_desc">Price: High to Low</option>
@@ -153,21 +165,21 @@ const SidebarFilters = ({
           )}
         </div>
 
-        {/* TPP Pink Horizontal Rule */}
-        <div className="h-px bg-tpppink/50 my-2" />
+        {/* Divider */}
+        <div className="h-px bg-gradient-to-r from-transparent via-tpppink/40 to-transparent" />
 
         {/* PRICE RANGE */}
-        <div>
+        <div className="space-y-2">
           <SectionHeader title="Price Range" section="price" />
           
           {expandedSections.price && (
-            <div className="mt-3 space-y-3">
+            <div className="space-y-3 animate-fade-in">
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
                   Minimum
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">₹</span>
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-tpppink">₹</span>
                   <input
                     type="number"
                     placeholder="0"
@@ -175,19 +187,20 @@ const SidebarFilters = ({
                     onChange={handleMinPriceChange}
                     min="0"
                     step="1"
-                    className="w-full pl-7 pr-3 py-2 text-sm bg-white border-2 border-slate-200 rounded-lg 
-                      focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent
-                      hover:border-slate-300 transition-all text-slate-700 placeholder:text-slate-400"
+                    className="w-full pl-8 pr-4 py-2.5 text-sm bg-white border-2 border-slate-200 rounded-lg 
+                      focus:outline-none focus:ring-2 focus:ring-tpppink/50 focus:border-tpppink
+                      hover:border-slate-300 transition-all text-slate-700 placeholder:text-slate-400 font-medium
+                      shadow-sm hover:shadow"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
                   Maximum
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">₹</span>
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-tpppink">₹</span>
                   <input
                     type="number"
                     placeholder="9999"
@@ -195,9 +208,10 @@ const SidebarFilters = ({
                     onChange={handleMaxPriceChange}
                     min="0"
                     step="1"
-                    className="w-full pl-7 pr-3 py-2 text-sm bg-white border-2 border-slate-200 rounded-lg 
-                      focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent
-                      hover:border-slate-300 transition-all text-slate-700 placeholder:text-slate-400"
+                    className="w-full pl-8 pr-4 py-2.5 text-sm bg-white border-2 border-slate-200 rounded-lg 
+                      focus:outline-none focus:ring-2 focus:ring-tpppink/50 focus:border-tpppink
+                      hover:border-slate-300 transition-all text-slate-700 placeholder:text-slate-400 font-medium
+                      shadow-sm hover:shadow"
                   />
                 </div>
               </div>
@@ -205,44 +219,48 @@ const SidebarFilters = ({
           )}
         </div>
 
-        {/* TPP Pink Horizontal Rule */}
-        <div className="h-px bg-tpppink/50 my-2" />
+        {/* Divider */}
+        <div className="h-px bg-gradient-to-r from-transparent via-tpppink/40 to-transparent" />
 
-        {/* STOCK */}
-        <div>
+        {/* AVAILABILITY */}
+        <div className="space-y-2">
           <SectionHeader title="Availability" section="stock" />
           
           {expandedSections.stock && (
-            <div className="mt-3">
-              <label className="flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 border-slate-200
-                hover:border-tpppink hover:bg-slate-50 transition-all cursor-pointer
-                has-[:checked]:border-tpppink has-[:checked]:bg-tpppink/5">
+            <div className="animate-fade-in">
+              <label className="flex items-center gap-3 px-4 py-3 rounded-lg border-2 border-slate-200
+                hover:border-tpppink hover:bg-tpppeach/30 transition-all cursor-pointer group
+                has-[:checked]:border-tpppink has-[:checked]:bg-tpppeach/50 has-[:checked]:shadow-sm">
                 <input
                   type="checkbox"
                   checked={isStockChecked}
                   onChange={handleStockChange}
-                  className="w-4 h-4 rounded border-2 border-slate-300 cursor-pointer accent-tpppink"
+                  className="w-4 h-4 rounded border-2 border-slate-300 cursor-pointer accent-tpppink
+                    focus:ring-2 focus:ring-tpppink/30 transition-all"
                 />
-                <span className="text-sm font-medium text-slate-700">In Stock Only</span>
+                <span className="text-sm font-semibold text-slate-700 group-hover:text-tpppink transition-colors">
+                  In Stock Only
+                </span>
               </label>
             </div>
           )}
         </div>
 
-        {/* TPP Pink Horizontal Rule */}
-        <div className="h-px bg-tpppink/50 my-2" />
-
         {/* TAGS */}
         {availableTags && availableTags.length > 0 && (
-          <>            
-            <div>
+          <>
+            {/* Divider */}
+            <div className="h-px bg-gradient-to-r from-transparent via-tpppink/40 to-transparent" />
+            
+            <div className="space-y-2">
               <SectionHeader title="Tags" section="tags" />
               
               {expandedSections.tags && (
-                <div className="mt-3 space-y-2 max-h-64 overflow-y-auto">
+                <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1 scrollbar-thin animate-fade-in">
                   {tagsLoading ? (
-                    <div className="text-center py-4">
-                      <div className="w-4 h-4 border-2 border-tpppink border-t-transparent rounded-full animate-spin mx-auto" />
+                    <div className="text-center py-6">
+                      <div className="w-5 h-5 border-2 border-tpppink border-t-transparent rounded-full animate-spin mx-auto" />
+                      <p className="text-xs text-slate-500 mt-2">Loading tags...</p>
                     </div>
                   ) : (
                     availableTags.map((tag) => {
@@ -252,19 +270,23 @@ const SidebarFilters = ({
                       return (
                         <label
                           key={tag.name}
-                          className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 
+                            cursor-pointer transition-all group border border-transparent
+                            hover:border-slate-200"
                         >
                           <input
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => handleTagChange(tag.name)}
-                            className="w-4 h-4 rounded border-2 border-slate-300 cursor-pointer accent-tpppink"
+                            className="w-4 h-4 rounded border-2 border-slate-300 cursor-pointer accent-tpppink
+                              focus:ring-2 focus:ring-tpppink/30 transition-all"
                           />
-                          <span className="text-sm text-slate-700 flex-1">
+                          <span className="text-sm text-slate-700 flex-1 font-medium group-hover:text-tpppink transition-colors">
                             {tag.label || tag.name}
                           </span>
                           {tag.count !== undefined && (
-                            <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-1 rounded-full
+                              group-hover:bg-tpppink/10 group-hover:text-tpppink transition-all min-w-[28px] text-center">
                               {tag.count}
                             </span>
                           )}
@@ -275,29 +297,46 @@ const SidebarFilters = ({
                 </div>
               )}
             </div>
-            
-            {/* TPP Pink Horizontal Rule */}
-            <div className="h-px bg-tpppink/50 my-2" />
           </>
         )}
 
-        {/* ACTIVE FILTERS */}
+        {/* Active Filters Summary (bottom of scrollable area) */}
         {hasActiveFilters && (
-          <>            
-            <div className="bg-slate-50 border-2 border-tpppink/30 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-tpppink uppercase tracking-wide flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-tpppink" />
-                  Active Filters
-                </span>
+          <>
+            <div className="h-px bg-gradient-to-r from-transparent via-tpppink/40 to-transparent" />
+            
+            <div className="bg-gradient-to-br from-tpppeach/50 to-tpppeach/30 border-2 border-tpppink/30 
+              rounded-lg p-4 shadow-sm">
+              <p className="text-xs font-bold text-tpppink uppercase tracking-wider mb-2">
+                Active Filters
+              </p>
+              <div className="flex flex-wrap gap-2 text-xs">
+                {filters.sort && filters.sort !== 'created_at' && (
+                  <span className="px-2 py-1 bg-white/70 text-slate-700 rounded border border-tpppink/20 font-medium">
+                    Sorted
+                  </span>
+                )}
+                {filters.min_price && (
+                  <span className="px-2 py-1 bg-white/70 text-slate-700 rounded border border-tpppink/20 font-medium">
+                    Min: ₹{filters.min_price}
+                  </span>
+                )}
+                {filters.max_price && (
+                  <span className="px-2 py-1 bg-white/70 text-slate-700 rounded border border-tpppink/20 font-medium">
+                    Max: ₹{filters.max_price}
+                  </span>
+                )}
+                {filters.in_stock && (
+                  <span className="px-2 py-1 bg-white/70 text-slate-700 rounded border border-tpppink/20 font-medium">
+                    In Stock
+                  </span>
+                )}
+                {selectedTags.length > 0 && (
+                  <span className="px-2 py-1 bg-white/70 text-slate-700 rounded border border-tpppink/20 font-medium">
+                    {selectedTags.length} {selectedTags.length === 1 ? 'tag' : 'tags'}
+                  </span>
+                )}
               </div>
-              <button
-                onClick={onResetFilters}
-                className="w-full text-sm font-semibold text-tpppink hover:text-white hover:bg-tpppink 
-                  transition-all py-2 px-3 rounded-lg border-2 border-tpppink"
-              >
-                Clear All Filters
-              </button>
             </div>
           </>
         )}

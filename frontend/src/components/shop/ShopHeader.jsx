@@ -107,13 +107,12 @@ const ShopHeader = ({
             <div className="flex items-center justify-between gap-4">
               {/* Left: Title Section */}
               <div className="flex-shrink-0">
-                <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                  <LayoutGrid className="w-5 h-5 text-tpppink" />
-                  Bundle Collections
+                <h1 className="text-5xl font-greyqo text-tpppink">
+                  The Petal Pouches
                 </h1>
                 {!loading && metadata && (
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Showing {metadata.currentCount || 0} of {metadata.totalCount} bundles
+                    Showing {metadata.currentCount || 0} of {metadata.totalCount} products
                     {filters.page > 1 && ` • Page ${filters.page} of ${metadata.totalPages}`}
                   </p>
                 )}
