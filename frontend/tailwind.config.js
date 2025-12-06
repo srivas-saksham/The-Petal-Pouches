@@ -16,6 +16,7 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
         greyqo: ['"Grey Qo"', 'cursive'],
+        dancing: ['"Dancing Script"', 'cursive'],
       },
       boxShadow: {
         'soft': '0 2px 8px rgba(74, 87, 89, 0.08)',

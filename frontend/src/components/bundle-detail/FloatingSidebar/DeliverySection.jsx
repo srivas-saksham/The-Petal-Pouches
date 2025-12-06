@@ -193,8 +193,8 @@ const DeliverySection = () => {
   return (
     <div className="p-4 space-y-3 ">
       <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide flex items-center gap-1.5">
-        <Truck size={14} className="text-pink-600" />
         Delivery
+        <Truck size={14} className="text-pink-600" />
       </h3>
 
       {/* Estimated Delivery */}
