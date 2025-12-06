@@ -1,6 +1,5 @@
-// frontend/src/components/adminComps/BundleProductSelector.jsx
-
 import { useState, useEffect } from 'react';
+import { X, Search, Filter, Package, ChevronLeft, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -10,27 +9,47 @@ export default function BundleProductSelector({ onSelect, onClose, excludeProduc
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  // Filters
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const limit = 12;
+  const limit = 15;
 
-  // Fetch categories on mount
+  // Prevent body scroll when modal is open
   useEffect(() => {
-    fetchCategories();
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
   }, []);
 
-  // Fetch products when filters change
+  // Close on Escape key
   useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
+  useEffect(() => {
+    fetchCategories();
     fetchProducts();
-  }, [search, selectedCategory, minPrice, maxPrice, currentPage]);
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchProducts();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search, selectedCategory, currentPage]);
 
   const fetchCategories = async () => {
     try {
@@ -64,7 +83,6 @@ export default function BundleProductSelector({ onSelect, onClose, excludeProduc
       const data = await response.json();
 
       if (response.ok) {
-        // Filter out excluded products
         const filtered = (data.data || []).filter(
           product => !excludeProductIds.includes(product.id)
         );
@@ -81,21 +99,6 @@ export default function BundleProductSelector({ onSelect, onClose, excludeProduc
     }
   };
 
-  const handleSearchChange = (e) => {
-    setSearch(e.target.value);
-    setCurrentPage(1);
-  };
-
-  const handleCategoryChange = (e) => {
-    setSelectedCategory(e.target.value);
-    setCurrentPage(1);
-  };
-
-  const handlePriceChange = () => {
-    setCurrentPage(1);
-    fetchProducts();
-  };
-
   const handleClearFilters = () => {
     setSearch('');
     setSelectedCategory('');
@@ -104,207 +107,260 @@ export default function BundleProductSelector({ onSelect, onClose, excludeProduc
     setCurrentPage(1);
   };
 
-  const handleSelectProduct = (product) => {
-    onSelect(product);
+  const handlePriceApply = () => {
+    setCurrentPage(1);
+    fetchProducts();
+  };
+
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col">
+    <div
+      className="fixed inset-0 z-[9999] flex justify-end bg-black/50 backdrop-blur-[1px]"
+      onClick={handleBackdropClick}
+      style={{ 
+        pointerEvents: 'auto',
+        isolation: 'isolate'
+      }}
+    >
+      <div
+        className="w-[420px] bg-white shadow-2xl flex flex-col h-full rounded-r-2xl"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          pointerEvents: 'auto'
+        }}
+      >
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex justify-between items-center">
+        <div className="bg-tppslate text-white p-3 flex items-center justify-between flex-shrink-0 rounded-tr-2xl">
+          <div className="flex items-center gap-2">
+            <Package className="w-5 h-5" />
             <div>
-              <h3 className="text-xl font-bold text-gray-900">Select Product</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Choose a product to add to the bundle
-              </p>
+              <h3 className="font-bold text-sm">Select Product</h3>
+              <p className="text-[10px] text-white/80">Add to bundle</p>
             </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-2xl"
-            >
-              ×
-            </button>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-7 h-7 rounded hover:bg-white/10 flex items-center justify-center transition-colors flex-shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Filters */}
-        <div className="p-6 border-b border-gray-200 bg-gray-50">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            {/* Search */}
-            <div className="md:col-span-2">
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={search}
-                onChange={handleSearchChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-              />
-            </div>
-
-            {/* Category */}
-            <div>
-              <select
-                value={selectedCategory}
-                onChange={handleCategoryChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-              >
-                <option value="">All Categories</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Clear Filters */}
-            <div>
-              <button
-                onClick={handleClearFilters}
-                className="w-full px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-              >
-                Clear Filters
-              </button>
-            </div>
+        {/* Search & Filters */}
+        <div className="p-2 border-b border-gray-200 flex-shrink-0 space-y-2 bg-white">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={search}
+              onChange={(e) => { 
+                setSearch(e.target.value); 
+                setCurrentPage(1); 
+              }}
+              className="w-full pl-8 pr-3 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-tpppink"
+            />
           </div>
 
-          {/* Price Range */}
-          <div className="flex gap-3 mt-3">
-            <input
-              type="number"
-              placeholder="Min Price"
-              value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-            />
-            <input
-              type="number"
-              placeholder="Max Price"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-            />
+          <div className="flex gap-2">
             <button
-              onClick={handlePriceChange}
-              className="px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700"
+              type="button"
+              onClick={() => setShowFilters(!showFilters)}
+              className={`px-2 py-1 rounded text-[11px] font-medium transition-colors flex-shrink-0 ${
+                showFilters ? 'bg-tpppink text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
             >
-              Apply
+              <Filter className="w-3 h-3 inline mr-1" />
+              Filter
             </button>
+            <select
+              value={selectedCategory}
+              onChange={(e) => { 
+                setSelectedCategory(e.target.value); 
+                setCurrentPage(1); 
+              }}
+              className="flex-1 px-2 py-1 border border-gray-300 rounded text-[11px] focus:outline-none focus:border-tpppink"
+            >
+              <option value="">All Categories</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
           </div>
+
+          {showFilters && (
+            <div className="p-2 bg-gray-50 rounded border border-gray-200 space-y-1.5">
+              <div className="flex gap-1.5">
+                <input
+                  type="number"
+                  placeholder="Min ₹"
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(e.target.value)}
+                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-[11px] focus:outline-none focus:border-tpppink"
+                />
+                <input
+                  type="number"
+                  placeholder="Max ₹"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-[11px] focus:outline-none focus:border-tpppink"
+                />
+              </div>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={handlePriceApply}
+                  className="flex-1 px-2 py-1 bg-tpppink text-white rounded text-[11px] font-medium hover:bg-tpppink/90"
+                >
+                  Apply
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearFilters}
+                  className="flex-1 px-2 py-1 bg-gray-200 text-gray-700 rounded text-[11px] font-medium hover:bg-gray-300"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Product Grid */}
-        <div className="flex-1 overflow-y-auto p-6">
+        {/* Count */}
+        {!loading && products.length > 0 && (
+          <div className="px-2 py-1 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+            <p className="text-[10px] text-gray-600">
+              {products.length} of {totalCount} products
+            </p>
+          </div>
+        )}
+
+        {/* Products Grid - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-2 bg-white custom-scrollbar" style={{ minHeight: 0 }}>
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 rounded">
+            <div className="mb-2 p-2 bg-red-50 border border-red-200 text-red-700 rounded text-[11px] flex items-center gap-1">
+              <AlertCircle className="w-3 h-3 flex-shrink-0" />
               {error}
             </div>
           )}
 
           {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600"></div>
+            <div className="flex flex-col items-center justify-center py-16">
+              <Loader2 className="w-8 h-8 text-tpppink animate-spin mb-2" />
+              <p className="text-xs text-gray-500">Loading...</p>
             </div>
           ) : products.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <p className="text-lg">No products found</p>
-              <p className="text-sm mt-2">Try adjusting your filters</p>
+            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+              <Package className="w-12 h-12 mb-2" />
+              <p className="text-xs">No products found</p>
             </div>
           ) : (
-            <>
-              {/* Results Count */}
-              <div className="mb-4 text-sm text-gray-600">
-                Showing {products.length} of {totalCount} products
-              </div>
-
-              {/* Products Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {products.map(product => (
-                  <div
-                    key={product.id}
-                    onClick={() => handleSelectProduct(product)}
-                    className="border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-pink-500 hover:shadow-md transition-all"
-                  >
-                    {/* Product Image */}
-                    <div className="aspect-square bg-gray-100 rounded mb-2 overflow-hidden">
-                      {product.img_url ? (
-                        <img
-                          src={product.img_url}
-                          alt={product.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          No Image
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Product Info */}
-                    <h4 className="font-medium text-sm text-gray-900 truncate" title={product.title}>
-                      {product.title}
-                    </h4>
-                    <p className="text-sm text-gray-600 mt-1">
-                      ₹{product.price}
-                    </p>
-                    
-                    {/* Stock Badge */}
-                    <div className="mt-2">
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs ${
-                        product.stock > 10 
-                          ? 'bg-green-100 text-green-800' 
-                          : product.stock > 0
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        Stock: {product.stock}
-                      </span>
-                    </div>
-
-                    {/* Variants Badge */}
-                    {product.has_variants && (
-                      <div className="mt-1">
-                        <span className="inline-block px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-800">
-                          Has Variants
-                        </span>
+            <div className="grid grid-cols-3 gap-1.5">
+              {products.map(product => (
+                <button
+                  key={product.id}
+                  type="button"
+                  onClick={() => onSelect(product)}
+                  className="border border-gray-200 rounded p-1.5 hover:border-tpppink hover:shadow-sm transition-all text-left bg-white"
+                >
+                  <div className="aspect-square bg-gray-100 rounded mb-1 overflow-hidden">
+                    {product.img_url ? (
+                      <img
+                        src={product.img_url}
+                        alt={product.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package className="w-6 h-6 text-gray-300" />
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
-            </>
+
+                  <h4 className="font-medium text-[10px] text-gray-900 truncate mb-0.5" title={product.title}>
+                    {product.title}
+                  </h4>
+                  <p className="text-xs font-bold text-tpppink mb-1">
+                    ₹{product.price}
+                  </p>
+                  
+                  <div className="flex flex-wrap gap-0.5">
+                    <span className={`px-1 py-0.5 rounded text-[9px] font-medium ${
+                      product.stock > 10 
+                        ? 'bg-green-100 text-green-700' 
+                        : product.stock > 0
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : 'bg-red-100 text-red-700'
+                    }`}>
+                      {product.stock}
+                    </span>
+                    {product.has_variants && (
+                      <span className="px-1 py-0.5 rounded text-[9px] font-medium bg-blue-100 text-blue-700">
+                        Var
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
         {/* Pagination */}
         {!loading && products.length > 0 && totalPages > 1 && (
-          <div className="p-4 border-t border-gray-200 bg-gray-50">
-            <div className="flex justify-center items-center gap-2">
+          <div className="p-2 border-t border-gray-200 flex-shrink-0 bg-white rounded-br-2xl">
+            <div className="flex items-center justify-between gap-2">
               <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                type="button"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-2 py-1 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-0.5 text-[11px] font-medium"
               >
-                Previous
+                <ChevronLeft className="w-3 h-3" />
+                Prev
               </button>
               
-              <span className="text-sm text-gray-600">
-                Page {currentPage} of {totalPages}
+              <span className="text-[11px] font-medium text-gray-600">
+                {currentPage} / {totalPages}
               </span>
               
               <button
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                type="button"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-2 py-1 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-0.5 text-[11px] font-medium"
               >
                 Next
+                <ChevronRight className="w-3 h-3" />
               </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Custom Scrollbar Styles */}
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+      `}</style>
     </div>
   );
 }

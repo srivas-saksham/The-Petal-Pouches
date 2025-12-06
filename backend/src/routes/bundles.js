@@ -1,4 +1,4 @@
-// backend/src/routes/bundleRoutes.js - UPDATED WITH TAG SUPPORT
+// backend/src/routes/bundles.js - UPDATED WITH MULTIPLE IMAGE SUPPORT
 
 const express = require('express');
 const router = express.Router();
@@ -12,7 +12,12 @@ const {
   deleteBundle,
   toggleBundleStatus,
   duplicateBundle,
-  getBundleStock
+  getBundleStock,
+  // NEW: Image-specific operations
+  addBundleImages,
+  deleteBundleImage,
+  reorderBundleImages,
+  setPrimaryBundleImage
 } = require('../controllers/bundleController');
 
 // ========================================
@@ -22,68 +27,27 @@ const {
 /**
  * GET /api/bundles
  * Get all bundles with optional filters
- * 
- * Query params:
- *   - active: 'true' | 'false' (filter by active status, default: true)
- *   - page: number (default: 1)
- *   - limit: number (default: 20)
- *   - sort: 'created_at' | 'price' | 'title' | 'discount_percent' (default: 'created_at')
- *   - order: 'asc' | 'desc' (default varies by sort)
- *   - search: string (search in title/description)
- *   - min_price: number (minimum price filter)
- *   - max_price: number (maximum price filter)
- *   - in_stock: 'true' (filter only in-stock bundles)
- *   - tags: 'birthday,anniversary' (comma-separated tag names - FILTERS bundles with ANY of these tags)
- * 
- * Examples:
- *   GET /api/bundles?tags=birthday
- *   GET /api/bundles?tags=birthday,anniversary&in_stock=true&sort=price&order=asc
- *   GET /api/bundles?search=special&min_price=500&max_price=2000
- * 
- * Response:
- * {
- *   success: true,
- *   data: [
- *     {
- *       id: "uuid",
- *       title: "Birthday Special",
- *       price: 1299,
- *       tags: ["birthday", "gift"],
- *       primary_tag: "birthday",
- *       ...other fields
- *     },
- *     ...
- *   ],
- *   metadata: {
- *     totalCount: 45,
- *     totalPages: 3,
- *     currentPage: 1,
- *     limit: 20,
- *     hasMore: true
- *   }
- * }
+ * NOW RETURNS: images array with each bundle
  */
 router.get('/', getAllBundles);
 
 /**
  * GET /api/bundles/:id
  * Get single bundle details with basic info only
- * Returns bundle info with stock status
+ * NOW RETURNS: images array included
  */
 router.get('/:id', getBundleById);
 
 /**
  * GET /api/bundles/:id/details
  * Get single bundle with all items and product details
- * Returns bundle info + array of products/variants in the bundle
- * Does NOT return product prices to customers
+ * NOW RETURNS: images array + product details
  */
 router.get('/:id/details', getBundleDetails);
 
 /**
  * GET /api/bundles/:id/stock
  * Check stock availability for all items in bundle
- * Returns which items are in stock or out of stock
  */
 router.get('/:id/stock', getBundleStock);
 
@@ -94,86 +58,87 @@ router.get('/:id/stock', getBundleStock);
 /**
  * POST /api/bundles/admin
  * Create new bundle
+ * UPDATED: Now accepts multiple images
+ * 
  * Content-Type: multipart/form-data
  * 
  * Form Fields:
- *   - image: file (optional - bundle display image)
+ *   - images: file[] (NEW: array of images, 1-5 files)
+ *   - image: file (BACKWARD COMPATIBLE: single image still works)
  *   - title: string (required)
  *   - description: string (optional)
- *   - price: number (required - discounted bundle price)
- *   - stock_limit: number (optional - max bundles available)
- *   - tags: JSON string (optional - array of tag names)
- *     Example: '["birthday", "gift"]'
- *   - items: JSON string (required - array of products/variants)
- *     Format: [
- *       { 
- *         product_id: "uuid", 
- *         variant_id: "uuid" (optional),
- *         quantity: number 
- *       }
- *     ]
+ *   - price: number (required)
+ *   - stock_limit: number (optional)
+ *   - tags: JSON string (optional)
+ *   - items: JSON string (required)
  * 
- * Response:
- * {
- *   success: true,
- *   message: "Bundle created successfully",
- *   data: {
- *     id: "uuid",
- *     title: "Bundle Title",
- *     tags: ["birthday"],
- *     primary_tag: "birthday",
- *     ...other fields
- *   }
- * }
+ * First image becomes primary by default
  */
-router.post('/admin', upload.single('image'), createBundle);
+router.post('/admin', upload.array('images', 5), createBundle);
 
 /**
  * PUT /api/bundles/admin/:id
  * Update existing bundle
- * Content-Type: multipart/form-data
+ * UPDATED: Now accepts multiple new images
  * 
- * Param: id (bundle UUID)
- * Body: Same as POST, all fields optional except at least one must be provided
- * Can update tags, items, pricing, etc.
+ * Form Fields:
+ *   - images: file[] (NEW: add new images)
+ *   - image: file (BACKWARD COMPATIBLE: single image)
+ *   - delete_image_ids: JSON string (array of image IDs to delete)
+ *   - ... other fields same as POST
  */
-router.put('/admin/:id', upload.single('image'), updateBundle);
+router.put('/admin/:id', upload.array('images', 5), updateBundle);
 
 /**
  * DELETE /api/bundles/admin/:id
- * Delete bundle (CASCADE deletes bundle_items)
- * Also deletes bundle image from Cloudinary
- * 
- * Param: id (bundle UUID)
+ * Delete bundle (CASCADE deletes bundle_items and bundle_images)
+ * UPDATED: Now deletes all images from Cloudinary
  */
 router.delete('/admin/:id', deleteBundle);
 
 /**
  * PATCH /api/bundles/admin/:id/toggle
  * Toggle bundle active/inactive status
- * No body required - automatically toggles current status
- * 
- * Param: id (bundle UUID)
  */
 router.patch('/admin/:id/toggle', toggleBundleStatus);
 
 /**
  * POST /api/bundles/admin/:id/duplicate
- * Duplicate existing bundle with "(Copy)" suffix
- * Creates new bundle with same items but inactive by default
- * Preserves all tags from original bundle
- * 
- * Param: id (bundle UUID)
- * No body required
+ * Duplicate existing bundle
+ * UPDATED: Preserves all images from original bundle
  */
 router.post('/admin/:id/duplicate', duplicateBundle);
 
+// ========================================
+// NEW: IMAGE-SPECIFIC ADMIN ROUTES
+// ========================================
+
 /**
- * TAG OPERATIONS
- * Note: Tag routes are in tagsRoutes.js
- * POST /api/bundles/admin/:bundleId/tags - Update bundle tags
- * POST /api/bundles/admin/:bundleId/tags/add - Add tag to bundle
- * DELETE /api/bundles/admin/:bundleId/tags/:tagName - Remove tag from bundle
+ * POST /api/bundles/admin/:id/images
+ * Add images to existing bundle
+ * Body (multipart): images[] - array of image files
  */
+router.post('/admin/:id/images', upload.array('images', 5), addBundleImages);
+
+/**
+ * DELETE /api/bundles/admin/:id/images/:imageId
+ * Delete single image from bundle
+ * Prevents deletion if it's the only image
+ */
+router.delete('/admin/:id/images/:imageId', deleteBundleImage);
+
+/**
+ * PATCH /api/bundles/admin/:id/images/reorder
+ * Reorder images
+ * Body: { order: [{ image_id, display_order }, ...] }
+ */
+router.patch('/admin/:id/images/reorder', reorderBundleImages);
+
+/**
+ * PATCH /api/bundles/admin/:id/images/:imageId/primary
+ * Set image as primary
+ * Automatically unsets other primary images
+ */
+router.patch('/admin/:id/images/:imageId/primary', setPrimaryBundleImage);
 
 module.exports = router;

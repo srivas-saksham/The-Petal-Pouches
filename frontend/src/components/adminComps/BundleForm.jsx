@@ -12,7 +12,9 @@ import {
   FileText,
   ShoppingBag,
   TrendingDown,
-  TrendingUp
+  TrendingUp,
+  Star,
+  Image as ImageIcon
 } from 'lucide-react';
 import BundleProductSelector from './BundleProductSelector';
 import BundleItemCard from './BundleItemCard';
@@ -52,9 +54,11 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
   const [description, setDescription] = useState('');
   const [bundlePrice, setBundlePrice] = useState('');
   const [stockLimit, setStockLimit] = useState('');
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState('');
-  const [currentImage, setCurrentImage] = useState('');
+  
+  // Multiple images state (up to 5 images)
+  const [images, setImages] = useState([]); // Array of { file, preview, id, is_primary }
+  const [existingImages, setExistingImages] = useState([]); // From server
+  const [imagesToDelete, setImagesToDelete] = useState([]); // Track deletions
   
   // Tags state
   const [tagsInput, setTagsInput] = useState('');
@@ -91,7 +95,11 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
         setDescription(bundle.description || '');
         setBundlePrice(bundle.price.toString());
         setStockLimit(bundle.stock_limit ? bundle.stock_limit.toString() : '');
-        setCurrentImage(bundle.img_url || '');
+
+        // Load existing images
+        if (bundle.images && Array.isArray(bundle.images)) {
+          setExistingImages(bundle.images);
+        }
 
         // Load tags
         if (bundle.tags && Array.isArray(bundle.tags)) {
@@ -205,34 +213,137 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
     setTags(prev => prev.filter(tag => tag !== tagToRemove));
   };
 
-  // Handle image selection
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
+  // ========================================
+  // NEW: Multiple Images Handling
+  // ========================================
+
+  const handleImageSelect = (e) => {
+    const files = Array.from(e.target.files);
+    
+    // Calculate total images (existing + new)
+    const totalImages = existingImages.length + images.length + files.length;
+    
+    if (totalImages > 8) {
+      toast.error(`Maximum 8 images allowed. You can add ${8 - existingImages.length - images.length} more.`);
+      return;
+    }
+
+    // Validate each file
+    const validFiles = [];
+    for (const file of files) {
       if (!file.type.startsWith('image/')) {
-        setErrors(prev => ({ ...prev, image: 'Please select a valid image file' }));
-        return;
+        toast.error(`${file.name} is not a valid image file`);
+        continue;
       }
       
       if (file.size > 5 * 1024 * 1024) {
-        setErrors(prev => ({ ...prev, image: 'Image size must be less than 5MB' }));
-        return;
+        toast.error(`${file.name} exceeds 5MB size limit`);
+        continue;
       }
       
-      setImage(file);
-      setErrors(prev => ({ ...prev, image: '' }));
-      
+      validFiles.push(file);
+    }
+
+    // Create preview URLs
+    validFiles.forEach(file => {
       const reader = new FileReader();
-      reader.onloadend = () => setImagePreview(reader.result);
+      reader.onloadend = () => {
+        setImages(prev => [
+          ...prev,
+          {
+            file,
+            preview: reader.result,
+            id: `new-${Date.now()}-${Math.random()}`,
+            is_primary: prev.length === 0 && existingImages.length === 0
+          }
+        ]);
+      };
       reader.readAsDataURL(file);
+    });
+
+    setErrors(prev => ({ ...prev, images: '' }));
+  };
+
+  const handleRemoveNewImage = (imageId) => {
+    setImages(prev => {
+      const updated = prev.filter(img => img.id !== imageId);
+      
+      // If removed image was primary and there are other images, set first as primary
+      const removedWasPrimary = prev.find(img => img.id === imageId)?.is_primary;
+      if (removedWasPrimary && updated.length > 0) {
+        updated[0].is_primary = true;
+      }
+      
+      return updated;
+    });
+  };
+
+  const handleRemoveExistingImage = (imageId) => {
+    const imageToRemove = existingImages.find(img => img.id === imageId);
+    
+    // Check minimum images requirement
+    const totalAfterRemoval = existingImages.length + images.length - 1;
+    if (totalAfterRemoval < 4) {
+      toast.error('Bundle must have at least 4 images');
+      return;
+    }
+
+    setExistingImages(prev => {
+      const updated = prev.filter(img => img.id !== imageId);
+      
+      // If removed image was primary, set first remaining as primary
+      if (imageToRemove?.is_primary && updated.length > 0) {
+        updated[0].is_primary = true;
+      }
+      
+      return updated;
+    });
+    
+    setImagesToDelete(prev => [...prev, imageId]);
+  };
+
+  const handleSetPrimaryImage = (imageId, isExisting) => {
+    if (isExisting) {
+      setExistingImages(prev =>
+        prev.map(img => ({ ...img, is_primary: img.id === imageId }))
+      );
+      // Unset primary for new images
+      setImages(prev =>
+        prev.map(img => ({ ...img, is_primary: false }))
+      );
+    } else {
+      setImages(prev =>
+        prev.map(img => ({ ...img, is_primary: img.id === imageId }))
+      );
+      // Unset primary for existing images
+      setExistingImages(prev =>
+        prev.map(img => ({ ...img, is_primary: false }))
+      );
     }
   };
 
-  const handleRemoveImage = () => {
-    setImage(null);
-    setImagePreview(null);
-    setErrors(prev => ({ ...prev, image: '' }));
+  // Get primary image
+  const getPrimaryImage = () => {
+    const existingPrimary = existingImages.find(img => img.is_primary);
+    if (existingPrimary) return { ...existingPrimary, isExisting: true };
+    
+    const newPrimary = images.find(img => img.is_primary);
+    if (newPrimary) return { ...newPrimary, isExisting: false };
+    
+    return null;
   };
+
+  // Get secondary images
+  const getSecondaryImages = () => {
+    const existingSecondary = existingImages.filter(img => !img.is_primary);
+    const newSecondary = images.filter(img => !img.is_primary);
+    return [...existingSecondary.map(img => ({ ...img, isExisting: true })), ...newSecondary.map(img => ({ ...img, isExisting: false }))];
+  };
+
+  const primaryImage = getPrimaryImage();
+  const secondaryImages = getSecondaryImages();
+  const totalImages = existingImages.length + images.length;
+  const canAddMore = totalImages < 8 && totalImages >= 0;
 
   // Add product to bundle
   const handleProductSelect = (product) => {
@@ -315,6 +426,21 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
     const descError = validateField('description', description);
     if (descError) newErrors.description = descError;
     
+    // Check if at least one image exists (COMMENT THIS AND UNCOMMENT BELOW TO ENFORCE 4 IMAGE MINIMUM)
+    if (existingImages.length === 0 && images.length === 0) {
+      newErrors.images = 'At least one image is required';
+    }
+    /*
+    // Check image requirements
+    const totalImagesCount = existingImages.length + images.length;
+      if (totalImagesCount === 0) {
+        newErrors.images = 'At least 4 images are required';
+      } else if (totalImagesCount < 4) {
+        newErrors.images = `Please add ${4 - totalImagesCount} more image(s). Minimum 4 images required.`;
+      } else if (totalImagesCount > 8) {
+        newErrors.images = 'Maximum 8 images allowed';
+    }
+   */
     if (items.length < 2) {
       newErrors.items = 'Bundle must have at least 2 products';
     }
@@ -355,9 +481,18 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
       formData.append('description', description.trim());
       formData.append('price', bundlePrice);
       if (stockLimit) formData.append('stock_limit', stockLimit);
-      if (image) formData.append('image', image);
+      
+      // Add new images
+      images.forEach(img => {
+        formData.append('images', img.file);
+      });
 
-      // Add tags as JSON array string (for JSONB column)
+      // Add image IDs to delete (for edit mode)
+      if (isEditMode && imagesToDelete.length > 0) {
+        formData.append('delete_image_ids', JSON.stringify(imagesToDelete));
+      }
+
+      // Add tags as JSON array string
       if (tags.length > 0) {
         formData.append('tags', JSON.stringify(tags));
       }
@@ -406,9 +541,15 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 bg-tppslate/10"
+    // style={{
+    //     backgroundImage: 'url(/assets/doodle_bg.png)',
+    //     backgroundRepeat: 'repeat',
+    //     backgroundSize: 'auto',
+    //   }} 
+    >
       {/* Header with Icon */}
-      <div className="flex items-center gap-3 pb-4 border-b-2 border-tpppink/30">
+      <div className="flex items-center gap-3 pb-4 border-b-2 border-tppslate/30">
         <div className="w-10 h-10 bg-tppslate rounded-lg flex items-center justify-center">
           <ShoppingBag className="w-5 h-5 text-white" />
         </div>
@@ -416,92 +557,23 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
           <h2 className="text-xl font-bold text-tppslate">
             {isEditMode ? 'Edit Bundle' : 'Create New Bundle'}
           </h2>
-          <p className="text-sm text-tppslate/60">
+          <p className="text-sm text-tppslate/90">
             {isEditMode ? 'Update bundle details and products' : 'Build a bundle with multiple products'}
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Image Upload Section */}
-        <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
-          <InputWrapper 
-            label="Bundle Image" 
-            name="image" 
-            icon={Upload}
-            error={errors.image}
-            hint="Upload bundle image (max 5MB)"
-          >
-            <div className="flex items-start gap-4 mt-3">
-              {/* Current/Preview Image */}
-              <div className="flex-shrink-0">
-                {imagePreview ? (
-                  <div className="relative group">
-                    <img 
-                      src={imagePreview} 
-                      alt="Bundle preview" 
-                      className="w-32 h-32 object-cover rounded-lg border-2 border-tpppink/30"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRemoveImage}
-                      className="absolute top-1 right-1 p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100"
-                      aria-label="Remove image"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                    <div className="absolute bottom-1 left-1 px-2 py-0.5 bg-black/60 text-white text-[10px] rounded-full backdrop-blur-sm">
-                      New
-                    </div>
-                  </div>
-                ) : currentImage ? (
-                  <div className="relative">
-                    <img 
-                      src={currentImage} 
-                      alt="Current bundle" 
-                      className="w-32 h-32 object-cover rounded-lg border-2 border-tpppink/30"
-                    />
-                    <div className="absolute bottom-1 left-1 px-2 py-0.5 bg-black/60 text-white text-[10px] rounded-full backdrop-blur-sm">
-                      Current
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-32 h-32 border-2 border-dashed border-tpppink/30 rounded-lg flex items-center justify-center bg-slate-50">
-                    <Upload className="w-8 h-8 text-slate-300" />
-                  </div>
-                )}
-              </div>
-
-              {/* Upload Button */}
-              <label 
-                htmlFor="image" 
-                className="flex-1 flex flex-col items-center justify-center h-32 border-2 border-dashed border-tpppink/30 rounded-lg cursor-pointer bg-tpppeach/10 hover:bg-tpppeach/20 hover:border-tpppink transition-all duration-200 group"
-              >
-                <Upload className="w-8 h-8 text-tppslate/40 mb-2 group-hover:text-tppslate transition-colors" />
-                <p className="text-sm text-tppslate/60">
-                  <span className="font-semibold">Click to upload</span>
-                </p>
-                <p className="text-xs text-tppslate/40 mt-1">PNG, JPG, WEBP up to 5MB</p>
-                <input
-                  id="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-              </label>
-            </div>
-          </InputWrapper>
-        </div>
-
-        {/* Basic Info Section */}
-        <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
-          <h3 className="text-base font-bold text-tppslate mb-4 flex items-center gap-2">
-            <Tag className="w-5 h-5" />
+      {/* SECTION 1: Basic Info & Images - Mobile Responsive */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+        {/* LEFT COLUMN - Basic Info Section */}
+        <div className="bg-white rounded-lg p-4 lg:p-6 border-2 border-tpppink/30 hover:border-tpppink transition-all duration-200">
+          <h3 className="text-sm lg:text-base font-bold text-tppslate mb-3 lg:mb-4 flex items-center gap-2">
+            <Tag className="w-4 lg:w-5 h-4 lg:h-5" />
             Basic Information
           </h3>
           
-          <div className="space-y-5">
+          <div className="space-y-3 lg:space-y-5">
             {/* Title */}
             <InputWrapper 
               label="Bundle Title" 
@@ -519,7 +591,7 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
                 onChange={(e) => handleInputChange(e, 'title')}
                 onBlur={(e) => handleBlur('title', e.target.value)}
                 placeholder="e.g., Birthday Surprise Bundle"
-                className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
+                className={`w-full px-3 lg:px-4 py-2 lg:py-2.5 border-2 rounded-lg text-xs lg:text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
                   errors.title && touched.title
                     ? 'border-red-300 bg-red-50'
                     : 'border-tpppink/30 hover:border-tpppink focus:border-tpppink bg-white hover:bg-tpppeach/10'
@@ -543,13 +615,13 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
                 onBlur={(e) => handleBlur('description', e.target.value)}
                 rows={3}
                 placeholder="Brief description of the bundle"
-                className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 resize-none focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
+                className={`w-full px-3 lg:px-4 py-2 lg:py-2.5 border-2 rounded-lg text-xs lg:text-sm transition-all duration-200 resize-none focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
                   errors.description && touched.description
                     ? 'border-red-300 bg-red-50'
                     : 'border-tpppink/30 hover:border-tpppink focus:border-tpppink bg-white hover:bg-tpppeach/10'
                 }`}
               />
-              <p className="text-xs text-tppslate/40 mt-1">
+              <p className="text-[10px] lg:text-xs text-tppslate/40 mt-1">
                 {description.length}/2000 characters
               </p>
             </InputWrapper>
@@ -571,7 +643,7 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
                 onBlur={(e) => handleBlur('stockLimit', e.target.value)}
                 placeholder="Leave empty for unlimited"
                 min="0"
-                className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
+                className={`w-full px-3 lg:px-4 py-2 lg:py-2.5 border-2 rounded-lg text-xs lg:text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
                   errors.stockLimit && touched.stockLimit
                     ? 'border-red-300 bg-red-50'
                     : 'border-tpppink/30 hover:border-tpppink focus:border-tpppink bg-white hover:bg-tpppeach/10'
@@ -581,97 +653,196 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
           </div>
         </div>
 
-        {/* Tags Section */}
-        <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
-          <h3 className="text-base font-bold text-tppslate mb-4 flex items-center gap-2">
-            <Tag className="w-5 h-5" />
-            Tags
-          </h3>
-          
-          <div className="space-y-4">
-            <InputWrapper 
-              label="Add Tags" 
-              name="tags" 
-              icon={Tag}
-              error={errors.tags}
-              hint="Type a tag and press Enter (e.g., birthday, gift, romantic)"
-            >
-              <input
-                type="text"
-                id="tags"
-                name="tags"
-                value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
-                onKeyDown={handleTagsKeyDown}
-                placeholder="Type a tag and press Enter"
-                className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
-                  errors.tags
-                    ? 'border-red-300 bg-red-50'
-                    : 'border-tpppink/30 hover:border-tpppink focus:border-tpppink bg-white hover:bg-tpppeach/10'
-                }`}
-              />
-            </InputWrapper>
-
-            {/* Tags Display */}
-            {tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 p-4 bg-tpppeach/10 rounded-lg border-2 border-tpppink/20">
-                {tags.map((tag, index) => (
-                  <span
-                    key={tag}
-                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
-                      index === 0
-                        ? 'bg-tpppink text-white border-2 border-tpppink shadow-sm'
-                        : 'bg-white text-tppslate border-2 border-tpppink/30 hover:border-tpppink'
-                    }`}
-                  >
-                    {tag}
-                    {index === 0 && (
-                      <span className="text-xs bg-white text-tpppink px-1.5 py-0.5 rounded font-bold">
-                        PRIMARY
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removeTag(tag)}
-                      className="hover:bg-red-500/20 rounded-full p-0.5 transition-colors"
-                      aria-label={`Remove ${tag} tag`}
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            
-            {tags.length === 0 && (
-              <div className="text-center py-4 text-tppslate/60 border-2 border-dashed border-tpppink/30 rounded-lg bg-slate-50">
-                <Tag className="w-8 h-8 mx-auto mb-2 text-tppslate/30" />
-                <p className="text-sm">No tags added yet. The first tag will be the primary tag.</p>
-              </div>
+        {/* RIGHT COLUMN - Image Upload Section */}
+        <div className="bg-white rounded-lg p-3 lg:p-4 border-2 border-tpppink/30 hover:border-tpppink transition-all duration-200">
+          <div className="flex items-center justify-between mb-2 lg:mb-3">
+            <div className="flex items-center gap-1.5 lg:gap-2">
+              <ImageIcon className="w-3.5 lg:w-4 h-3.5 lg:h-4 text-tppslate/60" />
+              <h3 className="text-xs lg:text-sm font-bold text-tppslate">Bundle Images</h3>
+              <span className="text-[10px] lg:text-xs text-tppslate/60">({totalImages}/8)</span>
+            </div>
+            {canAddMore && (
+              <label className="px-2 lg:px-2.5 py-1 lg:py-1.5 bg-tpppink/50 text-tppslate rounded-lg hover:bg-tpppink/80 text-[10px] lg:text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1 lg:gap-1.5 border-2 border-tpppink/50">
+                <Plus className="w-3 lg:w-3 h-3 lg:h-3" />
+                Add
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+              </label>
             )}
           </div>
-        </div>
 
-        {/* Products Section */}
-        <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-base font-bold text-tppslate flex items-center gap-2">
-              <Package className="w-5 h-5" />
+          {errors.images && (
+            <div className="mb-2 lg:mb-3 p-2 bg-red-50 border-2 border-red-200 text-red-700 rounded-lg text-[10px] lg:text-xs flex items-center gap-1.5 lg:gap-2">
+              <AlertCircle className="w-3 lg:w-3.5 h-3 lg:h-3.5 flex-shrink-0" />
+              {errors.images}
+            </div>
+          )}
+
+          {/* Mobile: 4-column grid | Desktop: 5-column grid */}
+          <div className="grid grid-cols-4 lg:grid-cols-5 gap-1.5 lg:gap-2">
+            {/* Primary Image */}
+            <div className="col-span-2 row-span-2">
+              {primaryImage ? (
+                <div className="relative group h-full">
+                  <img 
+                    src={primaryImage.isExisting ? primaryImage.img_url : primaryImage.preview}
+                    alt="Primary bundle image" 
+                    className="w-full h-full object-cover rounded-lg border-2 border-tpppink shadow-sm"
+                  />
+                  {/* Primary Badge */}
+                  <div className="absolute top-1 lg:top-1.5 left-1 lg:left-1.5 px-1 lg:px-1.5 py-0.5 bg-tpppink text-white text-[8px] lg:text-[10px] font-bold rounded-full flex items-center gap-0.5 shadow-md">
+                    <Star className="w-2 lg:w-2.5 h-2 lg:h-2.5 fill-current" />
+                    <span className="hidden sm:inline">PRIMARY</span>
+                    <span className="sm:hidden">1ST</span>
+                  </div>
+                  {/* Remove Button */}
+                  <button
+                    type="button"
+                    onClick={() => primaryImage.isExisting 
+                      ? handleRemoveExistingImage(primaryImage.id)
+                      : handleRemoveNewImage(primaryImage.id)
+                    }
+                    className="absolute top-1 lg:top-1.5 right-1 lg:right-1.5 p-0.5 lg:p-1 bg-red-500 text-white rounded hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100 shadow-md"
+                    aria-label="Remove image"
+                  >
+                    <X className="w-2.5 lg:w-3 h-2.5 lg:h-3" />
+                  </button>
+                  {/* Status Badge */}
+                  <div className="absolute bottom-1 lg:bottom-1.5 right-1 lg:right-1.5 px-1 lg:px-1.5 py-0.5 bg-black/60 text-white text-[7px] lg:text-[9px] rounded-full backdrop-blur-sm">
+                    {primaryImage.isExisting ? 'Cur' : 'New'}
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full h-full border-2 border-dashed border-tpppink/30 rounded-lg flex flex-col items-center justify-center bg-slate-50 min-h-[100px] lg:min-h-[140px]">
+                  <ImageIcon className="w-6 lg:w-8 h-6 lg:h-8 text-slate-300 mb-0.5 lg:mb-1" />
+                  <p className="text-[10px] lg:text-xs text-tppslate/60 font-medium">Primary</p>
+                </div>
+              )}
+            </div>
+
+            {/* Secondary Images - Mobile: 6 slots | Desktop: 7 slots */}
+            {[...Array(7)].map((_, idx) => {
+              const image = secondaryImages[idx];
+              // Hide 7th image on mobile
+              if (idx === 6) {
+                return (
+                  <div key={idx} className="aspect-square hidden lg:block">
+                    {image ? (
+                      <div className="relative group h-full">
+                        <img 
+                          src={image.isExisting ? image.img_url : image.preview}
+                          alt={`Bundle image ${idx + 2}`}
+                          className="w-full h-full object-cover rounded-lg border-2 border-tpppink/30 hover:border-tpppink transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSetPrimaryImage(image.id, image.isExisting)}
+                          className="absolute top-0.5 left-0.5 p-0.5 bg-white/90 text-tppslate rounded hover:bg-tpppink hover:text-white transition-all opacity-0 group-hover:opacity-100 shadow-md"
+                          title="Set as primary"
+                        >
+                          <Star className="w-2.5 h-2.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => image.isExisting 
+                            ? handleRemoveExistingImage(image.id)
+                            : handleRemoveNewImage(image.id)
+                          }
+                          className="absolute top-0.5 right-0.5 p-0.5 bg-red-500 text-white rounded hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100 shadow-md"
+                          aria-label="Remove image"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                        <div className="absolute bottom-0.5 right-0.5 px-1 py-0.5 bg-black/60 text-white text-[8px] rounded-full backdrop-blur-sm">
+                          {image.isExisting ? 'Cur' : 'New'}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-full h-full border-2 border-dashed border-tpppink/20 rounded-lg flex items-center justify-center bg-slate-50">
+                        <ImageIcon className="w-4 h-4 text-slate-300" />
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              
+              return (
+                <div key={idx} className="aspect-square">
+                  {image ? (
+                    <div className="relative group h-full">
+                      <img 
+                        src={image.isExisting ? image.img_url : image.preview}
+                        alt={`Bundle image ${idx + 2}`}
+                        className="w-full h-full object-cover rounded-lg border-2 border-tpppink/30 hover:border-tpppink transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSetPrimaryImage(image.id, image.isExisting)}
+                        className="absolute top-0.5 left-0.5 p-0.5 bg-white/90 text-tppslate rounded hover:bg-tpppink hover:text-white transition-all opacity-0 group-hover:opacity-100 shadow-md"
+                        title="Set as primary"
+                      >
+                        <Star className="w-2 lg:w-2.5 h-2 lg:h-2.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => image.isExisting 
+                          ? handleRemoveExistingImage(image.id)
+                          : handleRemoveNewImage(image.id)
+                        }
+                        className="absolute top-0.5 right-0.5 p-0.5 bg-red-500 text-white rounded hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100 shadow-md"
+                        aria-label="Remove image"
+                      >
+                        <X className="w-2 lg:w-2.5 h-2 lg:h-2.5" />
+                      </button>
+                      <div className="absolute bottom-0.5 right-0.5 px-0.5 lg:px-1 py-0.5 bg-black/60 text-white text-[7px] lg:text-[8px] rounded-full backdrop-blur-sm">
+                        {image.isExisting ? 'Cur' : 'New'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full h-full border-2 border-dashed border-tpppink/20 rounded-lg flex items-center justify-center bg-slate-50">
+                      <ImageIcon className="w-3 lg:w-4 h-3 lg:h-4 text-slate-300" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-[9px] lg:text-[11px] text-tppslate/60 mt-1.5 lg:mt-2 flex items-center gap-1">
+            <Info className="w-2.5 lg:w-3 h-2.5 lg:h-3 flex-shrink-0" />
+            <span className="hidden sm:inline">4-8 images required. First image is primary. PNG, JPG, WEBP up to 5MB each.</span>
+            <span className="sm:hidden">4-8 images • Max 5MB each</span>
+          </p>
+        </div>
+      </div>
+
+      {/* SECTION 2: Products & Tags - Mobile Responsive */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+        {/* LEFT COLUMN - Products Section */}
+        <div className="bg-white rounded-lg p-4 lg:p-6 border-2 border-tpppink/30 hover:border-tpppink transition-all duration-200">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 mb-3 lg:mb-4">
+            <h3 className="text-sm lg:text-base font-bold text-tppslate flex items-center gap-2">
+              <Package className="w-4 lg:w-5 h-4 lg:h-5" />
               Bundle Products ({items.length})
             </h3>
             <button
               type="button"
               onClick={() => setShowProductSelector(true)}
-              className="px-3 py-1.5 bg-tpppink/50 text-tppslate rounded-lg hover:bg-tpppink/80 text-sm font-semibold transition-all duration-200 flex items-center gap-2 border-2 border-tpppink/50"
+              className="px-2.5 lg:px-3 py-1.5 bg-tpppink/50 text-tppslate rounded-lg hover:bg-tpppink/80 text-xs lg:text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 lg:gap-2 border-2 border-tpppink/50 w-full sm:w-auto"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 lg:w-4 h-3.5 lg:h-4" />
               Add Product
             </button>
           </div>
 
           {errors.items && (
-            <div className="mb-4 p-3 bg-red-50 border-2 border-red-200 text-red-700 rounded-lg text-sm flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
+            <div className="mb-3 lg:mb-4 p-2 lg:p-3 bg-red-50 border-2 border-red-200 text-red-700 rounded-lg text-xs lg:text-sm flex items-center gap-1.5 lg:gap-2">
+              <AlertCircle className="w-3.5 lg:w-4 h-3.5 lg:h-4 flex-shrink-0" />
               {errors.items}
             </div>
           )}
@@ -687,12 +858,12 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
 
           {/* Selected Products */}
           {items.length === 0 ? (
-            <div className="text-center py-8 text-tppslate/60 border-2 border-dashed border-tpppink/30 rounded-lg bg-slate-50">
-              <Package className="w-12 h-12 mx-auto mb-2 text-tppslate/30" />
-              <p className="text-sm">No products added yet. Add at least 2 products.</p>
+            <div className="text-center py-6 lg:py-8 text-tppslate/60 border-2 border-dashed border-tpppink/30 rounded-lg bg-slate-50">
+              <Package className="w-10 lg:w-12 h-10 lg:h-12 mx-auto mb-2 text-tppslate/30" />
+              <p className="text-xs lg:text-sm">No products added yet. Add at least 2 products.</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2 lg:space-y-3">
               {items.map((item, index) => (
                 <BundleItemCard
                   key={index}
@@ -708,8 +879,80 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
           )}
         </div>
 
+        {/* RIGHT COLUMN - Tags Section */}
+        <div className="bg-white rounded-lg p-4 lg:p-6 border-2 border-tpppink/30 hover:border-tpppink transition-all duration-200">
+          <h3 className="text-sm lg:text-base font-bold text-tppslate mb-3 lg:mb-4 flex items-center gap-2">
+            <Tag className="w-4 lg:w-5 h-4 lg:h-5" />
+            Tags
+          </h3>
+          
+          <div className="space-y-3 lg:space-y-4">
+            <InputWrapper 
+              label="Add Tags" 
+              name="tags" 
+              icon={Tag}
+              error={errors.tags}
+              hint="Type a tag and press Enter (e.g., birthday, gift, romantic)"
+            >
+              <input
+                type="text"
+                id="tags"
+                name="tags"
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                onKeyDown={handleTagsKeyDown}
+                placeholder="Type a tag and press Enter"
+                className={`w-full px-3 lg:px-4 py-2 lg:py-2.5 border-2 rounded-lg text-xs lg:text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
+                  errors.tags
+                    ? 'border-red-300 bg-red-50'
+                    : 'border-tpppink/30 hover:border-tpppink focus:border-tpppink bg-white hover:bg-tpppeach/10'
+                }`}
+              />
+            </InputWrapper>
+
+            {/* Tags Display */}
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 lg:gap-2 p-3 lg:p-4 bg-tpppeach/10 rounded-lg border-2 border-tpppink/20">
+                {tags.map((tag, index) => (
+                  <span
+                    key={tag}
+                    className={`inline-flex items-center gap-1.5 lg:gap-2 px-2 lg:px-3 py-1 lg:py-1.5 rounded-full text-xs lg:text-sm font-medium transition-all duration-200 ${
+                      index === 0
+                        ? 'bg-tpppink text-white border-2 border-tpppink shadow-sm'
+                        : 'bg-white text-tppslate border-2 border-tpppink/30 hover:border-tpppink'
+                    }`}
+                  >
+                    {tag}
+                    {index === 0 && (
+                      <span className="text-[9px] lg:text-xs bg-white text-tpppink px-1 lg:px-1.5 py-0.5 rounded font-bold">
+                        PRIMARY
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      className="hover:bg-red-500/20 rounded-full p-0.5 transition-colors"
+                      aria-label={`Remove ${tag} tag`}
+                    >
+                      <X className="w-3 lg:w-3.5 h-3 lg:h-3.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            
+            {tags.length === 0 && (
+              <div className="text-center py-3 lg:py-4 text-tppslate/60 border-2 border-dashed border-tpppink/30 rounded-lg bg-slate-50">
+                <Tag className="w-6 lg:w-8 h-6 lg:h-8 mx-auto mb-2 text-tppslate/30" />
+                <p className="text-xs lg:text-sm">No tags added yet. The first tag will be the primary tag.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
         {/* Pricing Section */}
-        <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
+        <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink   transition-all duration-200">
           <h3 className="text-base font-bold text-tppslate mb-4 flex items-center gap-2">
             <DollarSign className="w-5 h-5" />
             Pricing

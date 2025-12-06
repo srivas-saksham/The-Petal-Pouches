@@ -1,4 +1,5 @@
 // backend/src/services/bundleHelpers.js
+// UPDATED: Added validateBundleImages function
 
 const supabase = require('../config/supabaseClient');
 
@@ -227,11 +228,101 @@ const validateBundleItems = (items) => {
   };
 };
 
-// Update exports
+// ==================== NEW: IMAGE VALIDATION ====================
+
+/**
+ * Validate bundle images
+ * Checks file count, types, and sizes
+ * 
+ * @param {Array} files - Multer files array
+ * @param {Object} options - Validation options
+ * @param {number} options.maxCount - Max number of images (default: 5)
+ * @param {number} options.maxSize - Max file size in bytes (default: 5MB)
+ * @param {Array} options.allowedTypes - Allowed MIME types
+ * @returns {Object} - {valid: boolean, errors: Array}
+ */
+const validateBundleImages = (files, options = {}) => {
+  const {
+    maxCount = 5,
+    maxSize = 5 * 1024 * 1024, // 5MB
+    allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+  } = options;
+
+  const errors = [];
+
+  // Check if files exist
+  if (!files) {
+    return { valid: true, errors: [] }; // Images are optional
+  }
+
+  // Convert to array if single file
+  const fileArray = Array.isArray(files) ? files : [files];
+
+  // Check count
+  if (fileArray.length > maxCount) {
+    errors.push(`Maximum ${maxCount} images allowed, received ${fileArray.length}`);
+  }
+
+  // Validate each file
+  fileArray.forEach((file, index) => {
+    // Check file type
+    if (!allowedTypes.includes(file.mimetype)) {
+      errors.push(`Image ${index + 1}: Invalid file type "${file.mimetype}". Allowed: ${allowedTypes.join(', ')}`);
+    }
+
+    // Check file size
+    if (file.size > maxSize) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(0);
+      errors.push(`Image ${index + 1}: File size ${sizeMB}MB exceeds maximum ${maxSizeMB}MB`);
+    }
+
+    // Check if buffer exists
+    if (!file.buffer) {
+      errors.push(`Image ${index + 1}: File buffer is missing`);
+    }
+  });
+
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+};
+
+/**
+ * Validate image update operation
+ * @param {number} currentImageCount - Current number of images
+ * @param {number} newImagesCount - Number of new images to add
+ * @param {number} deleteCount - Number of images to delete
+ * @param {Object} options - Validation options
+ * @returns {Object} - {valid: boolean, errors: Array}
+ */
+const validateImageUpdate = (currentImageCount, newImagesCount, deleteCount, options = {}) => {
+  const { maxCount = 5, minCount = 1 } = options;
+  const errors = [];
+
+  const finalCount = currentImageCount + newImagesCount - deleteCount;
+
+  if (finalCount > maxCount) {
+    errors.push(`Total images would be ${finalCount}, which exceeds maximum of ${maxCount}`);
+  }
+
+  if (finalCount < minCount) {
+    errors.push(`Bundle must have at least ${minCount} image. Final count would be ${finalCount}`);
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    finalCount
+  };
+};
+
 module.exports = {
   calculateBundlePrice,
-//   calculateDiscount, // Keep for backward compatibility if needed
-  calculateDiscountAndMarkup, // New function
+  calculateDiscountAndMarkup,
   validateBundleStock,
-  validateBundleItems
+  validateBundleItems,
+  validateBundleImages,        // NEW
+  validateImageUpdate          // NEW
 };
