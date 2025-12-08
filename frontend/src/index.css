@@ -50,7 +50,7 @@ html, body, #root {
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Yatra One', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   background-color: #FFFFFF;
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
@@ -590,4 +590,3 @@ input[type="checkbox"]:disabled {
     padding: 0;
   }
 }
-

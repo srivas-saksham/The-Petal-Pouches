@@ -1,3 +1,4 @@
+// frontend/src/components/adminComps/BundleForm.jsx
 import { useState, useEffect } from 'react';
 import { 
   Package, 
@@ -73,6 +74,7 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [showProductSelector, setShowProductSelector] = useState(false);
+  const [primaryImageChanged, setPrimaryImageChanged] = useState(false);
 
   const isEditMode = !!bundleId;
 
@@ -303,6 +305,11 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
   };
 
   const handleSetPrimaryImage = (imageId, isExisting) => {
+    // Track that primary image was changed
+    if (isExisting) {
+      setPrimaryImageChanged(true);
+    }
+    
     if (isExisting) {
       setExistingImages(prev =>
         prev.map(img => ({ ...img, is_primary: img.id === imageId }))
@@ -466,71 +473,232 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
 
   // Handle submit
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
+  
+  if (!validateForm()) {
+    toast.error('Please fix all errors before submitting');
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    // ========================================
+    // STEP 1: Prepare Update Data
+    // ========================================
+    const formData = new FormData();
     
-    if (!validateForm()) {
-      toast.error('Please fix all errors before submitting');
-      return;
+    // Add text fields
+    formData.append('title', title.trim());
+    formData.append('description', description.trim());
+    formData.append('price', bundlePrice);
+    
+    // Stock limit (send as empty string if null, or the value)
+    if (stockLimit && stockLimit.trim() !== '') {
+      formData.append('stock_limit', stockLimit);
+    } else {
+      formData.append('stock_limit', ''); // Send empty to clear it
+    }
+    
+    // Tags as JSON array
+    if (tags.length > 0) {
+      formData.append('tags', JSON.stringify(tags));
+    } else {
+      formData.append('tags', JSON.stringify([])); // Send empty array
     }
 
-    setLoading(true);
+    // Items as JSON array
+    const itemsData = items.map(item => ({
+      product_id: item.product_id,
+      variant_id: item.variant_id || null,
+      quantity: item.quantity
+    }));
+    formData.append('items', JSON.stringify(itemsData));
 
-    try {
-      const formData = new FormData();
-      formData.append('title', title.trim());
-      formData.append('description', description.trim());
-      formData.append('price', bundlePrice);
-      if (stockLimit) formData.append('stock_limit', stockLimit);
-      
-      // Add new images
+    // ========================================
+    // IMPORTANT: For CREATE mode, add images
+    // For EDIT mode, DO NOT add images here
+    // ========================================
+    if (!isEditMode) {
+      // CREATE: Include images in initial request
       images.forEach(img => {
         formData.append('images', img.file);
       });
-
-      // Add image IDs to delete (for edit mode)
-      if (isEditMode && imagesToDelete.length > 0) {
-        formData.append('delete_image_ids', JSON.stringify(imagesToDelete));
-      }
-
-      // Add tags as JSON array string
-      if (tags.length > 0) {
-        formData.append('tags', JSON.stringify(tags));
-      }
-
-      const itemsData = items.map(item => ({
-        product_id: item.product_id,
-        variant_id: item.variant_id,
-        quantity: item.quantity
-      }));
-      formData.append('items', JSON.stringify(itemsData));
-
-      const url = isEditMode
-        ? `${API_URL}/api/bundles/admin/${bundleId}`
-        : `${API_URL}/api/bundles/admin`;
-      
-      const method = isEditMode ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        body: formData
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toast.success(data.message || `Bundle ${isEditMode ? 'updated' : 'created'} successfully`);
-        if (onSuccess) {
-          setTimeout(() => onSuccess(data.message || `Bundle ${isEditMode ? 'updated' : 'created'} successfully`), 1500);
-        }
-      } else {
-        toast.error(data.message || 'Failed to save bundle');
-      }
-    } catch (err) {
-      toast.error('Network error: ' + err.message);
-    } finally {
-      setLoading(false);
     }
-  };
+
+    // Log what we're sending (for debugging)
+    console.log('📤 Sending FormData:');
+    for (let [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`  ${key}: [File] ${value.name}`);
+      } else {
+        console.log(`  ${key}:`, value);
+      }
+    }
+
+    // ========================================
+    // STEP 2: Send Main Request
+    // ========================================
+    const url = isEditMode
+      ? `${API_URL}/api/bundles/admin/${bundleId}`
+      : `${API_URL}/api/bundles/admin`;
+    
+    const method = isEditMode ? 'PUT' : 'POST';
+
+    console.log(`📍 ${method} ${url}`);
+
+    const response = await fetch(url, {
+      method,
+      body: formData
+    });
+
+    const data = await response.json();
+    
+    console.log('📥 Response:', data);
+
+    if (!response.ok) {
+      console.error('❌ Request failed:', data);
+      toast.error(data.message || 'Failed to save bundle');
+      setLoading(false);
+      return;
+    }
+
+    // toast.success(data.message || `Bundle ${isEditMode ? 'updated' : 'created'} successfully`);
+
+    // ========================================
+    // STEP 3: Handle Images (EDIT MODE ONLY)
+    // ========================================
+    if (isEditMode) {
+      let successfulOperations = 0;
+      let failedOperations = 0;
+
+      // 3A: Update primary image if changed
+      if (primaryImageChanged) {
+        const newPrimaryImage = existingImages.find(img => img.is_primary);
+        
+        if (newPrimaryImage) {
+          console.log(`🌟 Setting primary image: ${newPrimaryImage.id}`);
+          toast.info('Updating primary image...');
+          
+          try {
+            const primaryResponse = await fetch(
+              `${API_URL}/api/bundles/admin/${bundleId}/images/${newPrimaryImage.id}/primary`,
+              { method: 'PATCH' }
+            );
+            
+            const primaryData = await primaryResponse.json();
+            
+            if (primaryResponse.ok) {
+              console.log('✅ Primary image updated');
+              toast.success('Primary image updated');
+            } else {
+              console.error('❌ Failed to update primary:', primaryData.message);
+              toast.error('Failed to update primary image: ' + (primaryData.message || 'Unknown error'));
+            }
+          } catch (err) {
+            console.error('❌ Error updating primary:', err);
+            toast.error('Error updating primary image: ' + err.message);
+          }
+        }
+      }
+
+      // 3B: Delete marked images
+      if (imagesToDelete.length > 0) {
+        console.log(`🗑️ Deleting ${imagesToDelete.length} images...`);
+        toast.info(`Deleting ${imagesToDelete.length} image(s)...`);
+        
+        for (const imageId of imagesToDelete) {
+          try {
+            console.log(`  Deleting image: ${imageId}`);
+            const deleteResponse = await fetch(
+              `${API_URL}/api/bundles/admin/${bundleId}/images/${imageId}`,
+              { method: 'DELETE' }
+            );
+            
+            const deleteData = await deleteResponse.json();
+            
+            if (deleteResponse.ok) {
+              console.log(`  ✅ Deleted: ${imageId}`);
+              successfulOperations++;
+            } else {
+              console.error(`  ❌ Failed to delete ${imageId}:`, deleteData.message);
+              failedOperations++;
+            }
+          } catch (err) {
+            console.error(`  ❌ Error deleting ${imageId}:`, err);
+            failedOperations++;
+          }
+        }
+        
+        if (successfulOperations > 0) {
+          toast.success(`Deleted ${successfulOperations} image(s)`);
+        }
+        if (failedOperations > 0) {
+          toast.warning(`Failed to delete ${failedOperations} image(s)`);
+        }
+      }
+
+      // 3C: Upload new images AFTER deletions
+      if (images.length > 0) {
+        console.log(`📤 Uploading ${images.length} new images...`);
+        toast.info(`Uploading ${images.length} new image(s)...`);
+        
+        const imageFormData = new FormData();
+        images.forEach(img => {
+          imageFormData.append('images', img.file);
+        });
+
+        try {
+          const uploadResponse = await fetch(
+            `${API_URL}/api/bundles/admin/${bundleId}/images`,
+            {
+              method: 'POST',
+              body: imageFormData
+            }
+          );
+
+          const uploadData = await uploadResponse.json();
+          console.log('📥 Upload response:', uploadData);
+
+          if (uploadResponse.ok) {
+            console.log('✅ Images uploaded successfully');
+            toast.success(`Uploaded ${images.length} new image(s)`);
+          } else {
+            console.error('❌ Upload failed:', uploadData);
+            toast.error('Failed to upload images: ' + (uploadData.message || 'Unknown error'));
+            
+            // Show specific errors if available
+            if (uploadData.errors && Array.isArray(uploadData.errors)) {
+              uploadData.errors.forEach(err => {
+                console.error('  Error:', err);
+              });
+            }
+          }
+        } catch (err) {
+          console.error('❌ Upload exception:', err);
+          toast.error('Error uploading images: ' + err.message);
+        }
+      }
+    }
+
+    // ========================================
+    // STEP 4: Success - Navigate/Refresh
+    // ========================================
+    console.log('✅ All operations completed');
+    
+    if (onSuccess) {
+      setTimeout(() => {
+        onSuccess(data.message || `Bundle ${isEditMode ? 'updated' : 'created'} successfully`);
+      }, 1500);
+    }
+
+  } catch (err) {
+    console.error('❌ Exception in handleSubmit:', err);
+    toast.error('Network error: ' + err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (loadingBundle) {
     return (

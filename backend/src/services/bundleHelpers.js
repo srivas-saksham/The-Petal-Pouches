@@ -243,7 +243,7 @@ const validateBundleItems = (items) => {
  */
 const validateBundleImages = (files, options = {}) => {
   const {
-    maxCount = 5,
+    maxCount = 8,
     maxSize = 5 * 1024 * 1024, // 5MB
     allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
   } = options;
@@ -298,7 +298,7 @@ const validateBundleImages = (files, options = {}) => {
  * @returns {Object} - {valid: boolean, errors: Array}
  */
 const validateImageUpdate = (currentImageCount, newImagesCount, deleteCount, options = {}) => {
-  const { maxCount = 5, minCount = 1 } = options;
+  const { maxCount = 8, minCount = 1 } = options;
   const errors = [];
 
   const finalCount = currentImageCount + newImagesCount - deleteCount;

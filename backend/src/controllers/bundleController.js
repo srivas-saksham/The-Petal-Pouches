@@ -796,7 +796,7 @@ const updateBundle = async (req, res) => {
       currentImageCount, 
       newImagesCount, 
       deleteCount,
-      { maxCount: 5, minCount: 0 } // Allow 0 for backward compatibility
+      { maxCount: 8, minCount: 0 } // Allow 0 for backward compatibility
     );
 
     if (!updateValidation.valid) {
@@ -1368,7 +1368,7 @@ const addBundleImages = async (req, res) => {
     const currentCount = currentImages.length;
 
     // Validate
-    const validation = validateImageUpdate(currentCount, files.length, 0, { maxCount: 5 });
+    const validation = validateImageUpdate(currentCount, files.length, 0, { maxCount: 8 });
     if (!validation.valid) {
       return res.status(400).json({
         success: false,

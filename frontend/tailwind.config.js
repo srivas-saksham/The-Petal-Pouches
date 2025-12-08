@@ -14,9 +14,9 @@ export default {
         'tppslate': '#4A5759'
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        greyqo: ['"Grey Qo"', 'cursive'],
-        dancing: ['"Dancing Script"', 'cursive'],
+        sans: ['"Yatra One"', 'system-ui', '-apple-system', 'sans-serif'], // Default font
+        greyqo: ['"Grey Qo"', 'cursive'], // Decorative font
+        inter: ['Inter', 'system-ui', 'sans-serif'], // Fallback modern font
       },
       boxShadow: {
         'soft': '0 2px 8px rgba(74, 87, 89, 0.08)',

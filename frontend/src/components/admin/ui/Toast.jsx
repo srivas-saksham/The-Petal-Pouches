@@ -42,12 +42,12 @@ const Toast = ({ id, type = 'info', message, duration = 5000, onClose }) => {
     },
     info: {
       icon: Info,
-      bgGradient: 'bg-gradient-to-r from-tpppink to-pink-400',
+      bgGradient: 'bg-gradient-to-r from-tppslate to-tpppink',
       iconColor: 'text-white',
       bgIcon: 'bg-white/20',
-      progressBg: 'bg-tpppink',
-      borderGlow: 'shadow-tpppink/50',
-      accentColor: 'bg-tpppink',
+      progressBg: 'bg-tppslate',
+      borderGlow: 'shadow-tppslate/50',
+      accentColor: 'bg-tppslate',
     },
   };
 
