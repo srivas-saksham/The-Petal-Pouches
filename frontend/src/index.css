@@ -63,6 +63,9 @@ body {
   box-sizing: border-box;
 }
 
+button {
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
 /* 4) Admin Layout Styles */
 .admin-layout {
   display: flex;

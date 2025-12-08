@@ -1,17 +1,26 @@
-// frontend/src/pages/BundleDetailPage.jsx - FIXED VERSION
+// frontend/src/pages/BundleDetailPage.jsx - WITH BREADCRUMBS NAVIGATION
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Check, AlertCircle, Package, Star } from 'lucide-react';
+import { Check, AlertCircle, Package, Star, Share2, Heart } from 'lucide-react';
 import useBundleDetail from '../hooks/useBundleDetail';
-import BundleHeader from '../components/bundle-detail/BundleHeader';
 import BundleImageGallery from '../components/bundle-detail/BundleImageGallery';
 import BundleKeyDetails from '../components/bundle-detail/BundleKeyDetails';
 import BundleProducts from '../components/bundle-detail/BundleProducts';
 import FloatingSidebar from '../components/bundle-detail/FloatingSidebar/FloatingSidebar';
+import Breadcrumb from '../components/bundle-detail/ui/Breadcrumb'; // ✅ NEW IMPORT
+import { generateBreadcrumbs } from '../utils/bundleHelpers'; // ✅ NEW IMPORT
 import { addBundleToCart, updateCartItem, removeFromCart } from '../services/cartService';
 import { useCart } from '../hooks/useCart';
 import { getDisplayRating, formatRating, formatTimeAgo } from '../utils/reviewHelpers';
 
+/**
+ * BundleDetailPage - WITH BREADCRUMBS NAVIGATION
+ * 
+ * REPLACED: BundleHeader component with Breadcrumb navigation
+ * ✅ Shows: Home > Shop > Bundles > [Current Bundle Name]
+ * ✅ Maintains sticky header with Share & Wishlist action buttons
+ * ✅ Professional design matching shop aesthetic
+ */
 const BundleDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -36,6 +45,9 @@ const BundleDetailPage = () => {
   const items = bundle?.items || [];
   const reviews = bundle?.reviews || [];
   const ratingInfo = bundle ? getDisplayRating(bundle.reviews, bundle.average_rating) : { rating: 0, count: 0 };
+
+  // ✅ Generate breadcrumbs
+  const breadcrumbItems = bundle ? generateBreadcrumbs(bundle) : [];
 
   useEffect(() => {
     if (cartItem) {
@@ -232,18 +244,46 @@ const BundleDetailPage = () => {
 
   return (
     <div className="min-h-screen"
-    style={{
+      style={{
         backgroundImage: 'url(/assets/doodle_bg.png)',
         backgroundRepeat: 'repeat',
         backgroundSize: 'auto',
       }}
     >
-      <BundleHeader
-        bundle={bundle}
-        onShare={handleShare}
-        onWishlist={handleWishlist}
-      />
+      {/* ✅ NEW: STICKY HEADER WITH BREADCRUMBS */}
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm">
+        <div className="max-w-9xl mx-auto px-6 py-3">
+          <div className="flex items-center justify-between gap-4">
+            {/* Left: Breadcrumbs Navigation */}
+            <Breadcrumb items={breadcrumbItems} />
 
+            {/* Right: Action Buttons (Share & Wishlist) */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={handleShare}
+                className="p-2 border-2 border-slate-200 rounded-lg hover:border-tpppink hover:bg-tpppink/5 
+                  transition-all text-slate-600 hover:text-tpppink"
+                title="Share Bundle"
+                aria-label="Share bundle"
+              >
+                <Share2 size={16} />
+              </button>
+              
+              <button
+                onClick={handleWishlist}
+                className="p-2 border-2 border-slate-200 rounded-lg hover:border-tpppink hover:bg-tpppink/5 
+                  transition-all text-slate-600 hover:text-tpppink"
+                title="Add to Wishlist"
+                aria-label="Add to wishlist"
+              >
+                <Heart size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Share Success Toast */}
       {showShareModal && (
         <div className="fixed top-16 right-4 z-50 bg-green-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm">
           <Check size={14} />
@@ -263,7 +303,6 @@ const BundleDetailPage = () => {
               <BundleImageGallery bundle={bundle} isOutOfStock={isOutOfStock} />
               
               <div className="p-6 border-l border-slate-200">
-                {/* ⭐ FIXED: Now passing ALL required props to BundleKeyDetails */}
                 <BundleKeyDetails
                   bundle={bundle}
                   items={items}
@@ -306,12 +345,11 @@ const BundleDetailPage = () => {
               )}
             </div>
 
-            {/* Divider */}
+            {/* Description Section */}
             {bundle.description && (
               <>
                 <div className="border-t border-slate-200"></div>
                 
-                {/* Description */}
                 <div className="p-6">
                   <h2 className="text-lg font-bold text-tppslate mb-3">About This Bundle</h2>
                   <p className="text-sm text-slate-700 leading-relaxed">
@@ -420,7 +458,7 @@ const BundleDetailPage = () => {
 
           </div>
 
-          {/* RIGHT 30% - Sidebar */}
+          {/* RIGHT 30% - Floating Sidebar */}
           <div className="lg:sticky lg:top-24 lg:self-start">
             <FloatingSidebar
               bundle={bundle}

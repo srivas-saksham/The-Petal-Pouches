@@ -216,7 +216,7 @@ const BundleCard = ({ bundle, onQuickView }) => {
 
         {/* Out of Stock Badge */}
         {isOutOfStock && (
-          <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-md flex items-center gap-1 shadow-lg">
+          <div className="font-inter absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-md flex items-center gap-1 shadow-lg">
             <XCircle size={14} />
             OUT OF STOCK
           </div>
@@ -224,7 +224,7 @@ const BundleCard = ({ bundle, onQuickView }) => {
 
         {/* Items Count Badge (only if in stock) */}
         {!isOutOfStock && bundleItems.length > 0 && (
-          <div className="absolute top-2 right-2 bg-tpppink text-white text-xs font-semibold px-2 py-1 rounded-md flex items-center gap-1 shadow-sm">
+          <div className="font-inter absolute top-2 right-2 bg-tpppink text-white text-xs font-semibold px-2 py-1 rounded-md flex items-center gap-1 shadow-sm">
             <Package size={12} />
             {bundleItems.length}
           </div>
@@ -344,7 +344,7 @@ const BundleCard = ({ bundle, onQuickView }) => {
             // Show price when in stock
             <>
               <div className="flex items-baseline gap-2">
-                <span className="text-lg font-bold text-tpppink">
+                <span className="text-2xl font-bold text-tpppink">
                   {formatBundlePrice(bundle.price)}
                 </span>
                 <span className="text-xs font-medium text-green-600">
