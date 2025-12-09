@@ -80,6 +80,7 @@ app.use('/api/cart', require('./routes/cart'));            // Shopping Cart
 app.use('/api/wishlist', require('./routes/wishlist'));    // Wishlist
 app.use('/api/orders', require('./routes/orders'));        // Order Management
 app.use('/api/payments', require('./routes/payments'));    // Razorpay/Stripe
+app.use('/api/delhivery', require('./routes/delhivery'));      // Delhivery Shipping Integration
 
 // ============================================
 // HEALTH CHECK & API DOCUMENTATION

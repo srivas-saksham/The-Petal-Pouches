@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Truck, MapPin, Calendar, ChevronDown, ChevronUp, Plus, Home, Briefcase, X, CheckCircle } from 'lucide-react';
+import { Truck, MapPin, Calendar, ChevronDown, ChevronUp, Plus, Home, Briefcase, X, CheckCircle, Loader, AlertCircle, Package } from 'lucide-react';
 import { useUserAuth } from '../../../context/UserAuthContext';
 import { getAddresses, createAddress } from '../../../services/addressService';
+import api from '../../../services/api';
 
 /**
- * DeliverySection - Delivery info with address selection
+ * DeliverySection - Delivery info with Delhivery PIN check and TAT
  * Shows default address for logged-in users or PIN code input for guests
+ * Integrates with Delhivery API for serviceability and delivery estimates
  */
 const DeliverySection = () => {
   const { isAuthenticated, user } = useUserAuth();
@@ -20,9 +22,11 @@ const DeliverySection = () => {
   const [showNewAddressModal, setShowNewAddressModal] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
   
-  // PIN code state (for guests)
+  // PIN code state (for guests and checking)
   const [pinCode, setPinCode] = useState('');
-  const [pinChecked, setPinChecked] = useState(false);
+  const [checkingPin, setCheckingPin] = useState(false);
+  const [pinCheckResult, setPinCheckResult] = useState(null);
+  const [pinError, setPinError] = useState(null);
   
   // Refs
   const addressListRef = useRef(null);
@@ -40,17 +44,108 @@ const DeliverySection = () => {
     address_type: 'home',
   });
 
-  // Calculate estimated delivery (5-7 days from now)
-  const getDeliveryDate = () => {
-    const today = new Date();
-    const minDate = new Date(today);
-    minDate.setDate(today.getDate() + 5);
-    const maxDate = new Date(today);
-    maxDate.setDate(today.getDate() + 7);
+  // ==================== DELHIVERY PIN CHECK ====================
+  
+  /**
+   * Check PIN serviceability and TAT with Delhivery API
+   */
+  const checkPinDelivery = async (pin) => {
+    if (!pin || pin.length !== 6) {
+      setPinError('Please enter a valid 6-digit PIN code');
+      return;
+    }
 
-    const options = { month: 'short', day: 'numeric' };
-    return `${minDate.toLocaleDateString('en-US', options)} - ${maxDate.toLocaleDateString('en-US', options)}`;
+    setCheckingPin(true);
+    setPinError(null);
+    setPinCheckResult(null);
+
+    try {
+      console.log('🔍 Checking Delhivery serviceability for PIN:', pin);
+      
+      // Call combined delivery check endpoint
+      const response = await api.get(`/api/delhivery/check/${pin}`);
+      
+      console.log('📦 Delhivery response:', response.data);
+
+      if (response.data.success) {
+        const data = response.data;
+        
+        console.log('✅ Full Delhivery response:', JSON.stringify(data, null, 2));
+        
+        if (data.serviceable) {
+          // PIN is serviceable - get TAT
+          const deliveryOptions = data.deliveryOptions || {};
+          const bestOption = data.bestOption || deliveryOptions.surface || deliveryOptions.express;
+          
+          console.log('📦 Best option:', bestOption);
+          console.log('📦 Delivery options:', deliveryOptions);
+          
+          // Try multiple paths to get TAT data
+          let estimatedDays = null;
+          let deliveryDate = null;
+          let mode = 'Surface';
+          
+          if (bestOption) {
+            estimatedDays = bestOption.estimatedDays || bestOption.tat;
+            deliveryDate = bestOption.expectedDeliveryDate || bestOption.expected_delivery_date;
+            mode = bestOption.mode || 'Surface';
+          } else if (deliveryOptions.surface) {
+            estimatedDays = deliveryOptions.surface.estimatedDays || deliveryOptions.surface.tat;
+            deliveryDate = deliveryOptions.surface.deliveryDate || deliveryOptions.surface.expected_delivery_date;
+            mode = 'Surface';
+          } else if (deliveryOptions.express) {
+            estimatedDays = deliveryOptions.express.estimatedDays || deliveryOptions.express.tat;
+            deliveryDate = deliveryOptions.express.deliveryDate || deliveryOptions.express.expected_delivery_date;
+            mode = 'Express';
+          }
+          
+          console.log('🎯 Final TAT data:', { estimatedDays, deliveryDate, mode });
+          
+          const result = {
+            serviceable: true,
+            city: data.location?.city,
+            state: data.location?.state,
+            estimatedDays: estimatedDays,
+            deliveryDate: deliveryDate,
+            mode: mode,
+            features: data.features || {},
+            rawData: data // Keep raw data for debugging
+          };
+          
+          console.log('💾 Setting pin check result:', result);
+          setPinCheckResult(result);
+        } else {
+          // PIN is not serviceable
+          setPinCheckResult({
+            serviceable: false,
+            reason: data.reason || 'Delivery not available for this PIN code'
+          });
+        }
+      } else {
+        setPinError(response.data.error || 'Failed to check delivery availability');
+      }
+    } catch (error) {
+      console.error('❌ Delhivery check error:', error);
+      setPinError(error.response?.data?.message || 'Failed to check delivery availability');
+    } finally {
+      setCheckingPin(false);
+    }
   };
+
+  /**
+   * Auto-check PIN when address is selected (for logged-in users)
+   */
+  useEffect(() => {
+    if (selectedAddress && selectedAddress.zip_code) {
+      const pin = selectedAddress.zip_code;
+      if (pin.length === 6 && pin !== pinCode) {
+        setPinCode(pin);
+        checkPinDelivery(pin);
+      }
+    }
+  }, [selectedAddress]);
+
+  // ==================== ADDRESS MANAGEMENT ====================
 
   // Fetch addresses on mount if authenticated
   useEffect(() => {
@@ -86,17 +181,6 @@ const DeliverySection = () => {
     setShowAddressList(false);
   };
 
-  // Handle PIN code check
-  const handlePinCheck = () => {
-    if (pinCode && pinCode.length === 6) {
-      setPinChecked(true);
-      // TODO: Verify PIN code with backend
-      console.log('Checking delivery for PIN:', pinCode);
-    } else {
-      alert('Please enter a valid 6-digit PIN code');
-    }
-  };
-
   // Get address icon
   const getAddressIcon = (type) => {
     switch (type?.toLowerCase()) {
@@ -130,7 +214,6 @@ const DeliverySection = () => {
       });
 
       if (result.success) {
-        // Add new address to list
         setAddresses([...addresses, result.data]);
         setSelectedAddress(result.data);
         setShowNewAddressModal(false);
@@ -191,25 +274,17 @@ const DeliverySection = () => {
   }, [showNewAddressModal]);
 
   return (
-    <div className="p-4 space-y-3 ">
+    <div className="p-4 space-y-3">
       <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide flex items-center gap-1.5">
         Delivery
         <Truck size={14} className="text-pink-600" />
       </h3>
 
-      {/* Estimated Delivery */}
-      <div className="flex items-start gap-2 text-sm">
-        <Calendar size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
-        <div>
-          <p className="text-xs text-gray-500 font-medium">Estimated Delivery</p>
-          <p className="text-sm font-bold text-gray-800">{getDeliveryDate()}</p>
-        </div>
-      </div>
-
-      {/* Address Selection (Authenticated) or PIN Code (Guest) */}
+      {/* ==================== ADDRESS OR PIN INPUT ==================== */}
+      
       {isAuthenticated ? (
+        /* Logged-in users: Address selector */
         <div className="relative" ref={addressListRef}>
-          {/* Selected Address Display */}
           {selectedAddress ? (
             <button
               onClick={() => setShowAddressList(!showAddressList)}
@@ -260,10 +335,9 @@ const DeliverySection = () => {
             </button>
           )}
 
-          {/* Floating Address List */}
+          {/* Address Dropdown */}
           {showAddressList && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-gray-200 rounded-lg shadow-xl max-h-80 overflow-y-auto z-50">
-              {/* New Address Button */}
               <button
                 onClick={() => {
                   setShowNewAddressModal(true);
@@ -275,7 +349,6 @@ const DeliverySection = () => {
                 <span className="text-sm">New Address</span>
               </button>
 
-              {/* Address List */}
               {loading ? (
                 <div className="p-4 text-center text-sm text-gray-500">
                   Loading addresses...
@@ -324,7 +397,7 @@ const DeliverySection = () => {
           )}
         </div>
       ) : (
-        /* PIN Code Input for Guests */
+        /* Guest users: PIN input with check button */
         <div className="space-y-2">
           <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
             <MapPin size={12} />
@@ -339,51 +412,197 @@ const DeliverySection = () => {
                 const value = e.target.value.replace(/\D/g, '');
                 if (value.length <= 6) {
                   setPinCode(value);
-                  setPinChecked(false);
+                  setPinCheckResult(null);
+                  setPinError(null);
                 }
               }}
               maxLength={6}
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
             />
             <button
-              onClick={handlePinCheck}
-              disabled={pinCode.length !== 6}
-              className="px-4 py-2 bg-tpppink text-white rounded-lg font-medium hover:bg-tppslate transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              onClick={() => checkPinDelivery(pinCode)}
+              disabled={pinCode.length !== 6 || checkingPin}
+              className="px-4 py-2 bg-tpppink text-white rounded-lg font-medium hover:bg-tppslate transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center gap-2"
             >
-              Check
+              {checkingPin ? (
+                <>
+                  <Loader size={14} className="animate-spin" />
+                  Checking...
+                </>
+              ) : (
+                'Check'
+              )}
             </button>
           </div>
-          {pinChecked && (
-            <div className="flex items-start gap-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-              <CheckCircle size={14} className="text-green-600 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-green-700">
-                Delivery available for PIN {pinCode}
-              </p>
+        </div>
+      )}
+
+      {/* ==================== PIN CHECK RESULT ==================== */}
+
+      {checkingPin && (
+        <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <Loader size={16} className="text-blue-600 animate-spin flex-shrink-0" />
+          <div className="text-xs text-blue-700">
+            <p className="font-semibold">Checking delivery availability...</p>
+          </div>
+        </div>
+      )}
+
+      {pinError && (
+        <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <AlertCircle size={16} className="text-red-600 flex-shrink-0 mt-0.5" />
+          <div className="text-xs text-red-700">
+            <p className="font-semibold">Error</p>
+            <p>{pinError}</p>
+          </div>
+        </div>
+      )}
+
+      {pinCheckResult && !checkingPin && (
+        <div>
+          {pinCheckResult.serviceable ? (
+            /* Serviceable - Show delivery info */
+            <div className="space-y-3">
+              {/* Location Badge */}
+              <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                <CheckCircle size={14} className="text-green-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-green-700">
+                    Delivery Available
+                  </p>
+                  {pinCheckResult.city && pinCheckResult.state && (
+                    <p className="text-xs text-green-600">
+                      {pinCheckResult.city}, {pinCheckResult.state}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Delivery Options */}
+              {(pinCheckResult.rawData?.deliveryOptions?.express || pinCheckResult.rawData?.deliveryOptions?.surface) ? (
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+                    <p className="text-xs font-semibold text-gray-700">Estimated Delivery</p>
+                  </div>
+                  
+                  <div className="divide-y divide-gray-100">
+                    {/* Express Option */}
+                    {pinCheckResult.rawData?.deliveryOptions?.express && (
+                      <div className="p-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-tpppink/20 rounded-full flex items-center justify-center">
+                            <Truck size={14} className="text-tpppink" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">Express</p>
+                            <p className="text-xs text-gray-500">Faster delivery</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-tpppink">
+                            {pinCheckResult.rawData.deliveryOptions.express.estimatedDays} {pinCheckResult.rawData.deliveryOptions.express.estimatedDays === 1 ? 'day' : 'days'}
+                          </p>
+                          {pinCheckResult.rawData.deliveryOptions.express.deliveryDate && (
+                            <p className="text-xs text-gray-500">
+                              by {new Date(pinCheckResult.rawData.deliveryOptions.express.deliveryDate).toLocaleDateString('en-IN', { 
+                                day: 'numeric',
+                                month: 'short'
+                              })}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Surface Option */}
+                    {pinCheckResult.rawData?.deliveryOptions?.surface && (
+                      <div className="p-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-tppslate/10 rounded-full flex items-center justify-center">
+                            <Package size={14} className="text-tppslate" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">Standard</p>
+                            <p className="text-xs text-gray-500">Regular delivery</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-tppslate">
+                            {pinCheckResult.rawData.deliveryOptions.surface.estimatedDays} {pinCheckResult.rawData.deliveryOptions.surface.estimatedDays === 1 ? 'day' : 'days'}
+                          </p>
+                          {pinCheckResult.rawData.deliveryOptions.surface.deliveryDate && (
+                            <p className="text-xs text-gray-500">
+                              by {new Date(pinCheckResult.rawData.deliveryOptions.surface.deliveryDate).toLocaleDateString('en-IN', { 
+                                day: 'numeric',
+                                month: 'short'
+                              })}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Fallback when TAT is not available */
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <Calendar size={14} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-blue-700">
+                      <p className="font-semibold mb-1">Delivery Available</p>
+                      <p className="text-blue-600">Standard delivery: 5-7 business days</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Delivery Features */}
+              {pinCheckResult.features && (pinCheckResult.features.cod || pinCheckResult.features.prepaid) && (
+                <div className="flex flex-wrap gap-2">
+                  {pinCheckResult.features.cod && (
+                    <div className="flex items-center gap-1 px-2 py-1 bg-green-50 border border-green-200 rounded text-xs text-green-700 font-medium">
+                      <CheckCircle size={10} />
+                      <span>COD Available</span>
+                    </div>
+                  )}
+                  {pinCheckResult.features.prepaid && (
+                    <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 font-medium">
+                      <CheckCircle size={10} />
+                      <span>Prepaid</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Not Serviceable */
+            <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <AlertCircle size={16} className="text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-red-700">
+                <p className="font-semibold">Delivery Not Available</p>
+                <p>{pinCheckResult.reason || 'This PIN code is not serviceable'}</p>
+              </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Free Shipping Badge */}
-      <div className="bg-green-50 border border-green-200 rounded-lg p-2.5 flex items-center gap-2">
-        <Truck size={16} className="text-green-600 flex-shrink-0" />
-        <div>
-          <p className="text-xs font-bold text-green-700">FREE SHIPPING</p>
-          <p className="text-xs text-green-600">On all orders</p>
+      {/* ==================== FREE SHIPPING BADGE ==================== */}
+      
+      {(!pinCheckResult || pinCheckResult.serviceable) && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-2.5 flex items-center gap-2">
+          <Truck size={16} className="text-green-600 flex-shrink-0" />
+          <div>
+            <p className="text-xs font-bold text-green-700">FREE SHIPPING</p>
+            <p className="text-xs text-green-600">On all PREPAID orders</p>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Location Info */}
-      <div className="flex items-start gap-2 text-xs text-gray-500">
-        <MapPin size={12} className="mt-0.5 flex-shrink-0" />
-        <p>Ships to all locations in India</p>
-      </div>
-
-      {/* New Address Modal */}
+      {/* New Address Modal (same as before) */}
       {showNewAddressModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div ref={modalRef} className="bg-white rounded-lg shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
             <div className="sticky top-0 bg-tpppink px-6 py-4 flex items-center justify-between">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <Plus size={20} />
@@ -397,13 +616,9 @@ const DeliverySection = () => {
               </button>
             </div>
 
-            {/* Modal Body */}
             <div className="p-6 space-y-4">
-              {/* Address Type */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Address Type
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Address Type</label>
                 <select
                   value={newAddressForm.address_type}
                   onChange={(e) => setNewAddressForm({ ...newAddressForm, address_type: e.target.value })}
@@ -415,11 +630,8 @@ const DeliverySection = () => {
                 </select>
               </div>
 
-              {/* Address Line 1 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Street Address *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Street Address *</label>
                 <input
                   type="text"
                   placeholder="House No., Building Name"
@@ -429,11 +641,8 @@ const DeliverySection = () => {
                 />
               </div>
 
-              {/* Address Line 2 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Apartment, Suite, etc. (optional)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Apartment, Suite, etc. (optional)</label>
                 <input
                   type="text"
                   placeholder="Apartment, floor, etc."
@@ -443,40 +652,32 @@ const DeliverySection = () => {
                 />
               </div>
 
-              {/* City & State */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    City *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">City *</label>
                   <input
                     type="text"
                     placeholder="City"
                     value={newAddressForm.city}
                     onChange={(e) => setNewAddressForm({ ...newAddressForm, city: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink  focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    State *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">State *</label>
                   <input
                     type="text"
                     placeholder="State"
                     value={newAddressForm.state}
                     onChange={(e) => setNewAddressForm({ ...newAddressForm, state: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink  focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
                   />
                 </div>
               </div>
 
-              {/* PIN Code */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  PIN Code *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">PIN Code *</label>
                 <input
                   type="text"
                   placeholder="6-digit PIN code"
@@ -488,15 +689,12 @@ const DeliverySection = () => {
                     }
                   }}
                   maxLength={6}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink  focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
                 />
               </div>
 
-              {/* Phone */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone Number (optional)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number (optional)</label>
                 <input
                   type="tel"
                   placeholder="10-digit phone number"
@@ -508,26 +706,22 @@ const DeliverySection = () => {
                     }
                   }}
                   maxLength={10}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink  focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
                 />
               </div>
 
-              {/* Landmark */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Landmark (optional)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Landmark (optional)</label>
                 <input
                   type="text"
                   placeholder="e.g., Near City Hospital"
                   value={newAddressForm.landmark}
                   onChange={(e) => setNewAddressForm({ ...newAddressForm, landmark: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink  focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
                 />
               </div>
             </div>
 
-            {/* Modal Footer */}
             <div className="px-6 py-4 bg-gray-50 border-t flex gap-3">
               <button
                 onClick={() => setShowNewAddressModal(false)}
