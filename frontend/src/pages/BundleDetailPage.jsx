@@ -459,7 +459,7 @@ const BundleDetailPage = () => {
           </div>
 
           {/* RIGHT 30% - Floating Sidebar */}
-          <div className="lg:sticky lg:top-24 lg:self-start">
+          <div className="lg:relative lg:self-start">
             <FloatingSidebar
               bundle={bundle}
               stockLimit={stockLimit}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Truck, MapPin, Calendar, ChevronDown, ChevronUp, Plus, Home, Briefcase, X, CheckCircle, Loader, AlertCircle, Package } from 'lucide-react';
+import { Truck, MapPin, Calendar, ChevronDown, ChevronUp, Plus, Home, Briefcase, X, CheckCircle, Loader, AlertCircle, Package, Plane } from 'lucide-react';
 import { useUserAuth } from '../../../context/UserAuthContext';
 import { getAddresses, createAddress } from '../../../services/addressService';
 import api from '../../../services/api';
@@ -277,7 +277,7 @@ const DeliverySection = () => {
     <div className="p-4 space-y-3">
       <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide flex items-center gap-1.5">
         Delivery
-        <Truck size={14} className="text-pink-600" />
+        <Truck size={16} className="text-tpppink -translate-y-0.5" />
       </h3>
 
       {/* ==================== ADDRESS OR PIN INPUT ==================== */}
@@ -437,7 +437,7 @@ const DeliverySection = () => {
         </div>
       )}
 
-      {/* ==================== PIN CHECK RESULT ==================== */}
+      {/* ==================== PIN CHECK RESULT WITH COST COMPARISON ==================== */}
 
       {checkingPin && (
         <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -461,7 +461,7 @@ const DeliverySection = () => {
       {pinCheckResult && !checkingPin && (
         <div>
           {pinCheckResult.serviceable ? (
-            /* Serviceable - Show delivery info */
+            /* Serviceable - Show delivery info with cost comparison */
             <div className="space-y-3">
               {/* Location Badge */}
               <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg">
@@ -478,7 +478,7 @@ const DeliverySection = () => {
                 </div>
               </div>
 
-              {/* Delivery Options */}
+              {/* Delivery Options with Price Comparison */}
               {(pinCheckResult.rawData?.deliveryOptions?.express || pinCheckResult.rawData?.deliveryOptions?.surface) ? (
                 <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                   <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
@@ -486,43 +486,17 @@ const DeliverySection = () => {
                   </div>
                   
                   <div className="divide-y divide-gray-100">
-                    {/* Express Option */}
-                    {pinCheckResult.rawData?.deliveryOptions?.express && (
-                      <div className="p-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-tpppink/20 rounded-full flex items-center justify-center">
-                            <Truck size={14} className="text-tpppink" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-gray-800">Express</p>
-                            <p className="text-xs text-gray-500">Faster delivery</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-bold text-tpppink">
-                            {pinCheckResult.rawData.deliveryOptions.express.estimatedDays} {pinCheckResult.rawData.deliveryOptions.express.estimatedDays === 1 ? 'day' : 'days'}
-                          </p>
-                          {pinCheckResult.rawData.deliveryOptions.express.deliveryDate && (
-                            <p className="text-xs text-gray-500">
-                              by {new Date(pinCheckResult.rawData.deliveryOptions.express.deliveryDate).toLocaleDateString('en-IN', { 
-                                day: 'numeric',
-                                month: 'short'
-                              })}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Surface Option */}
+                    {/* Standard/Surface Option - FREE */}
                     {pinCheckResult.rawData?.deliveryOptions?.surface && (
                       <div className="p-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 bg-tppslate/10 rounded-full flex items-center justify-center">
-                            <Package size={14} className="text-tppslate" />
+                            <Truck size={14} className="text-tppslate" />
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-gray-800">Standard</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-semibold text-gray-800">Standard</p>
+                            </div>
                             <p className="text-xs text-gray-500">Regular delivery</p>
                           </div>
                         </div>
@@ -541,7 +515,66 @@ const DeliverySection = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* Express Option - Shows Extra Charge Only */}
+                    {pinCheckResult.rawData?.deliveryOptions?.express && (
+                      <div className="p-3 bg-pink-50/50 hover:bg-pink-50 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-tpppink/20 rounded-full flex items-center justify-center">
+                              <Plane size={16} className="text-tpppink" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-sm font-semibold text-gray-800">Express</p>
+                              </div>
+                              <p className="text-xs text-gray-500">Priority delivery</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-tpppink">
+                              {pinCheckResult.rawData.deliveryOptions.express.estimatedDays} {pinCheckResult.rawData.deliveryOptions.express.estimatedDays === 1 ? 'day' : 'days'}
+                            </p>
+                            {pinCheckResult.rawData.deliveryOptions.express.deliveryDate && (
+                              <p className="text-xs text-gray-500">
+                                by {new Date(pinCheckResult.rawData.deliveryOptions.express.deliveryDate).toLocaleDateString('en-IN', { 
+                                  day: 'numeric',
+                                  month: 'short'
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Price Difference Badge - Extra Charges */}
+                        {pinCheckResult.rawData.deliveryOptions.express.extraCharge && (
+                          <div className="mt-2 pt-2 border-t border-pink-100">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-gray-600">Express charges:</span>
+                              <div className="flex items-center gap-1">
+                                <span className="font-semibold text-tpppink">
+                                  {pinCheckResult.rawData.deliveryOptions.express.extraChargeFormatted}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
+
+                  {/* Price Comparison Summary - Simplified */}
+                  {pinCheckResult.rawData?.priceDifference && (
+                    <div className="font-inter bg-yellow-50 border-t border-yellow-100 px-3 py-2">
+                      <div className="flex items-center gap-1.5">
+                        <AlertCircle size={12} className="text-yellow-600 flex-shrink-0" />
+                        <p className="text-xs text-yellow-700">
+                          <span className="font-semibold">Express delivery:</span>{' '}
+                          <span className="font-bold">{pinCheckResult.rawData.priceDifference.formatted}</span> extra charges apply
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 /* Fallback when TAT is not available */
@@ -562,7 +595,7 @@ const DeliverySection = () => {
                   {pinCheckResult.features.cod && (
                     <div className="flex items-center gap-1 px-2 py-1 bg-green-50 border border-green-200 rounded text-xs text-green-700 font-medium">
                       <CheckCircle size={10} />
-                      <span>COD Available</span>
+                      <span>COD Currently Not Available</span>
                     </div>
                   )}
                   {pinCheckResult.features.prepaid && (
@@ -591,9 +624,8 @@ const DeliverySection = () => {
       
       {(!pinCheckResult || pinCheckResult.serviceable) && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-2.5 flex items-center gap-2">
-          <Truck size={16} className="text-green-600 flex-shrink-0" />
           <div>
-            <p className="text-xs font-bold text-green-700">FREE SHIPPING</p>
+            <p className="text-xs font-bold text-green-700">FREE STANDARD SHIPPING</p>
             <p className="text-xs text-green-600">On all PREPAID orders</p>
           </div>
         </div>

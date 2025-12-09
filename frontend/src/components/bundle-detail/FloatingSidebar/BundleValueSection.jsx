@@ -42,8 +42,8 @@ const BundleValueSection = ({ bundle, items = [] }) => {
           
           {hasSavings && (
             <div className="text-right">
-              <p className="text-xs text-green-600 font-semibold">Save ₹{savingsAmount.toFixed(0)}</p>
-              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">
+              <p className="font-inter text-xs text-green-600 font-semibold">Save ₹{savingsAmount.toFixed(0)}</p>
+              <span className="font-inter text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">
                 {savingsPercent}% OFF
               </span>
             </div>
