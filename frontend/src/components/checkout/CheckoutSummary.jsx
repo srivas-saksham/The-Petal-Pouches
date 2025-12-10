@@ -1,11 +1,8 @@
-// frontend/src/components/checkout/CheckoutSummary.jsx - WITH LOCALSTORAGE AUTO-LOAD FIX
+// frontend/src/components/checkout/CheckoutSummary.jsx - WITHOUT DELIVERY DETAILS CARD
 
-import React, { useState, useEffect } from 'react';
-import { Lock, Truck, Gift, ChevronDown, ChevronUp, CheckCircle, AlertCircle, Loader } from 'lucide-react';
+import React, { useState } from 'react';
+import { Lock, Truck, Gift, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatBundlePrice } from '../../utils/bundleHelpers';
-import { getDeliveryData, saveDeliveryData, getStoredAddressId } from '../../utils/deliveryStorage';
-import api from '../../services/api';
-import DeliveryDetailsCard from './DeliveryDetailsCard';
 
 /**
  * CheckoutSummary Component
@@ -13,7 +10,7 @@ import DeliveryDetailsCard from './DeliveryDetailsCard';
  * Sticky on desktop, scrolls on mobile
  * ⭐ Dynamically calculates totals from cart items
  * ⭐ Place Order integration
- * ✅ Auto-loads stored address from localStorage on mount
+ * ✅ DeliveryDetailsCard moved to Checkout page
  */
 const CheckoutSummary = ({
   cartItems = [],
@@ -24,101 +21,15 @@ const CheckoutSummary = ({
   discount = 0,
   onDiscountChange,
   selectedAddress = null,
-  onAddressSelect = null,
-  addresses = [],
   currentStep = 'review',
   onStepChange,
-  user = null,
   onPlaceOrder = null,
   placingOrder = false,
+  expressCharge = 0,
 }) => {
   const [promoInput, setPromoInput] = useState('');
   const [applyingPromo, setApplyingPromo] = useState(false);
   const [priceBreakdownOpen, setPriceBreakdownOpen] = useState(true);
-  const [deliveryInfo, setDeliveryInfo] = useState(null);
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-
-  // ✅ CRITICAL FIX: Load and auto-select address from localStorage FIRST
-  useEffect(() => {
-    const loadStoredAddress = () => {
-      if (addresses.length === 0 || !onAddressSelect) {
-        return;
-      }
-
-      // Only run once when addresses are first loaded
-      if (initialLoadComplete) {
-        return;
-      }
-
-      console.log('🔍 [CheckoutSummary] Loading stored address from localStorage');
-      
-      // Get stored address ID
-      const storedAddressId = getStoredAddressId();
-      
-      if (storedAddressId) {
-        // Try to find the stored address
-        const storedAddress = addresses.find(a => a.id === storedAddressId);
-        if (storedAddress) {
-          console.log('✅ [CheckoutSummary] Found stored address, auto-selecting:', storedAddress);
-          onAddressSelect(storedAddress);
-          setInitialLoadComplete(true);
-          return;
-        } else {
-          console.log('⚠️ [CheckoutSummary] Stored address ID not found in address list');
-        }
-      }
-
-      // Fallback: Select default or first address
-      if (!selectedAddress) {
-        const defaultAddr = addresses.find(a => a.is_default);
-        if (defaultAddr) {
-          console.log('✅ [CheckoutSummary] Auto-selecting default address:', defaultAddr);
-          onAddressSelect(defaultAddr);
-        } else if (addresses.length > 0) {
-          console.log('✅ [CheckoutSummary] Auto-selecting first address:', addresses[0]);
-          onAddressSelect(addresses[0]);
-        }
-      }
-      
-      setInitialLoadComplete(true);
-    };
-
-    loadStoredAddress();
-  }, [addresses.length, initialLoadComplete]);
-
-  // ✅ Load delivery data from localStorage
-  useEffect(() => {
-    const loadStoredDeliveryData = () => {
-      const storedData = getDeliveryData();
-      if (!storedData) {
-        console.log('📭 [CheckoutSummary] No stored delivery data');
-        return;
-      }
-
-      console.log('📦 [CheckoutSummary] Found stored delivery data:', storedData);
-
-      // Load delivery check data
-      if (storedData.deliveryCheck) {
-        setDeliveryInfo(storedData.deliveryCheck);
-      }
-    };
-
-    loadStoredDeliveryData();
-  }, []);
-
-  // ✅ Handle delivery updates from DeliveryDetailsCard
-  const handleDeliveryUpdate = (updatedDeliveryData) => {
-    console.log('🔄 [CheckoutSummary] Delivery data updated:', updatedDeliveryData);
-    setDeliveryInfo(updatedDeliveryData);
-    
-    // Update localStorage with fresh data
-    const currentStoredData = getDeliveryData() || {};
-    saveDeliveryData({
-      ...currentStoredData,
-      deliveryCheck: updatedDeliveryData,
-      timestamp: Date.now()
-    });
-  };
 
   // Calculate subtotal
   const subtotal = cartItems.reduce((total, item) => {
@@ -127,7 +38,8 @@ const CheckoutSummary = ({
   }, 0);
 
   const tax = Math.round(subtotal * 0.18); // 18% GST
-  const shipping = 50; // Fixed shipping
+  const baseShipping = 50; // Base shipping cost
+  const shipping = baseShipping + expressCharge; // Add express charge if selected
   const discountAmount = discount;
   const total = subtotal + tax + shipping - discountAmount;
 
@@ -157,15 +69,6 @@ const CheckoutSummary = ({
 
   return (
     <div className="sticky top-20 space-y-4">
-      {/* ✅ Delivery Details Card - Shows TAT, verification AND address selector */}
-      <DeliveryDetailsCard 
-        selectedAddress={selectedAddress}
-        onAddressSelect={onAddressSelect}
-        addresses={addresses}
-        onDeliveryUpdate={handleDeliveryUpdate}
-        onStepChange={onStepChange}
-      />
-
       {/* Order Summary Card */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         {/* Header */}
@@ -206,15 +109,22 @@ const CheckoutSummary = ({
                 </span>
               </div>
 
-              {/* Shipping */}
+              {/* Shipping with breakdown */}
               <div className="flex justify-between text-sm">
                 <div className="flex items-center gap-1">
                   <Truck size={14} className="text-gray-400" />
                   <span className="text-gray-600">Shipping</span>
                 </div>
-                <span className="font-medium text-gray-900">
-                  {formatBundlePrice(shipping)}
-                </span>
+                <div className="text-right">
+                  <span className="font-medium text-gray-900">
+                    {formatBundlePrice(shipping)}
+                  </span>
+                  {expressCharge > 0 && (
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      (Base: {formatBundlePrice(baseShipping)} + Express: {formatBundlePrice(expressCharge)})
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Discount */}

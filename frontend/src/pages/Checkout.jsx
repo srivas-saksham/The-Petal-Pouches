@@ -1,4 +1,4 @@
-// frontend/src/pages/Checkout.jsx - FIXED: Address object instead of ID
+// frontend/src/pages/Checkout.jsx - WITH DELIVERY DETAILS CARD BELOW CART
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -9,18 +9,20 @@ import { useToast } from '../hooks/useToast';
 import CheckoutCart from '../components/checkout/CheckoutCart';
 import CheckoutSummary from '../components/checkout/CheckoutSummary';
 import CheckoutForm from '../components/checkout/CheckoutForm';
+import DeliveryDetailsCard from '../components/checkout/DeliveryDetailsCard';
 import bundleService from '../services/bundleService';
 import { getAddresses } from '../services/addressService';
 import { createOrder } from '../services/orderService';
 import { formatBundlePrice } from '../utils/bundleHelpers';
-import { getStoredAddressId } from '../utils/deliveryStorage';
+import { getStoredAddressId, saveDeliveryData, getDeliveryData } from '../utils/deliveryStorage';
 
 /**
  * Checkout Page - Main component
  * Displays cart items on left, price breakdown on right
+ * DeliveryDetailsCard positioned below cart items
  * Fetches bundle details for all cart items
- * Handles order placement
- * ✅ FIXED: Stores full address object, not just ID
+ * Handles order placement with delivery mode metadata
+ * ✅ All delivery-related functionality managed here
  */
 const Checkout = () => {
   const navigate = useNavigate();
@@ -28,15 +30,21 @@ const Checkout = () => {
   const { user, isAuthenticated } = useUserAuth();
   const { cartItems, cartTotals, loading: cartLoading, refreshCart } = useCart();
 
-  const [bundles, setBundles] = useState({}); // { bundleId: bundleData }
+  const [bundles, setBundles] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedAddress, setSelectedAddress] = useState(null); // ✅ FIXED: Now stores full address object
+  const [selectedAddress, setSelectedAddress] = useState(null);
   const [addresses, setAddresses] = useState([]);
   const [promoCode, setPromoCode] = useState('');
   const [discount, setDiscount] = useState(0);
-  const [currentStep, setCurrentStep] = useState('review'); // review -> shipping -> payment
+  const [currentStep, setCurrentStep] = useState('review');
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+
+  // ✅ Delivery state management
+  const [deliveryInfo, setDeliveryInfo] = useState(null);
+  const [deliveryModeData, setDeliveryModeData] = useState(null);
+  const [expressCharge, setExpressCharge] = useState(0);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -45,7 +53,7 @@ const Checkout = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // ✅ FIXED: Fetch addresses and auto-select from localStorage
+  // ✅ Fetch addresses and auto-select from localStorage
   useEffect(() => {
     const fetchAddressesData = async () => {
       try {
@@ -53,7 +61,14 @@ const Checkout = () => {
         if (result.success) {
           setAddresses(result.data);
           
-          // ✅ Try to restore address from localStorage first
+          // Only run auto-select once
+          if (initialLoadComplete) {
+            return;
+          }
+
+          console.log('🔍 [Checkout] Loading stored address from localStorage');
+          
+          // Try to restore address from localStorage first
           const storedAddressId = getStoredAddressId();
           let addressToSelect = null;
 
@@ -61,6 +76,8 @@ const Checkout = () => {
             addressToSelect = result.data.find(a => a.id === storedAddressId);
             if (addressToSelect) {
               console.log('✅ [Checkout] Restored address from localStorage:', addressToSelect);
+            } else {
+              console.log('⚠️ [Checkout] Stored address ID not found in address list');
             }
           }
 
@@ -77,8 +94,10 @@ const Checkout = () => {
           }
 
           if (addressToSelect) {
-            setSelectedAddress(addressToSelect); // ✅ Store full object
+            setSelectedAddress(addressToSelect);
           }
+
+          setInitialLoadComplete(true);
         }
       } catch (err) {
         console.error('❌ Error fetching addresses:', err);
@@ -88,7 +107,33 @@ const Checkout = () => {
     if (isAuthenticated) {
       fetchAddressesData();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, initialLoadComplete]);
+
+  // ✅ Load delivery data from localStorage on mount
+  useEffect(() => {
+    const loadStoredDeliveryData = () => {
+      const storedData = getDeliveryData();
+      if (!storedData) {
+        console.log('📭 [Checkout] No stored delivery data');
+        return;
+      }
+
+      console.log('📦 [Checkout] Found stored delivery data:', storedData);
+
+      // Load delivery check data
+      if (storedData.deliveryCheck) {
+        setDeliveryInfo(storedData.deliveryCheck);
+      }
+
+      // Load delivery mode data
+      if (storedData.deliveryModeData) {
+        setDeliveryModeData(storedData.deliveryModeData);
+        setExpressCharge(storedData.deliveryModeData.extraCharge || 0);
+      }
+    };
+
+    loadStoredDeliveryData();
+  }, []);
 
   // Fetch bundle details for all cart items
   useEffect(() => {
@@ -135,28 +180,54 @@ const Checkout = () => {
     }
   }, [cartLoading, cartItems.length, navigate]);
 
-  // Handle back button
   const handleGoBack = () => {
     navigate('/shop');
   };
 
-  // Handle step changes
   const handleNextStep = (step) => {
     setCurrentStep(step);
   };
 
-  // Handle quantity changes without full refresh
   const handleQuantityChange = (cartItemId, newQuantity) => {
     console.log(`📦 Quantity changed for ${cartItemId}: ${newQuantity}`);
   };
 
-  // ✅ FIXED: Handle address selection - receives full address object
   const handleAddressSelect = (address) => {
     console.log('📍 [Checkout] Address selected:', address);
-    setSelectedAddress(address); // Store full object
+    setSelectedAddress(address);
   };
 
-  // ⭐ Handle Place Order
+  // ✅ Handle delivery updates from DeliveryDetailsCard
+  const handleDeliveryUpdate = (updatedDeliveryData) => {
+    console.log('🔄 [Checkout] Delivery data updated:', updatedDeliveryData);
+    setDeliveryInfo(updatedDeliveryData);
+    
+    // Update localStorage with fresh data
+    const currentStoredData = getDeliveryData() || {};
+    saveDeliveryData({
+      ...currentStoredData,
+      deliveryCheck: updatedDeliveryData,
+      timestamp: Date.now()
+    });
+  };
+
+  // ✅ Handle delivery mode changes from DeliveryDetailsCard
+  const handleDeliveryModeChange = (modeData) => {
+    console.log('🚚 [Checkout] Delivery mode changed:', modeData);
+    setDeliveryModeData(modeData);
+    setExpressCharge(modeData.extraCharge || 0);
+
+    // Save to localStorage
+    const currentStoredData = getDeliveryData() || {};
+    saveDeliveryData({
+      ...currentStoredData,
+      selectedDeliveryMode: modeData.mode,
+      deliveryModeData: modeData,
+      timestamp: Date.now()
+    });
+  };
+
+  // ⭐ Enhanced Place Order with delivery metadata
   const handlePlaceOrder = async () => {
     if (!selectedAddress) {
       toast.error('Please select a delivery address');
@@ -171,16 +242,33 @@ const Checkout = () => {
     try {
       setPlacingOrder(true);
 
-      // Create order with address ID
+      // ✅ Get delivery mode data from state or localStorage
+      const storedData = getDeliveryData();
+      const deliveryMode = deliveryModeData?.mode || storedData?.selectedDeliveryMode || 'surface';
+      const finalDeliveryModeData = deliveryModeData || storedData?.deliveryModeData;
+
+      console.log('📦 [Checkout] Delivery metadata:', {
+        mode: deliveryMode,
+        data: finalDeliveryModeData
+      });
+
+      // Create order with address ID and delivery metadata
       const orderData = {
-        address_id: selectedAddress.id, // ✅ Use address.id from full object
+        address_id: selectedAddress.id,
         payment_method: 'cod',
         notes: '',
         gift_wrap: false,
-        gift_message: null
+        gift_message: null,
+        // ✅ Add delivery metadata to order
+        delivery_metadata: {
+          mode: deliveryMode,
+          estimated_days: finalDeliveryModeData?.estimatedDays,
+          expected_delivery_date: finalDeliveryModeData?.deliveryDate || finalDeliveryModeData?.expectedDeliveryDate,
+          express_charge: finalDeliveryModeData?.extraCharge || 0
+        }
       };
 
-      console.log('📦 Placing order with data:', orderData);
+      console.log('📦 [Checkout] Placing order with data:', orderData);
 
       const response = await createOrder(orderData);
 
@@ -189,7 +277,17 @@ const Checkout = () => {
         
         console.log('✅ Order placed successfully:', orderId);
         
-        // Show success toast
+        // Save order metadata to localStorage for OrderSuccess page
+        const orderMetadata = {
+          orderId: orderId,
+          deliveryMode: deliveryMode,
+          deliveryModeData: finalDeliveryModeData,
+          timestamp: Date.now()
+        };
+        
+        localStorage.setItem('tpp_last_order', JSON.stringify(orderMetadata));
+        console.log('💾 [Checkout] Saved order metadata for success page');
+        
         toast.success('Order placed successfully!');
         
         // Refresh cart (will be empty now)
@@ -214,7 +312,7 @@ const Checkout = () => {
       } else if (error.response?.data?.code === 'CART_EMPTY') {
         toast.error('Your cart is empty');
       } else {
-        toast.error('Failed to place order. Please try again.');
+        toast.error(error.response?.data?.message || 'Failed to place order. Please try again.');
       }
     } finally {
       setPlacingOrder(false);
@@ -222,7 +320,7 @@ const Checkout = () => {
   };
 
   if (!isAuthenticated) {
-    return null; // Redirect happening in effect
+    return null;
   }
 
   if (cartLoading || loading) {
@@ -237,7 +335,13 @@ const Checkout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50"
+      style={{
+        backgroundImage: 'url(/assets/doodle_bg.png)',
+        backgroundRepeat: 'repeat',
+        backgroundSize: 'auto',
+      }}
+    >
       {/* Header */}
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -265,13 +369,24 @@ const Checkout = () => {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Cart Items (2/3 width) */}
-          <div className="lg:col-span-2">
+          {/* Left Column - Cart Items + Delivery Details */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Cart Items */}
             <CheckoutCart
               cartItems={cartItems}
               bundles={bundles}
               onItemUpdate={refreshCart}
               onQuantityChange={handleQuantityChange}
+            />
+
+            {/* ✅ Delivery Details Card - Below Cart Items */}
+            <DeliveryDetailsCard 
+              selectedAddress={selectedAddress}
+              onAddressSelect={handleAddressSelect}
+              addresses={addresses}
+              onDeliveryUpdate={handleDeliveryUpdate}
+              onStepChange={handleNextStep}
+              onDeliveryModeChange={handleDeliveryModeChange}
             />
 
             {/* Shipping Form */}
@@ -285,7 +400,7 @@ const Checkout = () => {
             )}
           </div>
 
-          {/* Right Column - Order Summary (1/3 width) */}
+          {/* Right Column - Order Summary */}
           <div className="lg:col-span-1">
             <CheckoutSummary
               cartItems={cartItems}
@@ -295,14 +410,12 @@ const Checkout = () => {
               onPromoCodeChange={setPromoCode}
               discount={discount}
               onDiscountChange={setDiscount}
-              selectedAddress={selectedAddress} // ✅ Pass full address object
-              onAddressSelect={handleAddressSelect} // ✅ Updated callback
-              addresses={addresses}
+              selectedAddress={selectedAddress}
               currentStep={currentStep}
               onStepChange={handleNextStep}
-              user={user}
               onPlaceOrder={handlePlaceOrder}
               placingOrder={placingOrder}
+              expressCharge={expressCharge}
             />
           </div>
         </div>

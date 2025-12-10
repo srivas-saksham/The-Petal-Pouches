@@ -1,4 +1,4 @@
-// frontend/src/components/checkout/DeliveryDetailsCard.jsx - FIXED DUPLICATE AUTO-SELECT
+// frontend/src/components/checkout/DeliveryDetailsCard.jsx - WITH INTEGRATED DELIVERY SELECTION
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Truck, Package, MapPin, Calendar, AlertCircle, CheckCircle, Loader, Plane, ChevronDown, ChevronUp, Home, Briefcase, Plus } from 'lucide-react';
@@ -11,19 +11,22 @@ import api from '../../services/api';
  * Performs silent background verification of delivery data
  * ✅ Address selector UI + localStorage persistence
  * ✅ No duplicate auto-selection (handled by parent)
+ * ✅ Integrated delivery mode selection (Standard/Express)
  * 
  * @param {Object} selectedAddress - Currently selected delivery address
  * @param {Function} onAddressSelect - Callback when address is selected
  * @param {Array} addresses - List of available addresses
  * @param {Function} onDeliveryUpdate - Callback when delivery data changes
  * @param {Function} onStepChange - Callback to change checkout step
+ * @param {Function} onDeliveryModeChange - Callback when delivery mode changes
  */
 const DeliveryDetailsCard = ({ 
   selectedAddress, 
   onAddressSelect,
   addresses = [],
   onDeliveryUpdate,
-  onStepChange 
+  onStepChange,
+  onDeliveryModeChange
 }) => {
   const [deliveryData, setDeliveryData] = useState(null);
   const [verifying, setVerifying] = useState(false);
@@ -35,12 +38,23 @@ const DeliveryDetailsCard = ({
   const [showAddressList, setShowAddressList] = useState(false);
   const addressListRef = useRef(null);
 
+  // ✅ NEW: Delivery mode selection state
+  const [selectedMode, setSelectedMode] = useState('surface'); // 'surface' or 'express'
+  const [isChangingMode, setIsChangingMode] = useState(false);
+
   // Load delivery data from localStorage on mount
   useEffect(() => {
     const storedCheck = getStoredDeliveryCheck();
     if (storedCheck) {
       console.log('📦 [DeliveryDetailsCard] Loaded stored delivery data:', storedCheck);
       setDeliveryData(storedCheck);
+    }
+
+    // ✅ Load saved delivery mode
+    const storedData = getDeliveryData();
+    if (storedData?.selectedDeliveryMode) {
+      setSelectedMode(storedData.selectedDeliveryMode);
+      console.log('✅ [DeliveryDetailsCard] Restored delivery mode:', storedData.selectedDeliveryMode);
     }
   }, []);
 
@@ -58,6 +72,28 @@ const DeliveryDetailsCard = ({
       verifyDeliveryInBackground(selectedAddress.zip_code, deliveryData);
     }
   }, [selectedAddress?.id, selectedAddress?.zip_code]);
+
+  // ✅ NEW: Notify parent when mode changes
+  useEffect(() => {
+    if (!deliveryData?.rawData?.deliveryOptions) return;
+
+    const options = deliveryData.rawData.deliveryOptions;
+    const selectedOption = options[selectedMode];
+
+    if (selectedOption && onDeliveryModeChange) {
+      const extraCharge = selectedMode === 'express' && options.express?.extraCharge 
+        ? options.express.extraCharge 
+        : 0;
+
+      onDeliveryModeChange({
+        mode: selectedMode,
+        estimatedDays: selectedOption.estimatedDays,
+        deliveryDate: selectedOption.deliveryDate,
+        extraCharge: extraCharge,
+        option: selectedOption
+      });
+    }
+  }, [selectedMode, deliveryData, onDeliveryModeChange]);
 
   /**
    * Silent background verification of delivery serviceability
@@ -146,6 +182,30 @@ const DeliveryDetailsCard = ({
       timestamp: Date.now()
     });
     console.log('💾 [DeliveryDetailsCard] Saved address selection to localStorage');
+  };
+
+  // ✅ NEW: Handle delivery mode change
+  const handleModeChange = async (mode) => {
+    if (isChangingMode || mode === selectedMode) return;
+
+    try {
+      setIsChangingMode(true);
+      setSelectedMode(mode);
+
+      // Save to localStorage
+      const currentStoredData = getDeliveryData() || {};
+      await saveDeliveryData({
+        ...currentStoredData,
+        selectedDeliveryMode: mode,
+        timestamp: Date.now()
+      });
+
+      console.log('💾 [DeliveryDetailsCard] Saved delivery mode:', mode);
+    } catch (error) {
+      console.error('❌ [DeliveryDetailsCard] Error saving mode:', error);
+    } finally {
+      setIsChangingMode(false);
+    }
   };
 
   // Get address icon
@@ -376,101 +436,118 @@ const DeliveryDetailsCard = ({
               </div>
             )}
 
-            {/* Delivery Options */}
+            {/* ✅ ENHANCED: Delivery Options with Selection */}
             {deliveryData.rawData?.deliveryOptions && (
               <div className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-gray-100 px-4 py-2 border-b border-gray-200">
-                  <p className="text-sm font-semibold text-gray-700">Estimated Delivery</p>
+                <div className="bg-gray-100 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-700">Choose Delivery Speed</p>
+                  <p className="text-sm font-semibold text-gray-700">
+                    {selectedMode === 'express' ? 'Express' : 'Standard'}
+                  </p>
                 </div>
 
                 <div className="divide-y divide-gray-100">
                   {/* Standard/Surface Delivery */}
                   {deliveryData.rawData.deliveryOptions.surface && (
-                    <div className="p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-tppslate/10 rounded-full flex items-center justify-center">
-                          <Truck size={18} className="text-tppslate" />
+                    <button
+                      onClick={() => handleModeChange('surface')}
+                      disabled={isChangingMode}
+                      className={`w-full p-4 flex items-center justify-between text-left transition-all ${
+                        selectedMode === 'surface'
+                          ? 'bg-tpppink/5 border-l-4 border-tpppink'
+                          : 'hover:bg-gray-50 border-l-4 border-transparent'
+                      } ${isChangingMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          selectedMode === 'surface' ? 'bg-tppslate/20' : 'bg-gray-100'
+                        }`}>
+                          <Truck size={18} className={selectedMode === 'surface' ? 'text-tppslate' : 'text-gray-400'} />
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800">Standard Delivery</p>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-sm font-semibold text-gray-800">Standard Delivery</p>
+                          </div>
                           <p className="text-xs text-gray-500">Regular shipping</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-base font-bold text-tppslate">
-                          {deliveryData.rawData.deliveryOptions.surface.estimatedDays}{' '}
-                          {deliveryData.rawData.deliveryOptions.surface.estimatedDays === 1 ? 'day' : 'days'}
-                        </p>
-                        {deliveryData.rawData.deliveryOptions.surface.deliveryDate && (
-                          <p className="text-xs text-gray-500">
-                            by {new Date(deliveryData.rawData.deliveryOptions.surface.deliveryDate).toLocaleDateString('en-IN', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric'
-                            })}
+                      <div className="text-right flex items-center gap-3">
+                        <div>
+                          <p className="text-base font-bold text-tppslate">
+                            {deliveryData.rawData.deliveryOptions.surface.estimatedDays}{' '}
+                            {deliveryData.rawData.deliveryOptions.surface.estimatedDays === 1 ? 'day' : 'days'}
                           </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Express Delivery */}
-                  {deliveryData.rawData.deliveryOptions.express && (
-                    <div className="p-4 bg-pink-50/50">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-tpppink/20 rounded-full flex items-center justify-center">
-                            <Plane size={18} className="text-tpppink" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-gray-800">Express Delivery</p>
-                            <p className="text-xs text-gray-500">Priority shipping</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-base font-bold text-tpppink">
-                            {deliveryData.rawData.deliveryOptions.express.estimatedDays}{' '}
-                            {deliveryData.rawData.deliveryOptions.express.estimatedDays === 1 ? 'day' : 'days'}
-                          </p>
-                          {deliveryData.rawData.deliveryOptions.express.deliveryDate && (
+                          {deliveryData.rawData.deliveryOptions.surface.deliveryDate && (
                             <p className="text-xs text-gray-500">
-                              by {new Date(deliveryData.rawData.deliveryOptions.express.deliveryDate).toLocaleDateString('en-IN', {
+                              by {new Date(deliveryData.rawData.deliveryOptions.surface.deliveryDate).toLocaleDateString('en-IN', {
                                 day: 'numeric',
-                                month: 'short',
-                                year: 'numeric'
+                                month: 'short'
                               })}
                             </p>
                           )}
                         </div>
                       </div>
+                    </button>
+                  )}
 
-                      {/* Extra Charges */}
+                  {/* Express Delivery */}
+                  {deliveryData.rawData.deliveryOptions.express && (
+                    <button
+                      onClick={() => handleModeChange('express')}
+                      disabled={isChangingMode}
+                      className={`w-full p-4 transition-all ${
+                        selectedMode === 'express'
+                          ? 'bg-tpppink/5 border-l-4 border-tpppink'
+                          : 'hover:bg-gray-50 border-l-4 border-transparent'
+                      } ${isChangingMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            selectedMode === 'express' ? 'bg-tpppink/20' : 'bg-gray-100'
+                          }`}>
+                            <Plane size={18} className={selectedMode === 'express' ? 'text-tpppink' : 'text-gray-400'} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="text-sm text-left font-semibold text-gray-800">Express Delivery</p>
+                            </div>
+                            <p className="text-xs text-left text-gray-500">Priority shipping</p>
+                          </div>
+                        </div>
+                        <div className="text-right flex items-center gap-3">
+                          <div>
+                            <p className="text-base font-bold text-tpppink">
+                              {deliveryData.rawData.deliveryOptions.express.estimatedDays}{' '}
+                              {deliveryData.rawData.deliveryOptions.express.estimatedDays === 1 ? 'day' : 'days'}
+                            </p>
+                            {deliveryData.rawData.deliveryOptions.express.deliveryDate && (
+                              <p className="text-xs text-gray-500">
+                                by {new Date(deliveryData.rawData.deliveryOptions.express.deliveryDate).toLocaleDateString('en-IN', {
+                                  day: 'numeric',
+                                  month: 'short'
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Extra Charges in Express Option */}
                       {deliveryData.rawData.deliveryOptions.express.extraCharge && (
                         <div className="pt-3 border-t border-pink-100">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-gray-600">Express charges:</span>
-                            <span className="font-semibold text-tpppink">
-                              {deliveryData.rawData.deliveryOptions.express.extraChargeFormatted}
-                            </span>
+                          <div className="flex items-center gap-2">
+                            <AlertCircle size={14} className="text-amber-600 flex-shrink-0" />
+                            <p className="text-xs text-amber-700">
+                              <span className="font-semibold">Express delivery:</span>{' '}
+                              <span className="font-bold">{deliveryData.rawData.priceDifference.formatted}</span> extra charges apply
+                            </p>
                           </div>
                         </div>
                       )}
-                    </div>
+                    </button>
                   )}
                 </div>
-
-                {/* Price Difference Note */}
-                {deliveryData.rawData.priceDifference && (
-                  <div className="bg-yellow-50 border-t border-yellow-100 px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <AlertCircle size={14} className="text-yellow-600 flex-shrink-0" />
-                      <p className="text-xs text-yellow-700">
-                        <span className="font-semibold">Express delivery:</span>{' '}
-                        <span className="font-bold">{deliveryData.rawData.priceDifference.formatted}</span> extra charges apply
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 

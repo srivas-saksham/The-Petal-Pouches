@@ -1,8 +1,8 @@
-// frontend/src/pages/OrderSuccess.jsx - ENHANCED PROFESSIONAL UI
+// frontend/src/pages/OrderSuccess.jsx - WITH ACTUAL DELIVERY DETAILS
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { CheckCircle, Package, MapPin, CreditCard, ArrowRight, Home, Truck, Calendar, DollarSign, Box, Clock } from 'lucide-react';
+import { CheckCircle, Package, MapPin, CreditCard, ArrowRight, Home, Truck, Calendar, DollarSign, Box, Clock, Plane } from 'lucide-react';
 import { getOrderById } from '../services/orderService';
 import { useToast } from '../hooks/useToast';
 
@@ -12,9 +12,11 @@ const OrderSuccess = () => {
   const toast = useToast();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [deliveryMetadata, setDeliveryMetadata] = useState(null);
 
   useEffect(() => {
     loadOrder();
+    loadDeliveryMetadata();
   }, [orderId]);
 
   const loadOrder = async () => {
@@ -37,6 +39,22 @@ const OrderSuccess = () => {
     }
   };
 
+  // ✅ Load delivery metadata from localStorage
+  const loadDeliveryMetadata = () => {
+    try {
+      const savedMetadata = localStorage.getItem('tpp_last_order');
+      if (savedMetadata) {
+        const parsed = JSON.parse(savedMetadata);
+        if (parsed.orderId === orderId) {
+          setDeliveryMetadata(parsed);
+          console.log('✅ [OrderSuccess] Loaded delivery metadata:', parsed);
+        }
+      }
+    } catch (error) {
+      console.error('❌ [OrderSuccess] Error loading delivery metadata:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -52,8 +70,24 @@ const OrderSuccess = () => {
     return null;
   }
 
-  const estimatedDelivery = new Date(order.created_at);
-  estimatedDelivery.setDate(estimatedDelivery.getDate() + 5);
+  // ✅ Calculate delivery dates from metadata
+  const deliveryMode = deliveryMetadata?.deliveryMode || order.delivery_metadata?.mode || 'surface';
+  const estimatedDays = deliveryMetadata?.deliveryModeData?.estimatedDays || 
+                        order.delivery_metadata?.estimated_days || 
+                        5;
+  const expectedDeliveryDate = deliveryMetadata?.deliveryModeData?.deliveryDate || 
+                               deliveryMetadata?.deliveryModeData?.expectedDeliveryDate ||
+                               order.delivery_metadata?.expected_delivery_date;
+
+  const estimatedDelivery = expectedDeliveryDate 
+    ? new Date(expectedDeliveryDate)
+    : (() => {
+        const date = new Date(order.created_at);
+        date.setDate(date.getDate() + estimatedDays);
+        return date;
+      })();
+
+  const isExpressDelivery = deliveryMode === 'express';
 
   return (
     <div 
@@ -66,9 +100,8 @@ const OrderSuccess = () => {
     >
       <div className="max-w-4xl mx-auto px-4">
         
-        {/* Success Header with Animation */}
+        {/* Success Header */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 mb-6 text-center relative overflow-hidden">
-          {/* Decorative Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-green-50 via-transparent to-transparent opacity-50"></div>
           
           <div className="relative z-10">
@@ -118,15 +151,21 @@ const OrderSuccess = () => {
           </div>
           
           <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-            <Clock className="w-5 h-5 text-tpppink mx-auto mb-2" />
-            <p className="text-2xl font-bold text-tppslate">5-7</p>
-            <p className="text-xs text-slate-500 font-medium">Days Delivery</p>
+            {isExpressDelivery ? (
+              <Plane className="w-5 h-5 text-tpppink mx-auto mb-2" />
+            ) : (
+              <Truck className="w-5 h-5 text-tpppink mx-auto mb-2" />
+            )}
+            <p className="text-2xl font-bold text-tppslate">{estimatedDays}</p>
+            <p className="text-xs text-slate-500 font-medium">
+              {estimatedDays === 1 ? 'Day' : 'Days'} Delivery
+            </p>
           </div>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
           
-          {/* Left Column - Order Details */}
+          {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
             
             {/* Bundle Summary */}
@@ -204,11 +243,52 @@ const OrderSuccess = () => {
               </div>
             </div>
 
-            {/* Delivery Timeline */}
+            {/* ✅ Enhanced Delivery Timeline with Actual Data */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
               <div className="flex items-center gap-2 mb-4">
-                <Truck className="w-4 h-4 text-tpppink" />
-                <h3 className="text-sm font-bold text-tppslate uppercase tracking-wide">Delivery Timeline</h3>
+                {isExpressDelivery ? (
+                  <>
+                    <Plane className="w-4 h-4 text-tpppink" />
+                    <h3 className="text-sm font-bold text-tppslate uppercase tracking-wide">Express Delivery Timeline</h3>
+                    <span className="ml-auto px-2 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">
+                      FAST
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Truck className="w-4 h-4 text-tpppink" />
+                    <h3 className="text-sm font-bold text-tppslate uppercase tracking-wide">Standard Delivery Timeline</h3>
+                  </>
+                )}
+              </div>
+
+              {/* ✅ Estimated Delivery Info Box */}
+              <div className={`mb-6 p-4 rounded-lg border-2 ${
+                isExpressDelivery 
+                  ? 'bg-amber-50 border-amber-200' 
+                  : 'bg-blue-50 border-blue-200'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <Calendar className={`w-5 h-5 ${isExpressDelivery ? 'text-amber-600' : 'text-blue-600'}`} />
+                  <div>
+                    <p className={`text-xs font-semibold uppercase tracking-wide ${
+                      isExpressDelivery ? 'text-amber-800' : 'text-blue-800'
+                    }`}>
+                      Expected Delivery
+                    </p>
+                    <p className={`text-lg font-bold ${isExpressDelivery ? 'text-amber-900' : 'text-blue-900'}`}>
+                      {estimatedDelivery.toLocaleDateString('en-IN', { 
+                        weekday: 'long',
+                        day: 'numeric', 
+                        month: 'long',
+                        year: 'numeric'
+                      })}
+                    </p>
+                    <p className={`text-xs ${isExpressDelivery ? 'text-amber-700' : 'text-blue-700'}`}>
+                      {estimatedDays} {estimatedDays === 1 ? 'business day' : 'business days'}
+                    </p>
+                  </div>
+                </div>
               </div>
               
               <div className="relative">
@@ -222,7 +302,14 @@ const OrderSuccess = () => {
                     </div>
                     <div className="pt-1">
                       <p className="text-sm font-semibold text-tppslate">Order Confirmed</p>
-                      <p className="text-xs text-slate-500">{new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                      <p className="text-xs text-slate-500">
+                        {new Date(order.created_at).toLocaleDateString('en-IN', { 
+                          month: 'short', 
+                          day: 'numeric',
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </p>
                     </div>
                   </div>
 
@@ -240,10 +327,16 @@ const OrderSuccess = () => {
                   {/* Shipped */}
                   <div className="flex items-start gap-4">
                     <div className="w-8 h-8 rounded-full bg-slate-100 border-2 border-slate-300 flex items-center justify-center flex-shrink-0 relative z-10">
-                      <Truck className="w-4 h-4 text-slate-400" />
+                      {isExpressDelivery ? (
+                        <Plane className="w-4 h-4 text-slate-400" />
+                      ) : (
+                        <Truck className="w-4 h-4 text-slate-400" />
+                      )}
                     </div>
                     <div className="pt-1">
-                      <p className="text-sm font-semibold text-slate-600">Shipped</p>
+                      <p className="text-sm font-semibold text-slate-600">
+                        {isExpressDelivery ? 'Express Shipped' : 'Shipped'}
+                      </p>
                       <p className="text-xs text-slate-400">Pending</p>
                     </div>
                   </div>
@@ -255,7 +348,12 @@ const OrderSuccess = () => {
                     </div>
                     <div className="pt-1">
                       <p className="text-sm font-semibold text-slate-600">Delivered</p>
-                      <p className="text-xs text-slate-400">Est. {estimatedDelivery.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                      <p className="text-xs text-slate-400">
+                        Est. {estimatedDelivery.toLocaleDateString('en-IN', { 
+                          month: 'short', 
+                          day: 'numeric' 
+                        })}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -263,7 +361,7 @@ const OrderSuccess = () => {
             </div>
           </div>
 
-          {/* Right Column - Address & Payment */}
+          {/* Right Column */}
           <div className="space-y-6">
             
             {/* Delivery Address */}
