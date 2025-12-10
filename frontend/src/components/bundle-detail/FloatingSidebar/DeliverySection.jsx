@@ -3,11 +3,14 @@ import { Truck, MapPin, Calendar, ChevronDown, ChevronUp, Plus, Home, Briefcase,
 import { useUserAuth } from '../../../context/UserAuthContext';
 import { getAddresses, createAddress } from '../../../services/addressService';
 import api from '../../../services/api';
+// ✅ NEW IMPORT
+import { saveDeliveryData, getDeliveryData, getStoredAddressId, getStoredPinCode } from '../../../utils/deliveryStorage';
 
 /**
  * DeliverySection - Delivery info with Delhivery PIN check and TAT
  * Shows default address for logged-in users or PIN code input for guests
  * Integrates with Delhivery API for serviceability and delivery estimates
+ * ✅ NOW WITH: localStorage persistence for seamless checkout flow
  */
 const DeliverySection = () => {
   const { isAuthenticated, user } = useUserAuth();
@@ -44,10 +47,36 @@ const DeliverySection = () => {
     address_type: 'home',
   });
 
+  // ==================== ✅ NEW: LOAD FROM LOCALSTORAGE ON MOUNT ====================
+  
+  useEffect(() => {
+    const loadStoredData = () => {
+      const storedData = getDeliveryData();
+      if (!storedData) return;
+
+      console.log('📦 [DeliverySection] Loading stored delivery data:', storedData);
+
+      // For guests: restore PIN code
+      if (!isAuthenticated && storedData.guestPinCode) {
+        setPinCode(storedData.guestPinCode);
+        console.log('👤 [Guest] Restored PIN:', storedData.guestPinCode);
+      }
+
+      // Restore delivery check result
+      if (storedData.deliveryCheck) {
+        setPinCheckResult(storedData.deliveryCheck);
+        console.log('✅ [DeliverySection] Restored delivery check result');
+      }
+    };
+
+    loadStoredData();
+  }, [isAuthenticated]);
+
   // ==================== DELHIVERY PIN CHECK ====================
   
   /**
    * Check PIN serviceability and TAT with Delhivery API
+   * ✅ NOW SAVES: Result to localStorage
    */
   const checkPinDelivery = async (pin) => {
     if (!pin || pin.length !== 6) {
@@ -114,6 +143,15 @@ const DeliverySection = () => {
           
           console.log('💾 Setting pin check result:', result);
           setPinCheckResult(result);
+
+          // ✅ NEW: Save to localStorage
+          const deliveryData = {
+            deliveryCheck: result,
+            guestPinCode: !isAuthenticated ? pin : undefined,
+            timestamp: Date.now()
+          };
+          saveDeliveryData(deliveryData);
+          console.log('💾 [DeliverySection] Saved delivery check to localStorage');
         } else {
           // PIN is not serviceable
           setPinCheckResult({
@@ -134,6 +172,7 @@ const DeliverySection = () => {
 
   /**
    * Auto-check PIN when address is selected (for logged-in users)
+   * ✅ NOW SAVES: Selected address to localStorage
    */
   useEffect(() => {
     if (selectedAddress && selectedAddress.zip_code) {
@@ -141,6 +180,13 @@ const DeliverySection = () => {
       if (pin.length === 6 && pin !== pinCode) {
         setPinCode(pin);
         checkPinDelivery(pin);
+
+        // ✅ NEW: Save selected address to localStorage
+        saveDeliveryData({
+          selectedAddressId: selectedAddress.id,
+          deliveryCheck: pinCheckResult
+        });
+        console.log('💾 [DeliverySection] Saved selected address to localStorage');
       }
     }
   }, [selectedAddress]);
@@ -148,6 +194,7 @@ const DeliverySection = () => {
   // ==================== ADDRESS MANAGEMENT ====================
 
   // Fetch addresses on mount if authenticated
+  // ✅ ENHANCED: Try to restore previously selected address
   useEffect(() => {
     if (isAuthenticated) {
       fetchAddresses();
@@ -160,12 +207,30 @@ const DeliverySection = () => {
       const result = await getAddresses();
       if (result.success && result.data) {
         setAddresses(result.data);
-        // Auto-select default address
-        const defaultAddr = result.data.find(a => a.is_default);
-        if (defaultAddr) {
-          setSelectedAddress(defaultAddr);
-        } else if (result.data.length > 0) {
-          setSelectedAddress(result.data[0]);
+        
+        // ✅ ENHANCED: Try to restore previously selected address
+        const storedAddressId = getStoredAddressId();
+        let addressToSelect = null;
+
+        if (storedAddressId) {
+          addressToSelect = result.data.find(a => a.id === storedAddressId);
+          if (addressToSelect) {
+            console.log('✅ [DeliverySection] Restored previously selected address:', addressToSelect);
+          }
+        }
+
+        // Fallback to default address
+        if (!addressToSelect) {
+          const defaultAddr = result.data.find(a => a.is_default);
+          if (defaultAddr) {
+            addressToSelect = defaultAddr;
+          } else if (result.data.length > 0) {
+            addressToSelect = result.data[0];
+          }
+        }
+
+        if (addressToSelect) {
+          setSelectedAddress(addressToSelect);
         }
       }
     } catch (error) {
@@ -176,9 +241,16 @@ const DeliverySection = () => {
   };
 
   // Handle address selection
+  // ✅ ENHANCED: Save to localStorage
   const handleAddressSelect = (address) => {
     setSelectedAddress(address);
     setShowAddressList(false);
+
+    // ✅ NEW: Save to localStorage
+    saveDeliveryData({
+      selectedAddressId: address.id
+    });
+    console.log('💾 [DeliverySection] Saved address selection to localStorage');
   };
 
   // Get address icon
@@ -217,6 +289,12 @@ const DeliverySection = () => {
         setAddresses([...addresses, result.data]);
         setSelectedAddress(result.data);
         setShowNewAddressModal(false);
+        
+        // ✅ NEW: Save to localStorage
+        saveDeliveryData({
+          selectedAddressId: result.data.id
+        });
+        
         // Reset form
         setNewAddressForm({
           line1: '',
@@ -631,7 +709,7 @@ const DeliverySection = () => {
         </div>
       )}
 
-      {/* New Address Modal (same as before) */}
+      {/* New Address Modal (unchanged) */}
       {showNewAddressModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div ref={modalRef} className="bg-white rounded-lg shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">

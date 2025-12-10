@@ -1,11 +1,11 @@
-// frontend/src/pages/user/Orders.jsx
+// frontend/src/pages/user/Orders.jsx - WITH REAL API
 
 import { useState, useEffect } from 'react';
 import { Package, Eye, Truck, ChevronRight, Filter, Search, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useUserAuth } from '../../context/UserAuthContext';
-
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+import { useToast } from '../../hooks/useToast';
+import { getOrders } from '../../services/orderService';
 
 // ==================== SKELETON COMPONENTS ====================
 
@@ -55,80 +55,54 @@ const Orders = () => {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 0
+  });
 
   const { token } = useUserAuth();
+  const toast = useToast();
 
   useEffect(() => {
     if (token) {
       fetchOrders();
     }
-  }, [token, statusFilter]);
+  }, [token, statusFilter, pagination.page]);
 
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const params = {
+        page: pagination.page,
+        limit: pagination.limit
+      };
 
-      // Mock data - replace with actual API call
-      // const response = await fetch(`${API_URL}/api/orders`, {
-      //   headers: {
-      //     'Authorization': `Bearer ${token}`,
-      //     'Content-Type': 'application/json',
-      //   },
-      // });
-      // const data = await response.json();
+      // Add status filter if not "all"
+      if (statusFilter !== 'all') {
+        params.status = statusFilter;
+      }
 
-      const mockOrders = [
-        {
-          id: 'ORD-001',
-          date: '2024-11-20',
-          status: 'delivered',
-          total: 2499,
-          items: 2,
-          payment_status: 'paid'
-        },
-        {
-          id: 'ORD-002',
-          date: '2024-11-18',
-          status: 'shipped',
-          total: 1899,
-          items: 1,
-          payment_status: 'paid'
-        },
-        {
-          id: 'ORD-003',
-          date: '2024-11-15',
-          status: 'processing',
-          total: 3499,
-          items: 3,
-          payment_status: 'paid'
-        },
-        {
-          id: 'ORD-004',
-          date: '2024-11-12',
-          status: 'pending',
-          total: 1299,
-          items: 1,
-          payment_status: 'paid'
-        },
-        {
-          id: 'ORD-005',
-          date: '2024-11-10',
-          status: 'cancelled',
-          total: 2199,
-          items: 2,
-          payment_status: 'refunded'
-        },
-      ];
-      
-      const filtered = statusFilter === 'all' 
-        ? mockOrders 
-        : mockOrders.filter(o => o.status === statusFilter);
-      
-      setOrders(filtered);
+      console.log('📦 Fetching orders with params:', params);
+
+      const response = await getOrders(params);
+
+      if (response.success) {
+        console.log('✅ Orders loaded:', response.data);
+        setOrders(response.data || []);
+        
+        // Update pagination if provided
+        if (response.pagination) {
+          setPagination(response.pagination);
+        }
+      } else {
+        console.error('❌ Failed to load orders:', response);
+        toast.error('Failed to load orders');
+      }
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      console.error('❌ Error fetching orders:', error);
+      toast.error('Failed to load orders');
     } finally {
       setLoading(false);
     }
@@ -137,10 +111,16 @@ const Orders = () => {
   const getStatusConfig = (status) => {
     const configs = {
       pending: { 
-        bg: 'bg-tppslate/10', 
-        text: 'text-tppslate', 
+        bg: 'bg-yellow-50', 
+        text: 'text-yellow-700', 
         label: 'Pending',
         icon: Clock
+      },
+      confirmed: { 
+        bg: 'bg-blue-50', 
+        text: 'text-blue-700', 
+        label: 'Confirmed',
+        icon: CheckCircle
       },
       processing: { 
         bg: 'bg-tpppink/10', 
@@ -149,14 +129,14 @@ const Orders = () => {
         icon: Package
       },
       shipped: { 
-        bg: 'bg-blue-50', 
-        text: 'text-blue-600', 
+        bg: 'bg-indigo-50', 
+        text: 'text-indigo-700', 
         label: 'Shipped',
         icon: Truck
       },
       delivered: { 
-        bg: 'bg-tppslate/20', 
-        text: 'text-tppslate', 
+        bg: 'bg-green-50', 
+        text: 'text-green-700', 
         label: 'Delivered',
         icon: CheckCircle
       },
@@ -171,21 +151,27 @@ const Orders = () => {
   };
 
   const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    try {
+      return new Date(dateStr).toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return 'N/A';
+    }
   };
 
   const formatCurrency = (amount) => {
-    return `₹${amount.toLocaleString('en-IN')}`;
+    const num = parseFloat(amount) || 0;
+    return `₹${num.toLocaleString('en-IN')}`;
   };
 
-  // Filter by search term
-  const filteredOrders = orders.filter(order => 
-    order.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter by search term (local search on loaded orders)
+  const filteredOrders = orders.filter(order => {
+    const orderId = order.id?.substring(0, 8).toUpperCase() || '';
+    return orderId.includes(searchTerm.toUpperCase());
+  });
 
   return (
     <div className="space-y-4">
@@ -221,11 +207,15 @@ const Orders = () => {
               <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tppslate/40" />
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPagination(prev => ({ ...prev, page: 1 })); // Reset to page 1
+                }}
                 className="w-full pl-9 pr-3 py-2 text-sm border border-tppslate/10 rounded-lg focus:outline-none focus:border-tpppink focus:ring-2 focus:ring-tpppink/20 transition-all appearance-none bg-white"
               >
                 <option value="all">All Orders</option>
                 <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
                 <option value="processing">Processing</option>
                 <option value="shipped">Shipped</option>
                 <option value="delivered">Delivered</option>
@@ -271,6 +261,8 @@ const Orders = () => {
           {filteredOrders.map((order) => {
             const statusConfig = getStatusConfig(order.status);
             const StatusIcon = statusConfig.icon;
+            const orderId = order.id?.substring(0, 8).toUpperCase() || '#N/A';
+            const itemCount = order.items?.length || order.items_preview?.length || 0;
 
             return (
               <div
@@ -280,9 +272,9 @@ const Orders = () => {
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <h3 className="text-sm font-semibold text-tppslate flex items-center gap-1.5">
-                      Order {order.id}
+                      Order #{orderId}
                     </h3>
-                    <p className="text-xs text-tppslate/60 mt-0.5">{formatDate(order.date)}</p>
+                    <p className="text-xs text-tppslate/60 mt-0.5">{formatDate(order.created_at)}</p>
                   </div>
                   <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusConfig.bg} ${statusConfig.text} flex items-center gap-1`}>
                     <StatusIcon className="w-3 h-3" />
@@ -293,22 +285,22 @@ const Orders = () => {
                 <div className="grid grid-cols-3 gap-3 mb-3 py-2 border-y border-tppslate/5">
                   <div>
                     <p className="text-xs text-tppslate/60 mb-0.5">Items</p>
-                    <p className="text-sm font-semibold text-tppslate">{order.items}</p>
+                    <p className="text-sm font-semibold text-tppslate">{itemCount}</p>
                   </div>
                   <div>
                     <p className="text-xs text-tppslate/60 mb-0.5">Total</p>
-                    <p className="text-sm font-semibold text-tpppink">{formatCurrency(order.total)}</p>
+                    <p className="text-sm font-semibold text-tpppink">{formatCurrency(order.final_total)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-tppslate/60 mb-0.5">Payment</p>
                     <p className={`text-sm font-semibold ${
                       order.payment_status === 'paid' 
-                        ? 'text-tppslate' 
+                        ? 'text-green-600' 
                         : order.payment_status === 'refunded'
                         ? 'text-blue-600'
-                        : 'text-tppslate/50'
+                        : 'text-yellow-600'
                     }`}>
-                      {order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1)}
+                      {order.payment_status?.charAt(0).toUpperCase() + order.payment_status?.slice(1) || 'Pending'}
                     </p>
                   </div>
                 </div>
@@ -323,7 +315,7 @@ const Orders = () => {
                   </Link>
                   {(order.status === 'shipped' || order.status === 'processing') && (
                     <Link
-                      to={`/user/orders/${order.id}/track`}
+                      to={`/user/orders/${order.id}`}
                       className="flex-1 px-3 py-2 bg-tpppink/10 text-tpppink text-sm rounded-lg hover:bg-tpppink/20 font-medium transition-colors flex items-center justify-center gap-1.5"
                     >
                       <Truck className="w-3.5 h-3.5" />
@@ -337,12 +329,35 @@ const Orders = () => {
         </div>
       )}
 
-      {/* Results count */}
+      {/* Results count & Pagination */}
       {!loading && filteredOrders.length > 0 && (
-        <div className="text-center">
+        <div className="text-center space-y-3">
           <p className="text-xs text-tppslate/60">
-            Showing {filteredOrders.length} of {orders.length} order{orders.length !== 1 ? 's' : ''}
+            Showing {filteredOrders.length} of {pagination.total} order{pagination.total !== 1 ? 's' : ''}
           </p>
+          
+          {/* Pagination Controls */}
+          {pagination.pages > 1 && (
+            <div className="flex items-center justify-center gap-2">
+              <button
+                onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                disabled={pagination.page === 1}
+                className="px-3 py-1 text-sm border border-tppslate/10 rounded-lg hover:bg-tppslate/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-tppslate/60">
+                Page {pagination.page} of {pagination.pages}
+              </span>
+              <button
+                onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                disabled={pagination.page === pagination.pages}
+                className="px-3 py-1 text-sm border border-tppslate/10 rounded-lg hover:bg-tppslate/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

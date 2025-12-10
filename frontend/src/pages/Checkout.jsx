@@ -1,35 +1,42 @@
-// frontend/src/pages/Checkout.jsx
+// frontend/src/pages/Checkout.jsx - FIXED: Address object instead of ID
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader, AlertCircle } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { useUserAuth } from '../context/UserAuthContext';
+import { useToast } from '../hooks/useToast';
 import CheckoutCart from '../components/checkout/CheckoutCart';
 import CheckoutSummary from '../components/checkout/CheckoutSummary';
 import CheckoutForm from '../components/checkout/CheckoutForm';
 import bundleService from '../services/bundleService';
 import { getAddresses } from '../services/addressService';
+import { createOrder } from '../services/orderService';
 import { formatBundlePrice } from '../utils/bundleHelpers';
+import { getStoredAddressId } from '../utils/deliveryStorage';
 
 /**
  * Checkout Page - Main component
  * Displays cart items on left, price breakdown on right
  * Fetches bundle details for all cart items
+ * Handles order placement
+ * ✅ FIXED: Stores full address object, not just ID
  */
 const Checkout = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const { user, isAuthenticated } = useUserAuth();
   const { cartItems, cartTotals, loading: cartLoading, refreshCart } = useCart();
 
   const [bundles, setBundles] = useState({}); // { bundleId: bundleData }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedAddress, setSelectedAddress] = useState(null);
-  const [addresses, setAddresses] = useState([]); // ⭐ Store all addresses
+  const [selectedAddress, setSelectedAddress] = useState(null); // ✅ FIXED: Now stores full address object
+  const [addresses, setAddresses] = useState([]);
   const [promoCode, setPromoCode] = useState('');
   const [discount, setDiscount] = useState(0);
   const [currentStep, setCurrentStep] = useState('review'); // review -> shipping -> payment
+  const [placingOrder, setPlacingOrder] = useState(false);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -38,18 +45,39 @@ const Checkout = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // ⭐ Fetch addresses for the user
+  // ✅ FIXED: Fetch addresses and auto-select from localStorage
   useEffect(() => {
     const fetchAddressesData = async () => {
       try {
         const result = await getAddresses();
         if (result.success) {
           setAddresses(result.data);
-          // Auto-select default address
-          const defaultAddr = result.data.find(a => a.is_default);
-          if (defaultAddr) {
-            setSelectedAddress(defaultAddr);
-            console.log('✅ Default address auto-selected:', defaultAddr);
+          
+          // ✅ Try to restore address from localStorage first
+          const storedAddressId = getStoredAddressId();
+          let addressToSelect = null;
+
+          if (storedAddressId) {
+            addressToSelect = result.data.find(a => a.id === storedAddressId);
+            if (addressToSelect) {
+              console.log('✅ [Checkout] Restored address from localStorage:', addressToSelect);
+            }
+          }
+
+          // Fallback to default address
+          if (!addressToSelect) {
+            const defaultAddr = result.data.find(a => a.is_default);
+            if (defaultAddr) {
+              addressToSelect = defaultAddr;
+              console.log('✅ [Checkout] Selected default address:', defaultAddr);
+            } else if (result.data.length > 0) {
+              addressToSelect = result.data[0];
+              console.log('✅ [Checkout] Selected first address:', result.data[0]);
+            }
+          }
+
+          if (addressToSelect) {
+            setSelectedAddress(addressToSelect); // ✅ Store full object
           }
         }
       } catch (err) {
@@ -117,11 +145,80 @@ const Checkout = () => {
     setCurrentStep(step);
   };
 
-  // ⭐ Handle quantity changes without full refresh
+  // Handle quantity changes without full refresh
   const handleQuantityChange = (cartItemId, newQuantity) => {
     console.log(`📦 Quantity changed for ${cartItemId}: ${newQuantity}`);
-    // Summary component will automatically recalculate based on cartItems + new local quantities
-    // No need to refresh the entire page
+  };
+
+  // ✅ FIXED: Handle address selection - receives full address object
+  const handleAddressSelect = (address) => {
+    console.log('📍 [Checkout] Address selected:', address);
+    setSelectedAddress(address); // Store full object
+  };
+
+  // ⭐ Handle Place Order
+  const handlePlaceOrder = async () => {
+    if (!selectedAddress) {
+      toast.error('Please select a delivery address');
+      return;
+    }
+
+    if (cartItems.length === 0) {
+      toast.error('Your cart is empty');
+      return;
+    }
+
+    try {
+      setPlacingOrder(true);
+
+      // Create order with address ID
+      const orderData = {
+        address_id: selectedAddress.id, // ✅ Use address.id from full object
+        payment_method: 'cod',
+        notes: '',
+        gift_wrap: false,
+        gift_message: null
+      };
+
+      console.log('📦 Placing order with data:', orderData);
+
+      const response = await createOrder(orderData);
+
+      if (response.success) {
+        const orderId = response.data?.order?.id;
+        
+        console.log('✅ Order placed successfully:', orderId);
+        
+        // Show success toast
+        toast.success('Order placed successfully!');
+        
+        // Refresh cart (will be empty now)
+        await refreshCart();
+        
+        // Redirect to success page
+        if (orderId) {
+          navigate(`/order-success/${orderId}`);
+        } else {
+          console.error('❌ Order ID not found in response');
+          toast.error('Order placed but could not get order ID');
+          navigate('/user/orders');
+        }
+      } else {
+        toast.error(response.message || 'Failed to place order');
+      }
+    } catch (error) {
+      console.error('❌ Error placing order:', error);
+      
+      if (error.response?.data?.code === 'INSUFFICIENT_STOCK') {
+        toast.error('Some items are out of stock. Please update your cart.');
+      } else if (error.response?.data?.code === 'CART_EMPTY') {
+        toast.error('Your cart is empty');
+      } else {
+        toast.error('Failed to place order. Please try again.');
+      }
+    } finally {
+      setPlacingOrder(false);
+    }
   };
 
   if (!isAuthenticated) {
@@ -181,7 +278,7 @@ const Checkout = () => {
             {currentStep === 'shipping' && (
               <div className="mt-8">
                 <CheckoutForm
-                  onAddressSelect={setSelectedAddress}
+                  onAddressSelect={handleAddressSelect}
                   onNext={() => handleNextStep('payment')}
                 />
               </div>
@@ -198,12 +295,14 @@ const Checkout = () => {
               onPromoCodeChange={setPromoCode}
               discount={discount}
               onDiscountChange={setDiscount}
-              selectedAddress={selectedAddress}
-              onAddressSelect={setSelectedAddress}
+              selectedAddress={selectedAddress} // ✅ Pass full address object
+              onAddressSelect={handleAddressSelect} // ✅ Updated callback
               addresses={addresses}
               currentStep={currentStep}
               onStepChange={handleNextStep}
               user={user}
+              onPlaceOrder={handlePlaceOrder}
+              placingOrder={placingOrder}
             />
           </div>
         </div>

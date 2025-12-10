@@ -1,22 +1,24 @@
-// frontend/src/pages/user/Dashboard.jsx
+// frontend/src/pages/user/Dashboard.jsx - WITH REAL API
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Package, Heart, MapPin, ShoppingBag, TrendingUp, Clock, CheckCircle, ArrowRight } from 'lucide-react';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useToast } from '../../hooks/useToast';
+import { getOrderStats } from '../../services/orderService';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
-// Skeleton Components
+// ==================== SKELETON COMPONENTS ====================
+
 const StatCardSkeleton = () => (
   <div className="bg-white border border-tppslate/10 rounded-lg p-3 animate-pulse">
     <div className="flex items-start justify-between mb-2">
-      <div className="w-4 h-4 bg-tppslate/10 rounded"></div>
-      <div className="w-8 h-4 bg-tppslate/10 rounded"></div>
+      <div className="w-4 h-4 bg-tppslate/10 rounded skeleton-shimmer"></div>
+      <div className="w-8 h-4 bg-tppslate/10 rounded skeleton-shimmer"></div>
     </div>
-    <div className="w-16 h-3 bg-tppslate/10 rounded mb-1"></div>
-    <div className="w-12 h-5 bg-tppslate/10 rounded"></div>
+    <div className="w-16 h-3 bg-tppslate/10 rounded mb-1 skeleton-shimmer"></div>
+    <div className="w-12 h-5 bg-tppslate/10 rounded skeleton-shimmer"></div>
   </div>
 );
 
@@ -24,35 +26,40 @@ const OrderCardSkeleton = () => (
   <div className="p-3 border-b border-tppslate/5 animate-pulse">
     <div className="flex items-center justify-between gap-2 mb-2">
       <div className="flex items-center gap-2 flex-1">
-        <div className="w-16 h-3 bg-tppslate/10 rounded"></div>
-        <div className="w-12 h-4 bg-tppslate/10 rounded"></div>
+        <div className="w-16 h-3 bg-tppslate/10 rounded skeleton-shimmer"></div>
+        <div className="w-12 h-4 bg-tppslate/10 rounded skeleton-shimmer"></div>
       </div>
-      <div className="w-12 h-5 bg-tppslate/10 rounded"></div>
+      <div className="w-12 h-5 bg-tppslate/10 rounded skeleton-shimmer"></div>
     </div>
-    <div className="w-24 h-3 bg-tppslate/10 rounded"></div>
+    <div className="w-24 h-3 bg-tppslate/10 rounded skeleton-shimmer"></div>
   </div>
 );
 
 const QuickLinkSkeleton = () => (
   <div className="bg-white border border-tppslate/10 rounded-lg p-3 animate-pulse">
     <div className="flex items-start justify-between mb-2">
-      <div className="w-4 h-4 bg-tppslate/10 rounded"></div>
-      <div className="w-8 h-5 bg-tppslate/10 rounded"></div>
+      <div className="w-4 h-4 bg-tppslate/10 rounded skeleton-shimmer"></div>
+      <div className="w-8 h-5 bg-tppslate/10 rounded skeleton-shimmer"></div>
     </div>
-    <div className="w-16 h-3 bg-tppslate/10 rounded mb-1"></div>
-    <div className="w-20 h-3 bg-tppslate/10 rounded"></div>
+    <div className="w-16 h-3 bg-tppslate/10 rounded mb-1 skeleton-shimmer"></div>
+    <div className="w-20 h-3 bg-tppslate/10 rounded skeleton-shimmer"></div>
   </div>
 );
+
+// ==================== MAIN COMPONENT ====================
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
-    totalOrders: 0,
-    totalSpent: 0,
-    pendingOrders: 0,
-    deliveredOrders: 0,
+    total_orders: 0,
+    pending: 0,
+    confirmed: 0,
+    shipped: 0,
+    delivered: 0,
+    cancelled: 0,
+    total_spent: 0,
+    recent_orders: []
   });
-  const [recentOrders, setRecentOrders] = useState([]);
   const [wishlistCount, setWishlistCount] = useState(0);
   const [addressCount, setAddressCount] = useState(0);
 
@@ -74,50 +81,42 @@ export default function Dashboard() {
         'Content-Type': 'application/json',
       };
 
-      const ordersRes = await fetch(`${API_URL}/api/orders`, { headers });
-      const ordersData = await ordersRes.json();
-      
-      if (ordersData.success && ordersData.data) {
-        const orders = Array.isArray(ordersData.data) ? ordersData.data : [];
-        
-        const totalOrders = orders.length;
-        const totalSpent = orders
-          .filter(o => o.payment_status === 'paid')
-          .reduce((sum, o) => sum + (o.final_total || o.total || 0), 0);
-        const pendingOrders = orders.filter(o => o.status === 'pending').length;
-        const deliveredOrders = orders.filter(o => o.status === 'delivered').length;
-
-        setStats({
-          totalOrders,
-          totalSpent,
-          pendingOrders,
-          deliveredOrders,
-        });
-
-        const recent = orders.slice(0, 5).map(order => ({
-          id: order.id || '#N/A',
-          date: order.created_at || new Date().toISOString(),
-          total: order.final_total || order.total || 0,
-          status: order.status || 'pending',
-          items: order.order_items?.length || 0,
-        }));
-        setRecentOrders(recent);
+      // ⭐ Fetch order statistics from new API endpoint
+      try {
+        const statsResponse = await getOrderStats();
+        if (statsResponse.success && statsResponse.stats) {
+          setStats(statsResponse.stats);
+          console.log('✅ Order stats loaded:', statsResponse.stats);
+        }
+      } catch (err) {
+        console.error('❌ Error loading order stats:', err);
       }
 
-      const addressRes = await fetch(`${API_URL}/api/addresses`, { headers });
-      const addressData = await addressRes.json();
-      if (addressData.success && Array.isArray(addressData.data)) {
-        setAddressCount(addressData.data.length);
+      // Fetch address count
+      try {
+        const addressRes = await fetch(`${API_URL}/api/addresses`, { headers });
+        const addressData = await addressRes.json();
+        if (addressData.success && Array.isArray(addressData.data)) {
+          setAddressCount(addressData.data.length);
+        }
+      } catch (err) {
+        console.error('❌ Error loading addresses:', err);
       }
 
-      const wishlistRes = await fetch(`${API_URL}/api/wishlist`, { headers });
-      const wishlistData = await wishlistRes.json();
-      if (wishlistData.success && Array.isArray(wishlistData.data)) {
-        setWishlistCount(wishlistData.data.length);
+      // Fetch wishlist count
+      try {
+        const wishlistRes = await fetch(`${API_URL}/api/wishlist`, { headers });
+        const wishlistData = await wishlistRes.json();
+        if (wishlistData.success && Array.isArray(wishlistData.data)) {
+          setWishlistCount(wishlistData.data.length);
+        }
+      } catch (err) {
+        console.error('❌ Error loading wishlist:', err);
       }
 
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error('❌ Error fetching dashboard data:', error);
+      toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
@@ -126,10 +125,11 @@ export default function Dashboard() {
   const getStatusBadge = (status) => {
     const styles = {
       delivered: { bg: 'bg-tppslate/10', text: 'text-tppslate', label: 'Delivered' },
-      pending: { bg: 'bg-tppslate/10', text: 'text-tppslate', label: 'Pending' },
+      pending: { bg: 'bg-yellow-50', text: 'text-yellow-700', label: 'Pending' },
+      confirmed: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Confirmed' },
       processing: { bg: 'bg-tpppink/10', text: 'text-tpppink', label: 'Processing' },
-      shipped: { bg: 'bg-tppslate/5', text: 'text-tppslate', label: 'Shipped' },
-      cancelled: { bg: 'bg-tppslate/20', text: 'text-tppslate', label: 'Cancelled' },
+      shipped: { bg: 'bg-indigo-50', text: 'text-indigo-700', label: 'Shipped' },
+      cancelled: { bg: 'bg-red-50', text: 'text-red-700', label: 'Cancelled' },
     };
     return styles[status] || styles.pending;
   };
@@ -175,10 +175,10 @@ export default function Dashboard() {
             <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
               <div className="flex items-start justify-between mb-2">
                 <Package className="w-4 h-4 text-tpppink" />
-                <span className="text-xs font-semibold text-tpppink">{stats.totalOrders}</span>
+                <span className="text-xs font-semibold text-tpppink">{stats.total_orders}</span>
               </div>
               <p className="text-xs text-tppslate/60 font-medium">Total Orders</p>
-              <p className="text-sm font-bold text-tppslate mt-1">{stats.totalOrders}</p>
+              <p className="text-sm font-bold text-tppslate mt-1">{stats.total_orders}</p>
             </div>
 
             {/* Total Spent */}
@@ -188,27 +188,27 @@ export default function Dashboard() {
                 <span className="text-xs text-tppslate/50">Lifetime</span>
               </div>
               <p className="text-xs text-tppslate/60 font-medium">Total Spent</p>
-              <p className="text-sm font-bold text-tppslate mt-1">{formatCurrency(stats.totalSpent)}</p>
+              <p className="text-sm font-bold text-tppslate mt-1">{formatCurrency(stats.total_spent)}</p>
             </div>
 
             {/* Pending Orders */}
             <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
               <div className="flex items-start justify-between mb-2">
                 <Clock className="w-4 h-4 text-tpppink" />
-                <span className="text-xs font-semibold text-tpppink">{stats.pendingOrders}</span>
+                <span className="text-xs font-semibold text-tpppink">{stats.pending}</span>
               </div>
               <p className="text-xs text-tppslate/60 font-medium">Pending Orders</p>
-              <p className="text-sm font-bold text-tppslate mt-1">{stats.pendingOrders}</p>
+              <p className="text-sm font-bold text-tppslate mt-1">{stats.pending}</p>
             </div>
 
             {/* Delivered Orders */}
             <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
               <div className="flex items-start justify-between mb-2">
                 <CheckCircle className="w-4 h-4 text-tpppink" />
-                <span className="text-xs font-semibold text-tpppink">{stats.deliveredOrders}</span>
+                <span className="text-xs font-semibold text-tpppink">{stats.delivered}</span>
               </div>
               <p className="text-xs text-tppslate/60 font-medium">Delivered</p>
-              <p className="text-sm font-bold text-tppslate mt-1">{stats.deliveredOrders}</p>
+              <p className="text-sm font-bold text-tppslate mt-1">{stats.delivered}</p>
             </div>
           </>
         )}
@@ -235,7 +235,7 @@ export default function Dashboard() {
               <OrderCardSkeleton />
               <OrderCardSkeleton />
             </div>
-          ) : recentOrders.length === 0 ? (
+          ) : !stats.recent_orders || stats.recent_orders.length === 0 ? (
             <div className="p-6 text-center">
               <Package className="w-8 h-8 text-tppslate/20 mx-auto mb-2" />
               <p className="text-xs text-tppslate/60">No orders yet</p>
@@ -248,8 +248,10 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="divide-y divide-tppslate/5 max-h-64 overflow-y-auto">
-              {recentOrders.map((order) => {
+              {stats.recent_orders.map((order) => {
                 const badge = getStatusBadge(order.status);
+                const orderId = order.id?.substring(0, 8).toUpperCase() || '#N/A';
+                
                 return (
                   <div
                     key={order.id}
@@ -259,15 +261,19 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="text-xs font-semibold text-tppslate truncate">{order.id}</p>
+                          <p className="text-xs font-semibold text-tppslate truncate">#{orderId}</p>
                           <span className={`text-xs font-medium px-1.5 py-0.5 rounded inline-block flex-shrink-0 ${badge.bg} ${badge.text}`}>
                             {badge.label}
                           </span>
                         </div>
-                        <p className="text-xs text-tppslate/60">{order.items} item{order.items !== 1 ? 's' : ''} • {formatDate(order.date)}</p>
+                        <p className="text-xs text-tppslate/60">
+                          {formatDate(order.created_at)}
+                        </p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-xs font-bold text-tppslate">{formatCurrency(order.total)}</p>
+                        <p className="text-xs font-bold text-tppslate">
+                          {formatCurrency(order.final_total)}
+                        </p>
                         <p className="text-xs text-tppslate/40 group-hover:text-tpppink transition-colors">View</p>
                       </div>
                     </div>

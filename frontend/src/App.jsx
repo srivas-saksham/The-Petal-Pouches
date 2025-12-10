@@ -1,11 +1,11 @@
-// frontend/src/App.jsx - WITH CART SIDEBAR INTEGRATION
+// frontend/src/App.jsx - WITH CART SIDEBAR & ORDER ROUTES
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AdminAuthProvider } from './context/AdminAuthContext';
 import { UserAuthProvider } from './context/UserAuthContext';
 import { CartProvider } from './context/CartContext';
 import { ToastProvider } from './context/ToastContext';
-import { CartSidebarProvider } from './hooks/useCartSidebar'; // ✅ NEW IMPORT
+import { CartSidebarProvider } from './hooks/useCartSidebar';
 import ProtectedRoute from './components/admin/ProtectedRoute';
 import ProtectedCustomerRoute from './components/user/ProtectedCustomerRoute';
 
@@ -21,7 +21,11 @@ import UserLogin from './pages/user/UserLogin';
 import UserRegister from './pages/user/UserRegister';
 import Checkout from './pages/Checkout';
 
-// ✅ NEW IMPORT - Cart Sidebar Component
+// ✅ NEW: Order Pages
+import OrderSuccess from './pages/OrderSuccess';
+import OrderDetails from './pages/user/OrderDetails';
+
+// Cart Sidebar Component
 import CartSidebar from './components/cart/CartSidebar';
 
 function App() {
@@ -32,7 +36,7 @@ function App() {
           <UserAuthProvider>
             {/* 🛒 CartProvider wraps all routes to provide global cart state */}
             <CartProvider>
-              {/* ✅ NEW: CartSidebarProvider wraps app for global cart sidebar */}
+              {/* ✅ CartSidebarProvider wraps app for global cart sidebar */}
               <CartSidebarProvider>
                 <Routes>
                   {/* ==================== PUBLIC ROUTES ==================== */}
@@ -61,6 +65,18 @@ function App() {
                     }
                   />
                   
+                  {/* ==================== ORDER SUCCESS ROUTE (Protected) ==================== */}
+                  
+                  {/* ✅ NEW: Order Success Page - Shows after successful order placement */}
+                  <Route
+                    path="/order-success/:orderId"
+                    element={
+                      <ProtectedCustomerRoute>
+                        <OrderSuccess />
+                      </ProtectedCustomerRoute>
+                    }
+                  />
+                  
                   {/* ==================== PROTECTED USER ROUTES ==================== */}
                   
                   {/* Protected User Dashboard & Settings */}
@@ -69,6 +85,16 @@ function App() {
                     element={
                       <ProtectedCustomerRoute>
                         <UserRoutes />
+                      </ProtectedCustomerRoute>
+                    }
+                  />
+
+                  {/* ✅ NEW: Individual Order Details Route (Protected) */}
+                  <Route
+                    path="/user/orders/:orderId"
+                    element={
+                      <ProtectedCustomerRoute>
+                        <OrderDetails />
                       </ProtectedCustomerRoute>
                     }
                   />
@@ -95,7 +121,7 @@ function App() {
                   <Route path="*" element={<Navigate to="/shop" replace />} />
                 </Routes>
 
-                {/* ✅ NEW: Global Cart Sidebar - Renders on top of everything */}
+                {/* ✅ Global Cart Sidebar - Renders on top of everything */}
                 <CartSidebar />
               </CartSidebarProvider>
             </CartProvider>

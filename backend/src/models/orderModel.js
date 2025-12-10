@@ -635,7 +635,73 @@ const OrderModel = {
       console.error('[OrderModel] Error getting order items:', error);
       throw error;
     }
+  },
+  
+  /**
+   * Get order statistics for user dashboard
+   * @param {string} userId - User UUID
+   * @returns {Promise<Object>} Order statistics
+   */
+  async getStatistics(userId) {
+    try {
+      // Get all orders
+      const { data: orders, error } = await supabase
+        .from('Orders')
+        .select('status, final_total, created_at')
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      const stats = {
+        total_orders: orders.length,
+        pending: orders.filter(o => o.status === 'pending').length,
+        confirmed: orders.filter(o => o.status === 'confirmed').length,
+        shipped: orders.filter(o => o.status === 'shipped').length,
+        delivered: orders.filter(o => o.status === 'delivered').length,
+        cancelled: orders.filter(o => o.status === 'cancelled').length,
+        total_spent: orders
+          .filter(o => o.status !== 'cancelled')
+          .reduce((sum, o) => sum + parseFloat(o.final_total || 0), 0),
+        recent_orders: orders
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 3)
+      };
+
+      return stats;
+    } catch (error) {
+      console.error('[OrderModel] Error getting statistics:', error);
+      throw error;
+    }
+},
+
+/**
+ * Count orders by user
+ * @param {string} userId - User UUID
+ * @param {string} status - Optional status filter
+ * @returns {Promise<number>} Order count
+ */
+async countByUser(userId, status = null) {
+  try {
+    let query = supabase
+      .from('Orders')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    const { count, error } = await query;
+
+    if (error) throw error;
+
+    return count || 0;
+  } catch (error) {
+    console.error('[OrderModel] Error counting orders:', error);
+    throw error;
   }
+}
 };
+
 
 module.exports = OrderModel;

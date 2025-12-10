@@ -1,4 +1,4 @@
-// backend/src/routes/orders.js
+// backend/src/routes/orders.js - FIXED VERSION
 
 const express = require('express');
 const router = express.Router();
@@ -31,20 +31,20 @@ router.use(verifyCustomerToken);
 router.post('/', OrderController.createOrder);
 
 /**
- * @route   GET /api/orders
- * @desc    Get all orders for logged-in user
- * @access  Private (Customer)
- * @query   page, limit, status, payment_status, from_date, to_date
- */
-router.get('/', OrderController.getOrders);
-
-/**
  * @route   GET /api/orders/stats
  * @desc    Get order statistics for user
  * @access  Private (Customer)
  * @note    Must be BEFORE /:id route to prevent conflict
  */
 router.get('/stats', OrderController.getOrderStats);
+
+/**
+ * @route   GET /api/orders
+ * @desc    Get all orders for logged-in user
+ * @access  Private (Customer)
+ * @query   page, limit, status, payment_status, from_date, to_date
+ */
+router.get('/', OrderController.getOrders);
 
 /**
  * @route   GET /api/orders/:id
@@ -54,19 +54,19 @@ router.get('/stats', OrderController.getOrderStats);
 router.get('/:id', OrderController.getOrderById);
 
 /**
+ * @route   GET /api/orders/:id/tracking
+ * @desc    Get order tracking information
+ * @access  Private (Customer)
+ */
+router.get('/:id/tracking', OrderController.getOrderTracking);
+
+/**
  * @route   POST /api/orders/:id/cancel
  * @desc    Cancel an order
  * @access  Private (Customer)
  * @body    { reason? }
  */
 router.post('/:id/cancel', OrderController.cancelOrder);
-
-/**
- * @route   GET /api/orders/:id/tracking
- * @desc    Get order tracking information
- * @access  Private (Customer)
- */
-router.get('/:id/tracking', OrderController.getOrderTracking);
 
 /**
  * @route   POST /api/orders/:id/reorder

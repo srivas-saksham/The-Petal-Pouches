@@ -1,4 +1,4 @@
-// backend/src/models/cartModel.js
+// backend/src/models/cartModel.js - COMPLETE FIXED VERSION
 
 const supabase = require('../config/supabaseClient');
 
@@ -111,6 +111,7 @@ const CartModel = {
 
   /**
    * Get full cart with items and product details
+   * FIXED: Now properly joins through Bundles -> Bundle_items -> Product_variants
    * @param {string} userId - User UUID
    * @returns {Promise<Object>} Cart with items array
    */
@@ -136,50 +137,117 @@ const CartModel = {
 
       if (cartError) throw cartError;
 
-      // Get cart items with product details
-      const { data: items, error: itemsError } = await supabase
+      // Get cart items with bundle details
+      const { data: cartItems, error: cartItemsError } = await supabase
         .from('Cart_items')
         .select(`
           *,
-          Product_variants!inner(
+          Bundles!inner(
             id,
-            sku,
+            title,
             price,
-            stock,
-            weight,
-            attributes,
             img_url,
-            Products!inner(
-              id,
-              title,
-              description,
-              img_url
-            )
+            description
           )
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (itemsError) throw itemsError;
+      if (cartItemsError) throw cartItemsError;
 
-      // Format items
-      const formattedItems = (items || []).map(item => ({
-        id: item.id,
-        product_variant_id: item.product_variant_id,
-        quantity: item.quantity,
-        bundle_origin: item.bundle_origin,
-        bundle_id: item.bundle_id,
-        product_id: item.Product_variants.Products.id,
-        product_title: item.Product_variants.Products.title,
-        product_description: item.Product_variants.Products.description,
-        product_img: item.Product_variants.img_url || item.Product_variants.Products.img_url,
-        variant_sku: item.Product_variants.sku,
-        variant_attributes: item.Product_variants.attributes,
-        price: item.Product_variants.price,
-        stock: item.Product_variants.stock,
-        weight: item.Product_variants.weight,
-        item_total: item.Product_variants.price * item.quantity
-      }));
+      if (!cartItems || cartItems.length === 0) {
+        return {
+          cart_id: cart.id,
+          user_id: cart.user_id,
+          created_at: cart.created_at,
+          updated_at: cart.updated_at,
+          items: [],
+          item_count: 0,
+          subtotal: 0
+        };
+      }
+
+      // Get bundle items for all bundles in cart
+      const bundleIds = cartItems.map(item => item.bundle_id);
+      const { data: bundleItems, error: bundleItemsError } = await supabase
+        .from('Bundle_items')
+        .select(`
+          *,
+          Products!inner(
+            id,
+            title,
+            description,
+            img_url,
+            price,
+            stock,
+            sku
+          )
+        `)
+        .in('bundle_id', bundleIds);
+
+      if (bundleItemsError) throw bundleItemsError;
+
+      // Group bundle items by bundle_id
+      const itemsByBundle = {};
+      (bundleItems || []).forEach(item => {
+        if (!itemsByBundle[item.bundle_id]) {
+          itemsByBundle[item.bundle_id] = [];
+        }
+        itemsByBundle[item.bundle_id].push(item);
+      });
+
+      // Format cart items with product details
+      const formattedItems = cartItems.map(cartItem => {
+        const bundle = cartItem.Bundles;
+        const bundleProducts = itemsByBundle[cartItem.bundle_id] || [];
+        
+        // Get first product for primary display
+        const primaryProduct = bundleProducts[0]?.Products;
+
+        return {
+          id: cartItem.id,
+          cart_id: cartItem.cart_id,
+          user_id: cartItem.user_id,
+          bundle_id: cartItem.bundle_id,
+          quantity: cartItem.quantity,
+          created_at: cartItem.created_at,
+          updated_at: cartItem.updated_at,
+          
+          // Bundle info
+          bundle_title: bundle.title,
+          bundle_description: bundle.description,
+          bundle_img: bundle.img_url,
+          price: bundle.price, // Bundle price
+          
+          // Primary product info (for display)
+          product_id: primaryProduct?.id || null,
+          product_title: primaryProduct?.title || bundle.title,
+          product_img: bundle.img_url || primaryProduct?.img_url,
+          
+          // For order creation - use product_id (no variants)
+          product_variant_id: null, // No variants in this system
+          variant_sku: primaryProduct?.sku || null,
+          variant_attributes: {},
+          stock: primaryProduct?.stock || 0,
+          weight: 0,
+          
+          // Calculated
+          item_total: bundle.price * cartItem.quantity,
+          
+          // Bundle contents (all products in the bundle)
+          bundle_items: bundleProducts.map(bItem => ({
+            product_id: bItem.Products.id,
+            product_title: bItem.Products.title,
+            product_variant_id: null, // No variants
+            quantity: bItem.quantity,
+            variant_sku: bItem.Products.sku,
+            variant_attributes: {}
+          })),
+          
+          // Legacy fields for compatibility
+          bundle_origin: 'brand-bundle'
+        };
+      });
 
       const subtotal = formattedItems.reduce((sum, item) => sum + item.item_total, 0);
 
@@ -201,12 +269,11 @@ const CartModel = {
   /**
    * Add item to cart
    * @param {string} userId - User UUID
-   * @param {string} productVariantId - Product variant UUID
+   * @param {string} bundleId - Bundle UUID
    * @param {number} quantity - Quantity to add
-   * @param {Object} [bundleInfo] - Optional bundle information
    * @returns {Promise<Object>} Added/updated cart item
    */
-  async addItem(userId, productVariantId, quantity, bundleInfo = {}) {
+  async addItem(userId, bundleId, quantity) {
     try {
       // Get or create cart
       const cart = await this.getOrCreateCart(userId);
@@ -216,7 +283,7 @@ const CartModel = {
         .from('Cart_items')
         .select('*')
         .eq('user_id', userId)
-        .eq('product_variant_id', productVariantId)
+        .eq('bundle_id', bundleId)
         .single();
 
       let cartItem;
@@ -230,23 +297,21 @@ const CartModel = {
             updated_at: new Date().toISOString()
           })
           .eq('user_id', userId)
-          .eq('product_variant_id', productVariantId)
+          .eq('bundle_id', bundleId)
           .select()
           .single();
 
         if (updateError) throw updateError;
         cartItem = updatedItem;
-        console.log(`[CartModel] Cart item quantity updated: ${productVariantId}`);
+        console.log(`[CartModel] Cart item quantity updated: ${bundleId}`);
       } else {
         // Insert new item
         const { data: newItem, error: insertError } = await supabase
           .from('Cart_items')
           .insert([{
             user_id: userId,
-            product_variant_id: productVariantId,
+            bundle_id: bundleId,
             quantity: quantity,
-            bundle_origin: bundleInfo.bundle_origin || null,
-            bundle_id: bundleInfo.bundle_id || null,
             created_at: new Date().toISOString()
           }])
           .select()
@@ -254,7 +319,7 @@ const CartModel = {
 
         if (insertError) throw insertError;
         cartItem = newItem;
-        console.log(`[CartModel] Item added to cart: ${productVariantId}`);
+        console.log(`[CartModel] Item added to cart: ${bundleId}`);
       }
 
       // Update cart timestamp
@@ -263,21 +328,16 @@ const CartModel = {
         .update({ updated_at: new Date().toISOString() })
         .eq('id', cart.id);
 
-      // Return item with product details
+      // Return item with bundle details
       const { data: itemWithDetails, error: detailsError } = await supabase
         .from('Cart_items')
         .select(`
           *,
-          Product_variants!inner(
+          Bundles!inner(
             id,
+            title,
             price,
-            stock,
-            sku,
-            attributes,
-            Products!inner(
-              title,
-              img_url
-            )
+            img_url
           )
         `)
         .eq('id', cartItem.id)
@@ -287,12 +347,9 @@ const CartModel = {
 
       return {
         ...itemWithDetails,
-        product_title: itemWithDetails.Product_variants.Products.title,
-        product_img: itemWithDetails.Product_variants.Products.img_url,
-        price: itemWithDetails.Product_variants.price,
-        stock: itemWithDetails.Product_variants.stock,
-        sku: itemWithDetails.Product_variants.sku,
-        attributes: itemWithDetails.Product_variants.attributes
+        bundle_title: itemWithDetails.Bundles.title,
+        bundle_price: itemWithDetails.Bundles.price,
+        bundle_img: itemWithDetails.Bundles.img_url
       };
       
     } catch (error) {
@@ -420,12 +477,12 @@ const CartModel = {
    */
   async getCartTotals(userId) {
     try {
-      // Get cart items with prices
+      // Get cart items with bundle prices
       const { data: items, error } = await supabase
         .from('Cart_items')
         .select(`
           quantity,
-          Product_variants!inner(
+          Bundles!inner(
             price
           )
         `)
@@ -446,7 +503,7 @@ const CartModel = {
       }
 
       const subtotal = items.reduce((sum, item) => {
-        return sum + (item.Product_variants.price * item.quantity);
+        return sum + (item.Bundles.price * item.quantity);
       }, 0);
 
       const item_count = items.length;
@@ -485,18 +542,16 @@ const CartModel = {
    */
   async checkStock(userId) {
     try {
+      // Get cart items with bundle info
       const { data: items, error } = await supabase
         .from('Cart_items')
         .select(`
           id,
-          product_variant_id,
+          bundle_id,
           quantity,
-          Product_variants!inner(
-            stock,
-            sku,
-            Products!inner(
-              title
-            )
+          Bundles!inner(
+            title,
+            stock_limit
           )
         `)
         .eq('user_id', userId);
@@ -505,12 +560,11 @@ const CartModel = {
 
       const formattedItems = (items || []).map(item => ({
         cart_item_id: item.id,
-        product_variant_id: item.product_variant_id,
+        bundle_id: item.bundle_id,
         cart_quantity: item.quantity,
-        available_stock: item.Product_variants.stock,
-        product_title: item.Product_variants.Products.title,
-        sku: item.Product_variants.sku,
-        in_stock: item.Product_variants.stock >= item.quantity
+        available_stock: item.Bundles.stock_limit || 999,
+        bundle_title: item.Bundles.title,
+        in_stock: (item.Bundles.stock_limit || 999) >= item.quantity
       }));
 
       const allInStock = formattedItems.every(item => item.in_stock);
@@ -567,7 +621,7 @@ const CartModel = {
             .from('Cart_items')
             .select('*')
             .eq('user_id', userId)
-            .eq('product_variant_id', item.product_variant_id)
+            .eq('bundle_id', item.bundle_id)
             .single();
 
           if (existingItem) {
@@ -578,17 +632,15 @@ const CartModel = {
                 quantity: existingItem.quantity + item.quantity
               })
               .eq('user_id', userId)
-              .eq('product_variant_id', item.product_variant_id);
+              .eq('bundle_id', item.bundle_id);
           } else {
             // Insert new item
             await supabase
               .from('Cart_items')
               .insert([{
                 user_id: userId,
-                product_variant_id: item.product_variant_id,
-                quantity: item.quantity,
-                bundle_origin: item.bundle_origin,
                 bundle_id: item.bundle_id,
+                quantity: item.quantity,
                 created_at: new Date().toISOString()
               }]);
           }

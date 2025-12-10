@@ -1,9 +1,29 @@
-// frontend/src/services/orderService.js
+// frontend/src/services/orderService.js - COMPLETE MERGED VERSION
 
 import api, { apiRequest } from './api';
 
 /**
+ * ==================== ORDER CREATION ====================
+ */
+
+/**
+ * Create new order from cart
+ * @param {Object} orderData - { address_id, payment_method, notes?, gift_wrap?, gift_message?, coupon_code? }
+ * @returns {Promise<Object>} Created order
+ */
+export const createOrder = async (orderData) => {
+  return apiRequest(() => 
+    api.post('/api/orders', orderData)
+  );
+};
+
+/**
+ * ==================== ORDER FETCHING ====================
+ */
+
+/**
  * Get all orders with filters and pagination
+ * @param {Object} params - { page?, limit?, status?, payment_status?, from_date?, to_date? }
  */
 export const getOrders = async (params = {}) => {
   return apiRequest(() => 
@@ -13,6 +33,7 @@ export const getOrders = async (params = {}) => {
 
 /**
  * Get single order by ID
+ * @param {string} orderId - Order UUID
  */
 export const getOrderById = async (orderId) => {
   return apiRequest(() => 
@@ -21,36 +42,25 @@ export const getOrderById = async (orderId) => {
 };
 
 /**
- * Update order status
- */
-export const updateOrderStatus = async (orderId, status) => {
-  return apiRequest(() => 
-    api.patch(`/api/orders/${orderId}/status`, { status })
-  );
-};
-
-/**
- * Update payment status
- */
-export const updatePaymentStatus = async (orderId, paymentStatus) => {
-  return apiRequest(() => 
-    api.patch(`/api/orders/${orderId}/payment-status`, { payment_status: paymentStatus })
-  );
-};
-
-/**
- * Cancel order
- */
-export const cancelOrder = async (orderId, reason = '') => {
-  return apiRequest(() => 
-    api.post(`/api/orders/${orderId}/cancel`, { reason })
-  );
-};
-
-/**
- * Get order statistics
+ * Get order statistics for dashboard
+ * Uses backend API if available, otherwise calculates from orders
+ * @returns {Promise<Object>} Order stats
  */
 export const getOrderStats = async () => {
+  // Try backend API first
+  try {
+    const result = await apiRequest(() => 
+      api.get('/api/orders/stats')
+    );
+    
+    if (result.success && result.data) {
+      return result;
+    }
+  } catch (error) {
+    console.log('Backend stats API not available, calculating from orders...');
+  }
+
+  // Fallback: Calculate from all orders
   const result = await apiRequest(() => 
     api.get('/api/orders', { 
       params: { limit: 10000 } // Get all for stats calculation
@@ -98,6 +108,7 @@ export const getOrderStats = async () => {
 
 /**
  * Get recent orders
+ * @param {number} limit - Number of orders to fetch
  */
 export const getRecentOrders = async (limit = 10) => {
   return apiRequest(() => 
@@ -112,6 +123,8 @@ export const getRecentOrders = async (limit = 10) => {
 
 /**
  * Get orders by status
+ * @param {string} status - Order status (pending, confirmed, processing, shipped, delivered, cancelled)
+ * @param {Object} params - Additional params
  */
 export const getOrdersByStatus = async (status, params = {}) => {
   return apiRequest(() => 
@@ -126,6 +139,8 @@ export const getOrdersByStatus = async (status, params = {}) => {
 
 /**
  * Get orders by payment status
+ * @param {string} paymentStatus - Payment status (paid, unpaid, refunded)
+ * @param {Object} params - Additional params
  */
 export const getOrdersByPaymentStatus = async (paymentStatus, params = {}) => {
   return apiRequest(() => 
@@ -140,6 +155,8 @@ export const getOrdersByPaymentStatus = async (paymentStatus, params = {}) => {
 
 /**
  * Get orders by customer
+ * @param {string} userId - User ID
+ * @param {Object} params - Additional params
  */
 export const getOrdersByCustomer = async (userId, params = {}) => {
   return apiRequest(() => 
@@ -154,6 +171,8 @@ export const getOrdersByCustomer = async (userId, params = {}) => {
 
 /**
  * Search orders
+ * @param {string} searchTerm - Search query
+ * @param {Object} filters - Additional filters
  */
 export const searchOrders = async (searchTerm, filters = {}) => {
   return apiRequest(() => 
@@ -168,6 +187,9 @@ export const searchOrders = async (searchTerm, filters = {}) => {
 
 /**
  * Get orders by date range
+ * @param {string} startDate - Start date (YYYY-MM-DD)
+ * @param {string} endDate - End date (YYYY-MM-DD)
+ * @param {Object} params - Additional params
  */
 export const getOrdersByDateRange = async (startDate, endDate, params = {}) => {
   return apiRequest(() => 
@@ -221,7 +243,78 @@ export const getOrdersNeedingAction = async () => {
 };
 
 /**
+ * ==================== ORDER ACTIONS ====================
+ */
+
+/**
+ * Cancel an order
+ * @param {string} orderId - Order UUID
+ * @param {string} reason - Cancellation reason
+ */
+export const cancelOrder = async (orderId, reason = '') => {
+  return apiRequest(() => 
+    api.post(`/api/orders/${orderId}/cancel`, { reason })
+  );
+};
+
+/**
+ * Reorder - Add items from previous order to cart
+ * @param {string} orderId - Order UUID
+ */
+export const reorderItems = async (orderId) => {
+  return apiRequest(() => 
+    api.post(`/api/orders/${orderId}/reorder`)
+  );
+};
+
+/**
+ * ==================== ORDER TRACKING ====================
+ */
+
+/**
+ * Get order tracking information
+ * @param {string} orderId - Order UUID
+ */
+export const getOrderTracking = async (orderId) => {
+  return apiRequest(() => 
+    api.get(`/api/orders/${orderId}/tracking`)
+  );
+};
+
+/**
+ * ==================== ADMIN FUNCTIONS ====================
+ */
+
+/**
+ * Update order status (Admin only)
+ * @param {string} orderId - Order UUID
+ * @param {string} status - New status
+ */
+export const updateOrderStatus = async (orderId, status) => {
+  return apiRequest(() => 
+    api.patch(`/api/orders/${orderId}/status`, { status })
+  );
+};
+
+/**
+ * Update payment status (Admin only)
+ * @param {string} orderId - Order UUID
+ * @param {string} paymentStatus - New payment status
+ */
+export const updatePaymentStatus = async (orderId, paymentStatus) => {
+  return apiRequest(() => 
+    api.patch(`/api/orders/${orderId}/payment-status`, { payment_status: paymentStatus })
+  );
+};
+
+/**
+ * ==================== ANALYTICS & REPORTING ====================
+ */
+
+/**
  * Calculate revenue by period
+ * @param {string} startDate - Start date (YYYY-MM-DD)
+ * @param {string} endDate - End date (YYYY-MM-DD)
  */
 export const getRevenuByPeriod = async (startDate, endDate) => {
   const result = await getOrdersByDateRange(startDate, endDate);
@@ -258,6 +351,7 @@ export const getRevenuByPeriod = async (startDate, endDate) => {
 
 /**
  * Get top customers by order value
+ * @param {number} limit - Number of customers to return
  */
 export const getTopCustomers = async (limit = 10) => {
   const result = await getOrders({ limit: 10000 });
@@ -300,7 +394,34 @@ export const getTopCustomers = async (limit = 10) => {
 };
 
 /**
+ * ==================== BULK OPERATIONS ====================
+ */
+
+/**
+ * Bulk update order status
+ * @param {Array<string>} orderIds - Array of order IDs
+ * @param {string} status - New status
+ */
+export const bulkUpdateOrderStatus = async (orderIds, status) => {
+  const results = await Promise.all(
+    orderIds.map(id => updateOrderStatus(id, status))
+  );
+  
+  return {
+    success: results.every(r => r.success),
+    data: results,
+    updated: results.filter(r => r.success).length,
+    failed: results.filter(r => !r.success).length,
+  };
+};
+
+/**
+ * ==================== EXPORT ====================
+ */
+
+/**
  * Export orders to CSV format
+ * @param {Object} filters - Filter parameters
  */
 export const exportOrdersToCSV = async (filters = {}) => {
   const result = await getOrders({ ...filters, limit: 10000 });
@@ -330,27 +451,16 @@ export const exportOrdersToCSV = async (filters = {}) => {
 };
 
 /**
- * Bulk update order status
+ * ==================== DEFAULT EXPORT ====================
+ * Export all functions as default object for flexibility
  */
-export const bulkUpdateOrderStatus = async (orderIds, status) => {
-  const results = await Promise.all(
-    orderIds.map(id => updateOrderStatus(id, status))
-  );
-  
-  return {
-    success: results.every(r => r.success),
-    data: results,
-    updated: results.filter(r => r.success).length,
-    failed: results.filter(r => !r.success).length,
-  };
-};
-
 export default {
+  // Creation
+  createOrder,
+  
+  // Fetching
   getOrders,
   getOrderById,
-  updateOrderStatus,
-  updatePaymentStatus,
-  cancelOrder,
   getOrderStats,
   getRecentOrders,
   getOrdersByStatus,
@@ -361,8 +471,25 @@ export default {
   getTodaysOrders,
   getPendingOrders,
   getOrdersNeedingAction,
+  
+  // Actions
+  cancelOrder,
+  reorderItems,
+  
+  // Tracking
+  getOrderTracking,
+  
+  // Admin
+  updateOrderStatus,
+  updatePaymentStatus,
+  
+  // Analytics
   getRevenuByPeriod,
   getTopCustomers,
-  exportOrdersToCSV,
+  
+  // Bulk Operations
   bulkUpdateOrderStatus,
+  
+  // Export
+  exportOrdersToCSV,
 };

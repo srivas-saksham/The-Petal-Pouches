@@ -1,4 +1,4 @@
-// frontend/src/services/api.js
+// frontend/src/services/api.js - COMPLETE WITH ORDER ENDPOINTS
 
 import axios from 'axios';
 
@@ -14,11 +14,18 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // Add auth token if needed in future
-    // const token = localStorage.getItem('auth_token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    // Add auth token from localStorage
+    // Support both customer and admin tokens
+    const customerToken = localStorage.getItem('customer_token');
+    const adminToken = localStorage.getItem('adminToken');
+    
+    // Prioritize customer token, fall back to admin token
+    const token = customerToken || adminToken;
+    
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
     return config;
   },
   (error) => {
@@ -144,5 +151,78 @@ export const apiRequest = async (requestFn) => {
     };
   }
 };
+
+// ==================== ORDER API ENDPOINTS ====================
+
+/**
+ * Order Management API
+ * All order-related endpoints
+ */
+export const orderAPI = {
+  /**
+   * Create new order from cart
+   * @param {Object} orderData - { address_id, payment_method, notes?, gift_wrap?, gift_message?, coupon_code? }
+   * @returns {Promise<Object>} Created order data
+   */
+  createOrder: async (orderData) => {
+    return apiRequest(() => api.post('/api/orders', orderData));
+  },
+
+  /**
+   * Get all orders for logged-in user
+   * @param {Object} params - { page?, limit?, status?, payment_status?, from_date?, to_date? }
+   * @returns {Promise<Object>} Orders list with pagination
+   */
+  getOrders: async (params = {}) => {
+    return apiRequest(() => api.get('/api/orders', { params }));
+  },
+
+  /**
+   * Get single order details by ID
+   * @param {string|number} orderId - Order ID
+   * @returns {Promise<Object>} Order details
+   */
+  getOrderById: async (orderId) => {
+    return apiRequest(() => api.get(`/api/orders/${orderId}`));
+  },
+
+  /**
+   * Get order statistics for user
+   * @returns {Promise<Object>} Order stats (total orders, total spent, etc.)
+   */
+  getOrderStats: async () => {
+    return apiRequest(() => api.get('/api/orders/stats'));
+  },
+
+  /**
+   * Get order tracking information
+   * @param {string|number} orderId - Order ID
+   * @returns {Promise<Object>} Tracking information
+   */
+  getOrderTracking: async (orderId) => {
+    return apiRequest(() => api.get(`/api/orders/${orderId}/tracking`));
+  },
+
+  /**
+   * Cancel an order
+   * @param {string|number} orderId - Order ID
+   * @param {Object} data - { reason? }
+   * @returns {Promise<Object>} Cancellation confirmation
+   */
+  cancelOrder: async (orderId, data = {}) => {
+    return apiRequest(() => api.post(`/api/orders/${orderId}/cancel`, data));
+  },
+
+  /**
+   * Reorder - Add all items from previous order to cart
+   * @param {string|number} orderId - Order ID to reorder
+   * @returns {Promise<Object>} Cart update confirmation
+   */
+  reorderItems: async (orderId) => {
+    return apiRequest(() => api.post(`/api/orders/${orderId}/reorder`));
+  },
+};
+
+// ==================== EXPORT ====================
 
 export default api;
