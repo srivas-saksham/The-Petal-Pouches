@@ -228,7 +228,7 @@ class DelhiveryService {
       const {
         originPincode = this.warehousePincode,
         mode = 'S', // 'S' for Surface, 'E' for Express
-        weight = 1000, // Weight in grams (default 1000g)
+        weight = weight, // Weight in grams (default 1000g)
         paymentType = 'Pre-paid', // 'Pre-paid' or 'COD'
         shipmentStatus = 'Delivered' // Status of shipment
       } = options;
@@ -545,6 +545,10 @@ class DelhiveryService {
     try {
       console.log(`📦 [Delhivery] Starting full delivery check for: ${pincode}`);
 
+      // ✅ ADD THESE LINES RIGHT AFTER THE ABOVE LOG:
+      const weight = options.weight || 1000;
+      console.log(`📦 [Delhivery] Using weight: ${weight}g (${weight/1000}kg)`);
+
       const serviceability = await this.checkPincodeServiceability(pincode);
 
       if (!serviceability.serviceable) {
@@ -571,13 +575,13 @@ class DelhiveryService {
         this.calculateShippingCost(pincode, { 
           ...options, 
           mode: 'S',
-          weight: options.weight || 1000,
+          weight: weight || 1000,
           paymentType: options.paymentType || 'Pre-paid'
         }),
         this.calculateShippingCost(pincode, { 
           ...options, 
           mode: 'E',
-          weight: options.weight || 1000,
+          weight: weight || 1000,
           paymentType: options.paymentType || 'Pre-paid'
         })
       ]);

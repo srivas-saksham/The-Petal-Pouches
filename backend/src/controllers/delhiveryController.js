@@ -147,7 +147,7 @@ const DelhiveryController = {
   checkDelivery: async (req, res) => {
     try {
       const { pincode } = req.params;
-      const { originPin } = req.query;
+      const { originPin, weight } = req.query;
 
       // Validate pincode
       if (!pincode || !/^\d{6}$/.test(pincode)) {
@@ -159,8 +159,14 @@ const DelhiveryController = {
 
       console.log(`📦 Full delivery check: ${pincode}`);
 
+      // ✅ ADD THIS LOG
+      if (weight) {
+        console.log(`📦 Weight specified: ${weight}g (${weight/1000}kg)`);
+      }
+
       const result = await delhiveryService.checkDelivery(pincode, {
-        originPincode: originPin
+        originPincode: originPin,
+        weight: parseInt(weight) || 1000 // ✅ ADD THIS LINE - Default 1kg
       });
 
       return res.json({

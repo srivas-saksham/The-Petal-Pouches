@@ -27,14 +27,17 @@ const DeliveryDetailsCard = ({
   addresses = [],
   onDeliveryUpdate,
   onOpenAddressModal,
-  onDeliveryModeChange
+  onDeliveryModeChange,
+  cartWeight = 1000,
+  isRecalculating = false
 }) => {
   const [deliveryData, setDeliveryData] = useState(null);
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [verificationError, setVerificationError] = useState(null);
-  
+  const [lastCheckedWeight, setLastCheckedWeight] = useState(null);
+
   // Address dropdown state
   const [showAddressList, setShowAddressList] = useState(false);
   const addressListRef = useRef(null);
@@ -72,7 +75,35 @@ const DeliveryDetailsCard = ({
       console.log('🔄 [DeliveryDetailsCard] Verifying delivery for address:', selectedAddress.zip_code);
       verifyDeliveryInBackground(selectedAddress.zip_code, deliveryData);
     }
-  }, [selectedAddress?.id, selectedAddress?.zip_code]);
+  }, [selectedAddress?.id, selectedAddress?.zip_code, cartWeight]);
+
+  // ✅ NEW: Re-check delivery when cart weight changes (debounced from parent)
+  useEffect(() => {
+    // Only re-check if:
+    // 1. We have a valid PIN code already checked
+    // 2. Weight actually changed
+    // 3. Weight is different from last checked weight
+    // 4. We have delivery data already
+    if (
+      selectedAddress?.zip_code && 
+      selectedAddress.zip_code.length === 6 && 
+      deliveryData && 
+      cartWeight !== lastCheckedWeight &&
+      lastCheckedWeight !== null // Only recalculate if we've checked before
+    ) {
+      console.log(`🔄 [DeliveryDetailsCard] Cart weight changed: ${lastCheckedWeight}g → ${cartWeight}g`);
+      console.log(`   Rechecking delivery costs for PIN ${selectedAddress.zip_code}...`);
+      
+      // Update last checked weight
+      setLastCheckedWeight(cartWeight);
+      
+      // Re-run delivery check with new weight
+      verifyDeliveryInBackground(selectedAddress.zip_code, deliveryData);
+    } else if (deliveryData && lastCheckedWeight === null) {
+      // Initialize lastCheckedWeight on first load
+      setLastCheckedWeight(cartWeight);
+    }
+  }, [cartWeight]); // Only trigger on weight changes
 
   // ✅ NEW: Notify parent when mode changes
   useEffect(() => {
@@ -107,8 +138,13 @@ const DeliveryDetailsCard = ({
 
     try {
       console.log('🔄 [DeliveryDetailsCard] Verifying delivery for PIN:', pinCode);
+      console.log(`📦 [DeliveryDetailsCard] Using cart weight: ${cartWeight}g (${cartWeight/1000}kg)`);
       
-      const response = await api.get(`/api/delhivery/check/${pinCode}`);
+      const response = await api.get(`/api/delhivery/check/${pinCode}`, {
+        params: {
+          weight: cartWeight
+        }
+      });
 
       if (response.data.success) {
         const freshData = response.data;
@@ -502,10 +538,12 @@ const DeliveryDetailsCard = ({
             )}
 
             {/* Verification Status */}
-            {selectedAddress && verifying && (
-              <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                <Loader size={14} className="text-slate-600 animate-spin flex-shrink-0" />
-                <p className="text-xs text-slate-700">Verifying delivery availability...</p>
+            {selectedAddress && (verifying || isRecalculating) && (
+              <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <Loader size={14} className="text-blue-600 animate-spin flex-shrink-0" />
+                <p className="text-xs text-blue-700 font-semibold">
+                  {isRecalculating ? 'Recalculating delivery costs...' : 'Verifying delivery availability...'}
+                </p>
               </div>
             )}
 
@@ -533,13 +571,25 @@ const DeliveryDetailsCard = ({
 
             {/* Location Info - "Delivering to..." */}
             {selectedAddress && deliveryData && deliveryData.serviceable && deliveryData.city && deliveryData.state && !verifying && (
-              <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <MapPin size={18} className="text-green-600 flex-shrink-0" />
+              <div className={`flex items-center gap-3 p-3 border rounded-lg transition-colors ${
+                isRecalculating 
+                  ? 'bg-blue-50 border-blue-200' 
+                  : 'bg-green-50 border-green-200'
+              }`}>
+                {isRecalculating ? (
+                  <Loader size={18} className="text-blue-600 animate-spin flex-shrink-0" />
+                ) : (
+                  <MapPin size={18} className="text-green-600 flex-shrink-0" />
+                )}
                 <div>
-                  <p className="text-sm font-semibold text-green-800">
-                    Delivering to {deliveryData.city}, {deliveryData.state}
+                  <p className={`text-sm font-semibold ${
+                    isRecalculating ? 'text-blue-800' : 'text-green-800'
+                  }`}>
+                    {isRecalculating ? 'Updating delivery costs...' : `Delivering to ${deliveryData.city}, ${deliveryData.state}`}
                   </p>
-                  <p className="text-xs text-green-600">PIN: {selectedAddress.zip_code}</p>
+                  <p className={`text-xs ${isRecalculating ? 'text-blue-600' : 'text-green-600'}`}>
+                    PIN: {selectedAddress.zip_code}
+                  </p>
                 </div>
               </div>
             )}

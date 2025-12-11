@@ -1,0 +1,11 @@
+Model Information:
+* title:	Stem Ring
+* source:	https://sketchfab.com/3d-models/stem-ring-397e97b20e664c6fb06f40bfe721f22d
+* author:	pythi821 (https://sketchfab.com/pythi821)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Stem Ring" (https://sketchfab.com/3d-models/stem-ring-397e97b20e664c6fb06f40bfe721f22d) by pythi821 (https://sketchfab.com/pythi821) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

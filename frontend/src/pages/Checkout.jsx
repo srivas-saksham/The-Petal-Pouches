@@ -1,6 +1,6 @@
 // frontend/src/pages/Checkout.jsx - SINGLE PAGE FLOW
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef , useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader, AlertCircle } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
@@ -46,6 +46,11 @@ const Checkout = () => {
   const [placingOrder, setPlacingOrder] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [pageInitialized, setPageInitialized] = useState(false);
+  const [totalCartWeight, setTotalCartWeight] = useState(1000);
+
+  // ✅ NEW: Debounced weight tracking
+  const [pendingCartWeight, setPendingCartWeight] = useState(null);
+  const deliveryDebounceTimerRef = useRef(null);
 
   // ✅ Modal state for address form
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -150,6 +155,7 @@ const Checkout = () => {
       if (!cartItems || cartItems.length === 0) {
         setLoading(false);
         setPageInitialized(true);
+        setTotalCartWeight(1000);
         return;
       }
 
@@ -172,6 +178,14 @@ const Checkout = () => {
 
         setBundles(bundlesMap);
         console.log('✅ Bundle details fetched:', bundlesMap);
+        
+        // ✅ WEIGHT-BASED: Calculate total weight from cart items
+        const totalWeight = cartItems.reduce((sum, item) => {
+          return sum + (item.quantity * 1000); // 1000g per bundle
+        }, 0);
+        setTotalCartWeight(totalWeight);
+        console.log(`📦 [Checkout] Total cart weight calculated: ${totalWeight}g (${totalWeight/1000}kg)`);
+        
       } catch (err) {
         console.error('❌ Error fetching bundles:', err);
         setError('Failed to load bundle details');
@@ -184,6 +198,38 @@ const Checkout = () => {
     fetchBundleDetails();
   }, [cartItems]);
 
+  // ✅ NEW: Debounced weight recalculation when cartItems change
+  useEffect(() => {
+    // Skip on initial load or if bundles not loaded yet
+    if (!pageInitialized || Object.keys(bundles).length === 0) {
+      return;
+    }
+
+    if (cartItems && cartItems.length > 0) {
+      const newWeight = cartItems.reduce((sum, item) => sum + (item.quantity * 1000), 0);
+      
+      // Only update if weight actually changed
+      if (newWeight !== totalCartWeight) {
+        console.log(`📦 [Checkout] Weight changed: ${totalCartWeight}g → ${newWeight}g - debouncing delivery recalculation...`);
+        
+        // Set pending weight immediately for UI feedback
+        setPendingCartWeight(newWeight);
+        
+        // Clear existing timer
+        if (deliveryDebounceTimerRef.current) {
+          clearTimeout(deliveryDebounceTimerRef.current);
+        }
+        
+        // Set new timer - sync with cart debounce (800ms)
+        deliveryDebounceTimerRef.current = setTimeout(() => {
+          console.log(`✅ [Checkout] Delivery weight synced: ${newWeight}g`);
+          setTotalCartWeight(newWeight);
+          setPendingCartWeight(null);
+        }, 800); // Same as cart debounce
+      }
+    }
+  }, [cartItems, pageInitialized, bundles]);
+
   // Redirect to shop if no cart items (only after initial load)
   useEffect(() => {
     if (pageInitialized && !cartLoading && cartItems.length === 0) {
@@ -195,12 +241,12 @@ const Checkout = () => {
     navigate('/shop');
   };
 
-  // ✅ SMART CART UPDATE - Silent refresh for quantity changes
+  // ✅ ENHANCED: Debounced cart update with weight tracking
   const handleCartUpdate = useCallback(async (silentRefresh = false) => {
     console.log(`🔄 [Checkout] Cart update requested: ${silentRefresh ? 'SILENT (summary only)' : 'FULL (entire cart)'}`);
     
     // ✅ ALWAYS use silent refresh - no page reload!
-    await refreshCart(true); // Always pass true for silent mode
+    await refreshCart(true);
     
     if (silentRefresh) {
       console.log('✅ [Checkout] Silent refresh complete - summary updated');
@@ -208,6 +254,15 @@ const Checkout = () => {
       console.log('✅ [Checkout] Full refresh complete (but still silent)');
     }
   }, [refreshCart]);
+
+  // ✅ Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (deliveryDebounceTimerRef.current) {
+        clearTimeout(deliveryDebounceTimerRef.current);
+      }
+    };
+  }, []);
 
   // ✅ Handle address selection (from DeliveryDetailsCard or modal)
   const handleAddressSelect = async (address) => {
@@ -420,7 +475,7 @@ const Checkout = () => {
               bundles={bundles}
               onItemUpdate={handleCartUpdate}
             />
-
+            {console.log('🔍 [Checkout Render] Current totalCartWeight:', totalCartWeight)}
             {/* ✅ Delivery Details Card - Below Cart Items */}
             <DeliveryDetailsCard 
               selectedAddress={selectedAddress}
@@ -429,6 +484,8 @@ const Checkout = () => {
               onDeliveryUpdate={handleDeliveryUpdate}
               onOpenAddressModal={handleOpenAddressModal}
               onDeliveryModeChange={handleDeliveryModeChange}
+              cartWeight={totalCartWeight}
+              isRecalculating={pendingCartWeight !== null}
             />
           </div>
 

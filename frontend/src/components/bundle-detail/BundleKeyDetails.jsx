@@ -1,11 +1,12 @@
 // frontend/src/components/bundle-detail/BundleKeyDetails.jsx
-import React, { useState } from 'react';
+// ✅ ENHANCED: Weight-based delivery cost calculations
+import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Plus, Minus, Check, Trash2, Loader, AlertTriangle, Package, ChevronDown } from 'lucide-react';
 import { formatBundlePrice } from '../../utils/bundleHelpers';
 
 /**
  * BundleKeyDetails - Right side content with price, cart, description, and products
- * Flows naturally with BundleImageGallery on the left
+ * ✅ NEW: Triggers delivery cost recalculation on quantity change
  */
 const BundleKeyDetails = ({
   bundle,
@@ -25,13 +26,23 @@ const BundleKeyDetails = ({
   onRemoveClick,
   onConfirmRemove,
   onCancelRemove,
-  pendingQuantity
+  pendingQuantity,
+  // ✅ NEW: Delivery cost recalculation callback
+  onQuantityChangeForDelivery
 }) => {
   const [productsExpanded, setProductsExpanded] = useState(true);
   const isInCart = !!cartItem;
 
   // Show max limit message when user tries to exceed
   const showMaxLimitMessage = stockLimit && localQuantity >= stockLimit;
+
+  // ✅ WEIGHT-BASED: Notify parent when quantity changes (for delivery cost recalculation)
+  useEffect(() => {
+    if (onQuantityChangeForDelivery) {
+      const weight = localQuantity * 1000; // 1000g per bundle
+      onQuantityChangeForDelivery(localQuantity, weight);
+    }
+  }, [localQuantity, onQuantityChangeForDelivery]);
 
   return (
     <div className="space-y-6 py-4">

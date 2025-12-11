@@ -12,7 +12,7 @@ import { saveDeliveryData, getDeliveryData, getStoredAddressId, getStoredPinCode
  * Integrates with Delhivery API for serviceability and delivery estimates
  * ✅ NOW WITH: localStorage persistence for seamless checkout flow
  */
-const DeliverySection = () => {
+const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
   const { isAuthenticated, user } = useUserAuth();
   
   // Address state
@@ -30,6 +30,8 @@ const DeliverySection = () => {
   const [checkingPin, setCheckingPin] = useState(false);
   const [pinCheckResult, setPinCheckResult] = useState(null);
   const [pinError, setPinError] = useState(null);
+
+  const [lastCheckedWeight, setLastCheckedWeight] = useState(null);
   
   // Refs
   const addressListRef = useRef(null);
@@ -90,9 +92,14 @@ const DeliverySection = () => {
 
     try {
       console.log('🔍 Checking Delhivery serviceability for PIN:', pin);
+      console.log(`📦 Using weight: ${bundleWeight}g (${bundleWeight/1000}kg)`); // ✅ CHANGED
       
       // Call combined delivery check endpoint
-      const response = await api.get(`/api/delhivery/check/${pin}`);
+      const response = await api.get(`/api/delhivery/check/${pin}`, {
+        params: {
+          weight: bundleWeight // ✅ CHANGED - Use dynamic weight
+        }
+      });
       
       console.log('📦 Delhivery response:', response.data);
 
@@ -189,7 +196,24 @@ const DeliverySection = () => {
         console.log('💾 [DeliverySection] Saved selected address to localStorage');
       }
     }
-  }, [selectedAddress]);
+  }, [selectedAddress, bundleWeight]);
+
+  useEffect(() => {
+    // Only re-check if:
+    // 1. We have a valid PIN code already checked
+    // 2. Weight actually changed
+    // 3. Weight is different from last checked weight
+    if (pinCode && pinCode.length === 6 && pinCheckResult && bundleWeight !== lastCheckedWeight) {
+      console.log(`🔄 [DeliverySection] Weight changed: ${lastCheckedWeight}g → ${bundleWeight}g`);
+      console.log(`   Rechecking delivery costs...`);
+      
+      // Update last checked weight
+      setLastCheckedWeight(bundleWeight);
+      
+      // Re-run delivery check with new weight
+      checkPinDelivery(pinCode);
+    }
+  }, [bundleWeight]);
 
   // ==================== ADDRESS MANAGEMENT ====================
 

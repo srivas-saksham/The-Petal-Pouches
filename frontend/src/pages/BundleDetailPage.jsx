@@ -1,5 +1,5 @@
 // frontend/src/pages/BundleDetailPage.jsx - WITH BREADCRUMBS NAVIGATION
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Check, AlertCircle, Package, Star, Share2, Heart } from 'lucide-react';
 import useBundleDetail from '../hooks/useBundleDetail';
@@ -39,6 +39,11 @@ const BundleDetailPage = () => {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const debounceTimerRef = useRef(null);
   
+  // ✅ NEW: Track current bundle weight with debouncing
+  const [currentBundleWeight, setCurrentBundleWeight] = useState(1000);
+  const [pendingWeight, setPendingWeight] = useState(null);
+  const deliveryDebounceTimerRef = useRef(null);
+
   const stockLimit = bundle?.stock_limit;
   const isLowStock = stockLimit && stockLimit > 0 && stockLimit < 5;
   const isOutOfStock = stockLimit === 0 || stockLimit === null;
@@ -179,6 +184,36 @@ const BundleDetailPage = () => {
   const handleCancelRemove = () => {
     setShowRemoveConfirm(false);
   };
+
+
+  // ✅ ENHANCED: Debounced weight update for delivery recalculation
+  const handleQuantityChangeForDelivery = useCallback((quantity, weight) => {
+    console.log(`📦 [BundleDetail] Quantity changed: ${quantity} units (${weight}g) - debouncing...`);
+    
+    // Set pending weight immediately for UI feedback
+    setPendingWeight(weight);
+    
+    // Clear existing timer
+    if (deliveryDebounceTimerRef.current) {
+      clearTimeout(deliveryDebounceTimerRef.current);
+    }
+    
+    // Set new timer - sync with cart debounce (800ms)
+    deliveryDebounceTimerRef.current = setTimeout(() => {
+      console.log(`✅ [BundleDetail] Delivery weight synced: ${weight}g`);
+      setCurrentBundleWeight(weight);
+      setPendingWeight(null);
+    }, 800); // Same as cart debounce
+  }, []);
+
+  // ✅ Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (deliveryDebounceTimerRef.current) {
+        clearTimeout(deliveryDebounceTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -322,6 +357,7 @@ const BundleDetailPage = () => {
                   onConfirmRemove={handleConfirmRemove}
                   onCancelRemove={handleCancelRemove}
                   pendingQuantity={pendingQuantity}
+                  onQuantityChangeForDelivery={handleQuantityChangeForDelivery}
                 />
               </div>
             </div>
@@ -478,6 +514,8 @@ const BundleDetailPage = () => {
               onConfirmRemove={handleConfirmRemove}
               onCancelRemove={handleCancelRemove}
               pendingQuantity={pendingQuantity}
+              bundleWeight={currentBundleWeight}
+              pendingWeight={pendingWeight}
             />
           </div>
         </div>
