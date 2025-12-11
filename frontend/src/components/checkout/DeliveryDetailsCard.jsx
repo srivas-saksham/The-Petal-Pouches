@@ -648,7 +648,7 @@ const DeliveryDetailsCard = ({
                             : 'hover:bg-slate-100 border-l-4 border-transparent'
                         }`}
                         style={selectedMode === 'express' ? {
-                          borderLeftColor: 'var(--color-tpppink, #d95669)',  // Replace #EC4899 with your pink hex
+                          borderLeftColor: 'var(--color-tpppink, #d95669)',
                           borderLeftWidth: '4px',
                           borderLeftStyle: 'solid'
                         } : {}}

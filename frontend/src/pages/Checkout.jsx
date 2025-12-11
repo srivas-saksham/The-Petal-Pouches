@@ -1,4 +1,4 @@
-// frontend/src/pages/Checkout.jsx - WITH DELIVERY DETAILS CARD BELOW CART - FIXED INFINITE LOOP
+// frontend/src/pages/Checkout.jsx - NO PAGE RELOAD ON QUANTITY CHANGES
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -22,9 +22,11 @@ import { getStoredAddressId, saveDeliveryData, getDeliveryData } from '../utils/
  * DeliveryDetailsCard positioned below cart items
  * Fetches bundle details for all cart items
  * Handles order placement with delivery mode metadata
+ * ✅ Silent refresh support - NO page reload on quantity changes
+ * ✅ Full refresh on item removal
  * ✅ All delivery-related functionality managed here
  * ✅ Modal-based address form controlled by parent
- * ✅ FIXED: Infinite loop by memoizing handleDeliveryModeChange
+ * ✅ No tax, no base shipping - only express charges apply
  */
 const Checkout = () => {
   const navigate = useNavigate();
@@ -41,6 +43,7 @@ const Checkout = () => {
   const [discount, setDiscount] = useState(0);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [pageInitialized, setPageInitialized] = useState(false); // ✅ Track if initial load is done
 
   // ✅ Modal state for address form
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -144,6 +147,7 @@ const Checkout = () => {
     const fetchBundleDetails = async () => {
       if (!cartItems || cartItems.length === 0) {
         setLoading(false);
+        setPageInitialized(true); // ✅ Mark as initialized
         return;
       }
 
@@ -171,26 +175,37 @@ const Checkout = () => {
         setError('Failed to load bundle details');
       } finally {
         setLoading(false);
+        setPageInitialized(true); // ✅ Mark as initialized
       }
     };
 
     fetchBundleDetails();
   }, [cartItems]);
 
-  // Redirect to shop if no cart items
+  // Redirect to shop if no cart items (only after initial load)
   useEffect(() => {
-    if (!cartLoading && cartItems.length === 0) {
+    if (pageInitialized && !cartLoading && cartItems.length === 0) {
       navigate('/shop');
     }
-  }, [cartLoading, cartItems.length, navigate]);
+  }, [pageInitialized, cartLoading, cartItems.length, navigate]);
 
   const handleGoBack = () => {
     navigate('/shop');
   };
 
-  const handleQuantityChange = (cartItemId, newQuantity) => {
-    console.log(`📦 Quantity changed for ${cartItemId}: ${newQuantity}`);
-  };
+  // ✅ SMART CART UPDATE - Silent refresh for quantity changes, full refresh for removals
+  const handleCartUpdate = useCallback(async (silentRefresh = false) => {
+    console.log(`🔄 [Checkout] Cart update requested: ${silentRefresh ? 'SILENT (summary only)' : 'FULL (entire cart)'}`);
+    
+    // ✅ ALWAYS use silent refresh - no page reload!
+    await refreshCart(true); // Always pass true for silent mode
+    
+    if (silentRefresh) {
+      console.log('✅ [Checkout] Silent refresh complete - summary updated');
+    } else {
+      console.log('✅ [Checkout] Full refresh complete (but still silent)');
+    }
+  }, [refreshCart]);
 
   // ✅ Handle address selection (from DeliveryDetailsCard or modal)
   const handleAddressSelect = async (address) => {
@@ -234,7 +249,7 @@ const Checkout = () => {
     });
   }, []); // Empty dependencies - doesn't depend on any external values
 
-  // ✅ FIXED: Memoized callback to prevent infinite loop
+  // ✅ Memoized callback to prevent infinite loop
   const handleDeliveryModeChange = useCallback((modeData) => {
     console.log('🚚 [Checkout] Delivery mode changed:', modeData);
     setDeliveryModeData(modeData);
@@ -273,6 +288,21 @@ const Checkout = () => {
       console.log('📦 [Checkout] Delivery metadata:', {
         mode: deliveryMode,
         data: finalDeliveryModeData
+      });
+
+      // ✅ Calculate order total (no tax, no base shipping)
+      const subtotal = cartItems.reduce((total, item) => {
+        const bundle = bundles[item.bundle_id];
+        return total + (bundle?.price || 0) * item.quantity;
+      }, 0);
+      
+      const orderTotal = subtotal + expressCharge - discount;
+
+      console.log('💰 [Checkout] Order totals:', {
+        subtotal,
+        expressCharge,
+        discount,
+        total: orderTotal
       });
 
       // Create order with address ID and delivery metadata
@@ -346,7 +376,8 @@ const Checkout = () => {
     return null;
   }
 
-  if (cartLoading || loading) {
+  // ✅ ONLY show loading on INITIAL page load, not on subsequent refreshes
+  if (!pageInitialized && (cartLoading || loading)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -394,12 +425,11 @@ const Checkout = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Cart Items + Delivery Details */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Cart Items */}
+            {/* Cart Items - ✅ Pass handleCartUpdate for smart refresh */}
             <CheckoutCart
               cartItems={cartItems}
               bundles={bundles}
-              onItemUpdate={refreshCart}
-              onQuantityChange={handleQuantityChange}
+              onItemUpdate={handleCartUpdate}
             />
 
             {/* ✅ Delivery Details Card - Below Cart Items */}
@@ -427,6 +457,7 @@ const Checkout = () => {
               onPlaceOrder={handlePlaceOrder}
               placingOrder={placingOrder}
               expressCharge={expressCharge}
+              deliveryMode={deliveryModeData?.mode || 'surface'} // ✅ Pass delivery mode
             />
           </div>
         </div>

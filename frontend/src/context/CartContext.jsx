@@ -1,4 +1,5 @@
 // frontend/src/context/CartContext.jsx - GLOBAL CART STATE MANAGEMENT
+// WITH SILENT REFRESH FOR TOTALS ONLY
 
 import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import { getCart } from '../services/cartService';
@@ -22,14 +23,22 @@ export function CartProvider({ children }) {
     total_quantity: 0
   });
   const [loading, setLoading] = useState(true);
+  const [refreshingTotals, setRefreshingTotals] = useState(false); // ✅ NEW - for silent refresh
   const [error, setError] = useState(null);
 
   /**
    * Fetch cart data from API
+   * @param {boolean} silentRefresh - If true, only show loading on totals, not full cart
    */
-  const fetchCart = useCallback(async () => {
+  const fetchCart = useCallback(async (silentRefresh = false) => {
     try {
-      setLoading(true);
+      if (silentRefresh) {
+        // Silent refresh - only update totals loading state
+        setRefreshingTotals(true);
+      } else {
+        // Full refresh - show full loading state
+        setLoading(true);
+      }
       setError(null);
 
       const result = await getCart();
@@ -72,15 +81,17 @@ export function CartProvider({ children }) {
       });
     } finally {
       setLoading(false);
+      setRefreshingTotals(false);
     }
   }, []);
 
   /**
    * Refresh cart (call this after any cart operation)
+   * @param {boolean} silentRefresh - If true, only refresh totals without full loading
    */
-  const refreshCart = useCallback(async () => {
-    console.log('🔄 Refreshing cart...');
-    await fetchCart();
+  const refreshCart = useCallback(async (silentRefresh = false) => {
+    console.log('🔄 Refreshing cart...', silentRefresh ? '(silent)' : '');
+    await fetchCart(silentRefresh);
   }, [fetchCart]);
 
   /**
@@ -139,6 +150,7 @@ export function CartProvider({ children }) {
     cartItems,
     cartTotals,
     loading,
+    refreshingTotals, // ✅ NEW - expose refreshing totals state
     error,
 
     // Methods

@@ -12,6 +12,7 @@ import { updateCartItem, removeFromCart, validateStockLimit } from '../../servic
  * ⭐ Includes stock limit validation
  * ⭐ Includes debounced quantity updates (800ms)
  * ⭐ Inline delete confirmation (like CartItem)
+ * ✅ Silent refresh - only updates cart summary, not full page
  */
 const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
   const [updating, setUpdating] = useState(null);
@@ -22,7 +23,7 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
   const [pendingQuantities, setPendingQuantities] = useState({}); // ⭐ Track pending updates
   const debounceTimersRef = useRef({}); // ⭐ Store debounce timers
 
-  // ⭐ DEBOUNCED QUANTITY UPDATE
+  // ⭐ DEBOUNCED QUANTITY UPDATE WITH SILENT REFRESH
   const handleUpdateQuantity = (cartItemId, bundleId, newQuantity) => {
     if (newQuantity < 1) return;
 
@@ -85,7 +86,10 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
         
         if (result.success) {
           console.log('✅ Cart item updated');
-          onItemUpdate();
+          // ✅ SILENT REFRESH - Pass true flag to only refresh summary
+          if (onItemUpdate) {
+            onItemUpdate(true); // true = silent refresh
+          }
         } else {
           console.error('❌ Failed to update:', result.error);
           // Revert to previous quantity on error
@@ -159,7 +163,10 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
       
       if (result.success) {
         console.log('✅ Item removed from cart');
-        onItemUpdate();
+        // Full refresh when item is removed
+        if (onItemUpdate) {
+          onItemUpdate(false); // false = full refresh
+        }
       } else {
         alert(result.error || 'Failed to remove item');
       }

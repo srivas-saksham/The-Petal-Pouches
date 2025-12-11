@@ -1,16 +1,19 @@
-// frontend/src/components/checkout/CheckoutSummary.jsx - WITHOUT DELIVERY DETAILS CARD
+// frontend/src/components/checkout/CheckoutSummary.jsx - REAL-TIME CALCULATION
 
-import React, { useState } from 'react';
-import { Lock, Truck, Gift, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Lock, Truck, Gift, Loader } from 'lucide-react';
 import { formatBundlePrice } from '../../utils/bundleHelpers';
+import { useCart } from '../../hooks/useCart';
 
 /**
  * CheckoutSummary Component
  * Displays price breakdown, applies promo codes, shows order total
  * Sticky on desktop, scrolls on mobile
- * ⭐ Dynamically calculates totals from cart items
+ * ⭐ Dynamically calculates totals from cart items in REAL-TIME
  * ⭐ Place Order integration
- * ✅ DeliveryDetailsCard moved to Checkout page
+ * ✅ No tax, no base shipping - only express charges apply
+ * ✅ Shows loading spinner only on totals during silent refresh
+ * ✅ No dropdown - always shows price breakdown
  */
 const CheckoutSummary = ({
   cartItems = [],
@@ -26,22 +29,26 @@ const CheckoutSummary = ({
   onPlaceOrder = null,
   placingOrder = false,
   expressCharge = 0,
+  deliveryMode = 'surface', // ✅ Add deliveryMode prop
 }) => {
   const [promoInput, setPromoInput] = useState('');
   const [applyingPromo, setApplyingPromo] = useState(false);
-  const [priceBreakdownOpen, setPriceBreakdownOpen] = useState(true);
 
-  // Calculate subtotal
-  const subtotal = cartItems.reduce((total, item) => {
-    const bundle = bundles[item.bundle_id];
-    return total + (bundle?.price || 0) * item.quantity;
-  }, 0);
+  // ✅ Get refreshingTotals from cart context
+  const { refreshingTotals } = useCart();
 
-  const tax = Math.round(subtotal * 0.18); // 18% GST
-  const baseShipping = 50; // Base shipping cost
-  const shipping = baseShipping + expressCharge; // Add express charge if selected
-  const discountAmount = discount;
-  const total = subtotal + tax + shipping - discountAmount;
+  // ✅ Calculate subtotal in real-time from cartItems
+  const subtotal = useMemo(() => {
+    return cartItems.reduce((total, item) => {
+      const bundle = bundles[item.bundle_id];
+      return total + (bundle?.price || 0) * item.quantity;
+    }, 0);
+  }, [cartItems, bundles]);
+
+  // ✅ Calculate total in real-time
+  const total = useMemo(() => {
+    return subtotal + expressCharge - discount;
+  }, [subtotal, expressCharge, discount]);
 
   const handleApplyPromo = async () => {
     if (!promoInput.trim()) {
@@ -68,7 +75,7 @@ const CheckoutSummary = ({
   };
 
   return (
-    <div className="realtive top-20 space-y-4">
+    <div className="relative space-y-4">
       {/* Order Summary Card */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         {/* Header */}
@@ -76,78 +83,69 @@ const CheckoutSummary = ({
           <h2 className="text-lg font-bold text-white">Order Summary</h2>
         </div>
 
-        {/* Price Breakdown */}
+        {/* Price Breakdown - Always Visible */}
         <div className="p-6 space-y-4">
-          {/* Breakdown Toggle */}
-          <button
-            onClick={() => setPriceBreakdownOpen(!priceBreakdownOpen)}
-            className="w-full flex items-center justify-between text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors py-2 px-3 hover:bg-gray-50 rounded-lg"
-          >
-            <span>Price Breakdown</span>
-            {priceBreakdownOpen ? (
-              <ChevronUp size={18} />
-            ) : (
-              <ChevronDown size={18} />
-            )}
-          </button>
-
-          {priceBreakdownOpen && (
-            <div className="space-y-3 pb-4 border-b">
-              {/* Subtotal */}
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Subtotal</span>
+          <div className="space-y-3 pb-4 border-b">
+            {/* Subtotal - ✅ Shows spinner during refresh */}
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Subtotal</span>
+              {refreshingTotals ? (
+                <Loader size={16} className="animate-spin text-tpppink" />
+              ) : (
                 <span className="font-medium text-gray-900">
                   {formatBundlePrice(subtotal)}
                 </span>
-              </div>
-
-              {/* Tax */}
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Tax (18% GST)</span>
-                <span className="font-medium text-gray-900">
-                  {formatBundlePrice(tax)}
-                </span>
-              </div>
-
-              {/* Shipping with breakdown */}
-              <div className="flex justify-between text-sm">
-                <div className="flex items-center gap-1">
-                  <Truck size={14} className="text-gray-400" />
-                  <span className="text-gray-600">Shipping</span>
-                </div>
-                <div className="text-right">
-                  <span className="font-medium text-gray-900">
-                    {formatBundlePrice(shipping)}
-                  </span>
-                  {expressCharge > 0 && (
-                    <p className="text-xs text-amber-600 mt-0.5">
-                      (Base: {formatBundlePrice(baseShipping)} + Express: {formatBundlePrice(expressCharge)})
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Discount */}
-              {discountAmount > 0 && (
-                <div className="flex justify-between text-sm">
-                  <div className="flex items-center gap-1">
-                    <Gift size={14} className="text-green-600" />
-                    <span className="text-green-600 font-medium">Discount</span>
-                  </div>
-                  <span className="font-semibold text-green-600">
-                    -{formatBundlePrice(discountAmount)}
-                  </span>
-                </div>
               )}
             </div>
-          )}
 
-          {/* Total */}
+            {/* ✅ Delivery - Shows based on selected delivery mode */}
+            <div className="flex justify-between text-sm">
+              <div className="flex items-center gap-1">
+                <span className="text-gray-600">
+                  {deliveryMode === 'express' ? "Express Delivery" : "Standard Delivery"}
+                </span>
+                <Truck size={15} className={deliveryMode === 'express' ? "text-amber-600" : "text-green-600"} />
+              </div>
+              <div className="text-right">
+                {expressCharge > 0 ? (
+                  <>
+                    <span className="font-medium text-gray-900">
+                      {formatBundlePrice(expressCharge)}
+                    </span>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      Fast delivery upgrade
+                    </p>
+                  </>
+                ) : (
+                  <span className={deliveryMode === 'express' ? "font-bold text-amber-600" : "font-bold text-green-600"}>FREE</span>
+                )}
+              </div>
+            </div>
+
+            {/* Discount */}
+            {discount > 0 && (
+              <div className="flex justify-between text-sm">
+                <div className="flex items-center gap-1">
+                  <Gift size={14} className="text-green-600" />
+                  <span className="text-green-600 font-medium">Discount</span>
+                </div>
+                <span className="font-semibold text-green-600">
+                  -{formatBundlePrice(discount)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Total - ✅ Shows spinner during refresh */}
           <div className="flex justify-between items-center pt-4 border-t">
             <span className="text-lg font-bold text-gray-900">Total</span>
-            <span className="text-2xl font-bold text-tpppink">
-              {formatBundlePrice(total)}
-            </span>
+            {refreshingTotals ? (
+              <Loader size={20} className="animate-spin text-tpppink" />
+            ) : (
+              <span className="text-2xl font-bold text-tpppink">
+                {formatBundlePrice(total)}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -242,6 +240,10 @@ const CheckoutSummary = ({
         <div className="flex items-start gap-2">
           <span className="text-green-600 mt-1">✓</span>
           <span>100% secure and encrypted checkout</span>
+        </div>
+        <div className="flex items-start gap-2">
+          <span className="text-green-600 mt-1">✓</span>
+          <span>Free standard delivery on all orders</span>
         </div>
         <div className="flex items-start gap-2">
           <span className="text-green-600 mt-1">✓</span>

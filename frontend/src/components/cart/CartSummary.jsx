@@ -1,19 +1,11 @@
 // frontend/src/components/cart/CartSummary.jsx
-// COMPACT ENHANCED UI - FREE DELIVERY ALWAYS
-
 import React from 'react';
-import { Package, Truck } from 'lucide-react';
+import { Package, Truck, Loader } from 'lucide-react';
+import { useCart } from '../../hooks/useCart';
 
-/**
- * CartSummary Component
- * Shows price breakdown and totals with compact enhanced UI
- * 
- * @param {Object} totals - Cart totals
- * @param {number} totals.subtotal - Subtotal
- * @param {number} totals.shipping - Shipping cost (always 0)
- * @param {number} totals.total - Final total
- */
 const CartSummary = ({ totals }) => {
+  const { refreshingTotals } = useCart(); // ✅ Get refreshing state
+
   const formatPrice = (price) => {
     return `₹${price.toLocaleString('en-IN')}`;
   };
@@ -27,9 +19,13 @@ const CartSummary = ({ totals }) => {
             <Package size={16} />
             <span>Subtotal</span>
           </div>
-          <span className="font-semibold text-slate-900">
-            {formatPrice(totals?.subtotal || 0)}
-          </span>
+          {refreshingTotals ? (
+            <Loader size={16} className="animate-spin text-tpppink" />
+          ) : (
+            <span className="font-semibold text-slate-900">
+              {formatPrice(totals?.subtotal || 0)}
+            </span>
+          )}
         </div>
 
         {/* Shipping - Always Free */}
@@ -57,9 +53,13 @@ const CartSummary = ({ totals }) => {
         <div className="pt-2 border-t border-slate-200">
           <div className="flex items-center justify-between">
             <span className="text-base font-bold text-slate-900">Total</span>
-            <span className="text-lg font-bold text-tpppink">
-              {formatPrice(totals?.total || 0)}
-            </span>
+            {refreshingTotals ? (
+              <Loader size={18} className="animate-spin text-tpppink" />
+            ) : (
+              <span className="text-lg font-bold text-tpppink">
+                {formatPrice(totals?.total || 0)}
+              </span>
+            )}
           </div>
         </div>
       </div>

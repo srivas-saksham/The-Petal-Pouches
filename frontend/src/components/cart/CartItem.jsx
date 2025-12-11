@@ -1,5 +1,5 @@
 // frontend/src/components/cart/CartItem.jsx
-// WITH DEBOUNCED QUANTITY UPDATES + STRICT STOCK VALIDATION + INLINE DELETE CONFIRMATION
+// WITH DEBOUNCED QUANTITY UPDATES + STRICT STOCK VALIDATION + SILENT REFRESH
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Minus, Plus, Trash2, Loader, ShoppingBag } from 'lucide-react';
@@ -39,44 +39,40 @@ const CartItem = ({ item }) => {
     setLocalQuantity(item.quantity);
   }, [item.quantity]);
 
-  // Debounced update to server (SAME AS BUNDLECARD)
+  // Debounced update to server with SILENT REFRESH
   useEffect(() => {
     if (pendingQuantity === null) return;
 
-    // Clear any existing timer
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
 
-    // Set new timer for 800ms
     debounceTimerRef.current = setTimeout(async () => {
       setUpdating(true);
 
       try {
-        // If quantity is 0, remove item
         if (pendingQuantity === 0) {
           const result = await removeFromCart(item.id);
           if (result.success) {
-            await refreshCart();
+            await refreshCart(true); // ✅ Silent refresh - only totals update
             toast.success('Item removed from cart');
           } else {
-            // Revert on failure
             setLocalQuantity(item.quantity);
             toast.error(result.error || 'Failed to remove item');
           }
         } else {
-          // Update quantity with stock limit validation
           const result = await updateCartItem(item.id, pendingQuantity, item.stock_limit);
           
-          if (!result.success) {
-            // Revert on failure
+          if (result.success) {
+            // ✅ Silent refresh after successful update - only totals reload
+            await refreshCart(true);
+          } else {
             setLocalQuantity(item.quantity);
             toast.error(result.error || 'Failed to update quantity');
           }
         }
       } catch (error) {
         console.error('Update quantity error:', error);
-        // Revert on error
         setLocalQuantity(item.quantity);
         toast.error('Failed to update quantity');
       } finally {
@@ -85,7 +81,6 @@ const CartItem = ({ item }) => {
       }
     }, 800); // 800ms debounce delay
 
-    // Cleanup timer on unmount or when dependencies change
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
@@ -98,7 +93,7 @@ const CartItem = ({ item }) => {
     return `₹${price.toLocaleString('en-IN')}`;
   };
 
-  // Handle quantity increment (STRICT VALIDATION LIKE BUNDLECARD)
+  // Handle quantity increment (STRICT VALIDATION)
   const handleIncrement = () => {
     // STRICT: Validate stock limit BEFORE updating local state
     if (item.stock_limit && localQuantity >= item.stock_limit) {
@@ -111,7 +106,7 @@ const CartItem = ({ item }) => {
     setPendingQuantity(newQuantity);
   };
 
-  // Handle quantity decrement (SAME AS BUNDLECARD)
+  // Handle quantity decrement
   const handleDecrement = () => {
     if (localQuantity <= 0) return;
 
@@ -132,7 +127,7 @@ const CartItem = ({ item }) => {
       const result = await removeFromCart(item.id);
       
       if (result.success) {
-        await refreshCart();
+        await refreshCart(); // Full refresh when removing
         toast.success('Item removed from cart');
       } else {
         toast.error(result.error || 'Failed to remove item');

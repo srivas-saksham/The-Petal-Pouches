@@ -162,9 +162,9 @@ const CartController = {
 
       // Calculate totals
       const subtotal = transformedItems.reduce((sum, item) => sum + item.item_total, 0);
-      const tax = subtotal * 0.18;
-      const shipping = subtotal >= 999 ? 0 : 99;
-      const total = subtotal + tax + shipping;
+      const tax = 0;  // No tax applied
+      const shipping = 0;  // Free delivery always
+      const total = subtotal;  // Total equals subtotal
 
       res.json({
         success: true,
@@ -173,9 +173,9 @@ const CartController = {
           items: transformedItems,
           totals: {
             subtotal: parseFloat(subtotal.toFixed(2)),
-            tax: parseFloat(tax.toFixed(2)),
-            shipping: parseFloat(shipping.toFixed(2)),
-            total: parseFloat(total.toFixed(2)),
+            tax: 0,
+            shipping: 0,
+            total: parseFloat(subtotal.toFixed(2)),  // Same as subtotal
             item_count: transformedItems.length,
             total_quantity: transformedItems.reduce((sum, item) => sum + item.quantity, 0)
           }
