@@ -1,16 +1,16 @@
 // backend/src/services/stockService.js
-// Stock management service - handles deduction of bundle stock on order
+// ENHANCED: Now also deducts stock from individual products in bundles
 
 const supabase = require('../config/supabaseClient');
 
 /**
- * Stock Service - Manages bundle stock operations
+ * Stock Service - Manages bundle AND product stock operations
  */
 const StockService = {
 
   /**
-   * Deduct bundle stock after order is placed
-   * Reduces stock_limit for each bundle by the quantity ordered
+   * ⭐ ENHANCED: Deduct bundle stock AND product stock after order is placed
+   * Reduces stock_limit for bundles AND stock for products inside bundles
    * 
    * @param {Array} orderItems - Array of {bundle_id, quantity}
    * @returns {Promise<Object>} { success: boolean, deducted: Array, failed: Array }
@@ -62,14 +62,14 @@ const StockService = {
   },
 
   /**
-   * Deduct stock for single bundle
+   * ⭐ ENHANCED: Deduct stock for single bundle AND its products
    * @param {string} bundleId - Bundle UUID
-   * @param {number} quantity - Quantity to deduct
-   * @returns {Promise<Object>} { success, bundle_id, previous_stock, new_stock, is_now_out_of_stock }
+   * @param {number} bundleQuantity - How many bundles ordered
+   * @returns {Promise<Object>} Deduction result with products info
    */
-  deductBundleStockItem: async (bundleId, quantity) => {
+  deductBundleStockItem: async (bundleId, bundleQuantity) => {
     try {
-      // Get current bundle stock
+      // ===== STEP 1: Get Bundle Info =====
       const { data: bundle, error: fetchError } = await supabase
         .from('Bundles')
         .select('id, title, stock_limit')
@@ -80,52 +80,140 @@ const StockService = {
         throw new Error(`Bundle ${bundleId} not found`);
       }
 
-      const previousStock = bundle.stock_limit;
+      const previousBundleStock = bundle.stock_limit;
       
-      // If stock_limit is null, skip deduction (unlimited stock)
-      if (previousStock === null) {
-        console.log(`⚠️ Bundle ${bundleId} has unlimited stock (null), skipping deduction`);
-        return {
-          success: true,
-          bundle_id: bundleId,
-          bundle_title: bundle.title,
-          previous_stock: null,
-          new_stock: null,
-          is_now_out_of_stock: false,
-          skipped_reason: 'unlimited_stock'
-        };
+      // ===== STEP 2: Deduct Bundle Stock (if limited) =====
+      let newBundleStock = previousBundleStock;
+      let bundleDeducted = false;
+
+      if (previousBundleStock !== null) {
+        newBundleStock = Math.max(0, previousBundleStock - bundleQuantity);
+        
+        const { error: updateError } = await supabase
+          .from('Bundles')
+          .update({ 
+            stock_limit: newBundleStock,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', bundleId);
+
+        if (updateError) throw updateError;
+        
+        bundleDeducted = true;
+        console.log(`✅ Bundle ${bundleId} stock: ${previousBundleStock} → ${newBundleStock}`);
+      } else {
+        console.log(`⚠️ Bundle ${bundleId} has unlimited stock (null)`);
       }
 
-      // Calculate new stock
-      const newStock = Math.max(0, previousStock - quantity);
-      const isNowOutOfStock = newStock === 0;
+      // ===== STEP 3: ⭐ NEW - Get Products in Bundle =====
+      const { data: bundleItems, error: itemsError } = await supabase
+        .from('Bundle_items')
+        .select(`
+          id,
+          quantity,
+          product_id,
+          product_variant_id,
+          Products!inner(
+            id,
+            title,
+            stock,
+            sku
+          ),
+          Product_variants(
+            id,
+            stock,
+            sku
+          )
+        `)
+        .eq('bundle_id', bundleId);
 
-      // Update bundle stock
-      const { error: updateError } = await supabase
-        .from('Bundles')
-        .update({ 
-          stock_limit: newStock,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', bundleId);
-
-      if (updateError) {
-        throw updateError;
+      if (itemsError) {
+        console.error('❌ Error fetching bundle items:', itemsError);
+        // Don't fail the whole operation, just log
       }
 
-      console.log(`✅ Bundle ${bundleId} stock: ${previousStock} → ${newStock}${isNowOutOfStock ? ' (OUT OF STOCK)' : ''}`);
+      // ===== STEP 4: ⭐ NEW - Deduct Product Stock =====
+      const productsDeducted = [];
+      const productsFailed = [];
+
+      if (bundleItems && bundleItems.length > 0) {
+        console.log(`📦 Deducting stock for ${bundleItems.length} products in bundle`);
+
+        for (const bundleItem of bundleItems) {
+          try {
+            // Calculate how many units to deduct
+            // If user orders 2 bundles, and bundle has 3 units of product A,
+            // deduct 2 * 3 = 6 units of product A
+            const itemQuantityPerBundle = bundleItem.quantity || 1;
+            const totalToDeduct = itemQuantityPerBundle * bundleQuantity;
+
+            // If variant exists, deduct from variant
+            if (bundleItem.product_variant_id && bundleItem.Product_variants) {
+              const variantResult = await StockService._deductVariantStock(
+                bundleItem.product_variant_id,
+                totalToDeduct,
+                bundleItem.Product_variants.sku
+              );
+              
+              productsDeducted.push({
+                type: 'variant',
+                ...variantResult
+              });
+            } 
+            // Otherwise deduct from product
+            else if (bundleItem.product_id) {
+              const productResult = await StockService._deductProductStock(
+                bundleItem.product_id,
+                totalToDeduct,
+                bundleItem.Products.title,
+                bundleItem.Products.sku
+              );
+              
+              productsDeducted.push({
+                type: 'product',
+                ...productResult
+              });
+            }
+          } catch (itemError) {
+            console.error(`❌ Failed to deduct stock for item:`, itemError);
+            productsFailed.push({
+              product_id: bundleItem.product_id,
+              variant_id: bundleItem.product_variant_id,
+              error: itemError.message
+            });
+            // Continue with other items
+          }
+        }
+      }
+
+      // ===== STEP 5: Return Result =====
+      const isNowOutOfStock = newBundleStock === 0 && previousBundleStock !== null;
 
       return {
         success: true,
         bundle_id: bundleId,
         bundle_title: bundle.title,
-        previous_stock: previousStock,
-        new_stock: newStock,
-        quantity_deducted: quantity,
-        is_now_out_of_stock: isNowOutOfStock
+        
+        // Bundle stock info
+        bundle_stock: {
+          previous: previousBundleStock,
+          new: newBundleStock,
+          deducted: bundleDeducted,
+          is_now_out_of_stock: isNowOutOfStock
+        },
+        
+        // ⭐ NEW: Products stock info
+        products_stock: {
+          deducted: productsDeducted,
+          failed: productsFailed,
+          total_products: bundleItems?.length || 0
+        },
+        
+        quantity_ordered: bundleQuantity
       };
+
     } catch (error) {
-      console.error(`❌ Deduct single bundle stock error:`, error);
+      console.error(`❌ Deduct bundle stock item error:`, error);
       return {
         success: false,
         bundle_id: bundleId,
@@ -135,7 +223,100 @@ const StockService = {
   },
 
   /**
-   * Restore bundle stock (for order cancellation)
+   * ⭐ NEW: Deduct stock from product variant
+   * @private
+   */
+  _deductVariantStock: async (variantId, quantity, sku) => {
+    try {
+      // Get current stock
+      const { data: variant, error: fetchError } = await supabase
+        .from('Product_variants')
+        .select('id, stock, sku')
+        .eq('id', variantId)
+        .single();
+
+      if (fetchError || !variant) {
+        throw new Error(`Variant ${variantId} not found`);
+      }
+
+      const previousStock = variant.stock;
+      const newStock = Math.max(0, previousStock - quantity);
+
+      // Update stock
+      const { error: updateError } = await supabase
+        .from('Product_variants')
+        .update({ 
+          stock: newStock
+        })
+        .eq('id', variantId);
+
+      if (updateError) throw updateError;
+
+      console.log(`   ✅ Variant ${sku}: ${previousStock} → ${newStock} (-${quantity})`);
+
+      return {
+        variant_id: variantId,
+        sku,
+        previous_stock: previousStock,
+        new_stock: newStock,
+        quantity_deducted: quantity,
+        is_now_out_of_stock: newStock === 0
+      };
+    } catch (error) {
+      console.error(`   ❌ Variant stock deduction failed:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * ⭐ NEW: Deduct stock from product
+   * @private
+   */
+  _deductProductStock: async (productId, quantity, title, sku) => {
+    try {
+      // Get current stock
+      const { data: product, error: fetchError } = await supabase
+        .from('Products')
+        .select('id, stock, title, sku')
+        .eq('id', productId)
+        .single();
+
+      if (fetchError || !product) {
+        throw new Error(`Product ${productId} not found`);
+      }
+
+      const previousStock = product.stock;
+      const newStock = Math.max(0, previousStock - quantity);
+
+      // Update stock
+      const { error: updateError } = await supabase
+        .from('Products')
+        .update({ 
+          stock: newStock
+        })
+        .eq('id', productId);
+
+      if (updateError) throw updateError;
+
+      console.log(`   ✅ Product ${sku}: ${previousStock} → ${newStock} (-${quantity})`);
+
+      return {
+        product_id: productId,
+        title,
+        sku,
+        previous_stock: previousStock,
+        new_stock: newStock,
+        quantity_deducted: quantity,
+        is_now_out_of_stock: newStock === 0
+      };
+    } catch (error) {
+      console.error(`   ❌ Product stock deduction failed:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * ⭐ ENHANCED: Restore bundle AND product stock (for order cancellation)
    * @param {Array} orderItems - Array of {bundle_id, quantity}
    * @returns {Promise<Object>} { success, restored: Array, failed: Array }
    */
@@ -148,6 +329,7 @@ const StockService = {
 
       for (const item of orderItems) {
         try {
+          // ===== Restore Bundle Stock =====
           const { data: bundle, error: fetchError } = await supabase
             .from('Bundles')
             .select('stock_limit, title')
@@ -158,37 +340,102 @@ const StockService = {
             throw new Error(`Bundle ${item.bundle_id} not found`);
           }
 
-          // Skip if unlimited stock
-          if (bundle.stock_limit === null) {
-            restored.push({
-              bundle_id: item.bundle_id,
-              skipped: true,
-              reason: 'unlimited_stock'
-            });
-            continue;
+          let bundleRestored = false;
+          let newBundleStock = bundle.stock_limit;
+
+          // Restore bundle stock if limited
+          if (bundle.stock_limit !== null) {
+            newBundleStock = bundle.stock_limit + item.quantity;
+
+            const { error: updateError } = await supabase
+              .from('Bundles')
+              .update({ 
+                stock_limit: newBundleStock,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', item.bundle_id);
+
+            if (updateError) throw updateError;
+            bundleRestored = true;
+            
+            console.log(`✅ Bundle ${item.bundle_id} stock restored: ${bundle.stock_limit} → ${newBundleStock}`);
           }
 
-          const newStock = bundle.stock_limit + item.quantity;
+          // ===== ⭐ NEW: Restore Product Stock =====
+          const { data: bundleItems, error: itemsError } = await supabase
+            .from('Bundle_items')
+            .select(`
+              quantity,
+              product_id,
+              product_variant_id
+            `)
+            .eq('bundle_id', item.bundle_id);
 
-          const { error: updateError } = await supabase
-            .from('Bundles')
-            .update({ 
-              stock_limit: newStock,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', item.bundle_id);
+          const productsRestored = [];
 
-          if (updateError) throw updateError;
+          if (bundleItems && bundleItems.length > 0) {
+            for (const bundleItem of bundleItems) {
+              const totalToRestore = (bundleItem.quantity || 1) * item.quantity;
+
+              try {
+                if (bundleItem.product_variant_id) {
+                  // Restore variant stock
+                  const { data: variant } = await supabase
+                    .from('Product_variants')
+                    .select('stock')
+                    .eq('id', bundleItem.product_variant_id)
+                    .single();
+
+                  if (variant) {
+                    await supabase
+                      .from('Product_variants')
+                      .update({ stock: variant.stock + totalToRestore })
+                      .eq('id', bundleItem.product_variant_id);
+
+                    productsRestored.push({
+                      type: 'variant',
+                      id: bundleItem.product_variant_id,
+                      restored: totalToRestore
+                    });
+                  }
+                } else if (bundleItem.product_id) {
+                  // Restore product stock
+                  const { data: product } = await supabase
+                    .from('Products')
+                    .select('stock')
+                    .eq('id', bundleItem.product_id)
+                    .single();
+
+                  if (product) {
+                    await supabase
+                      .from('Products')
+                      .update({ stock: product.stock + totalToRestore })
+                      .eq('id', bundleItem.product_id);
+
+                    productsRestored.push({
+                      type: 'product',
+                      id: bundleItem.product_id,
+                      restored: totalToRestore
+                    });
+                  }
+                }
+              } catch (restoreError) {
+                console.error(`   ⚠️ Failed to restore item stock:`, restoreError);
+              }
+            }
+          }
 
           restored.push({
             bundle_id: item.bundle_id,
             bundle_title: bundle.title,
-            previous_stock: bundle.stock_limit,
-            new_stock: newStock,
-            quantity_restored: item.quantity
+            bundle_stock: {
+              previous: bundle.stock_limit,
+              new: newBundleStock,
+              restored: bundleRestored
+            },
+            products_restored: productsRestored
           });
 
-          console.log(`✅ Bundle ${item.bundle_id} stock restored: ${bundle.stock_limit} → ${newStock}`);
         } catch (error) {
           console.error(`❌ Error restoring stock for bundle ${item.bundle_id}:`, error);
           failed.push({

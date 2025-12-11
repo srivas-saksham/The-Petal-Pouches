@@ -106,8 +106,6 @@ const OrderController = {
       const orderData = {
         user_id: userId,
         subtotal: totals.subtotal,
-        tax: 0,  // ✅ NO TAX
-        shipping_cost: 0,  // ✅ FREE STANDARD
         express_charge: totals.express_charge,  // ✅ Express charges if applicable
         discount: 0,
         final_total: totals.total,

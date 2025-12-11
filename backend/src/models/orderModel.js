@@ -20,9 +20,7 @@ const OrderModel = {
    * @param {Object} orderData - Order information
    * @param {string} orderData.user_id - Customer UUID
    * @param {number} orderData.subtotal - Items total before shipping/discount
-   * @param {number} orderData.shipping_cost - Delivery charge
    * @param {number} orderData.express_charge - Express delivery charge
-   * @param {number} orderData.tax - Tax amount
    * @param {number} orderData.discount - Discount amount
    * @param {number} orderData.final_total - Final payable amount
    * @param {Object} orderData.shipping_address - Delivery address (JSONB)
@@ -48,8 +46,6 @@ const OrderModel = {
       const {
         user_id,
         subtotal,
-        tax = 0,
-        shipping_cost = 0,
         express_charge = 0,
         discount = 0,
         final_total,
@@ -72,8 +68,6 @@ const OrderModel = {
           user_id,
           status,
           subtotal,
-          tax,
-          shipping_cost,
           express_charge,
           discount,
           final_total,
@@ -229,7 +223,7 @@ const OrderModel = {
       // Build orders query
       let ordersQuery = supabase
         .from('Orders')
-        .select('id, status, subtotal, shipping_cost, express_charge, final_total, payment_status, created_at, placed_at, bundle_type')
+        .select('id, status, subtotal, express_charge, final_total, payment_status, created_at, placed_at, bundle_type')
         .eq('user_id', userId);
 
       if (status) {

@@ -14,8 +14,7 @@ const calculateOrderTotals = (cartItems, deliveryMode = 'surface', expressCharge
   if (!cartItems || cartItems.length === 0) {
     return {
       subtotal: 0,
-      tax: 0,  // ✅ NO TAX
-      shipping: 0,  // ✅ FREE STANDARD SHIPPING
+      // ❌ REMOVED: shipping: 0,
       express_charge: 0,
       discount: 0,
       total: 0,
@@ -25,32 +24,18 @@ const calculateOrderTotals = (cartItems, deliveryMode = 'surface', expressCharge
     };
   }
 
-  // Calculate subtotal
   const subtotal = cartItems.reduce((sum, item) => {
     return sum + (item.price * item.quantity);
   }, 0);
 
-  // Calculate total quantity
   const total_quantity = cartItems.reduce((sum, item) => {
     return sum + item.quantity;
   }, 0);
 
-  // ✅ NO BASE SHIPPING COST - Always free
-  const shipping = 0;
-
-  // ✅ NO TAX - As per your requirement
-  const tax = 0;
-
-  // ✅ Express charge only if express mode selected
   const express_charge = deliveryMode === 'express' ? expressCharge : 0;
-
-  // Discount (applied via coupons)
   const discount = 0;
-
-  // ✅ CORRECT TOTAL: subtotal + express_charge only
   const total = subtotal + express_charge - discount;
 
-  // Estimate total weight
   const estimated_weight = cartItems.reduce((sum, item) => {
     const itemWeight = item.weight || 200;
     return sum + (itemWeight * item.quantity);
@@ -58,8 +43,7 @@ const calculateOrderTotals = (cartItems, deliveryMode = 'surface', expressCharge
 
   return {
     subtotal: parseFloat(subtotal.toFixed(2)),
-    tax: 0,  // ✅ Always 0
-    shipping: 0,  // ✅ Always 0 (free standard)
+    // ❌ REMOVED: shipping: 0,
     express_charge: parseFloat(express_charge.toFixed(2)),
     discount: parseFloat(discount.toFixed(2)),
     total: parseFloat(total.toFixed(2)),
@@ -130,7 +114,6 @@ const formatOrderResponse = (order) => {
     
     // Amounts
     subtotal: order.subtotal,
-    tax: order.tax,
     shipping_cost: order.shipping_cost,
     discount: order.discount,
     final_total: order.final_total,
