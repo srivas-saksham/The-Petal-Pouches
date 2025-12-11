@@ -12,12 +12,13 @@ import api from '../../services/api';
  * ✅ Address selector UI + localStorage persistence
  * ✅ No duplicate auto-selection (handled by parent)
  * ✅ Integrated delivery mode selection (Standard/Express)
+ * ✅ TWO COLUMN LAYOUT: Address info | Delivery options
  * 
  * @param {Object} selectedAddress - Currently selected delivery address
  * @param {Function} onAddressSelect - Callback when address is selected
  * @param {Array} addresses - List of available addresses
  * @param {Function} onDeliveryUpdate - Callback when delivery data changes
- * @param {Function} onStepChange - Callback to change checkout step
+ * @param {Function} onOpenAddressModal - Callback to open address modal
  * @param {Function} onDeliveryModeChange - Callback when delivery mode changes
  */
 const DeliveryDetailsCard = ({ 
@@ -25,7 +26,7 @@ const DeliveryDetailsCard = ({
   onAddressSelect,
   addresses = [],
   onDeliveryUpdate,
-  onStepChange,
+  onOpenAddressModal,
   onDeliveryModeChange
 }) => {
   const [deliveryData, setDeliveryData] = useState(null);
@@ -186,6 +187,8 @@ const DeliveryDetailsCard = ({
 
   // ✅ NEW: Handle delivery mode change
   const handleModeChange = async (mode) => {
+    console.log('🔄 Mode changing to:', mode);
+
     if (isChangingMode || mode === selectedMode) return;
 
     try {
@@ -212,11 +215,11 @@ const DeliveryDetailsCard = ({
   const getAddressIcon = (type) => {
     switch (type?.toLowerCase()) {
       case 'home':
-        return <Home size={14} className="text-purple-600" />;
+        return <Home size={14} className="text-tpppink" />;
       case 'work':
         return <Briefcase size={14} className="text-blue-600" />;
       default:
-        return <MapPin size={14} className="text-gray-600" />;
+        return <MapPin size={14} className="text-slate-600" />;
     }
   };
 
@@ -243,188 +246,293 @@ const DeliveryDetailsCard = ({
   }, [showAddressList]);
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className="bg-white rounded-lg shadow overflow-visible">
       {/* Header */}
-      <div className="bg-gradient-to-r from-tppslate to-tppslate/90 px-6 py-4">
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <Truck size={20} />
-          Delivery Information
-        </h2>
+      <div className="bg-gradient-to-r from-tppslate to-tppslate/90 px-6 py-4 rounded-lg">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Truck size={20} />
+            Delivery Information
+          </h2>
+          
+          {/* Free Shipping Badge - Compact with white text */}
+          {selectedAddress && deliveryData && deliveryData.serviceable && (
+            <div className="bg-green-600 rounded-md px-3 py-1.5 flex items-center gap-1.5">
+              <Package size={14} className="text-white" />
+              <span className="font-inter text-xs font-bold text-white whitespace-nowrap">FREE STANDARD SHIPPING</span>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="p-6 space-y-4">
-        {/* ==================== ADDRESS SELECTOR ==================== */}
-        <div>
-          <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-            <MapPin size={16} className="text-tpppink" />
-            Delivery Address
-          </h3>
+      {/* ==================== TWO COLUMN LAYOUT ==================== */}
+      <div className="p-6 overflow-visible">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* ==================== LEFT COLUMN: ADDRESS INFO ==================== */}
+          <div className="space-y-4">
+            {/* ADDRESS SELECTOR */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[16px] font-bold text-slate-800 flex items-center gap-2">
+                  Delivery Address
+                </h3>
 
-          <div className="relative" ref={addressListRef}>
-            {selectedAddress ? (
-              <button
-                onClick={() => setShowAddressList(!showAddressList)}
-                className="w-full p-3 bg-tpppink/10 border-2 border-tpppink rounded-lg text-left hover:border-tpppink hover:bg-tpppink/20 transition-colors"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      {getAddressIcon(selectedAddress.address_type)}
-                      <span className="text-sm font-bold text-gray-800">
-                        {getAddressTypeName(selectedAddress.address_type)}
-                      </span>
-                      {selectedAddress.is_default && (
-                        <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-semibold">
-                          Default
-                        </span>
+                <button
+                  onClick={() => {
+                    onOpenAddressModal();
+                    setShowAddressList(false);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-tpppink/10 hover:bg-tpppink text-tpppink hover:text-white rounded-md transition-colors"
+                >
+                  <Plus size={14} />
+                  <span className="text-xs font-bold">Add Address</span>
+                </button>
+              </div>
+
+              <div className="relative" ref={addressListRef}>
+                {selectedAddress ? (
+                  <button
+                    onClick={() => setShowAddressList(!showAddressList)}
+                    className="w-full p-3 bg-tpppink/10 border-2 border-tpppink rounded-lg text-left hover:border-tpppink hover:bg-tpppink/20 transition-colors"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          {getAddressIcon(selectedAddress.address_type)}
+                          <span className="text-sm font-bold text-slate-800">
+                            {getAddressTypeName(selectedAddress.address_type)}
+                          </span>
+                          {selectedAddress.is_default && (
+                            <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-semibold">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-slate-700 font-medium">
+                          {selectedAddress.line1}
+                        </p>
+                        <p className="text-sm text-slate-600">
+                          {selectedAddress.line2 ? `${selectedAddress.line2}, ` : ''}
+                          {selectedAddress.city}, {selectedAddress.state} {selectedAddress.zip_code}
+                        </p>
+                      </div>
+                      <div className="ml-2 flex-shrink-0">
+                        {showAddressList ? (
+                          <ChevronUp size={18} className="text-slate-600" />
+                        ) : (
+                          <ChevronDown size={18} className="text-slate-600" />
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowAddressList(!showAddressList)}
+                    className="w-full p-3 border-2 border-dashed border-slate-300 rounded-lg text-left hover:border-tpppink transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-600">Select delivery address</span>
+                      {showAddressList ? (
+                        <ChevronUp size={16} className="text-slate-600" />
+                      ) : (
+                        <ChevronDown size={16} className="text-slate-600" />
                       )}
                     </div>
-                    <p className="text-sm text-gray-700 font-medium">
-                      {selectedAddress.line1}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {selectedAddress.line2 ? `${selectedAddress.line2}, ` : ''}
-                      {selectedAddress.city}, {selectedAddress.state} {selectedAddress.zip_code}
-                    </p>
-                  </div>
-                  <div className="ml-2 flex-shrink-0">
-                    {showAddressList ? (
-                      <ChevronUp size={18} className="text-gray-600" />
-                    ) : (
-                      <ChevronDown size={18} className="text-gray-600" />
-                    )}
-                  </div>
-                </div>
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowAddressList(!showAddressList)}
-                className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-left hover:border-tpppink transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Select delivery address</span>
-                  {showAddressList ? (
-                    <ChevronUp size={16} className="text-gray-600" />
-                  ) : (
-                    <ChevronDown size={16} className="text-gray-600" />
-                  )}
-                </div>
-              </button>
-            )}
-
-            {/* Address Dropdown */}
-            {showAddressList && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-gray-200 rounded-lg shadow-xl max-h-80 overflow-y-auto z-50">
-                {onStepChange && (
-                  <button
-                    onClick={() => {
-                      onStepChange('shipping');
-                      setShowAddressList(false);
-                    }}
-                    className="w-full p-3 bg-tpppink/10 border-b-2 border-gray-100 flex items-center gap-2 hover:bg-tpppink transition-colors text-tpppink hover:text-white font-semibold"
-                  >
-                    <Plus size={16} />
-                    <span className="text-sm">Add New Address</span>
                   </button>
                 )}
 
-                {addresses.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-gray-500">
-                    No saved addresses
-                  </div>
-                ) : (
-                  addresses.map((addr) => (
-                    <button
-                      key={addr.id}
-                      onClick={() => handleAddressSelect(addr)}
-                      className={`w-full p-3 border-b last:border-b-0 text-left hover:bg-tppslate/20 transition-colors ${
-                        selectedAddress?.id === addr.id ? 'bg-tppslate/10' : ''
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            {getAddressIcon(addr.address_type)}
-                            <span className="text-xs font-semibold text-gray-800">
-                              {getAddressTypeName(addr.address_type)}
-                            </span>
-                            {addr.is_default && (
-                              <span className="text-xs bg-green-500 text-white px-1.5 py-0.5 rounded-full font-semibold">
-                                Default
-                              </span>
+                {/* Address Dropdown - Modal for 3+ addresses, Dropdown for 1-2 */}
+                {showAddressList && addresses.length <= 2 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-slate-200 rounded-lg shadow-xl max-h-80 overflow-y-auto z-50">
+
+                    {addresses.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-slate-500">
+                        No saved addresses
+                      </div>
+                    ) : (
+                      addresses.map((addr) => (
+                        <button
+                          key={addr.id}
+                          onClick={() => handleAddressSelect(addr)}
+                          className={`w-full p-3 border-b last:border-b-0 border-slate-100 text-left hover:bg-slate-50 transition-colors ${
+                            selectedAddress?.id === addr.id ? 'bg-slate-50' : ''
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                {getAddressIcon(addr.address_type)}
+                                <span className="text-xs font-semibold text-slate-800">
+                                  {getAddressTypeName(addr.address_type)}
+                                </span>
+                                {addr.is_default && (
+                                  <span className="text-xs bg-green-500 text-white px-1.5 py-0.5 rounded-full font-semibold">
+                                    Default
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-slate-700 font-medium truncate">
+                                {addr.line1}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {addr.city}, {addr.state} {addr.zip_code}
+                              </p>
+                            </div>
+                            {selectedAddress?.id === addr.id && (
+                              <CheckCircle size={16} className="text-tpppink flex-shrink-0 ml-2" />
                             )}
                           </div>
-                          <p className="text-xs text-gray-700 font-medium truncate">
-                            {addr.line1}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {addr.city}, {addr.state} {addr.zip_code}
-                          </p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {/* Address Modal - For 3+ addresses */}
+                {showAddressList && addresses.length > 2 && (
+                  <>
+                    {/* Modal Backdrop */}
+                    <div 
+                      className="fixed inset-0 bg-black/50 z-50"
+                      onClick={() => setShowAddressList(false)}
+                    />
+                    
+                    {/* Modal Content */}
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                      <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+                        {/* Modal Header */}
+                        <div className="bg-gradient-to-r from-tppslate to-tppslate/90 px-6 py-4 flex items-center justify-between rounded-t-lg">
+                          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                            <MapPin size={20} />
+                            Select Delivery Address
+                          </h3>
+                          <button
+                            onClick={() => setShowAddressList(false)}
+                            className="text-white hover:bg-white/20 rounded-full p-1 transition-colors"
+                          >
+                            <ChevronUp size={20} />
+                          </button>
                         </div>
-                        {selectedAddress?.id === addr.id && (
-                          <CheckCircle size={16} className="text-tpppink flex-shrink-0 ml-2" />
+
+                        {/* Add New Address Button */}
+                        {onOpenAddressModal && (
+                          <button
+                            onClick={() => {
+                              onOpenAddressModal();
+                              setShowAddressList(false);
+                            }}
+                            className="m-4 mb-0 p-3 bg-tpppink/10 border-2 border-tpppink rounded-lg flex items-center justify-center gap-2 hover:bg-tpppink transition-colors text-tpppink hover:text-white font-semibold"
+                          >
+                            <Plus size={16} />
+                            <span className="text-sm">Add New Address</span>
+                          </button>
                         )}
+
+                        {/* Modal Body - Scrollable */}
+                        <div className="flex-1 overflow-y-auto p-4">
+                          {addresses.length === 0 ? (
+                            <div className="p-8 text-center text-sm text-slate-500">
+                              No saved addresses
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {addresses.map((addr) => (
+                                <button
+                                  key={addr.id}
+                                  onClick={() => handleAddressSelect(addr)}
+                                  className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
+                                    selectedAddress?.id === addr.id 
+                                      ? 'bg-tpppink/5 border-tpppink' 
+                                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        {getAddressIcon(addr.address_type)}
+                                        <span className="text-sm font-semibold text-slate-800">
+                                          {getAddressTypeName(addr.address_type)}
+                                        </span>
+                                        {addr.is_default && (
+                                          <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-semibold">
+                                            Default
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-sm text-slate-700 font-medium mb-1">
+                                        {addr.line1}
+                                      </p>
+                                      <p className="text-sm text-slate-600">
+                                        {addr.line2 ? `${addr.line2}, ` : ''}
+                                        {addr.city}, {addr.state} {addr.zip_code}
+                                      </p>
+                                    </div>
+                                    {selectedAddress?.id === addr.id && (
+                                      <CheckCircle size={20} className="text-tpppink flex-shrink-0 ml-3" />
+                                    )}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </button>
-                  ))
+                    </div>
+                  </>
                 )}
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Show message if no address selected */}
-        {!selectedAddress && (
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm text-yellow-700">
-              Please select a delivery address to see delivery estimates
-            </p>
-          </div>
-        )}
-
-        {/* Loading delivery info */}
-        {selectedAddress && !deliveryData && !verifying && (
-          <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <Loader size={14} className="text-blue-600 animate-spin flex-shrink-0" />
-            <p className="text-xs text-blue-700">Loading delivery information...</p>
-          </div>
-        )}
-
-        {/* Verification Status */}
-        {selectedAddress && verifying && (
-          <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <Loader size={14} className="text-blue-600 animate-spin flex-shrink-0" />
-            <p className="text-xs text-blue-700">Verifying delivery availability...</p>
-          </div>
-        )}
-
-        {selectedAddress && verificationError && (
-          <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <AlertCircle size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-700">{verificationError}</p>
-          </div>
-        )}
-
-        {/* Not serviceable state */}
-        {selectedAddress && deliveryData && !deliveryData.serviceable && (
-          <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-red-800 mb-1">
-                Cannot deliver to this address
-              </p>
-              <p className="text-sm text-red-700">
-                {deliveryData.reason || 'This PIN code is not serviceable. Please select a different address.'}
-              </p>
             </div>
-          </div>
-        )}
 
-        {/* Serviceable - Show delivery info */}
-        {selectedAddress && deliveryData && deliveryData.serviceable &&(
-          <>
-            {/* Location Info */}
-            {deliveryData.city && deliveryData.state && !verifying &&(
+            {/* Show message if no address selected */}
+            {!selectedAddress && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-700">
+                  Please select a delivery address to see delivery estimates
+                </p>
+              </div>
+            )}
+
+            {/* Loading delivery info */}
+            {selectedAddress && !deliveryData && !verifying && (
+              <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <Loader size={14} className="text-slate-600 animate-spin flex-shrink-0" />
+                <p className="text-xs text-slate-700">Loading delivery information...</p>
+              </div>
+            )}
+
+            {/* Verification Status */}
+            {selectedAddress && verifying && (
+              <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <Loader size={14} className="text-slate-600 animate-spin flex-shrink-0" />
+                <p className="text-xs text-slate-700">Verifying delivery availability...</p>
+              </div>
+            )}
+
+            {selectedAddress && verificationError && (
+              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <AlertCircle size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700">{verificationError}</p>
+              </div>
+            )}
+
+            {/* Not serviceable state */}
+            {selectedAddress && deliveryData && !deliveryData.serviceable && (
+              <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-red-800 mb-1">
+                    Cannot deliver to this address
+                  </p>
+                  <p className="text-sm text-red-700">
+                    {deliveryData.reason || 'This PIN code is not serviceable. Please select a different address.'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Location Info - "Delivering to..." */}
+            {selectedAddress && deliveryData && deliveryData.serviceable && deliveryData.city && deliveryData.state && !verifying && (
               <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
                 <MapPin size={18} className="text-green-600 flex-shrink-0" />
                 <div>
@@ -436,156 +544,17 @@ const DeliveryDetailsCard = ({
               </div>
             )}
 
-            {/* ✅ ENHANCED: Delivery Options with Selection */}
-            {deliveryData.rawData?.deliveryOptions && (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-gray-100 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-gray-700">Choose Delivery Speed</p>
-                  <p className="text-sm font-semibold text-gray-700">
-                    {selectedMode === 'express' ? 'Express' : 'Standard'}
-                  </p>
-                </div>
-
-                <div className="divide-y divide-gray-100">
-                  {/* Standard/Surface Delivery */}
-                  {deliveryData.rawData.deliveryOptions.surface && (
-                    <button
-                      onClick={() => handleModeChange('surface')}
-                      disabled={isChangingMode}
-                      className={`w-full p-4 flex items-center justify-between text-left transition-all ${
-                        selectedMode === 'surface'
-                          ? 'bg-tpppink/5 border-l-4 border-tpppink'
-                          : 'hover:bg-gray-50 border-l-4 border-transparent'
-                      } ${isChangingMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                    >
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          selectedMode === 'surface' ? 'bg-tppslate/20' : 'bg-gray-100'
-                        }`}>
-                          <Truck size={18} className={selectedMode === 'surface' ? 'text-tppslate' : 'text-gray-400'} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="text-sm font-semibold text-gray-800">Standard Delivery</p>
-                          </div>
-                          <p className="text-xs text-gray-500">Regular shipping</p>
-                        </div>
-                      </div>
-                      <div className="text-right flex items-center gap-3">
-                        <div>
-                          <p className="text-base font-bold text-tppslate">
-                            {deliveryData.rawData.deliveryOptions.surface.estimatedDays}{' '}
-                            {deliveryData.rawData.deliveryOptions.surface.estimatedDays === 1 ? 'day' : 'days'}
-                          </p>
-                          {deliveryData.rawData.deliveryOptions.surface.deliveryDate && (
-                            <p className="text-xs text-gray-500">
-                              by {new Date(deliveryData.rawData.deliveryOptions.surface.deliveryDate).toLocaleDateString('en-IN', {
-                                day: 'numeric',
-                                month: 'short'
-                              })}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  )}
-
-                  {/* Express Delivery */}
-                  {deliveryData.rawData.deliveryOptions.express && (
-                    <button
-                      onClick={() => handleModeChange('express')}
-                      disabled={isChangingMode}
-                      className={`w-full p-4 transition-all ${
-                        selectedMode === 'express'
-                          ? 'bg-tpppink/5 border-l-4 border-tpppink'
-                          : 'hover:bg-gray-50 border-l-4 border-transparent'
-                      } ${isChangingMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3 flex-1">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            selectedMode === 'express' ? 'bg-tpppink/20' : 'bg-gray-100'
-                          }`}>
-                            <Plane size={18} className={selectedMode === 'express' ? 'text-tpppink' : 'text-gray-400'} />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <p className="text-sm text-left font-semibold text-gray-800">Express Delivery</p>
-                            </div>
-                            <p className="text-xs text-left text-gray-500">Priority shipping</p>
-                          </div>
-                        </div>
-                        <div className="text-right flex items-center gap-3">
-                          <div>
-                            <p className="text-base font-bold text-tpppink">
-                              {deliveryData.rawData.deliveryOptions.express.estimatedDays}{' '}
-                              {deliveryData.rawData.deliveryOptions.express.estimatedDays === 1 ? 'day' : 'days'}
-                            </p>
-                            {deliveryData.rawData.deliveryOptions.express.deliveryDate && (
-                              <p className="text-xs text-gray-500">
-                                by {new Date(deliveryData.rawData.deliveryOptions.express.deliveryDate).toLocaleDateString('en-IN', {
-                                  day: 'numeric',
-                                  month: 'short'
-                                })}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Extra Charges in Express Option */}
-                      {deliveryData.rawData.deliveryOptions.express.extraCharge && (
-                        <div className="pt-3 border-t border-pink-100">
-                          <div className="flex items-center gap-2">
-                            <AlertCircle size={14} className="text-amber-600 flex-shrink-0" />
-                            <p className="text-xs text-amber-700">
-                              <span className="font-semibold">Express delivery:</span>{' '}
-                              <span className="font-bold">{deliveryData.rawData.priceDifference.formatted}</span> extra charges apply
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Fallback if no delivery options */}
-            {!deliveryData.rawData?.deliveryOptions && deliveryData.estimatedDays && (
-              <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <Calendar size={18} className="text-blue-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-blue-800 mb-1">
-                    Estimated Delivery: {deliveryData.estimatedDays} days
-                  </p>
-                  {deliveryData.deliveryDate && (
-                    <p className="text-sm text-blue-700">
-                      Expected by: {new Date(deliveryData.deliveryDate).toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                      })}
-                    </p>
-                  )}
-                  <p className="text-xs text-blue-600 mt-1">
-                    Mode: {deliveryData.mode || 'Standard'}
-                  </p>
-                </div>
-              </div>
-            )}
-
             {/* Delivery Features */}
-            {deliveryData.features && (deliveryData.features.cod || deliveryData.features.prepaid) && (
-              <div className="pt-4 border-t space-y-2">
-                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+            {selectedAddress && deliveryData && deliveryData.serviceable && deliveryData.features && (deliveryData.features.cod || deliveryData.features.prepaid) && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
                   Available Payment Methods
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {deliveryData.features.prepaid && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-md">
-                      <CheckCircle size={12} className="text-blue-600" />
-                      <span className="text-xs text-blue-700 font-medium">Prepaid</span>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md">
+                      <CheckCircle size={12} className="text-tppslate" />
+                      <span className="text-xs text-slate-700 font-medium">Prepaid</span>
                     </div>
                   )}
                   {deliveryData.features.cod && (
@@ -597,19 +566,178 @@ const DeliveryDetailsCard = ({
                 </div>
               </div>
             )}
+          </div>
 
-            {/* Free Shipping Badge */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <Package size={16} className="text-green-600" />
-                <div>
-                  <p className="text-sm font-bold text-green-700">FREE STANDARD SHIPPING</p>
-                  <p className="text-xs text-green-600">On all prepaid orders</p>
+          {/* ==================== RIGHT COLUMN: DELIVERY OPTIONS ==================== */}
+          <div>
+            {/* Show delivery options only when serviceable */}
+            {selectedAddress && deliveryData && deliveryData.serviceable && deliveryData.rawData?.deliveryOptions && (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-[16px] font-bold text-slate-800 flex items-center gap-2">
+                    Choose Delivery Speed
+                  </h3>
+                  
+                  {/* Current Selected Mode Display */}
+                  <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-md">
+                    {selectedMode === 'express' ? (
+                      <>
+                        <Plane size={14} className="text-tpppink" />
+                        <span className="text-xs font-bold text-slate-800">Express</span>
+                      </>
+                    ) : (
+                      <>
+                        <Truck size={14} className="text-tppslate" />
+                        <span className="text-xs font-bold text-slate-800">Standard</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
+                  <div className="divide-y divide-slate-200">
+                    {/* Standard/Surface Delivery */}
+                    {deliveryData.rawData.deliveryOptions.surface && (
+                      <button
+                        onClick={() => handleModeChange('surface')}
+                        disabled={isChangingMode}
+                        className={`w-full p-4 flex items-center justify-between text-left transition-all ${
+                          selectedMode === 'surface'
+                            ? 'bg-tpppink/5 border-l-4 border-tpppink'
+                            : 'hover:bg-slate-100 border-l-4 border-transparent'
+                        } ${isChangingMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            selectedMode === 'surface' ? 'bg-tppslate/20' : 'bg-slate-200'
+                          }`}>
+                            <Truck size={18} className={selectedMode === 'surface' ? 'text-tppslate' : 'text-slate-500'} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="text-sm font-semibold text-slate-800">Standard Delivery</p>
+                            </div>
+                            <p className="text-xs text-slate-500">Regular shipping</p>
+                          </div>
+                        </div>
+                        <div className="text-right flex items-center gap-3">
+                          <div>
+                            <p className="text-base font-bold text-tppslate">
+                              {deliveryData.rawData.deliveryOptions.surface.estimatedDays}{' '}
+                              {deliveryData.rawData.deliveryOptions.surface.estimatedDays === 1 ? 'day' : 'days'}
+                            </p>
+                            {deliveryData.rawData.deliveryOptions.surface.deliveryDate && (
+                              <p className="text-xs text-slate-500">
+                                by {new Date(deliveryData.rawData.deliveryOptions.surface.deliveryDate).toLocaleDateString('en-IN', {
+                                  day: 'numeric',
+                                  month: 'short'
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    )}
+
+                    {/* Express Delivery */}
+                    {deliveryData.rawData.deliveryOptions.express && (
+                      <div 
+                        className={`w-full transition-all ${
+                          selectedMode === 'express'
+                            ? 'bg-tpppink/5 border-l-4'
+                            : 'hover:bg-slate-100 border-l-4 border-transparent'
+                        }`}
+                        style={selectedMode === 'express' ? {
+                          borderLeftColor: 'var(--color-tpppink, #d95669)',  // Replace #EC4899 with your pink hex
+                          borderLeftWidth: '4px',
+                          borderLeftStyle: 'solid'
+                        } : {}}
+                      >
+                        <button
+                          onClick={() => handleModeChange('express')}
+                          disabled={isChangingMode}
+                          className={`w-full p-4 flex items-center justify-between text-left ${
+                            isChangingMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                              selectedMode === 'express' ? 'bg-tpppink/20' : 'bg-slate-200'
+                            }`}>
+                              <Plane size={18} className={selectedMode === 'express' ? 'text-tpppink' : 'text-slate-500'} />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="text-sm font-semibold text-slate-800">Express Delivery</p>
+                              </div>
+                              <p className="text-xs text-slate-500">Priority shipping</p>
+                            </div>
+                          </div>
+                          <div className="text-right flex items-center gap-3">
+                            <div>
+                              <p className="text-base font-bold text-tpppink">
+                                {deliveryData.rawData.deliveryOptions.express.estimatedDays}{' '}
+                                {deliveryData.rawData.deliveryOptions.express.estimatedDays === 1 ? 'day' : 'days'}
+                              </p>
+                              {deliveryData.rawData.deliveryOptions.express.deliveryDate && (
+                                <p className="text-xs text-slate-500">
+                                  by {new Date(deliveryData.rawData.deliveryOptions.express.deliveryDate).toLocaleDateString('en-IN', {
+                                    day: 'numeric',
+                                    month: 'short'
+                                  })}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+
+                        {/* Extra Charges - OUTSIDE button but INSIDE border div */}
+                        {deliveryData.rawData.deliveryOptions.express.extraCharge >= 0 && (
+                          <div className="px-4 pb-4">
+                            <div className="pt-3 border-t border-tpppink/20">
+                              <div className="flex items-center gap-2">
+                                <AlertCircle size={14} className="text-amber-600 flex-shrink-0" />
+                                <p className="text-xs text-amber-700">
+                                  <span className="font-semibold">Express delivery:</span>{' '}
+                                  <span className="font-bold">{deliveryData.rawData.priceDifference.formatted}</span> extra charges apply
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </>
-        )}
+            )}
+
+            {/* Fallback if no delivery options */}
+            {selectedAddress && deliveryData && deliveryData.serviceable && !deliveryData.rawData?.deliveryOptions && deliveryData.estimatedDays && (
+              <div className="flex items-start gap-3 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                <Calendar size={18} className="text-slate-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-slate-800 mb-1">
+                    Estimated Delivery: {deliveryData.estimatedDays} days
+                  </p>
+                  {deliveryData.deliveryDate && (
+                    <p className="text-sm text-slate-700">
+                      Expected by: {new Date(deliveryData.deliveryDate).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </p>
+                  )}
+                  <p className="text-xs text-slate-600 mt-1">
+                    Mode: {deliveryData.mode || 'Standard'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
       </div>
     </div>
   );

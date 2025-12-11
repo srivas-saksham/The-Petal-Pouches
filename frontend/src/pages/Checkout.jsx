@@ -1,6 +1,6 @@
-// frontend/src/pages/Checkout.jsx - WITH DELIVERY DETAILS CARD BELOW CART
+// frontend/src/pages/Checkout.jsx - WITH DELIVERY DETAILS CARD BELOW CART - FIXED INFINITE LOOP
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader, AlertCircle } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
@@ -23,6 +23,8 @@ import { getStoredAddressId, saveDeliveryData, getDeliveryData } from '../utils/
  * Fetches bundle details for all cart items
  * Handles order placement with delivery mode metadata
  * ✅ All delivery-related functionality managed here
+ * ✅ Modal-based address form controlled by parent
+ * ✅ FIXED: Infinite loop by memoizing handleDeliveryModeChange
  */
 const Checkout = () => {
   const navigate = useNavigate();
@@ -37,9 +39,11 @@ const Checkout = () => {
   const [addresses, setAddresses] = useState([]);
   const [promoCode, setPromoCode] = useState('');
   const [discount, setDiscount] = useState(0);
-  const [currentStep, setCurrentStep] = useState('review');
   const [placingOrder, setPlacingOrder] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+
+  // ✅ Modal state for address form
+  const [showAddressModal, setShowAddressModal] = useState(false);
 
   // ✅ Delivery state management
   const [deliveryInfo, setDeliveryInfo] = useState(null);
@@ -184,21 +188,40 @@ const Checkout = () => {
     navigate('/shop');
   };
 
-  const handleNextStep = (step) => {
-    setCurrentStep(step);
-  };
-
   const handleQuantityChange = (cartItemId, newQuantity) => {
     console.log(`📦 Quantity changed for ${cartItemId}: ${newQuantity}`);
   };
 
-  const handleAddressSelect = (address) => {
+  // ✅ Handle address selection (from DeliveryDetailsCard or modal)
+  const handleAddressSelect = async (address) => {
     console.log('📍 [Checkout] Address selected:', address);
     setSelectedAddress(address);
+    
+    // Refresh addresses list to include the new address
+    try {
+      const result = await getAddresses();
+      if (result.success) {
+        setAddresses(result.data);
+      }
+    } catch (err) {
+      console.error('❌ Error refreshing addresses:', err);
+    }
+  };
+
+  // ✅ Handle "Add New Address" click from DeliveryDetailsCard
+  const handleOpenAddressModal = () => {
+    console.log('➕ [Checkout] Opening address modal');
+    setShowAddressModal(true);
+  };
+
+  // ✅ Handle modal close
+  const handleCloseAddressModal = () => {
+    console.log('✖️ [Checkout] Closing address modal');
+    setShowAddressModal(false);
   };
 
   // ✅ Handle delivery updates from DeliveryDetailsCard
-  const handleDeliveryUpdate = (updatedDeliveryData) => {
+  const handleDeliveryUpdate = useCallback((updatedDeliveryData) => {
     console.log('🔄 [Checkout] Delivery data updated:', updatedDeliveryData);
     setDeliveryInfo(updatedDeliveryData);
     
@@ -209,10 +232,10 @@ const Checkout = () => {
       deliveryCheck: updatedDeliveryData,
       timestamp: Date.now()
     });
-  };
+  }, []); // Empty dependencies - doesn't depend on any external values
 
-  // ✅ Handle delivery mode changes from DeliveryDetailsCard
-  const handleDeliveryModeChange = (modeData) => {
+  // ✅ FIXED: Memoized callback to prevent infinite loop
+  const handleDeliveryModeChange = useCallback((modeData) => {
     console.log('🚚 [Checkout] Delivery mode changed:', modeData);
     setDeliveryModeData(modeData);
     setExpressCharge(modeData.extraCharge || 0);
@@ -225,7 +248,7 @@ const Checkout = () => {
       deliveryModeData: modeData,
       timestamp: Date.now()
     });
-  };
+  }, []); // Empty dependencies - callback doesn't depend on any values
 
   // ⭐ Enhanced Place Order with delivery metadata
   const handlePlaceOrder = async () => {
@@ -337,7 +360,7 @@ const Checkout = () => {
   return (
     <div className="min-h-screen bg-gray-50"
       style={{
-        backgroundImage: 'url(/assets/doodle_bg.png)',
+        backgroundImage: 'url(/assets/doodle_bg_pink.png)',
         backgroundRepeat: 'repeat',
         backgroundSize: 'auto',
       }}
@@ -385,19 +408,9 @@ const Checkout = () => {
               onAddressSelect={handleAddressSelect}
               addresses={addresses}
               onDeliveryUpdate={handleDeliveryUpdate}
-              onStepChange={handleNextStep}
+              onOpenAddressModal={handleOpenAddressModal}
               onDeliveryModeChange={handleDeliveryModeChange}
             />
-
-            {/* Shipping Form */}
-            {currentStep === 'shipping' && (
-              <div className="mt-8">
-                <CheckoutForm
-                  onAddressSelect={handleAddressSelect}
-                  onNext={() => handleNextStep('payment')}
-                />
-              </div>
-            )}
           </div>
 
           {/* Right Column - Order Summary */}
@@ -411,8 +424,6 @@ const Checkout = () => {
               discount={discount}
               onDiscountChange={setDiscount}
               selectedAddress={selectedAddress}
-              currentStep={currentStep}
-              onStepChange={handleNextStep}
               onPlaceOrder={handlePlaceOrder}
               placingOrder={placingOrder}
               expressCharge={expressCharge}
@@ -420,6 +431,13 @@ const Checkout = () => {
           </div>
         </div>
       </div>
+
+      {/* ✅ Address Form Modal - Controlled by parent */}
+      <CheckoutForm
+        showModal={showAddressModal}
+        onCloseModal={handleCloseAddressModal}
+        onAddressSelect={handleAddressSelect}
+      />
     </div>
   );
 };

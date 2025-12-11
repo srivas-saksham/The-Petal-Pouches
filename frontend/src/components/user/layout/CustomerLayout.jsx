@@ -16,7 +16,7 @@ export default function CustomerLayout({ children }) {
   };
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-tpppeach/20 via-white to-tpppeach/10">
+    <div className="flex h-screen">
       {/* Sidebar */}
       <CustomerSidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
 

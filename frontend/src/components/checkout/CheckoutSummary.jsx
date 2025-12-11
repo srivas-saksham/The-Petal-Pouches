@@ -68,7 +68,7 @@ const CheckoutSummary = ({
   };
 
   return (
-    <div className="sticky top-20 space-y-4">
+    <div className="realtive top-20 space-y-4">
       {/* Order Summary Card */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         {/* Header */}
