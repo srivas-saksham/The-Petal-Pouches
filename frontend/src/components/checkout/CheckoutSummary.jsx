@@ -1,4 +1,4 @@
-// frontend/src/components/checkout/CheckoutSummary.jsx - REAL-TIME CALCULATION
+// frontend/src/components/checkout/CheckoutSummary.jsx - SINGLE PAGE FLOW
 
 import React, { useState, useMemo } from 'react';
 import { Lock, Truck, Gift, Loader } from 'lucide-react';
@@ -9,6 +9,7 @@ import { useCart } from '../../hooks/useCart';
  * CheckoutSummary Component
  * Displays price breakdown, applies promo codes, shows order total
  * Sticky on desktop, scrolls on mobile
+ * ⭐ Single-page checkout flow - no step management
  * ⭐ Dynamically calculates totals from cart items in REAL-TIME
  * ⭐ Place Order integration
  * ✅ No tax, no base shipping - only express charges apply
@@ -18,18 +19,15 @@ import { useCart } from '../../hooks/useCart';
 const CheckoutSummary = ({
   cartItems = [],
   bundles = {},
-  cartTotals = {},
   promoCode = '',
   onPromoCodeChange,
   discount = 0,
   onDiscountChange,
   selectedAddress = null,
-  currentStep = 'review',
-  onStepChange,
   onPlaceOrder = null,
   placingOrder = false,
   expressCharge = 0,
-  deliveryMode = 'surface', // ✅ Add deliveryMode prop
+  deliveryMode = 'surface',
 }) => {
   const [promoInput, setPromoInput] = useState('');
   const [applyingPromo, setApplyingPromo] = useState(false);
@@ -183,8 +181,8 @@ const CheckoutSummary = ({
         <p className="text-xs text-gray-500 mt-2">Try: SAVE10</p>
       </div>
 
-      {/* ⭐ PLACE ORDER BUTTON - Shows on payment step */}
-      {currentStep === 'payment' && onPlaceOrder && (
+      {/* ⭐ PLACE ORDER BUTTON - Single Page Flow */}
+      {onPlaceOrder && (
         <div className="bg-gradient-to-r from-tppslate to-tppslate/90 rounded-lg shadow p-6 text-white">
           <div className="flex items-start gap-3 mb-4">
             <Lock size={20} className="flex-shrink-0 mt-1" />
@@ -201,37 +199,21 @@ const CheckoutSummary = ({
             disabled={placingOrder || !selectedAddress}
             className="w-full px-4 py-3 bg-tpppink text-white rounded-lg font-bold hover:bg-tpppink/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
           >
-            {placingOrder ? 'Placing Order...' : `Place Order - ${formatBundlePrice(total)}`}
+            {placingOrder ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader size={18} className="animate-spin" />
+                Placing Order...
+              </span>
+            ) : (
+              `Place Order - ${formatBundlePrice(total)}`
+            )}
           </button>
 
           {!selectedAddress && (
             <p className="text-sm text-yellow-300 mt-2 text-center">
-              Please select a delivery address
+              ⚠️ Please select a delivery address above
             </p>
           )}
-        </div>
-      )}
-
-      {/* Payment Section - Shows before payment step */}
-      {currentStep !== 'payment' && (
-        <div className="bg-gradient-to-r from-tppslate to-tppslate/90 rounded-lg shadow p-6 text-white">
-          <div className="flex items-start gap-3 mb-4">
-            <Lock size={20} className="flex-shrink-0 mt-1" />
-            <div>
-              <h3 className="font-semibold mb-1">Secure Checkout</h3>
-              <p className="text-sm text-white/80">
-                Your payment information is encrypted and secure
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => onStepChange('payment')}
-            disabled={!selectedAddress}
-            className="w-full px-4 py-3 bg-white text-tppslate rounded-lg font-bold hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {!selectedAddress ? 'Select Address First' : 'Proceed to Payment'}
-          </button>
         </div>
       )}
 

@@ -1,4 +1,4 @@
-// frontend/src/pages/Checkout.jsx - NO PAGE RELOAD ON QUANTITY CHANGES
+// frontend/src/pages/Checkout.jsx - SINGLE PAGE FLOW
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -17,11 +17,13 @@ import { formatBundlePrice } from '../utils/bundleHelpers';
 import { getStoredAddressId, saveDeliveryData, getDeliveryData } from '../utils/deliveryStorage';
 
 /**
- * Checkout Page - Main component
- * Displays cart items on left, price breakdown on right
- * DeliveryDetailsCard positioned below cart items
- * Fetches bundle details for all cart items
- * Handles order placement with delivery mode metadata
+ * Checkout Page - Single Page Flow
+ * All checkout elements on one page:
+ * - Cart items (left)
+ * - Delivery details (left, below cart)
+ * - Order summary with Place Order button (right)
+ * 
+ * ✅ No step management - everything visible at once
  * ✅ Silent refresh support - NO page reload on quantity changes
  * ✅ Full refresh on item removal
  * ✅ All delivery-related functionality managed here
@@ -43,7 +45,7 @@ const Checkout = () => {
   const [discount, setDiscount] = useState(0);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  const [pageInitialized, setPageInitialized] = useState(false); // ✅ Track if initial load is done
+  const [pageInitialized, setPageInitialized] = useState(false);
 
   // ✅ Modal state for address form
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -147,7 +149,7 @@ const Checkout = () => {
     const fetchBundleDetails = async () => {
       if (!cartItems || cartItems.length === 0) {
         setLoading(false);
-        setPageInitialized(true); // ✅ Mark as initialized
+        setPageInitialized(true);
         return;
       }
 
@@ -175,7 +177,7 @@ const Checkout = () => {
         setError('Failed to load bundle details');
       } finally {
         setLoading(false);
-        setPageInitialized(true); // ✅ Mark as initialized
+        setPageInitialized(true);
       }
     };
 
@@ -193,7 +195,7 @@ const Checkout = () => {
     navigate('/shop');
   };
 
-  // ✅ SMART CART UPDATE - Silent refresh for quantity changes, full refresh for removals
+  // ✅ SMART CART UPDATE - Silent refresh for quantity changes
   const handleCartUpdate = useCallback(async (silentRefresh = false) => {
     console.log(`🔄 [Checkout] Cart update requested: ${silentRefresh ? 'SILENT (summary only)' : 'FULL (entire cart)'}`);
     
@@ -247,9 +249,9 @@ const Checkout = () => {
       deliveryCheck: updatedDeliveryData,
       timestamp: Date.now()
     });
-  }, []); // Empty dependencies - doesn't depend on any external values
+  }, []);
 
-  // ✅ Memoized callback to prevent infinite loop
+  // ✅ Handle delivery mode changes
   const handleDeliveryModeChange = useCallback((modeData) => {
     console.log('🚚 [Checkout] Delivery mode changed:', modeData);
     setDeliveryModeData(modeData);
@@ -263,7 +265,7 @@ const Checkout = () => {
       deliveryModeData: modeData,
       timestamp: Date.now()
     });
-  }, []); // Empty dependencies - callback doesn't depend on any values
+  }, []);
 
   // ⭐ Enhanced Place Order with delivery metadata
   const handlePlaceOrder = async () => {
@@ -376,7 +378,7 @@ const Checkout = () => {
     return null;
   }
 
-  // ✅ ONLY show loading on INITIAL page load, not on subsequent refreshes
+  // ✅ ONLY show loading on INITIAL page load
   if (!pageInitialized && (cartLoading || loading)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -425,7 +427,7 @@ const Checkout = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Cart Items + Delivery Details */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Cart Items - ✅ Pass handleCartUpdate for smart refresh */}
+            {/* Cart Items */}
             <CheckoutCart
               cartItems={cartItems}
               bundles={bundles}
@@ -443,27 +445,28 @@ const Checkout = () => {
             />
           </div>
 
-          {/* Right Column - Order Summary */}
+          {/* Right Column - Order Summary with Place Order */}
           <div className="lg:col-span-1">
-            <CheckoutSummary
-              cartItems={cartItems}
-              bundles={bundles}
-              cartTotals={cartTotals}
-              promoCode={promoCode}
-              onPromoCodeChange={setPromoCode}
-              discount={discount}
-              onDiscountChange={setDiscount}
-              selectedAddress={selectedAddress}
-              onPlaceOrder={handlePlaceOrder}
-              placingOrder={placingOrder}
-              expressCharge={expressCharge}
-              deliveryMode={deliveryModeData?.mode || 'surface'} // ✅ Pass delivery mode
-            />
+            <div className="sticky top-24">
+              <CheckoutSummary
+                cartItems={cartItems}
+                bundles={bundles}
+                promoCode={promoCode}
+                onPromoCodeChange={setPromoCode}
+                discount={discount}
+                onDiscountChange={setDiscount}
+                selectedAddress={selectedAddress}
+                onPlaceOrder={handlePlaceOrder}
+                placingOrder={placingOrder}
+                expressCharge={expressCharge}
+                deliveryMode={deliveryModeData?.mode || 'surface'}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ✅ Address Form Modal - Controlled by parent */}
+      {/* ✅ Address Form Modal */}
       <CheckoutForm
         showModal={showAddressModal}
         onCloseModal={handleCloseAddressModal}
