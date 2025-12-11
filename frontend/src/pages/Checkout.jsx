@@ -282,17 +282,18 @@ const Checkout = () => {
     try {
       setPlacingOrder(true);
 
-      // ✅ Get delivery mode data from state or localStorage
+      // ✅ Get ALL delivery data from localStorage
       const storedData = getDeliveryData();
       const deliveryMode = deliveryModeData?.mode || storedData?.selectedDeliveryMode || 'surface';
       const finalDeliveryModeData = deliveryModeData || storedData?.deliveryModeData;
 
-      console.log('📦 [Checkout] Delivery metadata:', {
+      console.log('📦 [Checkout] Complete delivery metadata:', {
         mode: deliveryMode,
-        data: finalDeliveryModeData
+        data: finalDeliveryModeData,
+        address: selectedAddress
       });
 
-      // ✅ Calculate order total (no tax, no base shipping)
+      // ✅ Calculate order total correctly (no tax, no base shipping)
       const subtotal = cartItems.reduce((total, item) => {
         const bundle = bundles[item.bundle_id];
         return total + (bundle?.price || 0) * item.quantity;
@@ -300,64 +301,50 @@ const Checkout = () => {
       
       const orderTotal = subtotal + expressCharge - discount;
 
-      console.log('💰 [Checkout] Order totals:', {
-        subtotal,
-        expressCharge,
-        discount,
-        total: orderTotal
-      });
-
-      // Create order with address ID and delivery metadata
+      // ✅ Create order with comprehensive delivery metadata
       const orderData = {
         address_id: selectedAddress.id,
         payment_method: 'cod',
         notes: '',
         gift_wrap: false,
         gift_message: null,
-        // ✅ Add delivery metadata to order
+        // ✅ COMPLETE delivery metadata
         delivery_metadata: {
           mode: deliveryMode,
           estimated_days: finalDeliveryModeData?.estimatedDays,
           expected_delivery_date: finalDeliveryModeData?.deliveryDate || finalDeliveryModeData?.expectedDeliveryDate,
-          express_charge: finalDeliveryModeData?.extraCharge || 0
+          express_charge: expressCharge,
+          delivery_option: finalDeliveryModeData,  // ✅ Full option details
+          pincode: selectedAddress.zip_code,
+          city: selectedAddress.city,
+          state: selectedAddress.state,
+          calculated_at: new Date().toISOString()
         }
       };
-
-      console.log('📦 [Checkout] Placing order with data:', orderData);
 
       const response = await createOrder(orderData);
 
       if (response.success) {
         const orderId = response.data?.order?.id;
         
-        console.log('✅ Order placed successfully:', orderId);
-        
-        // Save order metadata to localStorage for OrderSuccess page
+        // ✅ Save comprehensive metadata for OrderSuccess page
         const orderMetadata = {
           orderId: orderId,
           deliveryMode: deliveryMode,
           deliveryModeData: finalDeliveryModeData,
+          selectedAddress: selectedAddress,  // ✅ Also save address
+          orderTotals: {
+            subtotal,
+            expressCharge,
+            discount,
+            total: orderTotal
+          },
           timestamp: Date.now()
         };
         
         localStorage.setItem('tpp_last_order', JSON.stringify(orderMetadata));
-        console.log('💾 [Checkout] Saved order metadata for success page');
         
-        toast.success('Order placed successfully!');
-        
-        // Refresh cart (will be empty now)
-        await refreshCart();
-        
-        // Redirect to success page
-        if (orderId) {
-          navigate(`/order-success/${orderId}`);
-        } else {
-          console.error('❌ Order ID not found in response');
-          toast.error('Order placed but could not get order ID');
-          navigate('/user/orders');
-        }
-      } else {
-        toast.error(response.message || 'Failed to place order');
+        navigate(`/order-success/${orderId}`);
       }
     } catch (error) {
       console.error('❌ Error placing order:', error);

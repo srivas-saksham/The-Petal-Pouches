@@ -4,6 +4,7 @@ const OrderModel = require('../models/orderModel');
 const CartModel = require('../models/cartModel');
 const ShipmentModel = require('../models/shipmentModel');
 const { calculateOrderTotals, validateOrderData } = require('../utils/orderHelpers');
+const StockService = require('../services/stockService');
 
 /**
  * Order Controller - ENHANCED
@@ -14,30 +15,33 @@ const OrderController = {
   // ==================== CREATE ORDER (ENHANCED) ====================
 
   /**
-   * Create a new order from cart - ENHANCED
+   * Create a new order from cart - ENHANCED with Stock Deduction
    * POST /api/orders
    * 
    * Flow:
    * 1. Validate cart & address
    * 2. Check stock availability
-   * 3. Create order with items
-   * 4. Auto-create pending shipment
-   * 5. Clear cart
-   * 6. Return order details
+   * 3. Create order with items (BUNDLE-ONLY storage)
+   * 4. Deduct bundle stock
+   * 5. Auto-create pending shipment
+   * 6. Clear cart
+   * 7. Return order details
    */
   createOrder: async (req, res) => {
     try {
       const userId = req.user.id;
       const { 
         address_id, 
-        payment_method = 'cod', // Default to COD since no payment integration yet
+        payment_method = 'cod',
         notes,
         gift_wrap = false,
         gift_message,
-        coupon_code 
+        coupon_code,
+        // ✅ NEW: Accept delivery metadata from frontend
+        delivery_metadata = {}
       } = req.body;
 
-      console.log('📦 Creating order for user:', userId);
+      console.log('📦 Creating order with delivery metadata:', delivery_metadata);
 
       // ===== STEP 1: VALIDATE ADDRESS =====
       if (!address_id) {
@@ -75,7 +79,7 @@ const OrderController = {
         });
       }
 
-      console.log(`📋 Cart has ${cartData.items.length} items`);
+      console.log(`📋 Cart has ${cartData.items.length} bundles`);
 
       // ===== STEP 3: VALIDATE STOCK =====
       const stockCheck = await CartModel.checkStock(userId);
@@ -92,16 +96,20 @@ const OrderController = {
       console.log('✅ Stock validated');
 
       // ===== STEP 4: CALCULATE TOTALS =====
-      const totals = calculateOrderTotals(cartData.items);
-      console.log('💰 Order totals:', totals);
+      const deliveryMode = delivery_metadata.mode || 'surface';
+      const expressCharge = delivery_metadata.express_charge || 0;
+
+      const totals = calculateOrderTotals(cartData.items, deliveryMode, expressCharge);
+      console.log('💰 Order totals (corrected):', totals);
 
       // ===== STEP 5: PREPARE ORDER DATA =====
       const orderData = {
         user_id: userId,
         subtotal: totals.subtotal,
-        tax: totals.tax,
-        shipping_cost: totals.shipping,
-        discount: 0, // TODO: Apply coupon if provided
+        tax: 0,  // ✅ NO TAX
+        shipping_cost: 0,  // ✅ FREE STANDARD
+        express_charge: totals.express_charge,  // ✅ Express charges if applicable
+        discount: 0,
         final_total: totals.total,
         shipping_address: {
           line1: address.line1,
@@ -114,81 +122,37 @@ const OrderController = {
           landmark: address.landmark
         },
         payment_method: payment_method,
-        payment_status: 'unpaid', // Will be 'paid' after payment integration
+        payment_status: 'unpaid',
         notes: notes || null,
         gift_wrap: gift_wrap,
         gift_message: gift_message || null,
-        bundle_type: 'mixed', // All items from cart
-        status: 'pending'
+        bundle_type: 'mixed',
+        status: 'pending',
+        // ✅ NEW: Store delivery metadata
+        delivery_metadata: {
+          mode: delivery_metadata.mode || 'surface',
+          estimated_days: delivery_metadata.estimated_days,
+          expected_delivery_date: delivery_metadata.expected_delivery_date,
+          express_charge: expressCharge,
+          pincode: address.zip_code,
+          city: address.city,
+          state: address.state,
+          saved_at: new Date().toISOString()
+        }
       };
 
-      // ===== STEP 6: PREPARE ORDER ITEMS (HANDLE PRODUCTS WITHOUT VARIANTS) =====
+      // ===== STEP 6: ⭐ PREPARE ORDER ITEMS (ONLY BUNDLES) =====
       const orderItems = [];
-      const supabase = require('../config/supabaseClient');
       
       for (const item of cartData.items) {
-        // Get all products in this bundle
-        const products = item.bundle_items || [];
-        
-        if (products.length === 0) {
-          console.warn(`⚠️ Bundle ${item.bundle_id} has no products, skipping`);
-          continue;
-        }
-        
-        // Create order item for each product in the bundle
-        for (const bundleProduct of products) {
-          let variantId = bundleProduct.product_variant_id;
-          
-          // If no variant exists, get or create a default variant
-          if (!variantId && bundleProduct.product_id) {
-            // Try to get existing default variant
-            const { data: variants } = await supabase
-              .from('Product_variants')
-              .select('id')
-              .eq('product_id', bundleProduct.product_id)
-              .eq('is_default', true)
-              .limit(1);
-            
-            if (variants && variants.length > 0) {
-              variantId = variants[0].id;
-              console.log(`✅ Found existing variant for product ${bundleProduct.product_id}`);
-            } else {
-              // Create a default variant
-              const { data: newVariant, error: variantError } = await supabase
-                .from('Product_variants')
-                .insert({
-                  product_id: bundleProduct.product_id,
-                  sku: `DEFAULT-${bundleProduct.product_id.substring(0, 8)}`,
-                  attributes: {},
-                  price: item.price, // Use bundle price
-                  stock: 999, // Default stock
-                  is_default: true
-                })
-                .select()
-                .single();
-              
-              if (variantError) {
-                console.error('❌ Failed to create variant:', variantError);
-                throw new Error(`Failed to create variant for product ${bundleProduct.product_id}`);
-              }
-              
-              variantId = newVariant.id;
-              console.log(`✅ Created default variant ${variantId} for product ${bundleProduct.product_id}`);
-            }
-          }
-          
-          if (!variantId) {
-            throw new Error(`Cannot find or create variant for product ${bundleProduct.product_id}`);
-          }
-          
-          orderItems.push({
-            product_variant_id: variantId,
-            quantity: bundleProduct.quantity * item.quantity, // Multiply by cart quantity
-            price: Math.round(item.price / products.length), // Distribute bundle price evenly
-            bundle_origin: 'brand-bundle',
-            bundle_id: item.bundle_id
-          });
-        }
+        // ⭐ STORE ONLY BUNDLE INFO (not individual bundle items)
+        orderItems.push({
+          bundle_id: item.bundle_id,
+          bundle_title: item.title,
+          bundle_quantity: item.quantity, // How many of THIS bundle
+          price: item.price, // Bundle price per unit
+          bundle_origin: 'brand-bundle'
+        });
       }
 
       if (orderItems.length === 0) {
@@ -198,14 +162,34 @@ const OrderController = {
         });
       }
 
-      console.log('📝 Order data prepared');
-      console.log(`📦 Order items: ${orderItems.length} items`);
+      console.log('📝 Order items prepared:', orderItems.length, 'bundles');
 
       // ===== STEP 7: CREATE ORDER =====
       const order = await OrderModel.create(orderData, orderItems);
       console.log(`✅ Order created: ${order.id}`);
 
-      // ===== STEP 8: AUTO-CREATE SHIPMENT =====
+      // ===== STEP 8: ⭐ DEDUCT BUNDLE STOCK =====
+      // This is the KEY addition - deduct stock AFTER order is created
+      try {
+        const stockDeductionItems = cartData.items.map(item => ({
+          bundle_id: item.bundle_id,
+          quantity: item.quantity
+        }));
+
+        const stockDeduction = await StockService.deductBundleStock(stockDeductionItems);
+        
+        if (!stockDeduction.success) {
+          console.warn('⚠️ Some stock deductions failed:', stockDeduction.failed);
+          // Don't fail the order - log the failures and continue
+        } else {
+          console.log(`✅ Stock deducted for ${stockDeduction.deducted.length} bundles`);
+        }
+      } catch (stockError) {
+        console.error('⚠️ Stock deduction error:', stockError);
+        // Don't fail order creation if stock deduction fails
+      }
+
+      // ===== STEP 9: AUTO-CREATE SHIPMENT =====
       try {
         const shipment = await ShipmentModel.createFromOrder(order.id, {
           destination_pincode: address.zip_code,
@@ -219,19 +203,23 @@ const OrderController = {
         // Don't fail order creation if shipment fails
       }
 
-      // ===== STEP 9: CLEAR CART =====
+      // ===== STEP 10: CLEAR CART =====
       await CartModel.clearCart(userId);
       console.log('✅ Cart cleared');
 
-      // ===== STEP 10: FETCH COMPLETE ORDER =====
+      // ===== STEP 11: FETCH COMPLETE ORDER =====
       const completeOrder = await OrderModel.findById(order.id, userId);
 
-      console.log(`✅ Order ${order.id} completed successfully`);
+      console.log(`✅ Order ${order.id} completed successfully with stock deduction`);
 
+      // Return complete order data including delivery info
       return res.status(201).json({
         success: true,
         message: 'Order placed successfully',
-        order: completeOrder
+        order: {
+          ...completeOrder,
+          delivery_metadata: orderData.delivery_metadata  // ✅ Include in response
+        }
       });
 
     } catch (error) {

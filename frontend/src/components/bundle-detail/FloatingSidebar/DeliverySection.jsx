@@ -625,7 +625,7 @@ const DeliverySection = () => {
                         </div>
                         
                         {/* Price Difference Badge - Extra Charges */}
-                        {pinCheckResult.rawData.deliveryOptions.express.extraCharge && (
+                        {pinCheckResult.rawData.deliveryOptions.express.extraCharge >= 0 && (
                           <div className="mt-2 pt-2 border-t border-pink-100">
                             <div className="flex items-center justify-between text-xs">
                               <span className="text-gray-600">Express charges:</span>
@@ -642,7 +642,7 @@ const DeliverySection = () => {
                   </div>
 
                   {/* Price Comparison Summary - Simplified */}
-                  {pinCheckResult.rawData?.priceDifference && (
+                  {pinCheckResult.rawData?.priceDifference&& (
                     <div className="font-inter bg-yellow-50 border-t border-yellow-100 px-3 py-2">
                       <div className="flex items-center gap-1.5">
                         <AlertCircle size={12} className="text-yellow-600 flex-shrink-0" />

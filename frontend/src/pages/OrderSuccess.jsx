@@ -1,8 +1,14 @@
-// frontend/src/pages/OrderSuccess.jsx - WITH ACTUAL DELIVERY DETAILS
+// frontend/src/pages/OrderSuccess.jsx - PRODUCTION-READY VERSION
+// ✅ Defensive localStorage handling
+// ✅ Graceful fallbacks
+// ✅ Better error handling
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { CheckCircle, Package, MapPin, CreditCard, ArrowRight, Home, Truck, Calendar, DollarSign, Box, Clock, Plane } from 'lucide-react';
+import { 
+  CheckCircle, Package, MapPin, CreditCard, ArrowRight, Home, 
+  Truck, Calendar, DollarSign, Box, Clock, Plane 
+} from 'lucide-react';
 import { getOrderById } from '../services/orderService';
 import { useToast } from '../hooks/useToast';
 
@@ -11,12 +17,12 @@ const OrderSuccess = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const [order, setOrder] = useState(null);
+  const [orderMetadata, setOrderMetadata] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [deliveryMetadata, setDeliveryMetadata] = useState(null);
 
   useEffect(() => {
     loadOrder();
-    loadDeliveryMetadata();
+    loadOrderMetadata();
   }, [orderId]);
 
   const loadOrder = async () => {
@@ -31,7 +37,7 @@ const OrderSuccess = () => {
         navigate('/user/orders');
       }
     } catch (error) {
-      console.error('Error loading order:', error);
+      console.error('❌ Error loading order:', error);
       toast.error('Order not found');
       navigate('/user/orders');
     } finally {
@@ -39,20 +45,95 @@ const OrderSuccess = () => {
     }
   };
 
-  // ✅ Load delivery metadata from localStorage
-  const loadDeliveryMetadata = () => {
+  // ✅ ENHANCED: Defensive localStorage handling with proper error recovery
+  const loadOrderMetadata = () => {
     try {
       const savedMetadata = localStorage.getItem('tpp_last_order');
-      if (savedMetadata) {
-        const parsed = JSON.parse(savedMetadata);
-        if (parsed.orderId === orderId) {
-          setDeliveryMetadata(parsed);
-          console.log('✅ [OrderSuccess] Loaded delivery metadata:', parsed);
-        }
+      
+      // ✅ Check if data exists before parsing
+      if (!savedMetadata) {
+        console.log('ℹ️ [OrderSuccess] No saved metadata in localStorage');
+        return;
       }
+
+      // ✅ Validate it's not corrupted strings like "undefined" or "null"
+      if (savedMetadata === 'undefined' || savedMetadata === 'null') {
+        console.warn('⚠️ [OrderSuccess] Corrupted localStorage data, clearing...');
+        localStorage.removeItem('tpp_last_order');
+        return;
+      }
+
+      // ✅ Safe JSON parse with try-catch
+      let parsed;
+      try {
+        parsed = JSON.parse(savedMetadata);
+      } catch (parseError) {
+        console.error('❌ [OrderSuccess] JSON parse error:', parseError);
+        console.log('📝 Corrupted data:', savedMetadata.substring(0, 100));
+        // Clear corrupted data
+        localStorage.removeItem('tpp_last_order');
+        return;
+      }
+
+      // ✅ Validate parsed data structure
+      if (!parsed || typeof parsed !== 'object') {
+        console.warn('⚠️ [OrderSuccess] Invalid metadata structure');
+        localStorage.removeItem('tpp_last_order');
+        return;
+      }
+
+      // ✅ Only use if it matches current order
+      if (parsed.orderId === orderId) {
+        setOrderMetadata(parsed);
+        console.log('✅ [OrderSuccess] Loaded metadata:', parsed);
+      } else {
+        console.log('ℹ️ [OrderSuccess] Metadata is for different order, ignoring');
+      }
+      
     } catch (error) {
-      console.error('❌ [OrderSuccess] Error loading delivery metadata:', error);
+      console.error('❌ [OrderSuccess] Unexpected error loading metadata:', error);
+      // Don't crash the page, just continue without metadata
     }
+  };
+
+  // ✅ SMART DATA FALLBACK: Use metadata first, then order data, then defaults
+  const getDeliveryInfo = () => {
+    // Priority 1: localStorage metadata (most complete)
+    // Priority 2: order.delivery_metadata from database
+    // Priority 3: Sensible defaults
+    
+    const mode = orderMetadata?.deliveryMode || 
+                 order?.delivery_metadata?.mode || 
+                 'surface';
+    
+    const estimatedDays = orderMetadata?.deliveryModeData?.estimatedDays || 
+                          order?.delivery_metadata?.estimated_days || 
+                          5;
+    
+    const expectedDate = orderMetadata?.deliveryModeData?.deliveryDate || 
+                        orderMetadata?.deliveryModeData?.expectedDeliveryDate ||
+                        order?.delivery_metadata?.expected_delivery_date;
+    
+    const expressCharge = orderMetadata?.orderTotals?.expressCharge || 
+                         order?.express_charge ||
+                         order?.delivery_metadata?.express_charge || 
+                         0;
+
+    return { mode, estimatedDays, expectedDate, expressCharge };
+  };
+
+  // ✅ Calculate estimated delivery date with fallback
+  const getEstimatedDeliveryDate = () => {
+    const { expectedDate, estimatedDays } = getDeliveryInfo();
+    
+    if (expectedDate) {
+      return new Date(expectedDate);
+    }
+    
+    // Fallback: Calculate from order creation date
+    const date = new Date(order?.created_at || Date.now());
+    date.setDate(date.getDate() + estimatedDays);
+    return date;
   };
 
   if (loading) {
@@ -67,27 +148,21 @@ const OrderSuccess = () => {
   }
 
   if (!order) {
-    return null;
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg text-slate-600">Order not found</p>
+          <Link to="/user/orders" className="text-tpppink hover:underline mt-4 inline-block">
+            View all orders
+          </Link>
+        </div>
+      </div>
+    );
   }
 
-  // ✅ Calculate delivery dates from metadata
-  const deliveryMode = deliveryMetadata?.deliveryMode || order.delivery_metadata?.mode || 'surface';
-  const estimatedDays = deliveryMetadata?.deliveryModeData?.estimatedDays || 
-                        order.delivery_metadata?.estimated_days || 
-                        5;
-  const expectedDeliveryDate = deliveryMetadata?.deliveryModeData?.deliveryDate || 
-                               deliveryMetadata?.deliveryModeData?.expectedDeliveryDate ||
-                               order.delivery_metadata?.expected_delivery_date;
-
-  const estimatedDelivery = expectedDeliveryDate 
-    ? new Date(expectedDeliveryDate)
-    : (() => {
-        const date = new Date(order.created_at);
-        date.setDate(date.getDate() + estimatedDays);
-        return date;
-      })();
-
-  const isExpressDelivery = deliveryMode === 'express';
+  const deliveryInfo = getDeliveryInfo();
+  const estimatedDelivery = getEstimatedDeliveryDate();
+  const isExpressDelivery = deliveryInfo.mode === 'express';
 
   return (
     <div 
@@ -156,9 +231,9 @@ const OrderSuccess = () => {
             ) : (
               <Truck className="w-5 h-5 text-tpppink mx-auto mb-2" />
             )}
-            <p className="text-2xl font-bold text-tppslate">{estimatedDays}</p>
+            <p className="text-2xl font-bold text-tppslate">{deliveryInfo.estimatedDays}</p>
             <p className="text-xs text-slate-500 font-medium">
-              {estimatedDays === 1 ? 'Day' : 'Days'} Delivery
+              {deliveryInfo.estimatedDays === 1 ? 'Day' : 'Days'} Delivery
             </p>
           </div>
         </div>
@@ -215,26 +290,28 @@ const OrderSuccess = () => {
                   ))}
                 </div>
 
-                {/* Price Breakdown */}
+                {/* ✅ CORRECTED Price Breakdown - No tax, Free standard shipping */}
                 <div className="mt-5 pt-5 border-t-2 border-slate-100 space-y-2">
                   <div className="flex justify-between text-sm text-slate-600">
                     <span>Subtotal</span>
                     <span className="font-medium">₹{order.subtotal?.toFixed(0)}</span>
                   </div>
                   <div className="flex justify-between text-sm text-slate-600">
-                    <span>Shipping</span>
-                    <span className="font-medium">
-                      {order.shipping_cost === 0 ? (
-                        <span className="text-green-600 font-semibold">FREE</span>
-                      ) : (
-                        `₹${order.shipping_cost?.toFixed(0)}`
-                      )}
-                    </span>
+                    <span>Shipping (Standard)</span>
+                    <span className="font-medium text-green-600 font-semibold">FREE</span>
                   </div>
-                  <div className="flex justify-between text-sm text-slate-600">
-                    <span>Tax (GST 18%)</span>
-                    <span className="font-medium">₹{order.tax?.toFixed(0)}</span>
-                  </div>
+                  
+                  {/* ✅ Show express charge only if applicable */}
+                  {deliveryInfo.expressCharge > 0 && (
+                    <div className="flex justify-between text-sm text-amber-600">
+                      <span className="flex items-center gap-1">
+                        <Plane className="w-3 h-3" />
+                        Express Delivery
+                      </span>
+                      <span className="font-medium">₹{deliveryInfo.expressCharge?.toFixed(0)}</span>
+                    </div>
+                  )}
+                  
                   <div className="flex justify-between items-center pt-3 border-t border-slate-200">
                     <span className="text-base font-bold text-tppslate">Total Amount</span>
                     <span className="text-2xl font-bold text-tpppink">₹{order.final_total?.toFixed(0)}</span>
@@ -243,7 +320,7 @@ const OrderSuccess = () => {
               </div>
             </div>
 
-            {/* ✅ Enhanced Delivery Timeline with Actual Data */}
+            {/* ✅ Enhanced Delivery Timeline */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
               <div className="flex items-center gap-2 mb-4">
                 {isExpressDelivery ? (
@@ -285,7 +362,7 @@ const OrderSuccess = () => {
                       })}
                     </p>
                     <p className={`text-xs ${isExpressDelivery ? 'text-amber-700' : 'text-blue-700'}`}>
-                      {estimatedDays} {estimatedDays === 1 ? 'business day' : 'business days'}
+                      {deliveryInfo.estimatedDays} {deliveryInfo.estimatedDays === 1 ? 'business day' : 'business days'}
                     </p>
                   </div>
                 </div>

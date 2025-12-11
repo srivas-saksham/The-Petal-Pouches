@@ -5,6 +5,7 @@ const supabase = require('../config/supabaseClient');
 /**
  * Order Model - Handles all order-related database operations
  * Manages order creation, status updates, and order retrieval with items
+ * ⭐ UPDATED: Works with BUNDLES ONLY (No Product_variants)
  */
 const OrderModel = {
 
@@ -12,21 +13,34 @@ const OrderModel = {
 
   /**
    * Create a new order with items (transaction)
+   * ⭐ UPDATED: Now stores ONLY bundle details in Order_items
+   *   - NOT individual products from bundle
+   *   - Each Order_item row = 1 bundle ordered
+   * 
    * @param {Object} orderData - Order information
    * @param {string} orderData.user_id - Customer UUID
    * @param {number} orderData.subtotal - Items total before shipping/discount
    * @param {number} orderData.shipping_cost - Delivery charge
+   * @param {number} orderData.express_charge - Express delivery charge
+   * @param {number} orderData.tax - Tax amount
+   * @param {number} orderData.discount - Discount amount
    * @param {number} orderData.final_total - Final payable amount
    * @param {Object} orderData.shipping_address - Delivery address (JSONB)
+   * @param {Object} orderData.delivery_metadata - Delivery mode and details (JSONB)
+   * @param {string} orderData.payment_method - Payment method
+   * @param {string} orderData.payment_status - Payment status
    * @param {string} [orderData.payment_id] - Payment transaction ID
-   * @param {string} [orderData.bundle_type='single'] - Order type
+   * @param {string} [orderData.bundle_type='mixed'] - Order type
    * @param {string} [orderData.custom_bundle_id] - Custom bundle reference
-   * @param {Array} items - Order items array
-   * @param {string} items[].product_variant_id - Variant UUID
-   * @param {number} items[].quantity - Item quantity
-   * @param {number} items[].price - Price at order time
-   * @param {string} [items[].bundle_origin] - Bundle origin type
-   * @param {string} [items[].bundle_id] - Bundle reference ID
+   * @param {string} [orderData.notes] - Order notes
+   * @param {boolean} [orderData.gift_wrap=false] - Gift wrap option
+   * @param {string} [orderData.gift_message] - Gift message
+   * @param {Array} items - Order items array (bundles only)
+   * @param {string} items[].bundle_id - Bundle UUID
+   * @param {string} items[].bundle_title - Bundle title
+   * @param {number} items[].bundle_quantity - How many of this bundle
+   * @param {number} items[].price - Bundle price per unit
+   * @param {string} [items[].bundle_origin='brand-bundle'] - Bundle origin type
    * @returns {Promise<Object>} Created order with items
    */
   async create(orderData, items) {
@@ -34,28 +48,45 @@ const OrderModel = {
       const {
         user_id,
         subtotal,
-        shipping_cost,
+        tax = 0,
+        shipping_cost = 0,
+        express_charge = 0,
+        discount = 0,
         final_total,
         shipping_address,
+        payment_method = 'cod',
+        payment_status = 'unpaid',
         payment_id = null,
-        bundle_type = 'single',
-        custom_bundle_id = null
+        bundle_type = 'mixed',
+        custom_bundle_id = null,
+        notes = null,
+        gift_wrap = false,
+        gift_message = null,
+        status = 'pending'
       } = orderData;
 
-      // Insert order
+      // Insert order with all fields including delivery_metadata
       const { data: order, error: orderError } = await supabase
         .from('Orders')
         .insert([{
           user_id,
-          status: 'pending',
+          status,
           subtotal,
+          tax,
           shipping_cost,
+          express_charge,
+          discount,
           final_total,
           shipping_address,
-          payment_status: 'unpaid',
+          payment_method,
+          payment_status,
           payment_id,
           custom_bundle_id,
           bundle_type,
+          notes,
+          gift_wrap,
+          gift_message,
+          delivery_metadata: orderData.delivery_metadata || {}, // ✅ Store delivery metadata
           created_at: new Date().toISOString(),
           placed_at: new Date().toISOString()
         }])
@@ -64,16 +95,21 @@ const OrderModel = {
 
       if (orderError) throw orderError;
 
-      // Insert order items
+      console.log(`✅ Order created: ${order.id}`);
+
+      // ===== ⭐ UPDATED: Store ONLY bundle details (not individual items) =====
+      // Each row in Order_items = 1 bundle (with bundle_quantity)
       const orderItemsData = items.map(item => ({
         order_id: order.id,
-        product_variant_id: item.product_variant_id,
-        quantity: item.quantity,
-        price: item.price,
-        bundle_origin: item.bundle_origin || null,
-        bundle_id: item.bundle_id || null,
+        bundle_id: item.bundle_id,                    // ⭐ Bundle reference
+        quantity: item.bundle_quantity || 1,          // ⭐ How many of this bundle
+        price: item.price,                            // Bundle unit price
+        bundle_origin: item.bundle_origin || 'brand-bundle', // Keep for tracking
+        bundle_title: item.bundle_title || null,      // Store bundle title
         created_at: new Date().toISOString()
       }));
+
+      console.log(`📝 Inserting ${orderItemsData.length} order items (bundles only)`);
 
       const { data: orderItems, error: itemsError } = await supabase
         .from('Order_items')
@@ -81,6 +117,8 @@ const OrderModel = {
         .select();
 
       if (itemsError) throw itemsError;
+
+      console.log(`✅ ${orderItems.length} order items created`);
 
       console.log(`[OrderModel] Order created: ${order.id} for user: ${user_id}`);
       
@@ -98,10 +136,10 @@ const OrderModel = {
   // ==================== READ OPERATIONS ====================
 
   /**
-   * Get order by ID with full details
+   * Get order by ID with full details (bundles only)
    * @param {string} orderId - Order UUID
    * @param {string} [userId] - Optional user ID for authorization
-   * @returns {Promise<Object|null>} Order with items and product details
+   * @returns {Promise<Object|null>} Order with bundle items
    */
   async findById(orderId, userId = null) {
     try {
@@ -122,20 +160,17 @@ const OrderModel = {
         throw orderError;
       }
 
-      // Get order items with product details
+      // ⭐ Get order items with BUNDLE details (not product variants)
       const { data: orderItems, error: itemsError } = await supabase
         .from('Order_items')
         .select(`
           *,
-          Product_variants!inner(
+          Bundles!inner(
             id,
-            sku,
-            attributes,
+            title,
+            description,
             img_url,
-            Products!inner(
-              title,
-              img_url
-            )
+            price
           )
         `)
         .eq('order_id', orderId);
@@ -145,16 +180,14 @@ const OrderModel = {
       // Format items
       const items = (orderItems || []).map(item => ({
         id: item.id,
-        product_variant_id: item.product_variant_id,
+        bundle_id: item.bundle_id,
         quantity: item.quantity,
         price: item.price,
         bundle_origin: item.bundle_origin,
-        bundle_id: item.bundle_id,
-        product_title: item.Product_variants.Products.title,
-        product_img: item.Product_variants.Products.img_url,
-        variant_sku: item.Product_variants.sku,
-        variant_attributes: item.Product_variants.attributes,
-        variant_img: item.Product_variants.img_url
+        bundle_title: item.Bundles.title,
+        bundle_description: item.Bundles.description,
+        bundle_img: item.Bundles.img_url,
+        bundle_price: item.Bundles.price
       }));
 
       return {
@@ -177,7 +210,7 @@ const OrderModel = {
    * @param {string} [options.status] - Filter by status
    * @param {string} [options.sortBy='created_at'] - Sort field
    * @param {string} [options.sortOrder='DESC'] - Sort direction
-   * @returns {Promise<Array>} Array of orders
+   * @returns {Promise<Array>} Array of orders with bundle items
    */
   async findByUser(userId, options = {}) {
     try {
@@ -196,7 +229,7 @@ const OrderModel = {
       // Build orders query
       let ordersQuery = supabase
         .from('Orders')
-        .select('id, status, subtotal, shipping_cost, final_total, payment_status, created_at, placed_at, bundle_type')
+        .select('id, status, subtotal, shipping_cost, express_charge, final_total, payment_status, created_at, placed_at, bundle_type')
         .eq('user_id', userId);
 
       if (status) {
@@ -215,19 +248,16 @@ const OrderModel = {
         return [];
       }
 
-      // Get order items for all orders
+      // ⭐ Get order items with BUNDLE details
       const orderIds = orders.map(o => o.id);
       const { data: allItems, error: itemsError } = await supabase
         .from('Order_items')
         .select(`
           order_id,
           quantity,
-          Product_variants!inner(
-            img_url,
-            Products!inner(
-              title,
-              img_url
-            )
+          Bundles!inner(
+            title,
+            img_url
           )
         `)
         .in('order_id', orderIds);
@@ -241,8 +271,8 @@ const OrderModel = {
           itemsByOrder[item.order_id] = [];
         }
         itemsByOrder[item.order_id].push({
-          product_title: item.Product_variants.Products.title,
-          product_img: item.Product_variants.img_url || item.Product_variants.Products.img_url,
+          bundle_title: item.Bundles.title,
+          bundle_img: item.Bundles.img_url,
           quantity: item.quantity
         });
       });
@@ -477,7 +507,14 @@ const OrderModel = {
           cancelled_orders: 0,
           total_spent: 0,
           avg_order_value: 0,
-          last_order_date: null
+          last_order_date: null,
+          // Legacy aliases for backward compatibility
+          pending: 0,
+          confirmed: 0,
+          shipped: 0,
+          delivered: 0,
+          cancelled: 0,
+          recent_orders: []
         };
       }
 
@@ -491,19 +528,30 @@ const OrderModel = {
         cancelled_orders: orders.filter(o => o.status === 'cancelled').length,
         total_spent: orders
           .filter(o => o.status !== 'cancelled')
-          .reduce((sum, o) => sum + o.final_total, 0),
+          .reduce((sum, o) => sum + parseFloat(o.final_total || 0), 0),
         avg_order_value: 0,
         last_order_date: orders.reduce((latest, o) => {
           const orderDate = new Date(o.created_at);
           return orderDate > latest ? orderDate : latest;
-        }, new Date(0))
+        }, new Date(0)),
+        // Recent orders for dashboard
+        recent_orders: orders
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 3)
       };
+
+      // Legacy aliases for backward compatibility
+      stats.pending = stats.pending_orders;
+      stats.confirmed = stats.confirmed_orders;
+      stats.shipped = stats.shipped_orders;
+      stats.delivered = stats.delivered_orders;
+      stats.cancelled = stats.cancelled_orders;
 
       // Calculate average order value for delivered orders
       const deliveredOrders = orders.filter(o => o.status === 'delivered');
       if (deliveredOrders.length > 0) {
         stats.avg_order_value = Math.round(
-          deliveredOrders.reduce((sum, o) => sum + o.final_total, 0) / deliveredOrders.length
+          deliveredOrders.reduce((sum, o) => sum + parseFloat(o.final_total || 0), 0) / deliveredOrders.length
         );
       }
 
@@ -596,9 +644,9 @@ const OrderModel = {
   },
 
   /**
-   * Get order items by order ID
+   * Get order items by order ID (bundles only)
    * @param {string} orderId - Order UUID
-   * @returns {Promise<Array>} Order items with product details
+   * @returns {Promise<Array>} Order items with bundle details
    */
   async getOrderItems(orderId) {
     try {
@@ -606,14 +654,12 @@ const OrderModel = {
         .from('Order_items')
         .select(`
           *,
-          Product_variants!inner(
-            sku,
-            attributes,
+          Bundles!inner(
+            id,
+            title,
+            description,
             img_url,
-            Products!inner(
-              title,
-              img_url
-            )
+            price
           )
         `)
         .eq('order_id', orderId)
@@ -624,84 +670,17 @@ const OrderModel = {
       // Format items
       return (items || []).map(item => ({
         ...item,
-        product_title: item.Product_variants.Products.title,
-        product_img: item.Product_variants.Products.img_url,
-        variant_sku: item.Product_variants.sku,
-        variant_attributes: item.Product_variants.attributes,
-        variant_img: item.Product_variants.img_url
+        bundle_title: item.Bundles.title,
+        bundle_description: item.Bundles.description,
+        bundle_img: item.Bundles.img_url,
+        bundle_price: item.Bundles.price
       }));
       
     } catch (error) {
       console.error('[OrderModel] Error getting order items:', error);
       throw error;
     }
-  },
-  
-  /**
-   * Get order statistics for user dashboard
-   * @param {string} userId - User UUID
-   * @returns {Promise<Object>} Order statistics
-   */
-  async getStatistics(userId) {
-    try {
-      // Get all orders
-      const { data: orders, error } = await supabase
-        .from('Orders')
-        .select('status, final_total, created_at')
-        .eq('user_id', userId);
-
-      if (error) throw error;
-
-      const stats = {
-        total_orders: orders.length,
-        pending: orders.filter(o => o.status === 'pending').length,
-        confirmed: orders.filter(o => o.status === 'confirmed').length,
-        shipped: orders.filter(o => o.status === 'shipped').length,
-        delivered: orders.filter(o => o.status === 'delivered').length,
-        cancelled: orders.filter(o => o.status === 'cancelled').length,
-        total_spent: orders
-          .filter(o => o.status !== 'cancelled')
-          .reduce((sum, o) => sum + parseFloat(o.final_total || 0), 0),
-        recent_orders: orders
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-          .slice(0, 3)
-      };
-
-      return stats;
-    } catch (error) {
-      console.error('[OrderModel] Error getting statistics:', error);
-      throw error;
-    }
-},
-
-/**
- * Count orders by user
- * @param {string} userId - User UUID
- * @param {string} status - Optional status filter
- * @returns {Promise<number>} Order count
- */
-async countByUser(userId, status = null) {
-  try {
-    let query = supabase
-      .from('Orders')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId);
-
-    if (status) {
-      query = query.eq('status', status);
-    }
-
-    const { count, error } = await query;
-
-    if (error) throw error;
-
-    return count || 0;
-  } catch (error) {
-    console.error('[OrderModel] Error counting orders:', error);
-    throw error;
   }
-}
 };
-
 
 module.exports = OrderModel;

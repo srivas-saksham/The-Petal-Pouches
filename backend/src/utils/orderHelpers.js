@@ -10,12 +10,13 @@
  * @param {Array} cartItems - Array of cart items with prices
  * @returns {Object} Totals breakdown
  */
-const calculateOrderTotals = (cartItems) => {
+const calculateOrderTotals = (cartItems, deliveryMode = 'surface', expressCharge = 0) => {
   if (!cartItems || cartItems.length === 0) {
     return {
       subtotal: 0,
-      tax: 0,
-      shipping: 0,
+      tax: 0,  // ✅ NO TAX
+      shipping: 0,  // ✅ FREE STANDARD SHIPPING
+      express_charge: 0,
       discount: 0,
       total: 0,
       item_count: 0,
@@ -34,28 +35,32 @@ const calculateOrderTotals = (cartItems) => {
     return sum + item.quantity;
   }, 0);
 
-  // Calculate shipping (free above ₹999)
-  const shipping = subtotal >= 999 ? 0 : 50;
+  // ✅ NO BASE SHIPPING COST - Always free
+  const shipping = 0;
 
-  // Calculate tax (18% GST on subtotal)
-  const tax = Math.round(subtotal * 0.18);
+  // ✅ NO TAX - As per your requirement
+  const tax = 0;
 
-  // Discount (applied via coupons - future feature)
+  // ✅ Express charge only if express mode selected
+  const express_charge = deliveryMode === 'express' ? expressCharge : 0;
+
+  // Discount (applied via coupons)
   const discount = 0;
 
-  // Final total
-  const total = subtotal + shipping + tax - discount;
+  // ✅ CORRECT TOTAL: subtotal + express_charge only
+  const total = subtotal + express_charge - discount;
 
-  // Estimate total weight (default 200g per item if not specified)
+  // Estimate total weight
   const estimated_weight = cartItems.reduce((sum, item) => {
-    const itemWeight = item.weight || 200; // grams
+    const itemWeight = item.weight || 200;
     return sum + (itemWeight * item.quantity);
   }, 0);
 
   return {
     subtotal: parseFloat(subtotal.toFixed(2)),
-    tax: parseFloat(tax.toFixed(2)),
-    shipping: parseFloat(shipping.toFixed(2)),
+    tax: 0,  // ✅ Always 0
+    shipping: 0,  // ✅ Always 0 (free standard)
+    express_charge: parseFloat(express_charge.toFixed(2)),
     discount: parseFloat(discount.toFixed(2)),
     total: parseFloat(total.toFixed(2)),
     item_count: cartItems.length,
