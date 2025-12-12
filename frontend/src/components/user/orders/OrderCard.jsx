@@ -233,7 +233,7 @@ const OrderCard = ({ order, onReorder, onCancel }) => {
                 <MapPin className="w-3 h-3 text-tppslate/80 flex-shrink-0 mt-0.5" />
                 <div className="min-w-0 flex-1">
                   <p className="text-tppslate/80 text-[10px] uppercase tracking-wide font-semibold mb-0.5">
-                    {order.status === 'cancelled'? 'WAS Delivering to' : 'Delivering to'}
+                    {order.status === 'cancelled'? 'WAS Delivering to' : (order.status === 'delivered' ? 'Delivered to' : 'Delivering to')}
                   </p>
                   <p className="text-tppslate font-semibold line-clamp-1">{deliverTo}</p>
                   {cityState && (
@@ -245,7 +245,12 @@ const OrderCard = ({ order, onReorder, onCancel }) => {
 
             {/* Expected Delivery */}
             {order.status === 'cancelled' ? (
-              null
+              <div className="flex items-center gap-1.5 text-xs bg-red-50 rounded px-2 py-1">
+                <XCircle className="w-3 h-3 text-red-600" />
+                <span className="text-red-700 font-semibold">
+                  Cancelled
+                </span>
+              </div>
             ) : order.status === 'delivered' ? (
               <div className="flex items-center gap-1.5 text-xs bg-green-50 rounded px-2 py-1">
                 <CheckCircle className="w-3 h-3 text-green-600" />
