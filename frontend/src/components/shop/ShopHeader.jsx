@@ -4,7 +4,7 @@ import { LayoutGrid, Grid3x3, Search, X, ShoppingCart, Grid3x2, LogIn, UserPlus 
 import { useNavigate } from 'react-router-dom';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useCart } from '../../hooks/useCart';
-import { useCartSidebar } from '../../hooks/useCartSidebar'; // ✅ NEW IMPORT
+import { useCartSidebar } from '../../hooks/useCartSidebar';
 import UserProfileMenu from './UserProfileMenu';
 
 /**
@@ -14,7 +14,8 @@ import UserProfileMenu from './UserProfileMenu';
  * - Shows user profile menu when authenticated
  * - Shows Sign In / Sign Up buttons when not authenticated
  * - Dynamic cart count from CartContext
- * - ✅ NEW: Opens cart sidebar on cart button click
+ * - Opens cart sidebar on cart button click
+ * - Orders & Tracking button for authenticated users
  * - Professional animations and transitions
  * 
  * @param {Object} filters - Current filter values
@@ -41,7 +42,7 @@ const ShopHeader = ({
   // Auth & Cart Context
   const { isAuthenticated, user, loading: authLoading } = useUserAuth();
   const { cartTotals } = useCart();
-  const { openCart } = useCartSidebar(); // ✅ NEW: Cart sidebar hook
+  const { openCart } = useCartSidebar();
   const navigate = useNavigate();
 
   // Search state with debouncing
@@ -89,9 +90,14 @@ const ShopHeader = ({
     onSearchChange('');
   };
 
-  // ✅ MODIFIED: Handle cart click - Opens cart sidebar
+  // Handle cart click - Opens cart sidebar
   const handleCartClick = () => {
-    openCart(); // Simply opens the cart sidebar
+    openCart();
+  };
+
+  // Handle orders click
+  const handleOrdersClick = () => {
+    navigate('/user/orders');
   };
 
   // Get cart count
@@ -153,11 +159,24 @@ const ShopHeader = ({
                     <div className="w-9 h-9 bg-slate-100 rounded-lg animate-pulse"></div>
                   </div>
                 ) : isAuthenticated && user ? (
-                  // Authenticated: Show Profile Menu + Cart Button
+                  // Authenticated: Show Profile Menu + Orders + Cart Button
                   <>
                     <UserProfileMenu user={user} />
                     
-                    {/* ✅ Cart Button - Opens Sidebar */}
+                    {/* Orders & Tracking Button */}
+                    <button
+                      onClick={handleOrdersClick}
+                      className="flex flex-col items-center justify-center px-3 py-1.5 rounded-lg border border-slate-300 
+                        bg-slate-50 hover:bg-slate-100 hover:border-slate-400 transition-all text-slate-700
+                        focus:outline-none focus:ring-2 focus:ring-slate-300 min-w-[80px]"
+                      title="Orders & Tracking"
+                    >
+                      <span className="text-[11px] font-semibold leading-tight">
+                        Orders &<br/>Tracking
+                      </span>
+                    </button>
+                    
+                    {/* Cart Button - Opens Sidebar */}
                     <button
                       onClick={handleCartClick}
                       className="relative p-2.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 
@@ -204,7 +223,7 @@ const ShopHeader = ({
                       <span className="hidden sm:inline">Sign Up</span>
                     </button>
 
-                    {/* ✅ Cart Button - Opens Sidebar (even if not logged in) */}
+                    {/* Cart Button - Opens Sidebar (even if not logged in) */}
                     <button
                       onClick={handleCartClick}
                       className="relative p-2.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 

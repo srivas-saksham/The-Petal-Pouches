@@ -7,6 +7,7 @@ import { useUserAuth } from '../../../context/UserAuthContext';
 import { useToast } from '../../../hooks/useToast';
 import { useCart } from '../../../hooks/useCart'; // ✅ NEW IMPORT
 import { useCartSidebar } from '../../../hooks/useCartSidebar'; // ✅ NEW IMPORT
+import SmartBundleSearch from '../../common/SmartBundleSearch';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -100,29 +101,11 @@ export default function UserTopBar({ onMenuClick }) {
             </button>
 
             {/* Search Bar */}
-            <div className="hidden md:block w-full max-w-md relative" ref={searchRef}>
-              <form onSubmit={handleSearch} className="relative">
-                <div className="relative flex items-center transition-all duration-200">
-                  <Search className="absolute left-3 w-4 h-4 text-tppslate/50" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onFocus={() => setSearchFocused(true)}
-                    placeholder="Search products..."
-                    className="w-full pl-10 pr-4 py-2 bg-white border-2 border-tppslate/10 rounded-lg text-sm text-tppslate placeholder-tppslate/50 !outline-none focus:!outline-none focus:ring-0 transition-all duration-200 hover:border-tpppink focus:bg-tpppink/5 focus:border-tpppink"
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 p-1 hover:bg-tppslate/10 rounded transition-colors"
-                    >
-                      <X className="w-3.5 h-3.5 text-tppslate/50" />
-                    </button>
-                  )}
-                </div>
-              </form>
+            <div className="hidden md:block w-full max-w-md relative">
+              <SmartBundleSearch 
+                placeholder="Search bundles..."
+                onNavigate={(path) => navigate(path)}
+              />
             </div>
           </div>
 
