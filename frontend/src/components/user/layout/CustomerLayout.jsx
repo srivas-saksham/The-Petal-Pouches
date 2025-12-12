@@ -16,7 +16,13 @@ export default function CustomerLayout({ children }) {
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen"
+    style={{
+        backgroundImage: 'url(/assets/windmill_saturated.png)',
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: 'cover',
+      }}
+    >
       {/* Sidebar */}
       <CustomerSidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
 

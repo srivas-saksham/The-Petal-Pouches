@@ -1,6 +1,6 @@
 // frontend/src/components/user/layout/TopBar.jsx - WITH CART SIDEBAR INTEGRATION
 
-import { Menu, Search, ShoppingBag, Bell, User, LogOut, X } from 'lucide-react';
+import { Menu, Search, ShoppingBag, Bell, User, LogOut, X, Store, ShoppingCart } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserAuth } from '../../../context/UserAuthContext';
@@ -128,19 +128,17 @@ export default function UserTopBar({ onMenuClick }) {
 
           {/* Right Section - Cart, Notifications, User */}
           <div className="flex items-center gap-3 ml-4">
-            {/* ✅ MODIFIED: Shopping Cart Button - Opens Sidebar */}
+
+            {/* Go to Shop Link */}
             <button
-              onClick={handleCartClick}
-              className="relative p-2 hover:bg-tpppeach/30 rounded-lg transition-all duration-200 text-tppslate border-2 border-transparent hover:border-tppslate group"
-              aria-label={`Shopping cart (${cartCount} items)`}
-              title="Shopping Cart"
+              onClick={() => navigate('/shop')}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg 
+                text-tpppink hover:bg-pink-50 hover:text-tpppink/90 transition-all
+                text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-tpppink/30"
+              title="Go to Shop"
             >
-              <ShoppingBag className="w-5 h-5" />
-              {cartCount > 0 && (
-                <span className="absolute top-0 right-0 flex items-center justify-center w-5 h-5 bg-tpppink text-white text-xs font-bold rounded-full border-2 border-white animate-in zoom-in-50 duration-200">
-                  {cartCount > 99 ? '99+' : cartCount}
-                </span>
-              )}
+              {/* <Store size={16} /> */}
+              <span>Go to Shop</span>
             </button>
 
             {/* Notifications */}
@@ -260,6 +258,25 @@ export default function UserTopBar({ onMenuClick }) {
                 </div>
               )}
             </div>
+
+            {/* Cart Button - Opens Sidebar */}
+            <button
+              onClick={handleCartClick}
+              className="relative p-2.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 
+                hover:border-tpppink hover:text-tpppink transition-all text-slate-600
+                focus:outline-none focus:ring-2 focus:ring-tpppink/30"
+              title="Shopping Cart"
+              aria-label={`Shopping Cart (${cartCount} items)`}
+            >
+              <ShoppingCart size={18} />
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-tpppink text-white text-[10px] font-bold 
+                  rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1
+                  border-2 border-white shadow-sm animate-in zoom-in-50 duration-200">
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </div>
