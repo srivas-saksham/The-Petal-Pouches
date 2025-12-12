@@ -8,7 +8,7 @@ import { addBundleToCart, updateCartItem, removeFromCart } from '../../../servic
 import { useCart } from '../../../hooks/useCart';
 
 /**
- * Buy Again sidebar - Shows unique bundles from pending/paid orders for quick reordering
+ * Buy Again sidebar - Shows unique bundles from all orders (except cancelled) for quick reordering
  * ✅ WITH IN-CART CONTROLS: Same debounced update functionality as BundleKeyDetails
  */
 const BuyAgainSidebar = ({ onReorder }) => {
@@ -39,17 +39,23 @@ const BuyAgainSidebar = ({ onReorder }) => {
     try {
       setLoading(true);
       
+      // Fetch all orders (we'll filter out cancelled ones)
       const response = await getOrders({
-        status: 'pending',
         limit: 100,
         page: 1
       });
 
       if (response.success && response.data) {
         const orders = Array.isArray(response.data) ? response.data : response.data.data || [];
+        
+        // Filter out cancelled orders
+        const activeOrders = orders.filter(order => 
+          order.status && order.status.toLowerCase() !== 'cancelled'
+        );
+        
         const bundleMap = new Map();
         
-        orders.forEach(order => {
+        activeOrders.forEach(order => {
           const orderItems = order.order_items || order.items_preview || [];
           
           orderItems.forEach(item => {
@@ -359,10 +365,10 @@ const BuyAgainSidebar = ({ onReorder }) => {
         <div className="text-center py-8">
           <Package className="w-12 h-12 text-tppslate/20 mx-auto mb-3" />
           <p className="text-sm text-tppslate/60">
-            No pending orders yet
+            No orders yet
           </p>
           <p className="text-xs text-tppslate/80 mt-1">
-            Your purchased bundles will appear here
+            Your ordered bundles will appear here
           </p>
         </div>
       </div>
@@ -555,7 +561,7 @@ const BuyAgainSidebar = ({ onReorder }) => {
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           className="w-full mt-3 text-sm text-tpppink hover:text-tpppink/80 font-semibold transition-colors"
         >
-          View All Pending Orders
+          View All Orders
         </button>
       )}
     </div>
