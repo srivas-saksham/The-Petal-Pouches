@@ -1,4 +1,4 @@
-// backend/src/models/orderModel.js
+// backend/src/models/orderModel.js - COMPLETE VERSION WITH ALL FUNCTIONALITY PRESERVED
 
 const supabase = require('../config/supabaseClient');
 
@@ -6,6 +6,7 @@ const supabase = require('../config/supabaseClient');
  * Order Model - Handles all order-related database operations
  * Manages order creation, status updates, and order retrieval with items
  * ⭐ UPDATED: Works with BUNDLES ONLY (No Product_variants)
+ * ✅ ENHANCED: Returns complete order data including shipping_address and delivery_metadata
  */
 const OrderModel = {
 
@@ -197,6 +198,7 @@ const OrderModel = {
 
   /**
    * Get all orders for a user with pagination
+   * ✅ ENHANCED: Now returns COMPLETE order data including shipping_address and delivery_metadata
    * @param {string} userId - User UUID
    * @param {Object} options - Query options
    * @param {number} [options.limit=20] - Results per page
@@ -220,10 +222,28 @@ const OrderModel = {
       const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
       const ascending = sortOrder.toUpperCase() === 'ASC';
 
-      // Build orders query
+      // ✅ ENHANCED: Select ALL necessary fields including JSONB columns
       let ordersQuery = supabase
         .from('Orders')
-        .select('id, status, subtotal, express_charge, final_total, payment_status, created_at, placed_at, bundle_type')
+        .select(`
+          id, 
+          status, 
+          subtotal, 
+          express_charge, 
+          discount,
+          final_total, 
+          payment_status, 
+          payment_method,
+          created_at, 
+          placed_at, 
+          delivered_at,
+          bundle_type,
+          shipping_address,
+          delivery_metadata,
+          gift_wrap,
+          gift_message,
+          notes
+        `)
         .eq('user_id', userId);
 
       if (status) {
@@ -249,9 +269,13 @@ const OrderModel = {
         .select(`
           order_id,
           quantity,
+          bundle_id,
+          bundle_title,
           Bundles!inner(
+            id,
             title,
-            img_url
+            img_url,
+            price
           )
         `)
         .in('order_id', orderIds);
@@ -265,17 +289,22 @@ const OrderModel = {
           itemsByOrder[item.order_id] = [];
         }
         itemsByOrder[item.order_id].push({
-          bundle_title: item.Bundles.title,
+          bundle_id: item.bundle_id,
+          bundle_title: item.bundle_title || item.Bundles.title,
           bundle_img: item.Bundles.img_url,
+          bundle_price: item.Bundles.price,
           quantity: item.quantity
         });
       });
 
-      // Combine orders with their items
+      // ✅ ENHANCED: Combine orders with their items and ensure JSONB fields are included
       return orders.map(order => ({
         ...order,
         item_count: itemsByOrder[order.id] ? itemsByOrder[order.id].length : 0,
-        items_preview: itemsByOrder[order.id] || []
+        items_preview: itemsByOrder[order.id] || [],
+        // ✅ Ensure JSONB fields are parsed correctly
+        shipping_address: order.shipping_address,
+        delivery_metadata: order.delivery_metadata || {}
       }));
       
     } catch (error) {

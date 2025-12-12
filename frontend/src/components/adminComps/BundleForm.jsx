@@ -159,6 +159,127 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
     }
   };
 
+  // ✅ NEW: Validate bundle items for stock and variants
+  const validateBundleItems = () => {
+    const itemErrors = [];
+    
+    if (items.length < 2) {
+      return 'Bundle must have at least 2 products';
+    }
+    
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      // Check if variant is required but not selected
+      if (item.product.has_variants && !item.variant_id) {
+        return `Please select a variant for "${item.product.title}"`;
+      }
+      
+      // ✅ NEW: Check stock availability
+      const availableStock = item.variant 
+        ? item.variant.stock 
+        : item.product.stock;
+      
+      if (availableStock === 0) {
+        return `"${item.product.title}" is out of stock. Please remove it or select a different variant.`;
+      }
+      
+      if (item.quantity > availableStock) {
+        return `"${item.product.title}": Quantity (${item.quantity}) exceeds available stock (${availableStock})`;
+      }
+      
+      // ✅ NEW: Check if quantity is valid
+      if (!item.quantity || item.quantity < 1) {
+        return `"${item.product.title}": Quantity must be at least 1`;
+      }
+      
+      // ✅ NEW: Warn if product price is 0
+      const itemPrice = item.variant ? item.variant.price : item.product.price;
+      if (itemPrice === 0) {
+        console.warn(`Warning: "${item.product.title}" has price 0`);
+      }
+    }
+    
+    return '';
+  };
+
+  // ✅ NEW: Validate images
+  const validateImages = () => {
+    const totalImagesCount = existingImages.length + images.length;
+    
+    if (totalImagesCount === 0) {
+      return 'At least one image is required';
+    }
+    
+    // Uncomment below to enforce 4 image minimum
+    /*
+    if (totalImagesCount < 4) {
+      return `Please add ${4 - totalImagesCount} more image(s). Minimum 4 images required.`;
+    }
+    */
+    
+    if (totalImagesCount > 8) {
+      return 'Maximum 8 images allowed';
+    }
+    
+    // Check if there's a primary image
+    const hasPrimary = existingImages.some(img => img.is_primary) || 
+                      images.some(img => img.is_primary);
+    
+    if (totalImagesCount > 0 && !hasPrimary) {
+      return 'Please set a primary image';
+    }
+    
+    return '';
+  };
+
+  // ✅ NEW: Validate tags
+  const validateTags = () => {
+    if (tags.length === 0) {
+      return ''; // Tags are optional, so empty is OK
+    }
+    
+    // Check for duplicate tags (case-insensitive)
+    const tagSet = new Set(tags.map(t => t.toLowerCase()));
+    if (tagSet.size !== tags.length) {
+      return 'Duplicate tags detected';
+    }
+    
+    // Check tag length
+    for (const tag of tags) {
+      if (tag.length < 2) {
+        return 'All tags must be at least 2 characters';
+      }
+      if (tag.length > 50) {
+        return 'Tags must be less than 50 characters';
+      }
+    }
+    
+    return '';
+  };
+
+  // ✅ NEW: Validate pricing logic
+  const validatePricing = () => {
+    if (!bundlePrice || parseFloat(bundlePrice) <= 0) {
+      return 'Bundle price must be greater than 0';
+    }
+    
+    const original = calculateOriginalPrice();
+    const bundle = parseFloat(bundlePrice);
+    
+    // Check if bundle price is too low (more than 90% discount)
+    if (original > 0 && bundle < original * 0.1) {
+      return 'Bundle price seems too low (more than 90% discount). Please verify.';
+    }
+    
+    // Check if bundle price is too high (more than 900% markup)
+    if (original > 0 && bundle > original * 9) {
+      return 'Bundle price seems too high (more than 900% markup). Please verify.';
+    }
+    
+    return '';
+  };
+
   const handleInputChange = (e, fieldName) => {
     const value = e.target.value;
     
@@ -352,12 +473,29 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
   const totalImages = existingImages.length + images.length;
   const canAddMore = totalImages < 8 && totalImages >= 0;
 
-  // Add product to bundle
+  // Add product to bundle with stock validation
   const handleProductSelect = (product) => {
+    // ✅ Check if product already exists
     const exists = items.some(item => item.product_id === product.id);
     if (exists) {
       toast.error('Product already added to bundle');
       return;
+    }
+    
+    // ✅ Check if product has stock (if it doesn't have variants)
+    if (!product.has_variants && product.stock === 0) {
+      toast.error(`"${product.title}" is out of stock`);
+      return;
+    }
+    
+    // ✅ For products with variants, check if any variant has stock
+    if (product.has_variants) {
+      // Assuming Product_variants is available in the product object
+      const hasStockInAnyVariant = product.Product_variants?.some(v => v.stock > 0);
+      if (!hasStockInAnyVariant) {
+        toast.error(`"${product.title}" has no variants in stock`);
+        return;
+      }
     }
 
     setItems([...items, {
@@ -368,21 +506,70 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
       variant: null
     }]);
     setShowProductSelector(false);
+    
+    // Clear items error if it exists
+    if (errors.items) {
+      setErrors(prev => ({ ...prev, items: '' }));
+    }
   };
 
-  // Update item variant
+  // Update item variant with stock validation
   const handleVariantChange = (index, variantId, variant) => {
-    const updated = [...items];
-    updated[index].variant_id = variantId;
-    updated[index].variant = variant;
-    setItems(updated);
+    // ✅ Check if new variant has stock
+    if (variant && variant.stock === 0) {
+      toast.error(`Selected variant is out of stock`);
+      return;
+    }
+    
+    const item = items[index];
+    
+    // ✅ Check if current quantity exceeds new variant's stock
+    if (variant && item.quantity > variant.stock) {
+      toast.warning(`Quantity adjusted to available stock (${variant.stock})`);
+      const updated = [...items];
+      updated[index].variant_id = variantId;
+      updated[index].variant = variant;
+      updated[index].quantity = variant.stock;
+      setItems(updated);
+    } else {
+      const updated = [...items];
+      updated[index].variant_id = variantId;
+      updated[index].variant = variant;
+      setItems(updated);
+    }
+    
+    // Clear items error if it exists
+    if (errors.items) {
+      setErrors(prev => ({ ...prev, items: '' }));
+    }
   };
 
-  // Update item quantity
+  // Update item quantity with validation
   const handleQuantityChange = (index, quantity) => {
+    const item = items[index];
+    const availableStock = item.variant 
+      ? item.variant.stock 
+      : item.product.stock;
+    
+    // ✅ Validate quantity in real-time
+    if (quantity > availableStock) {
+      toast.error(`Only ${availableStock} units available for "${item.product.title}"`);
+      return;
+    }
+    
+    if (quantity < 1) {
+      toast.error('Quantity must be at least 1');
+      return;
+    }
+    
     const updated = [...items];
     updated[index].quantity = quantity;
     setItems(updated);
+    
+    // Clear items error if it exists
+    if (errors.items) {
+      setErrors(prev => ({ ...prev, items: '' }));
+    }
   };
 
   // Remove item
@@ -421,6 +608,7 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
   const validateForm = () => {
     const newErrors = {};
     
+    // Validate basic fields
     const titleError = validateField('title', title);
     if (titleError) newErrors.title = titleError;
     
@@ -433,32 +621,21 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
     const descError = validateField('description', description);
     if (descError) newErrors.description = descError;
     
-    // Check if at least one image exists (COMMENT THIS AND UNCOMMENT BELOW TO ENFORCE 4 IMAGE MINIMUM)
-    if (existingImages.length === 0 && images.length === 0) {
-      newErrors.images = 'At least one image is required';
-    }
-    /*
-    // Check image requirements
-    const totalImagesCount = existingImages.length + images.length;
-      if (totalImagesCount === 0) {
-        newErrors.images = 'At least 4 images are required';
-      } else if (totalImagesCount < 4) {
-        newErrors.images = `Please add ${4 - totalImagesCount} more image(s). Minimum 4 images required.`;
-      } else if (totalImagesCount > 8) {
-        newErrors.images = 'Maximum 8 images allowed';
-    }
-   */
-    if (items.length < 2) {
-      newErrors.items = 'Bundle must have at least 2 products';
-    }
+    // ✅ ENHANCED: Validate images with comprehensive checks
+    const imagesError = validateImages();
+    if (imagesError) newErrors.images = imagesError;
     
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.product.has_variants && !item.variant_id) {
-        newErrors.items = `Please select a variant for "${item.product.title}"`;
-        break;
-      }
-    }
+    // ✅ ENHANCED: Validate bundle items with stock checks
+    const itemsError = validateBundleItems();
+    if (itemsError) newErrors.items = itemsError;
+    
+    // ✅ NEW: Validate tags
+    const tagsError = validateTags();
+    if (tagsError) newErrors.tags = tagsError;
+    
+    // ✅ NEW: Validate pricing logic
+    const pricingError = validatePricing();
+    if (pricingError) newErrors.pricing = pricingError;
     
     setErrors(newErrors);
     setTouched({
@@ -467,6 +644,17 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
       stockLimit: true,
       description: true
     });
+    
+    // If there are errors, scroll to first error
+    if (Object.keys(newErrors).length > 0) {
+      // Find first error field and scroll to it
+      const firstErrorField = Object.keys(newErrors)[0];
+      const element = document.getElementById(firstErrorField) || 
+                      document.querySelector(`[name="${firstErrorField}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
     
     return Object.keys(newErrors).length === 0;
   };
@@ -1032,17 +1220,37 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
             </div>
           ) : (
             <div className="space-y-2 lg:space-y-3">
-              {items.map((item, index) => (
-                <BundleItemCard
-                  key={index}
-                  item={item}
-                  onVariantChange={(variantId, variant) =>
-                    handleVariantChange(index, variantId, variant)
-                  }
-                  onQuantityChange={(quantity) => handleQuantityChange(index, quantity)}
-                  onRemove={() => handleRemoveItem(index)}
-                />
-              ))}
+              {items.map((item, index) => {
+                const availableStock = item.variant 
+                  ? item.variant.stock 
+                  : item.product.stock;
+                
+                const hasStockIssue = availableStock === 0 || item.quantity > availableStock;
+                
+                return (
+                  <div key={index}>
+                    <BundleItemCard
+                      item={item}
+                      onVariantChange={(variantId, variant) =>
+                        handleVariantChange(index, variantId, variant)
+                      }
+                      onQuantityChange={(quantity) => handleQuantityChange(index, quantity)}
+                      onRemove={() => handleRemoveItem(index)}
+                    />
+                    
+                    {/* ✅ ADD THIS: Stock Warning for each item */}
+                    {hasStockIssue && (
+                      <div className="mt-1 px-3 py-2 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs flex items-center gap-2">
+                        <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                        {availableStock === 0 
+                          ? 'Out of stock - Please remove or change variant'
+                          : `Quantity (${item.quantity}) exceeds available stock (${availableStock})`
+                        }
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1125,6 +1333,14 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
             <DollarSign className="w-5 h-5" />
             Pricing
           </h3>
+
+          {/* ✅ ADD THIS: Pricing Error Display */}
+          {errors.pricing && (
+            <div className="mb-4 p-3 bg-red-50 border-2 border-red-200 text-red-700 rounded-lg text-sm flex items-center gap-2 animate-pulse">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {errors.pricing}
+            </div>
+          )}
 
           {/* Original Price (calculated) */}
           <div className="mb-4 p-4 bg-slate-50 rounded-lg border-2 border-slate-200">

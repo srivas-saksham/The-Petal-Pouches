@@ -21,7 +21,7 @@ export default function CustomerLayout({ children }) {
       <CustomerSidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
 
       {/* Main Content Area */}
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex flex-col flex-1 overflow-hidden bg-tppslate/15">
         {/* Top Bar */}
         <CustomerTopBar onMenuClick={toggleSidebar} />
 
