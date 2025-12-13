@@ -1,8 +1,9 @@
 // frontend/src/components/user/addresses/AddressForm.jsx
 
 import React, { useState, useEffect } from 'react';
-import { MapPin, X, AlertCircle, CheckCircle, Loader } from 'lucide-react';
+import { MapPin, Loader } from 'lucide-react';
 import { createAddress, updateAddress, validateAddress } from '../../../services/addressService';
+import AddressNotifications from './AddressNotifications';
 
 /**
  * AddressForm Component
@@ -137,54 +138,27 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
     }
   };
 
-  /**
-   * Handle cancel
-   */
-  const handleCancel = () => {
-    if (onCancel) {
-      onCancel();
-    }
-  };
-
   return (
-    <div className="bg-white rounded-lg border border-slate-200 p-6">
+    <div className="bg-white rounded-lg border border-tppslate/10 shadow-sm p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
-          <MapPin className="w-5 h-5 text-pink-500" />
-          {isEditing ? 'Edit Address' : 'Add New Address'}
-        </h2>
-        <button
-          onClick={handleCancel}
-          className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
+      <h2 className="text-lg font-bold text-tppslate mb-4 flex items-center gap-2">
+        <MapPin className="w-5 h-5 text-tpppink" />
+        {isEditing ? 'Edit Address' : 'Add New Address'}
+      </h2>
 
-      {/* Success Message */}
-      {submitSuccess && (
-        <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-          <p className="text-sm text-emerald-800">
-            Address {isEditing ? 'updated' : 'added'} successfully!
-          </p>
-        </div>
-      )}
-
-      {/* Error Message */}
-      {submitError && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-          <p className="text-sm text-red-800">{submitError}</p>
-        </div>
-      )}
+      {/* Notifications */}
+      <AddressNotifications 
+        success={submitSuccess ? `Address ${isEditing ? 'updated' : 'added'} successfully!` : null}
+        error={submitError}
+        onDismissSuccess={() => setSubmitSuccess(false)}
+        onDismissError={() => setSubmitError(null)}
+      />
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Address Line 1 */}
         <div>
-          <label htmlFor="line1" className="block text-sm font-medium text-slate-700 mb-1">
+          <label htmlFor="line1" className="block text-sm font-medium text-tppslate mb-1">
             Address Line 1 <span className="text-red-500">*</span>
           </label>
           <input
@@ -194,8 +168,8 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
             value={formData.line1}
             onChange={handleChange}
             placeholder="House/Flat No., Building Name"
-            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-colors ${
-              errors.line1 ? 'border-red-300' : 'border-slate-300'
+            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
+              errors.line1 ? 'border-red-300' : 'border-tppslate/30'
             }`}
           />
           {errors.line1 && (
@@ -205,7 +179,7 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
 
         {/* Address Line 2 */}
         <div>
-          <label htmlFor="line2" className="block text-sm font-medium text-slate-700 mb-1">
+          <label htmlFor="line2" className="block text-sm font-medium text-tppslate mb-1">
             Address Line 2
           </label>
           <input
@@ -215,13 +189,13 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
             value={formData.line2}
             onChange={handleChange}
             placeholder="Street Name, Area"
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-colors"
+            className="w-full px-4 py-2 border border-tppslate/30 rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors"
           />
         </div>
 
         {/* Landmark */}
         <div>
-          <label htmlFor="landmark" className="block text-sm font-medium text-slate-700 mb-1">
+          <label htmlFor="landmark" className="block text-sm font-medium text-tppslate mb-1">
             Landmark
           </label>
           <input
@@ -231,14 +205,14 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
             value={formData.landmark}
             onChange={handleChange}
             placeholder="Near famous landmark"
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-colors"
+            className="w-full px-4 py-2 border border-tppslate/30 rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors"
           />
         </div>
 
         {/* City and State */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="city" className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="city" className="block text-sm font-medium text-tppslate mb-1">
               City <span className="text-red-500">*</span>
             </label>
             <input
@@ -248,8 +222,8 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
               value={formData.city}
               onChange={handleChange}
               placeholder="City"
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-colors ${
-                errors.city ? 'border-red-300' : 'border-slate-300'
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
+                errors.city ? 'border-red-300' : 'border-tppslate/30'
               }`}
             />
             {errors.city && (
@@ -258,7 +232,7 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
           </div>
 
           <div>
-            <label htmlFor="state" className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="state" className="block text-sm font-medium text-tppslate mb-1">
               State <span className="text-red-500">*</span>
             </label>
             <input
@@ -268,8 +242,8 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
               value={formData.state}
               onChange={handleChange}
               placeholder="State"
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-colors ${
-                errors.state ? 'border-red-300' : 'border-slate-300'
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
+                errors.state ? 'border-red-300' : 'border-tppslate/30'
               }`}
             />
             {errors.state && (
@@ -281,7 +255,7 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
         {/* Zip Code and Country */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="zip_code" className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="zip_code" className="block text-sm font-medium text-tppslate mb-1">
               Postal Code <span className="text-red-500">*</span>
             </label>
             <input
@@ -292,8 +266,8 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
               onChange={handleChange}
               placeholder="110001"
               maxLength="6"
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-colors ${
-                errors.zip_code || errors.postal ? 'border-red-300' : 'border-slate-300'
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
+                errors.zip_code || errors.postal ? 'border-red-300' : 'border-tppslate/30'
               }`}
             />
             {(errors.zip_code || errors.postal) && (
@@ -302,7 +276,7 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
           </div>
 
           <div>
-            <label htmlFor="country" className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="country" className="block text-sm font-medium text-tppslate mb-1">
               Country <span className="text-red-500">*</span>
             </label>
             <input
@@ -312,8 +286,8 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
               value={formData.country}
               onChange={handleChange}
               placeholder="India"
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-colors ${
-                errors.country ? 'border-red-300' : 'border-slate-300'
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
+                errors.country ? 'border-red-300' : 'border-tppslate/30'
               }`}
             />
             {errors.country && (
@@ -324,7 +298,7 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
 
         {/* Phone Number */}
         <div>
-          <label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-1">
+          <label htmlFor="phone" className="block text-sm font-medium text-tppslate mb-1">
             Phone Number
           </label>
           <input
@@ -335,8 +309,8 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
             onChange={handleChange}
             placeholder="10-digit mobile number"
             maxLength="10"
-            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-colors ${
-              errors.phone ? 'border-red-300' : 'border-slate-300'
+            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
+              errors.phone ? 'border-red-300' : 'border-tppslate/30'
             }`}
           />
           {errors.phone && (
@@ -345,16 +319,16 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
         </div>
 
         {/* Set as Default */}
-        <div className="flex items-center gap-2 p-4 bg-slate-50 rounded-lg">
+        <div className="flex items-center gap-2 p-4 bg-tppslate/5 rounded-lg">
           <input
             type="checkbox"
             id="is_default"
             name="is_default"
             checked={formData.is_default}
             onChange={handleChange}
-            className="w-4 h-4 text-pink-500 border-slate-300 rounded focus:ring-pink-500"
+            className="w-4 h-4 text-tpppink border-tppslate/30 rounded focus:ring-tpppink"
           />
-          <label htmlFor="is_default" className="text-sm text-slate-700 cursor-pointer">
+          <label htmlFor="is_default" className="text-sm text-tppslate cursor-pointer">
             Set as default address
           </label>
         </div>
@@ -364,7 +338,7 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors duration-200"
+            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-tpppink text-white rounded-lg hover:bg-tpppink/90 disabled:bg-tppslate/30 disabled:cursor-not-allowed transition-colors duration-200 font-bold"
           >
             {loading ? (
               <>
@@ -378,9 +352,9 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
           
           <button
             type="button"
-            onClick={handleCancel}
+            onClick={onCancel}
             disabled={loading}
-            className="px-6 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            className="px-6 py-3 border border-tppslate/30 text-tppslate rounded-lg hover:bg-tppslate/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-bold"
           >
             Cancel
           </button>
