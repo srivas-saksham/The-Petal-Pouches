@@ -401,6 +401,18 @@ export default function TopBar({ onMenuClick }) {
 
           {/* Right Section */}
           <div className="flex items-center gap-3">
+            {/* Go to Shop Link */}
+            <button
+              onClick={() => navigate('/shop')}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg 
+                text-tpppink hover:bg-pink-50 hover:text-tpppink/90 transition-all
+                text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-tpppink/30"
+              title="Go to Shop"
+            >
+              {/* <Store size={16} /> */}
+              <span>Go to Shop</span>
+            </button>
+            
             {/* Notifications */}
             <div className="relative" ref={notifRef}>
               <button

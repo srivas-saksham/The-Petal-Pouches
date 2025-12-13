@@ -16,20 +16,36 @@ export default function AdminLayout({ children }) {
   };
 
   return (
-    <div className="admin-layout">
-      {/* Sidebar */}
+    <div 
+      className="flex h-screen overflow-hidden bg-gray-50"
+      style={{
+        backgroundImage: 'url(/assets/windmill_saturated.png)',
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      {/* Sidebar - Fixed width with slate background */}
       <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
 
       {/* Main Content Area */}
-      <div className="admin-main">
-        {/* Top Bar */}
+      <div className="flex flex-col flex-1 overflow-hidden">
+        {/* Top Bar - Fixed height with white background */}
         <TopBar onMenuClick={toggleSidebar} />
 
-        {/* Page Content */}
-        <main className="admin-content">
+        {/* Page Content - Scrollable with semi-transparent overlay */}
+        <main className="flex-1 overflow-y-auto p-8">
           {children}
         </main>
       </div>
+
+      {/* Sidebar Overlay for Mobile */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={closeSidebar}
+        />
+      )}
     </div>
   );
 }

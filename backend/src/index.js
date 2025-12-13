@@ -56,8 +56,9 @@ const supabase = require('./config/supabaseClient');
 
 // 1. ADMIN & STAFF ROUTES
 // --------------------------------------------
-app.use('/api/admin/auth', require('./routes/adminAuth')); // Admin Login/Register
-app.use('/api/admin', require('./routes/admin'));          // Admin Product Management
+app.use('/api/admin/auth', require('./routes/adminAuth'));     // Admin Login/Register
+app.use('/api/admin/orders', require('./routes/adminOrders')); // ✅ NEW: Admin Orders Management
+app.use('/api/admin', require('./routes/admin'));              // Admin Product Management
 
 // 2. CUSTOMER AUTHENTICATION & PROFILE
 // --------------------------------------------
@@ -80,7 +81,7 @@ app.use('/api/cart', require('./routes/cart'));            // Shopping Cart
 app.use('/api/wishlist', require('./routes/wishlist'));    // Wishlist
 app.use('/api/orders', require('./routes/orders'));        // Order Management
 app.use('/api/payments', require('./routes/payments'));    // Razorpay/Stripe
-app.use('/api/delhivery', require('./routes/delhivery'));      // Delhivery Shipping Integration
+app.use('/api/delhivery', require('./routes/delhivery'));  // Delhivery Shipping Integration
 
 // ============================================
 // HEALTH CHECK & API DOCUMENTATION
@@ -125,13 +126,14 @@ app.get('/', (req, res) => {
   res.json({
     success: true,
     message: 'The Petal Pouches API is running! 🌸',
-    version: '1.2.0',
+    version: '1.3.0',
     database: 'Supabase',
     documentation: {
       admin: {
         auth: '/api/admin/auth',
         products: '/api/admin/products',
-        bundles: '/api/bundles/admin'
+        bundles: '/api/bundles/admin',
+        orders: '/api/admin/orders'
       },
       customer: {
         auth: '/api/auth',
@@ -231,6 +233,7 @@ app.listen(PORT, () => {
   console.log(`   🛍️ Cart:       http://localhost:${PORT}/api/cart`);
   console.log(`   👤 User Auth:  http://localhost:${PORT}/api/auth/login`);
   console.log(`   🔐 Admin Auth: http://localhost:${PORT}/api/admin/auth/login`);
+  console.log(`   📦 Admin Orders: http://localhost:${PORT}/api/admin/orders`);
   console.log('\n✨ Server is ready to accept requests!\n');
 });
 
