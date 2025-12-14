@@ -187,15 +187,22 @@ const OrderController = {
         // Don't fail order creation if stock deduction fails
       }
 
-      // ===== STEP 9: AUTO-CREATE SHIPMENT =====
+      // ===== STEP 9: AUTO-CREATE SHIPMENT WITH COST CALCULATION =====
       try {
-        const shipment = await ShipmentModel.createFromOrder(order.id, {
+        const shipment = await ShipmentModel.createWithCostCalculation(order.id, {
           destination_pincode: address.zip_code,
           destination_city: address.city,
           destination_state: address.state,
-          weight_grams: totals.estimated_weight || 1000 // Default 1kg
+          shipping_mode: deliveryMode === 'express' ? 'Express' : 'Surface',
+          weight_grams: totals.estimated_weight || 1000,
+          dimensions_cm: {
+            length: 30,
+            width: 25,
+            height: 10
+          }
         });
-        console.log(`✅ Shipment auto-created: ${shipment.id}`);
+        console.log(`✅ Shipment created (pending_review): ${shipment.id}`);
+        console.log(`   Estimated cost: ₹${shipment.estimated_cost}`);
       } catch (shipmentError) {
         console.error('⚠️ Shipment creation failed:', shipmentError);
         // Don't fail order creation if shipment fails
@@ -458,15 +465,60 @@ const OrderController = {
         });
       }
 
-      // Get shipment tracking
-      let shipment = null;
-      try {
-        shipment = await ShipmentModel.getByOrderId(orderId);
-      } catch (err) {
-        console.warn('No shipment for order:', orderId);
+      // Get shipment tracking (user-friendly statuses)
+      const ShipmentModel = require('../models/shipmentModel');
+      let tracking = await ShipmentModel.getTrackingForUser(orderId);
+
+      if (!tracking) {
+        // No shipment yet (still pending admin approval)
+        return res.status(200).json({
+          success: true,
+          tracking: {
+            order_id: order.id,
+            status: 'Pending',
+            message: 'Your order is being processed. Shipment will be created soon.',
+            timeline: [
+              {
+                status: 'pending',
+                label: 'Order Placed',
+                date: order.created_at,
+                completed: true,
+                description: 'Your order has been received'
+              },
+              {
+                status: 'confirmed',
+                label: 'Order Confirmed',
+                date: null,
+                completed: false,
+                description: 'Awaiting confirmation'
+              },
+              {
+                status: 'picked_up',
+                label: 'Picked Up',
+                date: null,
+                completed: false,
+                description: 'Pending pickup'
+              },
+              {
+                status: 'in_transit',
+                label: 'In Transit',
+                date: null,
+                completed: false,
+                description: 'On the way'
+              },
+              {
+                status: 'delivered',
+                label: 'Delivered',
+                date: null,
+                completed: false,
+                description: 'Delivery pending'
+              }
+            ]
+          }
+        });
       }
 
-      // Build tracking timeline
+      // Build tracking timeline based on current status
       const timeline = [
         {
           status: 'pending',
@@ -478,51 +530,69 @@ const OrderController = {
         {
           status: 'confirmed',
           label: 'Order Confirmed',
-          date: order.confirmed_at || null,
-          completed: ['confirmed', 'processing', 'shipped', 'delivered'].includes(order.status),
+          date: tracking.created_at,
+          completed: ['Confirmed', 'Picked Up', 'In Transit', 'Out for Delivery', 'Delivered'].includes(tracking.status),
           description: 'We are preparing your order'
         },
         {
-          status: 'processing',
-          label: 'Processing',
-          date: order.processing_at || null,
-          completed: ['processing', 'shipped', 'delivered'].includes(order.status),
-          description: 'Your order is being packed'
+          status: 'picked_up',
+          label: 'Picked Up',
+          date: null,
+          completed: ['Picked Up', 'In Transit', 'Out for Delivery', 'Delivered'].includes(tracking.status),
+          description: 'Collected from warehouse'
         },
         {
-          status: 'shipped',
-          label: 'Shipped',
-          date: order.shipped_at || shipment?.created_at || null,
-          completed: ['shipped', 'delivered'].includes(order.status),
-          description: shipment?.awb ? `AWB: ${shipment.awb}` : 'Out for delivery'
+          status: 'in_transit',
+          label: 'In Transit',
+          date: null,
+          completed: ['In Transit', 'Out for Delivery', 'Delivered'].includes(tracking.status),
+          description: 'Moving between hubs'
+        },
+        {
+          status: 'out_for_delivery',
+          label: 'Out for Delivery',
+          date: null,
+          completed: ['Out for Delivery', 'Delivered'].includes(tracking.status),
+          description: 'On the way to you'
         },
         {
           status: 'delivered',
           label: 'Delivered',
-          date: order.delivered_at || null,
-          completed: order.status === 'delivered',
+          date: order.delivered_at,
+          completed: tracking.status === 'Delivered',
           description: 'Order delivered successfully'
         }
       ];
 
-      const tracking = {
-        order_id: order.id,
-        status: order.status,
-        tracking_number: shipment?.awb || null,
-        carrier: shipment?.courier || 'Delhivery',
-        estimated_delivery: shipment?.estimated_delivery || null,
-        timeline,
-        shipment: shipment ? {
-          awb: shipment.awb,
-          courier: shipment.courier,
-          status: shipment.status,
-          tracking_history: shipment.tracking_history
-        } : null
-      };
+      // Add dates from tracking history if available
+      if (tracking.tracking_history && tracking.tracking_history.length > 0) {
+        tracking.tracking_history.forEach(event => {
+          const statusLower = event.status?.toLowerCase();
+          const timelineItem = timeline.find(t => 
+            statusLower?.includes(t.status) || 
+            t.status.includes(statusLower)
+          );
+          if (timelineItem && !timelineItem.date) {
+            timelineItem.date = event.timestamp;
+            timelineItem.location = event.location;
+          }
+        });
+      }
 
       return res.status(200).json({
         success: true,
-        tracking
+        tracking: {
+          order_id: order.id,
+          status: tracking.status,
+          awb: tracking.awb,
+          courier: tracking.courier || 'Delhivery',
+          tracking_url: tracking.tracking_url,
+          estimated_delivery: tracking.estimated_delivery,
+          shipping_mode: tracking.shipping_mode,
+          timeline: timeline,
+          tracking_history: tracking.tracking_history || [],
+          last_updated: tracking.updated_at
+        }
       });
 
     } catch (error) {

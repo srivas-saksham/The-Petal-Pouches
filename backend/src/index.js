@@ -57,7 +57,8 @@ const supabase = require('./config/supabaseClient');
 // 1. ADMIN & STAFF ROUTES
 // --------------------------------------------
 app.use('/api/admin/auth', require('./routes/adminAuth'));     // Admin Login/Register
-app.use('/api/admin/orders', require('./routes/adminOrders')); // ✅ NEW: Admin Orders Management
+app.use('/api/admin/orders', require('./routes/adminOrders'));
+app.use('/api/admin/shipments', require('./routes/shipments'));
 app.use('/api/admin', require('./routes/admin'));              // Admin Product Management
 
 // 2. CUSTOMER AUTHENTICATION & PROFILE

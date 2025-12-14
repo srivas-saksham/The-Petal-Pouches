@@ -272,13 +272,35 @@ export const reorderItems = async (orderId) => {
  */
 
 /**
- * Get order tracking information
+ * Get order tracking information with live updates
+ * @param {string} orderId - Order UUID
+ * @param {boolean} forceSync - Force sync with Delhivery (optional)
+ */
+export const getOrderTracking = async (orderId, forceSync = false) => {
+  try {
+    const response = await api.get(`/api/orders/${orderId}/tracking`, {
+      params: { sync: forceSync }
+    });
+    
+    return {
+      success: true,
+      data: response.data.tracking
+    };
+  } catch (error) {
+    console.error('❌ Get tracking error:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch tracking information'
+    };
+  }
+};
+
+/**
+ * Refresh tracking data (force sync with courier)
  * @param {string} orderId - Order UUID
  */
-export const getOrderTracking = async (orderId) => {
-  return apiRequest(() => 
-    api.get(`/api/orders/${orderId}/tracking`)
-  );
+export const refreshTracking = async (orderId) => {
+  return getOrderTracking(orderId, true);
 };
 
 /**
@@ -478,6 +500,7 @@ export default {
   
   // Tracking
   getOrderTracking,
+  refreshTracking,
   
   // Admin
   updateOrderStatus,

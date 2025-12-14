@@ -137,64 +137,96 @@ const OrderModel = {
    * @returns {Promise<Object|null>} Order with bundle items
    */
   async findById(orderId, userId = null) {
-    try {
-      // Build query with user filter if provided
-      let orderQuery = supabase
-        .from('Orders')
-        .select('*')
-        .eq('id', orderId);
+  try {
+    let orderQuery = supabase
+      .from('Orders')
+      .select('*')
+      .eq('id', orderId);
 
-      if (userId) {
-        orderQuery = orderQuery.eq('user_id', userId);
-      }
-
-      const { data: order, error: orderError } = await orderQuery.single();
-
-      if (orderError) {
-        if (orderError.code === 'PGRST116') return null;
-        throw orderError;
-      }
-
-      // ⭐ Get order items with BUNDLE details (not product variants)
-      const { data: orderItems, error: itemsError } = await supabase
-        .from('Order_items')
-        .select(`
-          *,
-          Bundles!inner(
-            id,
-            title,
-            description,
-            img_url,
-            price
-          )
-        `)
-        .eq('order_id', orderId);
-
-      if (itemsError) throw itemsError;
-
-      // Format items
-      const items = (orderItems || []).map(item => ({
-        id: item.id,
-        bundle_id: item.bundle_id,
-        quantity: item.quantity,
-        price: item.price,
-        bundle_origin: item.bundle_origin,
-        bundle_title: item.Bundles.title,
-        bundle_description: item.Bundles.description,
-        bundle_img: item.Bundles.img_url,
-        bundle_price: item.Bundles.price
-      }));
-
-      return {
-        ...order,
-        items
-      };
-      
-    } catch (error) {
-      console.error('[OrderModel] Error finding order by ID:', error);
-      throw error;
+    if (userId) {
+      orderQuery = orderQuery.eq('user_id', userId);
     }
-  },
+
+    const { data: order, error: orderError } = await orderQuery.single();
+
+    if (orderError) {
+      if (orderError.code === 'PGRST116') return null;
+      throw orderError;
+    }
+
+    // ✅ GET SHIPMENT DATA (with all fields)
+    const { data: shipment, error: shipmentError } = await supabase
+      .from('Shipments')
+      .select(`
+        id,
+        awb, 
+        status, 
+        tracking_url, 
+        courier, 
+        estimated_delivery, 
+        shipping_mode,
+        label_url,
+        invoice_url,
+        manifest_url,
+        tracking_history,
+        weight_grams,
+        dimensions_cm,
+        destination_city,
+        destination_state,
+        destination_pincode,
+        estimated_cost,
+        actual_cost,
+        placed_at,
+        created_at,
+        updated_at
+      `)
+      .eq('order_id', orderId)
+      .single();
+
+    if (shipmentError && shipmentError.code !== 'PGRST116') {
+      console.warn('⚠️ Shipment fetch failed:', shipmentError);
+    }
+
+    // ✅ Get order items with BUNDLE details
+    const { data: orderItems, error: itemsError } = await supabase
+      .from('Order_items')
+      .select(`
+        *,
+        Bundles!inner(
+          id,
+          title,
+          description,
+          img_url,
+          price
+        )
+      `)
+      .eq('order_id', orderId);
+
+    if (itemsError) throw itemsError;
+
+    const items = (orderItems || []).map(item => ({
+      id: item.id,
+      bundle_id: item.bundle_id,
+      quantity: item.quantity,
+      price: item.price,
+      bundle_origin: item.bundle_origin,
+      bundle_title: item.Bundles.title,
+      bundle_description: item.Bundles.description,
+      bundle_img: item.Bundles.img_url,
+      bundle_price: item.Bundles.price
+    }));
+
+    return {
+      ...order,
+      items,
+      shipment: shipment || null // ✅ NULL if no shipment yet
+    };
+    
+  } catch (error) {
+    console.error('[OrderModel] Error finding order by ID:', error);
+    throw error;
+  }
+},
 
   /**
    * Get all orders for a user with pagination
@@ -209,109 +241,137 @@ const OrderModel = {
    * @returns {Promise<Array>} Array of orders with bundle items
    */
   async findByUser(userId, options = {}) {
-    try {
-      const {
-        limit = 20,
-        offset = 0,
-        status = null,
-        sortBy = 'created_at',
-        sortOrder = 'DESC'
-      } = options;
+  try {
+    const {
+      limit = 20,
+      offset = 0,
+      status = null,
+      sortBy = 'created_at',
+      sortOrder = 'DESC'
+    } = options;
 
-      const validSortFields = ['created_at', 'placed_at', 'final_total', 'status'];
-      const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
-      const ascending = sortOrder.toUpperCase() === 'ASC';
+    const validSortFields = ['created_at', 'placed_at', 'final_total', 'status'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
+    const ascending = sortOrder.toUpperCase() === 'ASC';
 
-      // ✅ ENHANCED: Select ALL necessary fields including JSONB columns
-      let ordersQuery = supabase
-        .from('Orders')
-        .select(`
-          id, 
-          status, 
-          subtotal, 
-          express_charge, 
-          discount,
-          final_total, 
-          payment_status, 
-          payment_method,
-          created_at, 
-          placed_at, 
-          delivered_at,
-          bundle_type,
-          shipping_address,
-          delivery_metadata,
-          gift_wrap,
-          gift_message,
-          notes
-        `)
-        .eq('user_id', userId);
+    // ✅ Fetch orders
+    let ordersQuery = supabase
+      .from('Orders')
+      .select(`
+        id, 
+        status, 
+        subtotal, 
+        express_charge, 
+        discount,
+        final_total, 
+        payment_status, 
+        payment_method,
+        created_at, 
+        placed_at, 
+        delivered_at,
+        bundle_type,
+        shipping_address,
+        delivery_metadata,
+        gift_wrap,
+        gift_message,
+        notes
+      `)
+      .eq('user_id', userId);
 
-      if (status) {
-        ordersQuery = ordersQuery.eq('status', status);
-      }
-
-      ordersQuery = ordersQuery
-        .order(sortField, { ascending })
-        .range(offset, offset + limit - 1);
-
-      const { data: orders, error: ordersError } = await ordersQuery;
-
-      if (ordersError) throw ordersError;
-
-      if (!orders || orders.length === 0) {
-        return [];
-      }
-
-      // ⭐ Get order items with BUNDLE details
-      const orderIds = orders.map(o => o.id);
-      const { data: allItems, error: itemsError } = await supabase
-        .from('Order_items')
-        .select(`
-          order_id,
-          quantity,
-          bundle_id,
-          bundle_title,
-          Bundles!inner(
-            id,
-            title,
-            img_url,
-            price
-          )
-        `)
-        .in('order_id', orderIds);
-
-      if (itemsError) throw itemsError;
-
-      // Group items by order_id and format results
-      const itemsByOrder = {};
-      (allItems || []).forEach(item => {
-        if (!itemsByOrder[item.order_id]) {
-          itemsByOrder[item.order_id] = [];
-        }
-        itemsByOrder[item.order_id].push({
-          bundle_id: item.bundle_id,
-          bundle_title: item.bundle_title || item.Bundles.title,
-          bundle_img: item.Bundles.img_url,
-          bundle_price: item.Bundles.price,
-          quantity: item.quantity
-        });
-      });
-
-      // ✅ ENHANCED: Combine orders with their items and ensure JSONB fields are included
-      return orders.map(order => ({
-        ...order,
-        item_count: itemsByOrder[order.id] ? itemsByOrder[order.id].length : 0,
-        items_preview: itemsByOrder[order.id] || [],
-        // ✅ Ensure JSONB fields are parsed correctly
-        shipping_address: order.shipping_address,
-        delivery_metadata: order.delivery_metadata || {}
-      }));
-      
-    } catch (error) {
-      console.error('[OrderModel] Error finding orders by user:', error);
-      throw error;
+    if (status) {
+      ordersQuery = ordersQuery.eq('status', status);
     }
-  },
+
+    ordersQuery = ordersQuery
+      .order(sortField, { ascending })
+      .range(offset, offset + limit - 1);
+
+    const { data: orders, error: ordersError } = await ordersQuery;
+
+    if (ordersError) throw ordersError;
+
+    if (!orders || orders.length === 0) {
+      return [];
+    }
+
+    const orderIds = orders.map(o => o.id);
+
+    // ✅ GET SHIPMENTS DATA (with all fields)
+    const { data: shipments, error: shipmentsError } = await supabase
+      .from('Shipments')
+      .select(`
+        order_id, 
+        awb, 
+        status, 
+        tracking_url, 
+        courier, 
+        estimated_delivery,
+        shipping_mode,
+        label_url,
+        invoice_url,
+        tracking_history
+      `)
+      .in('order_id', orderIds);
+
+    if (shipmentsError) {
+      console.warn('⚠️ Failed to fetch shipments:', shipmentsError);
+    }
+
+    // Map shipments by order_id
+    const shipmentsByOrder = {};
+    (shipments || []).forEach(shipment => {
+      shipmentsByOrder[shipment.order_id] = shipment;
+    });
+
+    // ✅ Get order items with BUNDLE details
+    const { data: allItems, error: itemsError } = await supabase
+      .from('Order_items')
+      .select(`
+        order_id,
+        quantity,
+        bundle_id,
+        bundle_title,
+        Bundles!inner(
+          id,
+          title,
+          img_url,
+          price
+        )
+      `)
+      .in('order_id', orderIds);
+
+    if (itemsError) throw itemsError;
+
+    // Group items by order_id
+    const itemsByOrder = {};
+    (allItems || []).forEach(item => {
+      if (!itemsByOrder[item.order_id]) {
+        itemsByOrder[item.order_id] = [];
+      }
+      itemsByOrder[item.order_id].push({
+        bundle_id: item.bundle_id,
+        bundle_title: item.bundle_title || item.Bundles.title,
+        bundle_img: item.Bundles.img_url,
+        bundle_price: item.Bundles.price,
+        quantity: item.quantity
+      });
+    });
+
+    // ✅ Combine orders with items AND shipments
+    return orders.map(order => ({
+      ...order,
+      item_count: itemsByOrder[order.id] ? itemsByOrder[order.id].length : 0,
+      items_preview: itemsByOrder[order.id] || [],
+      shipment: shipmentsByOrder[order.id] || null, // ✅ NULL if no shipment yet
+      shipping_address: order.shipping_address,
+      delivery_metadata: order.delivery_metadata || {}
+    }));
+    
+  } catch (error) {
+    console.error('[OrderModel] Error finding orders by user:', error);
+    throw error;
+  }
+},
 
   /**
    * Get order count for a user

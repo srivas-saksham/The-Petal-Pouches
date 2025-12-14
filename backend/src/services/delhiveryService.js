@@ -539,6 +539,240 @@ class DelhiveryService {
     }
   }
 
+  /**
+   * Create shipment with Delhivery
+   * @param {Object} shipmentData - Complete shipment details
+   * @returns {Promise<Object>} Delhivery response with AWB
+   */
+  async createShipment(shipmentData) {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Delhivery API token not configured');
+      }
+
+      console.log(`📦 [Delhivery] Creating shipment for order: ${shipmentData.order_id}`);
+
+      const url = `${this.baseURL}/api/cmu/create.json`;
+
+      // Format address
+      const address = shipmentData.customer_address;
+      const fullAddress = [
+        address.line1,
+        address.line2,
+        address.landmark,
+        address.city,
+        address.state,
+        address.zip_code
+      ].filter(Boolean).join(', ');
+
+      // Build shipment request payload
+      const shipmentPayload = {
+        shipments: [{
+          name: shipmentData.customer_name,
+          add: fullAddress,
+          pin: shipmentData.destination_pincode,
+          city: shipmentData.destination_city,
+          state: shipmentData.destination_state,
+          country: 'India',
+          phone: shipmentData.customer_phone,
+          order: shipmentData.shipment_id,
+          payment_mode: shipmentData.payment_mode,
+          return_pin: process.env.WAREHOUSE_PINCODE || '110001',
+          return_city: process.env.WAREHOUSE_CITY || 'Delhi',
+          return_phone: process.env.WAREHOUSE_PHONE || '9999999999',
+          return_add: process.env.WAREHOUSE_ADDRESS || 'Your Warehouse Address',
+          products_desc: 'Gift Bundle',
+          hsn_code: '',
+          cod_amount: shipmentData.cod_amount || 0,
+          order_date: new Date().toISOString(),
+          total_amount: shipmentData.cod_amount || 0,
+          seller_add: process.env.WAREHOUSE_ADDRESS || 'Your Warehouse Address',
+          seller_name: 'The Petal Pouches',
+          seller_inv: shipmentData.order_id,
+          quantity: 1,
+          waybill: '',
+          shipment_width: shipmentData.dimensions_cm.width || 25,
+          shipment_height: shipmentData.dimensions_cm.height || 10,
+          weight: shipmentData.weight_grams / 1000,
+          seller_gst_tin: process.env.SELLER_GST || '',
+          shipping_mode: shipmentData.shipping_mode === 'Express' ? 'Express' : 'Surface',
+          address_type: 'home'
+        }]
+      };
+
+      console.log('📤 Delhivery payload:', JSON.stringify(shipmentPayload, null, 2));
+
+      const response = await axios.post(url, 
+        `format=json&data=${JSON.stringify(shipmentPayload)}`,
+        {
+          headers: {
+            'Authorization': `Token ${this.apiToken}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
+          },
+          timeout: 30000,
+          validateStatus: (status) => status < 500
+        }
+      );
+
+      if (response.status !== 200) {
+        console.error(`❌ Delhivery API HTTP ${response.status}:`, response.data);
+        throw new Error(`Delhivery API error: ${response.status}`);
+      }
+
+      const result = response.data;
+      const shipmentResult = result.packages?.[0] || result.shipments?.[0] || result;
+
+      if (!shipmentResult.waybill && !shipmentResult.awb) {
+        console.error('❌ No AWB in Delhivery response:', result);
+        throw new Error('Delhivery did not return AWB');
+      }
+
+      const awb = shipmentResult.waybill || shipmentResult.awb;
+
+      console.log(`✅ Shipment created with AWB: ${awb}`);
+
+      // ✅ Generate URLs (Delhivery may or may not provide these)
+      const labelUrl = shipmentResult.label_url || 
+                      shipmentResult.label || 
+                      `https://track.delhivery.com/api/p/packing_slip?wbns=${awb}&pdf=true`;
+      
+      const invoiceUrl = shipmentResult.invoice_url || null;
+      const manifestUrl = shipmentResult.manifest_url || null;
+
+      return {
+        success: true,
+        awb: awb,
+        order_id: shipmentResult.order_id || shipmentData.order_id,
+        courier: 'Delhivery',
+        tracking_url: `https://www.delhivery.com/track/package/${awb}`,
+        label_url: labelUrl,
+        invoice_url: invoiceUrl,
+        manifest_url: manifestUrl,
+        cost: shipmentResult.charges || null,
+        raw_response: result
+      };
+
+    } catch (error) {
+      console.error('❌ [Delhivery] Create shipment failed:', error);
+
+      if (error.response?.status === 401) {
+        throw new Error('Delhivery authentication failed. Check API token.');
+      }
+
+      if (error.response?.status === 400) {
+        const errorMsg = error.response.data?.error || error.response.data?.message || 'Invalid request';
+        throw new Error(`Delhivery validation error: ${errorMsg}`);
+      }
+
+      throw new Error(`Failed to create Delhivery shipment: ${error.message}`);
+    }
+  }
+  /**
+ * Get tracking information from Delhivery
+ * @param {string} awb - Air Waybill number
+ * @returns {Promise<Object>} Tracking information
+ */
+async getTrackingInfo(awb) {
+  try {
+    if (!this.apiToken) {
+      throw new Error('Delhivery API token not configured');
+    }
+
+    console.log(`📍 [Delhivery] Fetching tracking for AWB: ${awb}`);
+
+    const url = `${this.baseURL}/api/v1/packages/json/`;
+
+    const response = await axios.get(url, {
+      params: { waybill: awb },
+      headers: {
+        'Authorization': `Token ${this.apiToken}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      timeout: 15000,
+      validateStatus: (status) => status < 500
+    });
+
+    if (response.status !== 200) {
+      console.error(`❌ [Delhivery] Tracking API HTTP ${response.status}`);
+      throw new Error(`Tracking API error: ${response.status}`);
+    }
+
+    const data = response.data;
+
+    if (!data.ShipmentData || data.ShipmentData.length === 0) {
+      console.warn(`⚠️ [Delhivery] No tracking data for AWB: ${awb}`);
+      return {
+        success: false,
+        error: 'No tracking information available',
+        awb
+      };
+    }
+
+    const shipmentData = data.ShipmentData[0];
+    const shipment = shipmentData.Shipment;
+
+    // Map Delhivery status to our system
+    const currentStatus = this._mapDelhiveryStatus(shipment.Status?.Status);
+
+    // Format tracking history
+    const trackingHistory = (shipment.Scans || []).map(scan => ({
+      status: scan.ScanDetail.Scan,
+      location: scan.ScanDetail.ScannedLocation,
+      timestamp: scan.ScanDetail.ScanDateTime,
+      instructions: scan.ScanDetail.Instructions || null
+    }));
+
+    console.log(`✅ [Delhivery] Tracking fetched: Status = ${currentStatus}`);
+
+    return {
+      success: true,
+      awb: shipment.AWB,
+      current_status: currentStatus,
+      status_date: shipment.Status?.StatusDateTime,
+      expected_delivery_date: shipment.ExpectedDeliveryDate || null,
+      origin: shipment.Origin,
+      destination: shipment.Destination,
+      tracking_history: trackingHistory,
+      courier_details: {
+        name: shipment.Courier || 'Delhivery',
+        phone: shipment.CourierPhone || null
+      },
+      raw_data: shipmentData
+    };
+
+  } catch (error) {
+    console.error('❌ [Delhivery] Get tracking failed:', error);
+
+    if (error.response?.status === 401) {
+      throw new Error('Delhivery authentication failed');
+    }
+
+    throw new Error(`Failed to fetch tracking: ${error.message}`);
+  }
+}
+
+/**
+ * Map Delhivery status to our system status
+ * @private
+ */
+_mapDelhiveryStatus(delhiveryStatus) {
+  const statusMap = {
+    'Booked': 'placed',
+    'Pickup Scheduled': 'pending_pickup',
+    'Picked Up': 'picked_up',
+    'In Transit': 'in_transit',
+    'Out for Delivery': 'out_for_delivery',
+    'Delivered': 'delivered',
+    'RTO Initiated': 'rto_initiated',
+    'RTO Delivered': 'rto_delivered',
+    'Undelivered': 'failed',
+    'Cancelled': 'cancelled'
+  };
+
+  return statusMap[delhiveryStatus] || delhiveryStatus?.toLowerCase() || 'unknown';
+}
   // ==================== COMBINED CHECK WITH COSTS (ENHANCED) ====================
 
   async checkDelivery(pincode, options = {}) {

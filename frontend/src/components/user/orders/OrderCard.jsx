@@ -243,7 +243,22 @@ const OrderCard = ({ order, onReorder, onCancel }) => {
               </div>
             )}
 
-            {/* Expected Delivery */}
+            {/* AWB Tracking Number - Only show when confirmed or later */}
+            {order.status !== 'pending' && order.shipment?.awb && (
+              <div className="flex items-center gap-1.5 text-xs bg-blue-50 rounded px-2 py-1.5 border border-blue-200">
+                <Truck className="w-3 h-3 text-blue-600 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-blue-600 text-[10px] uppercase tracking-wide font-semibold mb-0.5">
+                    Tracking Number
+                  </p>
+                  <p className="text-blue-900 font-mono font-bold text-xs">
+                    {order.shipment.awb}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Expected Delivery - Show even if AWB not available yet */}
             {order.status === 'cancelled' ? (
               <div className="flex items-center gap-1.5 text-xs bg-red-50 rounded px-2 py-1">
                 <XCircle className="w-3 h-3 text-red-600" />
@@ -262,7 +277,7 @@ const OrderCard = ({ order, onReorder, onCancel }) => {
               <div className="flex items-center gap-1.5 text-xs bg-tppslate/10 rounded px-2 py-1">
                 <Truck className="w-3 h-3 text-tppslate" />
                 <span className="text-tppslate font-semibold">
-                  Expected by {getEstimatedDelivery()}
+                  Expected by {order.shipment?.estimated_delivery ? formatDate(order.shipment.estimated_delivery) : getEstimatedDelivery()}
                 </span>
               </div>
             )}

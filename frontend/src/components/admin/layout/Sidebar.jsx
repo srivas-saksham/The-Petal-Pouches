@@ -13,7 +13,8 @@ import {
   ChevronsRight,
   CheckCheck,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  Truck
 } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
@@ -93,6 +94,7 @@ export default function Sidebar({ isOpen, onClose }) {
     category: FolderTree,
     bundle: Gift,
     order: ShoppingCart,
+    shipment: Truck,
     customer: Users,
     notification: Bell,
     settings: Settings,

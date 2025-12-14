@@ -116,6 +116,14 @@ export const NAVIGATION_ITEMS = [
     section: 'sales',
   },
   {
+    id: 'shipments',
+    label: 'Shipments',
+    path: '/admin/shipments',
+    icon: 'shipment',
+    section: 'main',
+    badge: 0
+  },
+  {
     id: 'customers',
     label: 'Customers',
     path: '/admin/customers',
