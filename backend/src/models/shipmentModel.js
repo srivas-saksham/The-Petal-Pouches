@@ -415,7 +415,6 @@ const ShipmentModel = {
       const supabase = require('../config/supabaseClient');
       const delhiveryService = require('../services/delhiveryService');
 
-      // Get shipment with full order details
       const { data: shipment, error: fetchError } = await supabase
         .from('Shipments')
         .select('*, Orders!inner(*, Users!inner(*))')
@@ -430,20 +429,31 @@ const ShipmentModel = {
 
       console.log(`📦 Approving and placing shipment: ${shipmentId}`);
 
+      // ✅ FIXED: Set approved_at timestamp
+      const approvedAt = new Date().toISOString();
+      const placedAt = new Date().toISOString();
+
       // ===== STEP 1: Update to approved =====
       await supabase
         .from('Shipments')
         .update({
           status: 'approved',
           approved_by: adminId,
-          approved_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          approved_at: approvedAt, // ✅ NOW BEING SET
+          updated_at: approvedAt
         })
         .eq('id', shipmentId);
 
-      console.log('✅ Shipment approved');
+      console.log('✅ Shipment approved at:', approvedAt);
 
-      // ===== STEP 2: Call Delhivery API =====
+      // ===== STEP 2: Calculate pickup_scheduled_date =====
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const pickupScheduledDate = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD
+
+      console.log('📅 Pickup scheduled for:', pickupScheduledDate);
+
+      // ===== STEP 3: Call Delhivery API =====
       const delhiveryResponse = await delhiveryService.createShipment({
         shipment_id: shipmentId,
         order_id: shipment.order_id,
@@ -462,8 +472,7 @@ const ShipmentModel = {
 
       console.log('✅ Delhivery shipment created:', delhiveryResponse.awb);
 
-      // ===== STEP 3: Recalculate estimated delivery =====
-      // Use existing estimated_delivery or recalculate
+      // ===== STEP 4: Calculate estimated delivery =====
       let finalEstimatedDelivery = shipment.estimated_delivery;
       
       if (!finalEstimatedDelivery) {
@@ -472,37 +481,37 @@ const ShipmentModel = {
         const estimatedDate = new Date();
         estimatedDate.setDate(estimatedDate.getDate() + estimatedDays);
         finalEstimatedDelivery = estimatedDate.toISOString().split('T')[0];
-        console.log(`📅 Calculated estimated delivery: ${finalEstimatedDelivery}`);
       }
 
-      // ===== STEP 4: Update shipment with ALL Delhivery details =====
+      // ===== STEP 5: Update with ALL details =====
       const { data: updated, error: updateError } = await supabase
         .from('Shipments')
         .update({
           status: 'placed',
           
-          // ✅ Courier/Tracking details
+          // ✅ Courier/Tracking
           awb: delhiveryResponse.awb,
           courier: delhiveryResponse.courier || 'Delhivery',
           tracking_url: delhiveryResponse.tracking_url,
           delhivery_order_id: delhiveryResponse.order_id || null,
           
-          // ✅ Document URLs
+          // ✅ Document URLs - NOW PROPERLY SET
           label_url: delhiveryResponse.label_url,
           invoice_url: delhiveryResponse.invoice_url,
           manifest_url: delhiveryResponse.manifest_url,
           
-          // ✅ Delivery date
+          // ✅ Dates - NOW PROPERLY SET
           estimated_delivery: finalEstimatedDelivery,
+          pickup_scheduled_date: pickupScheduledDate, // ✅ NOW SET
+          placed_at: placedAt, // ✅ NOW SET
           
           // Cost
           actual_cost: delhiveryResponse.cost || shipment.estimated_cost,
           
           // Timestamps
-          placed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          updated_at: placedAt,
           
-          // Lock editing after placement
+          // Lock editing
           editable: false
         })
         .eq('id', shipmentId)
@@ -511,29 +520,34 @@ const ShipmentModel = {
 
       if (updateError) throw updateError;
 
-      console.log('✅ Shipment updated with Delhivery details');
+      console.log('✅ Shipment updated with all details:');
+      console.log('   AWB:', updated.awb);
+      console.log('   Label URL:', updated.label_url);
+      console.log('   Invoice URL:', updated.invoice_url);
+      console.log('   Approved At:', updated.approved_at);
+      console.log('   Pickup Scheduled:', updated.pickup_scheduled_date);
+      console.log('   Placed At:', updated.placed_at);
 
-      // ===== STEP 5: Update order status to 'confirmed' =====
+      // ===== STEP 6: Update order status =====
       const { error: orderUpdateError } = await supabase
         .from('Orders')
         .update({
           status: 'confirmed',
-          updated_at: new Date().toISOString()
+          updated_at: placedAt
         })
         .eq('id', shipment.order_id);
 
       if (orderUpdateError) {
         console.error('⚠️ Failed to update order status:', orderUpdateError);
-        // Don't fail the entire operation
       } else {
-        console.log(`✅ Order ${shipment.order_id} status updated to 'confirmed'`);
+        console.log(`✅ Order ${shipment.order_id} confirmed`);
       }
 
       return updated;
     } catch (error) {
       console.error('❌ Approve and place error:', error);
       
-      // Rollback to pending_review if Delhivery fails
+      // Rollback
       try {
         await supabase
           .from('Shipments')

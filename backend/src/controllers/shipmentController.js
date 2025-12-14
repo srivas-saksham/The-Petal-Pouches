@@ -333,8 +333,158 @@ const ShipmentController = {
         error: error.message
       });
     }
-  }
+  },
+  /**
+     * Download shipment label (server-side proxy)
+     * GET /api/admin/shipments/:id/label
+     */
+    async downloadLabel(req, res) {
+    try {
+        const { id } = req.params;
+        
+        const shipment = await ShipmentModel.getShipmentById(id);
+        
+        if (!shipment) {
+        return res.status(404).json({
+            success: false,
+            message: 'Shipment not found'
+        });
+        }
+        
+        if (!shipment.awb) {
+        return res.status(400).json({
+            success: false,
+            message: 'Shipment does not have AWB yet. Label not available.'
+        });
+        }
+        
+        console.log(`📄 Downloading label for AWB: ${shipment.awb}`);
+        
+        // Fetch label from Delhivery with authentication
+        const delhiveryService = require('../services/delhiveryService');
+        const labelUrl = `${delhiveryService.baseURL}/api/p/packing_slip?wbns=${shipment.awb}&pdf=true`;
+        
+        const axios = require('axios');
+        const response = await axios.get(labelUrl, {
+        headers: {
+            'Authorization': `Token ${delhiveryService.apiToken}`,
+            'Accept': 'application/pdf'
+        },
+        responseType: 'stream',
+        timeout: 30000
+        });
+        
+        // Set response headers for PDF download
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="label-${shipment.awb}.pdf"`);
+        
+        // Pipe the PDF stream to response
+        response.data.pipe(res);
+        
+        console.log(`✅ Label downloaded: ${shipment.awb}`);
+        
+    } catch (error) {
+        console.error('❌ Download label error:', error.response?.data || error.message);
+        
+        if (error.response?.status === 401) {
+        return res.status(502).json({
+            success: false,
+            message: 'Delhivery authentication failed',
+            code: 'DELHIVERY_AUTH_ERROR'
+        });
+        }
+        
+        if (error.response?.status === 404) {
+        return res.status(404).json({
+            success: false,
+            message: 'Label not found. It may not be generated yet.',
+            code: 'LABEL_NOT_FOUND'
+        });
+        }
+        
+        res.status(500).json({
+        success: false,
+        message: 'Failed to download label',
+        error: error.message
+        });
+    }
+    },
 
+    /**
+     * Download shipment invoice (server-side proxy)
+     * GET /api/admin/shipments/:id/invoice
+     */
+    async downloadInvoice(req, res) {
+    try {
+        const { id } = req.params;
+        
+        const shipment = await ShipmentModel.getShipmentById(id);
+        
+        if (!shipment) {
+        return res.status(404).json({
+            success: false,
+            message: 'Shipment not found'
+        });
+        }
+        
+        if (!shipment.awb) {
+        return res.status(400).json({
+            success: false,
+            message: 'Shipment does not have AWB yet. Invoice not available.'
+        });
+        }
+        
+        console.log(`📄 Downloading invoice for AWB: ${shipment.awb}`);
+        
+        // Fetch invoice from Delhivery with authentication
+        const delhiveryService = require('../services/delhiveryService');
+        const invoiceUrl = `${delhiveryService.baseURL}/api/p/invoice?wbns=${shipment.awb}&pdf=true`;
+        
+        const axios = require('axios');
+        const response = await axios.get(invoiceUrl, {
+        headers: {
+            'Authorization': `Token ${delhiveryService.apiToken}`,
+            'Accept': 'application/pdf'
+        },
+        responseType: 'stream',
+        timeout: 30000
+        });
+        
+        // Set response headers for PDF download
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="invoice-${shipment.awb}.pdf"`);
+        
+        // Pipe the PDF stream to response
+        response.data.pipe(res);
+        
+        console.log(`✅ Invoice downloaded: ${shipment.awb}`);
+        
+    } catch (error) {
+        console.error('❌ Download invoice error:', error.response?.data || error.message);
+        
+        if (error.response?.status === 401) {
+        return res.status(502).json({
+            success: false,
+            message: 'Delhivery authentication failed',
+            code: 'DELHIVERY_AUTH_ERROR'
+        });
+        }
+        
+        if (error.response?.status === 404) {
+        return res.status(404).json({
+            success: false,
+            message: 'Invoice not found. It may not be generated yet.',
+            code: 'INVOICE_NOT_FOUND'
+        });
+        }
+        
+        res.status(500).json({
+        success: false,
+        message: 'Failed to download invoice',
+        error: error.message
+        });
+    }
+    }
 };
 
 module.exports = ShipmentController;

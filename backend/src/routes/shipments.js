@@ -41,6 +41,20 @@ router.post('/bulk-approve', ShipmentController.bulkApproveAndPlace);
 router.post('/bulk-sync', ShipmentController.bulkSyncShipments);
 
 /**
+ * GET /api/admin/shipments/:id/label
+ * Download shipment label (server-side proxy)
+ * MUST BE BEFORE /:id ROUTE
+ */
+router.get('/:id/label', ShipmentController.downloadLabel);
+
+/**
+ * GET /api/admin/shipments/:id/invoice
+ * Download shipment invoice (server-side proxy)
+ * MUST BE BEFORE /:id ROUTE
+ */
+router.get('/:id/invoice', ShipmentController.downloadInvoice);
+
+/**
  * GET /api/admin/shipments/:id
  * Get single shipment details
  */
