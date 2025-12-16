@@ -16,6 +16,8 @@ export default function AdminShipmentCard({
   selected, 
   onToggleSelect, 
   onApprove,
+  onSchedulePickup,
+  onEditPickup,
   onEdit,
   onViewDetails 
 }) {
@@ -227,7 +229,7 @@ export default function AdminShipmentCard({
   // ==================== RENDER ====================
 
   return (
-    <div className="bg-white rounded-lg border border-tppslate/10 hover:border-tpppink/30 hover:shadow-md transition-all overflow-hidden group relative">
+    <div className="bg-white rounded-lg border border-tppslate/30 hover:border-tpppink/30 hover:shadow-md transition-all overflow-hidden group relative">
       
       {/* Checkbox - Peeking from top-left */}
       {canApprove && onToggleSelect && (
@@ -244,7 +246,7 @@ export default function AdminShipmentCard({
       <div className="grid grid-cols-4 gap-0">
         
         {/* ==================== COLUMN 1: DELIVERY DETAILS ==================== */}
-        <div className="p-4 border-r border-tppslate/10">
+        <div className="p-4 border-r border-tppslate/30">
           {/* Header with Shipment ID and Time */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
@@ -308,7 +310,7 @@ export default function AdminShipmentCard({
 
           {/* AWB Badge (if available) */}
           {shipment.awb && (
-            <div className="bg-tppslate/10 rounded px-2.5 py-1.5">
+            <div className="bg-tppslate/30 rounded px-2.5 py-1.5">
               <div className="text-[10px] text-tppslate/80 uppercase tracking-wide font-semibold mb-0.5">
                 AWB Number
               </div>
@@ -318,7 +320,7 @@ export default function AdminShipmentCard({
         </div>
 
         {/* ==================== COLUMN 2: ORDER DETAILS ==================== */}
-        <div className="p-4 border-r border-tppslate/10">
+        <div className="p-4 border-r border-tppslate/30">
           
           {/* Order Reference */}
           <div className="mb-3 p-2 bg-blue-50 rounded-lg border border-blue-100">
@@ -359,7 +361,7 @@ export default function AdminShipmentCard({
           )}
 
           {/* Package Details */}
-          <div className="mb-3 p-2 bg-white border border-tppslate/10 rounded-lg">
+          <div className="mb-3 p-2 bg-white border border-tppslate/30 rounded-lg">
             <div className="text-[10px] text-tppslate/80 uppercase tracking-wide font-semibold mb-2 flex items-center gap-1">
               <Box className="w-3 h-3" />
               Package Details
@@ -450,24 +452,66 @@ export default function AdminShipmentCard({
         </div>
 
         {/* ==================== COLUMN 3: COST SUMMARY ==================== */}
-        <div className="p-4 border-r border-tppslate/10 bg-gradient-to-br from-gray-50 to-white">
+        <div className="p-4 border-r-2 border-dashed border-tppslate/30 bg-gradient-to-br from-gray-50 to-white">
           
           {/* Cost Summary Header */}
           <div className="text-[10px] text-tppslate/80 uppercase tracking-wide font-semibold mb-3 flex items-center gap-1">
             <DollarSign className="w-3 h-3" />
-            Shipping Cost
+            Shipping Cost Breakdown
           </div>
 
-          {/* Cost Breakdown */}
+          {/* Detailed Cost Breakdown */}
           <div className="space-y-2 mb-3">
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-tppslate/70">Estimated Cost:</span>
+            {/* Base Delivery Charge */}
+            {shipment.cost_breakdown?.base_delivery_charge && (
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-tppslate/70">Base Delivery:</span>
+                <span className="font-semibold text-tppslate">{formatCurrency(shipment.cost_breakdown.base_delivery_charge)}</span>
+              </div>
+            )}
+
+            {/* COD Charges */}
+            {shipment.cost_breakdown?.cod_charges > 0 && (
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-tppslate/70">COD Charges:</span>
+                <span className="font-semibold text-tppslate">{formatCurrency(shipment.cost_breakdown.cod_charges)}</span>
+              </div>
+            )}
+
+            {/* Other Charges */}
+            {shipment.cost_breakdown?.other_charges > 0 && (
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-tppslate/70">Other Charges:</span>
+                <span className="font-semibold text-tppslate">{formatCurrency(shipment.cost_breakdown.other_charges)}</span>
+              </div>
+            )}
+
+            {/* Gross Amount */}
+            {shipment.cost_breakdown?.gross_amount && (
+              <div className="flex justify-between items-center text-xs pt-1 border-t border-tppslate/30">
+                <span className="text-tppslate/70">Gross Amount:</span>
+                <span className="font-semibold text-tppslate">{formatCurrency(shipment.cost_breakdown.gross_amount)}</span>
+              </div>
+            )}
+
+            {/* GST */}
+            {shipment.cost_breakdown?.total_tax > 0 && (
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-tppslate/70">GST (CGST + SGST):</span>
+                <span className="font-semibold text-tppslate">{formatCurrency(shipment.cost_breakdown.total_tax)}</span>
+              </div>
+            )}
+
+            {/* Estimated Total */}
+            <div className="flex justify-between items-center text-xs pt-1 border-t border-tppslate/30">
+              <span className="text-tppslate/80 font-semibold">Estimated Total:</span>
               <span className="font-bold text-tppslate">{formatCurrency(shipment.estimated_cost)}</span>
             </div>
 
-            {shipment.actual_cost && (
+            {/* Actual Cost (if different) */}
+            {shipment.actual_cost && shipment.actual_cost !== shipment.estimated_cost && (
               <div className="flex justify-between items-center text-xs">
-                <span className="text-tppslate/70">Actual Cost:</span>
+                <span className="text-green-600/80 font-semibold">Actual Cost:</span>
                 <span className="font-bold text-green-600">{formatCurrency(shipment.actual_cost)}</span>
               </div>
             )}
@@ -505,75 +549,73 @@ export default function AdminShipmentCard({
               )}
             </div>
           </div>
-
-          {/* Express Surcharge (if applicable) */}
-          {isExpress && shipment.cost_breakdown?.express_surcharge && (
-            <div className="bg-amber-50 border border-amber-200 rounded px-2 py-1.5 mb-2">
-              <div className="flex items-center justify-between text-[11px] text-amber-700">
-                <div className="flex items-center gap-1">
-                  <Plane className="w-3 h-3" />
-                  <span className="font-semibold">Express:</span>
-                </div>
-                <span className="font-bold">
-                  {formatCurrency(shipment.cost_breakdown.express_surcharge)}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* COD Charges */}
-          {order?.payment_method === 'cod' && shipment.cost_breakdown?.cod_charges > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded px-2 py-1.5 mb-2">
-              <div className="flex items-center justify-between text-[11px] text-blue-700">
-                <div className="flex items-center gap-1">
-                  <DollarSign className="w-3 h-3" />
-                  <span className="font-semibold">COD:</span>
-                </div>
-                <span className="font-bold">
-                  {formatCurrency(shipment.cost_breakdown.cod_charges)}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Final Total Cost */}
-          <div className="bg-tppslate text-white rounded-lg px-3 py-2 mb-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wide">Final Cost:</span>
-              <span className="text-base font-bold">{formatCurrency(finalCost)}</span>
-            </div>
-          </div>
-
-          {/* Failed Reason (if failed) */}
-          {shipment.failed_reason && (
-            <div className="bg-red-50 border border-red-200 rounded px-2 py-1.5 mb-2">
-              <div className="flex items-start gap-1 text-[11px] text-red-700">
-                <XCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <div className="font-semibold">Failed</div>
-                  <div className="text-red-600 mt-0.5">{shipment.failed_reason}</div>
-                  {shipment.retry_count > 0 && (
-                    <div className="text-red-500 mt-1">Retries: {shipment.retry_count}</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Admin Notes */}
-          {shipment.admin_notes && (
-            <div className="bg-purple-50 border border-purple-200 rounded px-2 py-1.5">
-              <div className="text-[10px] text-purple-600 font-semibold mb-0.5">Admin Notes</div>
-              <div className="text-[11px] text-purple-700 leading-relaxed">{shipment.admin_notes}</div>
-            </div>
-          )}
         </div>
 
         {/* ==================== COLUMN 4: ACTIONS ==================== */}
         <div className="p-4 flex flex-col items-start">
           
           <div className="space-y-2 w-full">
-            
+            <div className="mb-[10px] border-b-2 border-tppslate/30 pb-3 w-full border-dashed">
+              {/* Final Total Cost */}
+              <div className="bg-tppslate text-white rounded-lg px-3 py-2 mb-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wide">Final Cost:</span>
+                  <span className="text-base font-bold">{formatCurrency(shipment.estimated_cost)}</span>
+                </div>
+              </div>
+
+              {/* Mode Comparison Note */}
+              {shipment.cost_breakdown?.mode_comparison && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-2 mb-3">
+                  <div className="text-[10px] text-blue-600/80 uppercase tracking-wide font-semibold mb-1.5">
+                    Delivery Mode Comparison
+                  </div>
+                  <div className="space-y-1 text-[11px]">
+                    <div className="flex justify-between items-center text-blue-700">
+                      <span>Surface:</span>
+                      <span className="font-semibold">{formatCurrency(shipment.cost_breakdown.mode_comparison.surface_cost)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-blue-700">
+                      <span>Express:</span>
+                      <span className="font-semibold">{formatCurrency(shipment.cost_breakdown.mode_comparison.express_cost)}</span>
+                    </div>
+                    {shipment.cost_breakdown.mode_comparison.customer_paid_extra > 0 && (
+                      <div className="flex justify-between items-center text-blue-800 pt-1 border-t border-blue-200">
+                        <span className="font-semibold">Customer Paid Extra:</span>
+                        <span className="font-bold text-blue-900">
+                          +{formatCurrency(shipment.cost_breakdown.mode_comparison.customer_paid_extra)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Failed Reason (if failed) */}
+              {shipment.failed_reason && (
+                <div className="bg-red-50 border border-red-200 rounded px-2 py-1.5 mb-2">
+                  <div className="flex items-start gap-1 text-[11px] text-red-700">
+                    <XCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-semibold">Failed</div>
+                      <div className="text-red-600 mt-0.5">{shipment.failed_reason}</div>
+                      {shipment.retry_count > 0 && (
+                        <div className="text-red-500 mt-1">Retries: {shipment.retry_count}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Admin Notes */}
+              {shipment.admin_notes && (
+                <div className="bg-purple-50 border border-purple-200 rounded px-2 py-1.5">
+                  <div className="text-[10px] text-purple-600 font-semibold mb-0.5">Admin Notes</div>
+                  <div className="text-[11px] text-purple-700 leading-relaxed">{shipment.admin_notes}</div>
+                </div>
+              )}
+            </div>
+          
             {/* View Details */}
             <button
               onClick={() => onViewDetails && onViewDetails(shipment.id)}
@@ -591,6 +633,28 @@ export default function AdminShipmentCard({
               >
                 <CheckCircle className="w-3.5 h-3.5" />
                 Approve & Place
+              </button>
+            )}
+
+            {/* Schedule Pickup (if placed) */}
+            {shipment.status === 'placed' && (
+              <button
+                onClick={() => onSchedulePickup && onSchedulePickup(shipment.id)}
+                className="w-full px-3 py-2 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 font-bold flex items-center justify-center gap-1.5"
+              >
+                <Package className="w-3.5 h-3.5" />
+                Schedule Pickup - Tomorrow
+              </button>
+            )}
+
+            {/* Edit Pickup Date (if pending_pickup) */}
+            {shipment.status === 'pending_pickup' && shipment.pickup_scheduled_date && (
+              <button
+                onClick={() => onEditPickup && onEditPickup(shipment.id)}
+                className="w-full px-3 py-2 bg-amber-600 text-white text-xs rounded-lg hover:bg-amber-700 font-bold flex items-center justify-center gap-1.5"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                Edit Pickup: {formatDateShort(shipment.pickup_scheduled_date)}
               </button>
             )}
 

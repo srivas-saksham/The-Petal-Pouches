@@ -80,6 +80,12 @@ router.post('/:id/recalculate-cost', ShipmentController.recalculateCost);
 router.post('/:id/approve-and-place', ShipmentController.approveAndPlace);
 
 /**
+ * POST /api/admin/shipments/:id/schedule-pickup
+ * Schedule pickup for placed shipment
+ */
+router.post('/:id/schedule-pickup', ShipmentController.schedulePickup);
+
+/**
  * POST /api/admin/shipments/:id/sync
  * Sync shipment tracking with Delhivery
  */

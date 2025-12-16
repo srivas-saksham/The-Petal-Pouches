@@ -47,7 +47,7 @@ const Checkout = () => {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [pageInitialized, setPageInitialized] = useState(false);
   const [totalCartWeight, setTotalCartWeight] = useState(1000);
-
+  const [paymentMethod, setPaymentMethod] = useState('prepaid'); // or 'online'/'prepaid'
   // ✅ NEW: Debounced weight tracking
   const [pendingCartWeight, setPendingCartWeight] = useState(null);
   const deliveryDebounceTimerRef = useRef(null);
@@ -359,7 +359,7 @@ const Checkout = () => {
       // ✅ Create order with comprehensive delivery metadata
       const orderData = {
         address_id: selectedAddress.id,
-        payment_method: 'cod',
+        payment_method: paymentMethod,
         notes: '',
         gift_wrap: false,
         gift_message: null,

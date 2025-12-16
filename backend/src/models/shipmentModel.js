@@ -150,127 +150,181 @@ const ShipmentModel = {
   },
 
   /**
-   * Create shipment with cost calculation
-   * ✅ Sets estimated_delivery from order metadata
-   * ✅ Handles all NULL fields with defaults
-   */
-  async createWithCostCalculation(orderId, shipmentData) {
-    try {
-      const supabase = require('../config/supabaseClient');
-      const delhiveryService = require('../services/delhiveryService');
+ * Create shipment with cost calculation
+ * ✅ Sets estimated_delivery from order metadata
+ * ✅ Handles all NULL fields with defaults
+ * ✅ Parses detailed cost breakdown from Delhivery
+ * ✅ Includes mode comparison (Surface vs Express)
+ */
+async createWithCostCalculation(orderId, shipmentData) {
+  try {
+    const supabase = require('../config/supabaseClient');
+    const delhiveryService = require('../services/delhiveryService');
 
-      const { data: order, error: orderError } = await supabase
-        .from('Orders')
-        .select('*, Users!inner(name, email, phone)')
-        .eq('id', orderId)
-        .single();
+    const { data: order, error: orderError } = await supabase
+      .from('Orders')
+      .select('*, Users!inner(name, email, phone)')
+      .eq('id', orderId)
+      .single();
 
-      if (orderError) throw orderError;
+    if (orderError) throw orderError;
 
-      console.log('📦 Creating shipment for order:', orderId);
+    console.log('📦 Creating shipment for order:', orderId);
 
-      // Calculate cost using Delhivery
-      const costData = await delhiveryService.calculateShippingCost(
-        shipmentData.destination_pincode,
-        {
-          mode: shipmentData.shipping_mode === 'Express' ? 'E' : 'S',
-          weight: shipmentData.weight_grams,
-          paymentType: order.payment_method === 'cod' ? 'COD' : 'Pre-paid'
-        }
-      );
+    // Calculate cost using Delhivery for selected mode
+    const costData = await delhiveryService.calculateShippingCost(
+      shipmentData.destination_pincode,
+      {
+        mode: shipmentData.shipping_mode === 'Express' ? 'E' : 'S',
+        weight: shipmentData.weight_grams,
+        paymentType: order.payment_method === 'cod' ? 'COD' : 'Pre-paid'
+      }
+    );
 
-      console.log('💰 Calculated shipping cost:', costData.amount);
+    console.log('💰 Calculated shipping cost:', costData.amount);
 
-      // ✅ Calculate estimated delivery from order metadata
-      const deliveryMetadata = order.delivery_metadata || {};
-      const estimatedDays = deliveryMetadata.estimated_days || 5;
-      const estimatedDate = new Date();
-      estimatedDate.setDate(estimatedDate.getDate() + estimatedDays);
-      const estimatedDeliveryStr = estimatedDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    // ✅ Also calculate the alternate mode for comparison
+    const alternateMode = shipmentData.shipping_mode === 'Express' ? 'S' : 'E';
+    const alternateCostData = await delhiveryService.calculateShippingCost(
+      shipmentData.destination_pincode,
+      {
+        mode: alternateMode,
+        weight: shipmentData.weight_grams,
+        paymentType: order.payment_method === 'cod' ? 'COD' : 'Pre-paid'
+      }
+    );
 
-      console.log(`📅 Estimated delivery: ${estimatedDeliveryStr} (${estimatedDays} days)`);
+    // ✅ Parse detailed breakdown from Delhivery response
+    const rawData = costData.rawData?.[0] || costData.rawData || {};
+    const baseCost = rawData.charge_DL || rawData.base_rate || costData.amount;
+    const codCharge = rawData.charge_COD || 0;
+    const otherCharges = (rawData.charge_LM || 0) + (rawData.charge_DPH || 0);
+    const grossAmount = rawData.gross_amount || costData.amount;
+    const cgst = rawData.tax_data?.CGST || 0;
+    const sgst = rawData.tax_data?.SGST || 0;
+    const totalTax = cgst + sgst;
 
-      // Create shipment with all fields properly set
-      const { data: shipment, error: shipmentError } = await supabase
-        .from('Shipments')
-        .insert([{
-          order_id: orderId,
-          status: 'pending_review',
-          
-          // Shipping details
-          shipping_mode: shipmentData.shipping_mode,
-          weight_grams: shipmentData.weight_grams,
-          dimensions_cm: shipmentData.dimensions_cm || { length: 30, width: 25, height: 10 },
-          package_count: 1,
-          
-          // Destination
-          destination_pincode: shipmentData.destination_pincode,
-          destination_city: shipmentData.destination_city,
-          destination_state: shipmentData.destination_state,
-          
-          // Dates - ✅ Set estimated_delivery immediately
-          estimated_delivery: estimatedDeliveryStr,
-          pickup_scheduled_date: shipmentData.pickup_scheduled_date || null,
-          pickup_actual_date: null,
-          placed_at: null,
-          approved_at: null,
-          
-          // Cost
-          estimated_cost: costData.amount,
-          actual_cost: null, // Will be set after placement
-          cost_breakdown: {
-            base_rate: costData.amount,
-            cod_charges: order.payment_method === 'cod' ? 30 : 0,
-            total: costData.amount,
-            currency: 'INR',
-            source: costData.source
-          },
-          
-          // ✅ Courier/Tracking fields - NULL until placement
-          courier: null,
-          awb: null,
-          tracking_url: null,
-          delhivery_order_id: null,
-          
-          // ✅ Document URLs - NULL until placement
-          label_url: null,
-          invoice_url: null,
-          manifest_url: null,
-          
-          // ✅ Tracking data - Empty array instead of NULL
-          tracking_history: [],
-          
-          // Admin fields
-          admin_notes: null,
-          edited_by: null,
-          approved_by: null,
-          editable: true,
-          
-          // Failure tracking
-          failed_reason: null,
-          retry_count: 0,
-          
-          // Timestamps
-          last_sync_at: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
+    console.log('💰 Cost breakdown:');
+    console.log('   Base delivery:', baseCost);
+    console.log('   COD charges:', codCharge);
+    console.log('   Other charges:', otherCharges);
+    console.log('   Gross amount:', grossAmount);
+    console.log('   Tax (GST):', totalTax);
+    console.log('   Final total:', costData.amount);
 
-      if (shipmentError) throw shipmentError;
+    // ✅ Calculate estimated delivery from order metadata
+    const deliveryMetadata = order.delivery_metadata || {};
+    const estimatedDays = deliveryMetadata.estimated_days || 5;
+    const estimatedDate = new Date();
+    estimatedDate.setDate(estimatedDate.getDate() + estimatedDays);
+    const estimatedDeliveryStr = estimatedDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
-      console.log(`✅ Shipment created: ${shipment.id}`);
-      console.log(`   Status: ${shipment.status}`);
-      console.log(`   Estimated cost: ₹${shipment.estimated_cost}`);
-      console.log(`   Estimated delivery: ${shipment.estimated_delivery}`);
+    console.log(`📅 Estimated delivery: ${estimatedDeliveryStr} (${estimatedDays} days)`);
 
-      return shipment;
-    } catch (error) {
-      console.error('❌ Create shipment with cost error:', error);
-      throw error;
-    }
-  },
+    // ✅ Build cost comparison note
+    const surfaceCost = shipmentData.shipping_mode === 'Express' 
+      ? Math.ceil(alternateCostData.amount) 
+      : Math.ceil(costData.amount);
+    const expressCost = shipmentData.shipping_mode === 'Express' 
+      ? Math.ceil(costData.amount) 
+      : Math.ceil(alternateCostData.amount);
+    const expressExtra = expressCost - surfaceCost;
+
+    // Create shipment with all fields properly set
+    const { data: shipment, error: shipmentError } = await supabase
+      .from('Shipments')
+      .insert([{
+        order_id: orderId,
+        status: 'pending_review',
+        
+        // Shipping details
+        shipping_mode: shipmentData.shipping_mode,
+        weight_grams: shipmentData.weight_grams,
+        dimensions_cm: shipmentData.dimensions_cm || { length: 30, width: 25, height: 10 },
+        package_count: 1,
+        
+        // Destination
+        destination_pincode: shipmentData.destination_pincode,
+        destination_city: shipmentData.destination_city,
+        destination_state: shipmentData.destination_state,
+        
+        // Dates - ✅ Set estimated_delivery immediately
+        estimated_delivery: estimatedDeliveryStr,
+        pickup_scheduled_date: shipmentData.pickup_scheduled_date || null,
+        pickup_actual_date: null,
+        placed_at: null,
+        approved_at: null,
+        
+        // Cost - ✅ DETAILED BREAKDOWN
+        estimated_cost: Math.ceil(costData.amount),
+        actual_cost: null, // Will be set after placement
+        cost_breakdown: {
+          base_delivery_charge: Math.ceil(baseCost),
+          cod_charges: Math.ceil(codCharge),
+          other_charges: Math.ceil(otherCharges),
+          gross_amount: Math.ceil(grossAmount),
+          cgst: Math.ceil(cgst),
+          sgst: Math.ceil(sgst),
+          total_tax: Math.ceil(totalTax),
+          total: Math.ceil(costData.amount),
+          currency: 'INR',
+          source: costData.source,
+          // ✅ Mode comparison for reference
+          mode_comparison: {
+            selected_mode: shipmentData.shipping_mode,
+            surface_cost: surfaceCost,
+            express_cost: expressCost,
+            express_extra: expressExtra,
+            customer_paid_extra: shipmentData.shipping_mode === 'Express' ? expressExtra : 0
+          }
+        },
+        
+        // ✅ Courier/Tracking fields - NULL until placement
+        courier: null,
+        awb: null,
+        tracking_url: null,
+        delhivery_order_id: null,
+        
+        // ✅ Document URLs - NULL until placement
+        label_url: null,
+        invoice_url: null,
+        manifest_url: null,
+        
+        // ✅ Tracking data - Empty array instead of NULL
+        tracking_history: [],
+        
+        // Admin fields
+        admin_notes: null,
+        edited_by: null,
+        approved_by: null,
+        editable: true,
+        
+        // Failure tracking
+        failed_reason: null,
+        retry_count: 0,
+        
+        // Timestamps
+        last_sync_at: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (shipmentError) throw shipmentError;
+
+    console.log(`✅ Shipment created: ${shipment.id}`);
+    console.log(`   Status: ${shipment.status}`);
+    console.log(`   Estimated cost: ₹${shipment.estimated_cost}`);
+    console.log(`   Estimated delivery: ${shipment.estimated_delivery}`);
+    console.log(`   Mode comparison: Surface ₹${surfaceCost} | Express ₹${expressCost}`);
+
+    return shipment;
+  } catch (error) {
+    console.error('❌ Create shipment with cost error:', error);
+    throw error;
+  }
+},
 
   /**
    * Get all shipments with filters (admin)
@@ -568,6 +622,46 @@ const ShipmentModel = {
     }
   },
 
+  /**
+   * Schedule pickup for placed shipment
+   */
+  async schedulePickup(shipmentId, pickupDate = null, adminId) {
+    try {
+      const { data: shipment, error } = await supabase
+        .from('Shipments')
+        .select('awb, status')
+        .eq('id', shipmentId)
+        .single();
+
+      if (error) throw error;
+      if (!shipment.awb) throw new Error('No AWB found');
+      if (shipment.status !== 'placed') throw new Error('Must be placed first');
+
+      const pickupResult = await delhiveryService.schedulePickup({
+        awbs: [shipment.awb],
+        pickupDate: pickupDate,
+        pickupTime: '10:00:00',
+        packageCount: 1
+      });
+
+      const { data: updated, error: updateError } = await supabase
+        .from('Shipments')
+        .update({
+          status: 'pending_pickup',
+          pickup_scheduled_date: pickupResult.pickup_date,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', shipmentId)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+      return updated;
+    } catch (error) {
+      console.error('❌ Schedule pickup error:', error);
+      throw error;
+    }
+  },
   /**
    * Update shipment tracking status from Delhivery
    * ✅ Also updates order status based on shipment progress

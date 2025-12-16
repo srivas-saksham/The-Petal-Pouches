@@ -121,6 +121,27 @@ const shipmentService = {
   },
 
   /**
+   * Schedule pickup for shipment
+   */
+  schedulePickup: async (shipmentId, pickupDate = null) => {
+    try {
+      const response = await api.post(`/api/admin/shipments/${shipmentId}/schedule-pickup`, { 
+        pickup_date: pickupDate 
+      });
+      return {
+        success: true,
+        data: response.data.data,
+        message: response.data.message
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to schedule pickup'
+      };
+    }
+  },
+
+  /**
    * Bulk approve shipments
    */
   bulkApprove: async (shipmentIds) => {

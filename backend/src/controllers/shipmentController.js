@@ -205,7 +205,45 @@ const ShipmentController = {
       });
     }
   },
+  /**
+   * Schedule pickup for shipment
+   * POST /api/admin/shipments/:id/schedule-pickup
+   */
+  async schedulePickup(req, res) {
+    try {
+      const { id } = req.params;
+      const { pickup_date } = req.body;
+      const adminId = req.admin.id;
 
+      const shipment = await ShipmentModel.schedulePickup(
+        id, 
+        pickup_date, 
+        adminId
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Pickup scheduled successfully',
+        data: shipment
+      });
+    } catch (error) {
+      console.error('❌ Schedule pickup error:', error);
+      
+      if (error.message.includes('No AWB')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Shipment must be placed first',
+          error: error.message
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to schedule pickup',
+        error: error.message
+      });
+    }
+  },
   /**
    * Bulk approve and place shipments
    * POST /api/admin/shipments/bulk-approve

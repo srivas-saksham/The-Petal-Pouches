@@ -77,6 +77,41 @@ const AdminShipmentsPage = () => {
     }
   };
 
+  const handleSchedulePickup = async (shipmentId) => {
+    if (!confirm('Schedule pickup for tomorrow at 10:00 AM?')) return;
+    
+    const result = await shipmentService.schedulePickup(shipmentId);
+    
+    if (result.success) {
+      alert('✅ Pickup scheduled for tomorrow');
+      loadShipments();
+      loadStats();
+    } else {
+      alert(`❌ Failed: ${result.error}`);
+    }
+  };
+
+  const handleEditPickup = async (shipmentId) => {
+    const newDate = prompt('Enter new pickup date (YYYY-MM-DD):');
+    if (!newDate) return;
+    
+    // Validate date format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+      alert('Invalid date format. Use YYYY-MM-DD');
+      return;
+    }
+    
+    const result = await shipmentService.schedulePickup(shipmentId, newDate);
+    
+    if (result.success) {
+      alert(`✅ Pickup rescheduled to ${newDate}`);
+      loadShipments();
+      loadStats();
+    } else {
+      alert(`❌ Failed: ${result.error}`);
+    }
+  };
+
   const handleBulkApprove = async () => {
     if (selectedShipments.length === 0) {
       alert('Please select at least one shipment.');
@@ -267,6 +302,8 @@ const AdminShipmentsPage = () => {
               selected={selectedShipments.includes(shipment.id)}
               onToggleSelect={() => toggleSelect(shipment.id)}
               onApprove={handleApprove}
+              onSchedulePickup={handleSchedulePickup}
+              onEditPickup={handleEditPickup} 
               onEdit={(id) => alert(`Edit shipment: ${id}`)}
               onViewDetails={(id) => alert(`View details: ${id}`)}
             />

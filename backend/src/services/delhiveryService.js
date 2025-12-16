@@ -775,6 +775,67 @@ async getTrackingInfo(awb) {
     throw new Error(`Failed to fetch tracking: ${error.message}`);
   }
 }
+/**
+ * Schedule pickup request with Delhivery
+ * @param {Object} pickupData - Pickup details
+ * @returns {Promise<Object>} Pickup confirmation
+ */
+async schedulePickup(pickupData) {
+  try {
+    const {
+      awbs = [],              // Array of AWB numbers
+      pickupDate = null,      // YYYY-MM-DD
+      pickupTime = '10:00:00',
+      packageCount = 1
+    } = pickupData;
+
+    // Default to tomorrow
+    const pickup = pickupDate || this._getTomorrowDate();
+
+    console.log(`📅 [Delhivery] Scheduling pickup for ${pickup} at ${pickupTime}`);
+    console.log(`   AWBs: ${awbs.join(', ')}`);
+
+    const url = `${this.baseURL}/fm/request/new/`;
+
+    const response = await axios.post(url, {
+      pickup_time: pickupTime,
+      pickup_date: pickup,
+      pickup_location: process.env.WAREHOUSE_NAME || 'DEFAULT_WAREHOUSE',
+      expected_package_count: packageCount
+    }, {
+      headers: {
+        'Authorization': `Token ${this.apiToken}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 15000
+    });
+
+    if (response.status !== 200) {
+      throw new Error(`Pickup API error: ${response.status}`);
+    }
+
+    console.log(`✅ Pickup scheduled: ${response.data.pickup_id || 'Confirmed'}`);
+
+    return {
+      success: true,
+      pickup_id: response.data.pickup_id || null,
+      pickup_date: pickup,
+      pickup_time: pickupTime,
+      message: response.data.message || 'Pickup scheduled successfully'
+    };
+
+  } catch (error) {
+    console.error('❌ [Delhivery] Schedule pickup failed:', error);
+    throw new Error(`Failed to schedule pickup: ${error.message}`);
+  }
+}
+
+// Helper
+_getTomorrowDate() {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD
+}
 
 /**
  * Map Delhivery status to our system status
