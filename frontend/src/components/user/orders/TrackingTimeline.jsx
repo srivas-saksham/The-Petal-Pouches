@@ -11,7 +11,7 @@ const TrackingTimeline = ({ tracking }) => {
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
         <p className="text-yellow-800 font-semibold">Tracking Information Unavailable</p>
         <p className="text-yellow-600 text-sm mt-1">
-          Tracking details will be available once your order is shipped.
+          Tracking details will be available once your order is confirmed.
         </p>
       </div>
     );

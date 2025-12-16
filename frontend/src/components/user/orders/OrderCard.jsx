@@ -74,22 +74,41 @@ const OrderCard = ({ order, onReorder, onCancel }) => {
     return `₹${num.toLocaleString('en-IN')}`;
   };
 
+  // ✅ FIX - Use formatDateShort like AdminOrderCard
   const getEstimatedDelivery = () => {
-    // Use delivery_metadata.expected_delivery_date
-    if (order.delivery_metadata?.expected_delivery_date) {
-      return formatDate(order.delivery_metadata.expected_delivery_date);
+    // Priority 1: shipment.estimated_delivery (from database)
+    if (order.shipment?.estimated_delivery) {
+      return formatDateShort(order.shipment.estimated_delivery);
     }
     
-    // Fallback: calculate based on estimated_days
+    // Priority 2: delivery_metadata.expected_delivery_date
+    if (order.delivery_metadata?.expected_delivery_date) {
+      return formatDateShort(order.delivery_metadata.expected_delivery_date);
+    }
+    
+    // Priority 3: Calculate from estimated_days
     if (order.delivery_metadata?.estimated_days) {
       const orderDate = new Date(order.created_at);
       const estimatedDate = new Date(orderDate);
       estimatedDate.setDate(orderDate.getDate() + order.delivery_metadata.estimated_days);
-      return formatDate(estimatedDate);
+      return formatDateShort(estimatedDate);
     }
     
     // Default fallback
     return 'Within 7 days';
+  };
+
+  // ✅ ADD this helper function (if not already present)
+  const formatDateShort = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    try {
+      return new Date(dateStr).toLocaleDateString('en-IN', {
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return 'N/A';
+    }
   };
 
   const getDeliveryMode = () => {
@@ -277,7 +296,7 @@ const OrderCard = ({ order, onReorder, onCancel }) => {
               <div className="flex items-center gap-1.5 text-xs bg-tppslate/10 rounded px-2 py-1">
                 <Truck className="w-3 h-3 text-tppslate" />
                 <span className="text-tppslate font-semibold">
-                  Expected by {order.shipment?.estimated_delivery ? formatDate(order.shipment.estimated_delivery) : getEstimatedDelivery()}
+                  Expected by {getEstimatedDelivery()}
                 </span>
               </div>
             )}

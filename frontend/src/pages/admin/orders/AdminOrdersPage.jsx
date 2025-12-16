@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom'; 
 import { Package } from 'lucide-react';
 import AdminOrdersFilters from '../../../components/admin/orders/AdminOrdersFilters';
 import AdminOrdersList from '../../../components/admin/orders/AdminOrdersList';
@@ -16,16 +17,19 @@ import { useToast } from '../../../hooks/useToast';
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 export default function AdminOrdersPage() {
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // ✅ Initialize filters from URL params
   const [filters, setFilters] = useState({
-    search: '',
-    status: 'all',
-    payment_status: '',
-    payment_method: '',
-    delivery_mode: '',
-    from_date: '',
-    to_date: ''
+    search: searchParams.get('search') || '',
+    status: searchParams.get('status') || 'all',
+    payment_status: searchParams.get('payment_status') || '',
+    payment_method: searchParams.get('payment_method') || '',
+    delivery_mode: searchParams.get('delivery_mode') || '',
+    from_date: searchParams.get('from_date') || '',
+    to_date: searchParams.get('to_date') || ''
   });
   const [pagination, setPagination] = useState({
     page: 1,
@@ -116,6 +120,16 @@ export default function AdminOrdersPage() {
       setLoading(false);
     }
   };
+  //Sync URL params to filters:
+  useEffect(() => {
+    const searchFromUrl = searchParams.get('search');
+    if (searchFromUrl && searchFromUrl !== filters.search) {
+      setFilters(prev => ({
+        ...prev,
+        search: searchFromUrl
+      }));
+    }
+  }, [searchParams]);
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));

@@ -7,10 +7,11 @@
 import { 
   Eye, User, Package, MapPin, Calendar, Truck, ChevronRight,
   Clock, CheckCircle, XCircle, Phone, AlertCircle, Hash, Mail,
-  Edit, DollarSign, Box, Plane, Weight, Ruler, TrendingUp,
+  Edit, DollarSign, Box, Plane, Weight, Ruler, ArrowUpRight,
   Download, ExternalLink, RefreshCw, FileText, Shield
 } from 'lucide-react';
 
+import { Link } from 'react-router-dom';
 export default function AdminShipmentCard({ 
   shipment, 
   selected, 
@@ -322,18 +323,26 @@ export default function AdminShipmentCard({
         {/* ==================== COLUMN 2: ORDER DETAILS ==================== */}
         <div className="p-4 border-r border-tppslate/30">
           
-          {/* Order Reference */}
-          <div className="mb-3 p-2 bg-blue-50 rounded-lg border border-blue-100">
-            <div className="text-[10px] text-blue-600/80 uppercase tracking-wide font-semibold mb-1">
+          {/* Order Reference - Clickable */}
+          <Link
+            to={`/admin/orders?search=${order?.id || ''}`}
+            className="mb-3 p-2 bg-blue-50 rounded-lg border border-blue-100 block hover:bg-blue-100 hover:border-blue-200 transition-all group"
+          >
+            <div className="text-[10px] text-blue-600/80 uppercase tracking-wide font-semibold mb-1 flex justify-between items-center group-hover:underline">
               Order Reference
+              
+              <ArrowUpRight className="w-4 h-4 text-blue-600 group-hover:text-blue-700 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
             </div>
+            
             <div className="flex items-center justify-between">
               <span className="text-sm font-bold text-blue-700">#{orderId}</span>
-              <span className="text-md font-bold text-blue-600">
-                {formatCurrency(order?.final_total || 0)}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-md font-bold text-blue-600">
+                  {formatCurrency(order?.final_total || 0)}
+                </span>
+              </div>
             </div>
-          </div>
+          </Link>
 
           {/* Customer Info */}
           {customer && (
@@ -367,6 +376,16 @@ export default function AdminShipmentCard({
               Package Details
             </div>
             <div className="space-y-1.5">
+              {/* ✅ Show Bundle Items Count from Order */}
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1 text-tppslate/70">
+                  <span>Items</span>
+                </div>
+                <span className="font-bold text-tppslate">
+                  ×{order?.item_count || 1} {(order?.item_count || 1) === 1 ? 'bundle' : 'bundles'}
+                </span>
+              </div>
+              
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1 text-tppslate/70">
                   <span>Weight</span>

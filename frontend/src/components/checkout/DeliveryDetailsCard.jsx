@@ -77,33 +77,32 @@ const DeliveryDetailsCard = ({
     }
   }, [selectedAddress?.id, selectedAddress?.zip_code, cartWeight]);
 
-  // ✅ NEW: Re-check delivery when cart weight changes (debounced from parent)
+  // ✅ FIX: Always recalculate when weight changes after initial load
   useEffect(() => {
-    // Only re-check if:
-    // 1. We have a valid PIN code already checked
-    // 2. Weight actually changed
-    // 3. Weight is different from last checked weight
-    // 4. We have delivery data already
-    if (
-      selectedAddress?.zip_code && 
-      selectedAddress.zip_code.length === 6 && 
-      deliveryData && 
-      cartWeight !== lastCheckedWeight &&
-      lastCheckedWeight !== null // Only recalculate if we've checked before
-    ) {
+    // Skip if no address or delivery data yet
+    if (!selectedAddress?.zip_code || !deliveryData) {
+      return;
+    }
+
+    // Initialize lastCheckedWeight on first load
+    if (lastCheckedWeight === null) {
+      console.log(`📦 [DeliveryDetailsCard] Initializing weight tracking: ${cartWeight}g`);
+      setLastCheckedWeight(cartWeight);
+      return;
+    }
+
+    // Recalculate if weight changed
+    if (cartWeight !== lastCheckedWeight) {
       console.log(`🔄 [DeliveryDetailsCard] Cart weight changed: ${lastCheckedWeight}g → ${cartWeight}g`);
       console.log(`   Rechecking delivery costs for PIN ${selectedAddress.zip_code}...`);
       
-      // Update last checked weight
+      // Update last checked weight BEFORE API call to prevent duplicate calls
       setLastCheckedWeight(cartWeight);
       
       // Re-run delivery check with new weight
       verifyDeliveryInBackground(selectedAddress.zip_code, deliveryData);
-    } else if (deliveryData && lastCheckedWeight === null) {
-      // Initialize lastCheckedWeight on first load
-      setLastCheckedWeight(cartWeight);
     }
-  }, [cartWeight]); // Only trigger on weight changes
+  }, [cartWeight, deliveryData, selectedAddress?.zip_code, lastCheckedWeight]);
 
   // ✅ NEW: Notify parent when mode changes
   useEffect(() => {

@@ -198,7 +198,7 @@ const Checkout = () => {
     fetchBundleDetails();
   }, [cartItems]);
 
-  // ✅ NEW: Debounced weight recalculation when cartItems change
+  // ✅ FIX: Also trigger delivery refresh when weight updates
   useEffect(() => {
     // Skip on initial load or if bundles not loaded yet
     if (!pageInitialized || Object.keys(bundles).length === 0) {
@@ -225,10 +225,17 @@ const Checkout = () => {
           console.log(`✅ [Checkout] Delivery weight synced: ${newWeight}g`);
           setTotalCartWeight(newWeight);
           setPendingCartWeight(null);
-        }, 800); // Same as cart debounce
+          
+          // ✅ FIX: Force delivery recalculation with new weight
+          if (selectedAddress?.zip_code) {
+            console.log(`🔄 [Checkout] Triggering delivery refresh with new weight: ${newWeight}g`);
+            // Trigger delivery update by setting a flag or calling the handler
+            handleDeliveryWeightChange(newWeight);
+          }
+        }, 800);
       }
     }
-  }, [cartItems, pageInitialized, bundles]);
+  }, [cartItems, pageInitialized, bundles, totalCartWeight, selectedAddress]);
 
   // Redirect to shop if no cart items (only after initial load)
   useEffect(() => {
@@ -320,6 +327,25 @@ const Checkout = () => {
       deliveryModeData: modeData,
       timestamp: Date.now()
     });
+  }, []);
+
+  // ✅ NEW: Handler to refresh delivery when weight changes
+  const handleDeliveryWeightChange = useCallback((newWeight) => {
+    console.log(`🔄 [Checkout] Delivery weight change detected: ${newWeight}g`);
+    
+    // Force DeliveryDetailsCard to recalculate with new weight
+    // This will be picked up by DeliveryDetailsCard's cartWeight prop change
+    
+    // Optional: Clear delivery metadata to force fresh calculation
+    const currentStoredData = getDeliveryData() || {};
+    saveDeliveryData({
+      ...currentStoredData,
+      // Keep selected mode but clear cached delivery check
+      deliveryCheck: null,
+      timestamp: Date.now()
+    });
+    
+    console.log(`✅ [Checkout] Delivery data cleared for recalculation`);
   }, []);
 
   // ⭐ Enhanced Place Order with delivery metadata

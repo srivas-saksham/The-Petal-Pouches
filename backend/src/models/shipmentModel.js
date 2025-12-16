@@ -177,7 +177,7 @@ async createWithCostCalculation(orderId, shipmentData) {
       {
         mode: shipmentData.shipping_mode === 'Express' ? 'E' : 'S',
         weight: shipmentData.weight_grams,
-        paymentType: order.payment_method === 'cod' ? 'COD' : 'Pre-paid'
+        paymentType: (order.payment_method === 'cod' || order.payment_method === 'COD') ? 'COD' : 'Pre-paid'
       }
     );
 
@@ -190,7 +190,7 @@ async createWithCostCalculation(orderId, shipmentData) {
       {
         mode: alternateMode,
         weight: shipmentData.weight_grams,
-        paymentType: order.payment_method === 'cod' ? 'COD' : 'Pre-paid'
+        paymentType: (order.payment_method === 'cod' || order.payment_method === 'COD') ? 'COD' : 'Pre-paid'
       }
     );
 
