@@ -518,6 +518,7 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
                   setPinError(null);
                 }
               }}
+              onKeyDown={(e) => e.key === 'Enter' && checkPinDelivery(pinCode)}
               maxLength={6}
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
             />
@@ -529,7 +530,6 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
               {checkingPin ? (
                 <>
                   <Loader size={14} className="animate-spin" />
-                  Checking...
                 </>
               ) : (
                 'Check'
@@ -669,7 +669,31 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
                   {pinCheckResult.rawData?.priceDifference&& (
                     <div className="font-inter bg-yellow-50 border-t border-yellow-100 px-3 py-2">
                       <div className="flex items-center gap-1.5">
-                        <AlertCircle size={12} className="text-yellow-600 flex-shrink-0" />
+                        <div className="relative ml-auto">
+                          <AlertCircle 
+                            size={12} 
+                            className="alert-icon text-yellow-600 flex-shrink-0 cursor-help" 
+                            onMouseEnter={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const tooltip = e.currentTarget.nextElementSibling;
+                              tooltip.style.left = `${rect.right - 256}px`; // 256px = w-64
+                              tooltip.style.top = `${rect.top - 8}px`;
+                              tooltip.classList.remove('hidden');
+                            }}
+                            onMouseLeave={(e) => {
+                              const tooltip = e.currentTarget.nextElementSibling;
+                              tooltip.classList.add('hidden');
+                            }}
+                          />
+                          {/* Tooltip - using fixed positioning to escape all parent constraints */}
+                          <div className="tooltip fixed hidden w-64 p-2.5 bg-tppslate/100 text-white text-xs rounded-lg shadow-xl z-[99999] -translate-y-full pointer-events-none">
+                            <p className="leading-relaxed">
+                              <b>Delivery charges</b> and <b>express fees</b> are determined and applied directly by our logistics partner, <b>Delhivery</b>, based on <b>shipment weight and destination</b>.
+                            </p>
+                            {/* Tooltip arrow - pointing down from bottom right */}
+                            <div className="absolute top-full right-3 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                          </div>
+                        </div>
                         <p className="text-xs text-yellow-700">
                           <span className="font-semibold">Express delivery:</span>{' '}
                           <span className="font-bold">{pinCheckResult.rawData.priceDifference.formatted}</span> extra charges apply

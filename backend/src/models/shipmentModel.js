@@ -212,14 +212,28 @@ async createWithCostCalculation(orderId, shipmentData) {
     console.log('   Tax (GST):', totalTax);
     console.log('   Final total:', costData.amount);
 
-    // ✅ Calculate estimated delivery from order metadata
+    // ✅ FIXED: Use expected_delivery_date directly from order metadata
     const deliveryMetadata = order.delivery_metadata || {};
-    const estimatedDays = deliveryMetadata.estimated_days || 5;
-    const estimatedDate = new Date();
-    estimatedDate.setDate(estimatedDate.getDate() + estimatedDays);
-    const estimatedDeliveryStr = estimatedDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    let estimatedDeliveryStr;
 
-    console.log(`📅 Estimated delivery: ${estimatedDeliveryStr} (${estimatedDays} days)`);
+    // Priority 1: Use the expected_delivery_date if it exists (most accurate)
+    if (deliveryMetadata.expected_delivery_date) {
+      estimatedDeliveryStr = deliveryMetadata.expected_delivery_date;
+      console.log(`📅 Using expected delivery from metadata: ${estimatedDeliveryStr}`);
+    } else if (deliveryMetadata.estimated_days) {
+      // Fallback: Calculate from estimated_days
+      const estimatedDays = deliveryMetadata.estimated_days;
+      const estimatedDate = new Date();
+      estimatedDate.setDate(estimatedDate.getDate() + estimatedDays);
+      estimatedDeliveryStr = estimatedDate.toISOString().split('T')[0];
+      console.log(`📅 Calculated delivery from days: ${estimatedDeliveryStr} (${estimatedDays} days)`);
+    } else {
+      // Default fallback
+      const estimatedDate = new Date();
+      estimatedDate.setDate(estimatedDate.getDate() + 5);
+      estimatedDeliveryStr = estimatedDate.toISOString().split('T')[0];
+      console.log(`📅 Using default 5-day delivery: ${estimatedDeliveryStr}`);
+    }
 
     // ✅ Build cost comparison note
     const surfaceCost = shipmentData.shipping_mode === 'Express' 
