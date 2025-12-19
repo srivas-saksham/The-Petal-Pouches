@@ -577,6 +577,7 @@ async createShipment(shipmentData) {
         phone: shipmentData.customer_phone,
         order: shipmentData.shipment_id,
         payment_mode: shipmentData.payment_mode,
+        pickup_location: process.env.DELHIVERY_PICKUP_LOCATION || process.env.WAREHOUSE_PINCODE || '110059',
         return_pin: process.env.WAREHOUSE_PINCODE || '110001',
         return_city: process.env.WAREHOUSE_CITY || 'Delhi',
         return_phone: process.env.WAREHOUSE_PHONE || '9999999999',
@@ -810,7 +811,7 @@ async schedulePickup(pickupData) {
       timeout: 15000
     });
 
-    if (response.status !== 200) {
+    if (response.status < 200 || response.status >= 300) {
       throw new Error(`Pickup API error: ${response.status}`);
     }
 

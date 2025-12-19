@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { Link } from 'react-router-dom';
+
 export default function AdminShipmentCard({ 
   shipment, 
   selected, 
@@ -248,7 +249,7 @@ export default function AdminShipmentCard({
         
         {/* ==================== COLUMN 1: DELIVERY DETAILS ==================== */}
         <div className="p-4 border-r border-tppslate/30">
-          {/* Header with Shipment ID and Time */}
+          {/* Header with Shipment ID and Status */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
@@ -256,9 +257,8 @@ export default function AdminShipmentCard({
                 <h3 className="text-sm font-bold text-tppslate">
                   {shipmentId}
                 </h3>
-                <span className="text-xs text-tppslate/80">•</span>
-                <span className="text-xs text-tppslate/70">{getTimeSince(shipment.created_at)}</span>
               </div>
+              <span className="text-xs text-tppslate/70">{getTimeSince(shipment.created_at)}</span>
             </div>
             
             {/* Status Badge - Top Right */}
@@ -299,19 +299,20 @@ export default function AdminShipmentCard({
               <p className="text-xs text-tppslate/70">No address available</p>
             )}
           </div>
+          
           {/* Expected Delivery */}
-        {shipment.estimated_delivery && (
+          {shipment.estimated_delivery && (
             <div className="flex items-start gap-1.5 text-tppslate text-[11px]">
-            <div>
+              <div>
                 <span className="text-tppslate/80">Expected:</span>
                 <span className="ml-1 font-semibold">{formatDateShort(shipment.estimated_delivery)}</span>
+              </div>
             </div>
-            </div>
-        )}
+          )}
 
           {/* AWB Badge (if available) */}
           {shipment.awb && (
-            <div className="bg-tppslate/30 rounded px-2.5 py-1.5">
+            <div className="bg-tppslate/30 rounded px-2.5 py-1.5 mt-3">
               <div className="text-[10px] text-tppslate/80 uppercase tracking-wide font-semibold mb-0.5">
                 AWB Number
               </div>
@@ -635,15 +636,6 @@ export default function AdminShipmentCard({
               )}
             </div>
           
-            {/* View Details */}
-            <button
-              onClick={() => onViewDetails && onViewDetails(shipment.id)}
-              className="w-full px-3 py-2 bg-tppslate text-white text-xs rounded-lg hover:bg-tppslate/90 font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm"
-            >
-              <Eye className="w-3.5 h-3.5" />
-              View Details
-            </button>
-
             {/* Approve & Place (if pending_review) */}
             {canApprove && onApprove && (
               <button

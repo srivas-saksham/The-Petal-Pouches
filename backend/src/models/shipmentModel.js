@@ -771,6 +771,9 @@ async createWithCostCalculation(orderId, shipmentData) {
         return acc;
       }, {});
 
+      // Add total count
+      stats.total = data.length;
+
       return stats;
     } catch (error) {
       console.error('❌ Get stats error:', error);

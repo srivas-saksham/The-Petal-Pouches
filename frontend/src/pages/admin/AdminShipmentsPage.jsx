@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { 
-  Package, Truck, Clock, CheckCircle, Search, RefreshCw, Filter, Plane
+  Package, Truck, Clock, CheckCircle, Search, RefreshCw, Filter, Plane, XCircle, AlertTriangle, X
 } from 'lucide-react';
 import shipmentService from '../../services/shipmentService';
 import AdminShipmentCard from '../../components/admin/shipments/AdminShipmentCard';
@@ -19,6 +19,13 @@ const AdminShipmentsPage = () => {
   const [selectedShipments, setSelectedShipments] = useState([]);
   const [bulkApproving, setBulkApproving] = useState(false);
   
+  // Modal states
+  const [approveModal, setApproveModal] = useState(null);
+  const [pickupModal, setPickupModal] = useState(null);
+  const [editPickupModal, setEditPickupModal] = useState(null);
+  const [bulkApproveModal, setBulkApproveModal] = useState(false);
+  const [notification, setNotification] = useState(null);
+  
   const [filters, setFilters] = useState({
     status: 'pending_review',
     page: 1,
@@ -30,6 +37,20 @@ const AdminShipmentsPage = () => {
     loadShipments();
     loadStats();
   }, [filters.status, filters.page, filters.search]);
+
+  // Auto-dismiss notifications after 5 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+  };
 
   const loadShipments = async () => {
     try {
@@ -61,67 +82,53 @@ const AdminShipmentsPage = () => {
     }
   };
 
-  const handleApprove = async (shipmentId) => {
-    if (!confirm('Approve and place this shipment with Delhivery?\n\nThis will:\n• Send to courier\n• Generate AWB and labels\n• Lock editing')) {
-      return;
-    }
+  const handleApproveConfirm = async () => {
+    const shipmentId = approveModal;
+    setApproveModal(null);
 
     const result = await shipmentService.approveAndPlace(shipmentId);
     
     if (result.success) {
-      alert('✅ Shipment approved and placed successfully!');
+      showNotification('✅ Shipment approved and placed successfully!', 'success');
       loadShipments();
       loadStats();
     } else {
-      alert(`❌ Failed:\n${result.error}`);
+      showNotification(`❌ Failed: ${result.error}`, 'error');
     }
   };
 
-  const handleSchedulePickup = async (shipmentId) => {
-    if (!confirm('Schedule pickup for tomorrow at 10:00 AM?')) return;
+  const handleSchedulePickupConfirm = async () => {
+    const shipmentId = pickupModal;
+    setPickupModal(null);
     
     const result = await shipmentService.schedulePickup(shipmentId);
     
     if (result.success) {
-      alert('✅ Pickup scheduled for tomorrow');
+      showNotification('✅ Pickup scheduled for tomorrow', 'success');
       loadShipments();
       loadStats();
     } else {
-      alert(`❌ Failed: ${result.error}`);
+      showNotification(`❌ Failed: ${result.error}`, 'error');
     }
   };
 
-  const handleEditPickup = async (shipmentId) => {
-    const newDate = prompt('Enter new pickup date (YYYY-MM-DD):');
-    if (!newDate) return;
-    
-    // Validate date format
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
-      alert('Invalid date format. Use YYYY-MM-DD');
-      return;
-    }
+  const handleEditPickupConfirm = async (newDate) => {
+    const shipmentId = editPickupModal;
+    setEditPickupModal(null);
     
     const result = await shipmentService.schedulePickup(shipmentId, newDate);
     
     if (result.success) {
-      alert(`✅ Pickup rescheduled to ${newDate}`);
+      showNotification(`✅ Pickup rescheduled to ${newDate}`, 'success');
       loadShipments();
       loadStats();
     } else {
-      alert(`❌ Failed: ${result.error}`);
+      showNotification(`❌ Failed: ${result.error}`, 'error');
     }
   };
 
-  const handleBulkApprove = async () => {
-    if (selectedShipments.length === 0) {
-      alert('Please select at least one shipment.');
-      return;
-    }
-    
-    if (!confirm(`Approve ${selectedShipments.length} shipment(s)?\n\nThis cannot be undone.`)) {
-      return;
-    }
-
+  const handleBulkApproveConfirm = async () => {
+    setBulkApproveModal(false);
     setBulkApproving(true);
     
     const result = await shipmentService.bulkApprove(selectedShipments);
@@ -132,13 +139,16 @@ const AdminShipmentsPage = () => {
       const successCount = result.data.success?.length || 0;
       const failedCount = result.data.failed?.length || 0;
       
-      alert(`✅ Bulk Approval Complete!\n\nSuccess: ${successCount}\nFailed: ${failedCount}`);
+      showNotification(
+        `✅ Bulk Approval Complete! Success: ${successCount}, Failed: ${failedCount}`,
+        successCount > 0 ? 'success' : 'error'
+      );
       
       setSelectedShipments([]);
       loadShipments();
       loadStats();
     } else {
-      alert(`❌ Bulk approval failed:\n${result.error}`);
+      showNotification(`❌ Bulk approval failed: ${result.error}`, 'error');
     }
   };
 
@@ -164,54 +174,170 @@ const AdminShipmentsPage = () => {
   return (
     <div className="min-h-screen p-6">
       
+      {/* Notification Toast */}
+      {notification && (
+        <div className="fixed top-4 right-4 z-50 animate-slide-in-right">
+          <div className={`flex items-start gap-3 p-4 rounded-lg shadow-lg border-2 min-w-[320px] max-w-md ${
+            notification.type === 'success' 
+              ? 'bg-green-50 border-green-500 text-green-900' 
+              : 'bg-red-50 border-red-500 text-red-900'
+          }`}>
+            {notification.type === 'success' ? (
+              <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            ) : (
+              <XCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            )}
+            <div className="flex-1">
+              <p className="text-sm font-semibold whitespace-pre-line">{notification.message}</p>
+            </div>
+            <button
+              onClick={() => setNotification(null)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Approve Modal */}
+      {approveModal && (
+        <ConfirmModal
+          title="Approve & Place Shipment"
+          message="This will send the shipment to the courier, generate AWB and labels, and lock editing. Continue?"
+          icon={CheckCircle}
+          iconColor="text-green-600"
+          confirmText="Approve & Place"
+          confirmClass="bg-green-600 hover:bg-green-700"
+          onConfirm={handleApproveConfirm}
+          onCancel={() => setApproveModal(null)}
+        />
+      )}
+
+      {/* Pickup Modal */}
+      {pickupModal && (
+        <ConfirmModal
+          title="Schedule Pickup"
+          message="Schedule pickup for tomorrow at 10:00 AM?"
+          icon={Package}
+          iconColor="text-purple-600"
+          confirmText="Schedule Pickup"
+          confirmClass="bg-purple-600 hover:bg-purple-700"
+          onConfirm={handleSchedulePickupConfirm}
+          onCancel={() => setPickupModal(null)}
+        />
+      )}
+
+      {/* Edit Pickup Modal */}
+      {editPickupModal && (
+        <EditPickupModal
+          onConfirm={handleEditPickupConfirm}
+          onCancel={() => setEditPickupModal(null)}
+        />
+      )}
+
+      {/* Bulk Approve Modal */}
+      {bulkApproveModal && (
+        <ConfirmModal
+          title="Bulk Approve Shipments"
+          message={`Approve ${selectedShipments.length} shipment(s)? This cannot be undone.`}
+          icon={CheckCircle}
+          iconColor="text-green-600"
+          confirmText={`Approve ${selectedShipments.length} Shipments`}
+          confirmClass="bg-green-600 hover:bg-green-700"
+          onConfirm={handleBulkApproveConfirm}
+          onCancel={() => setBulkApproveModal(false)}
+        />
+      )}
+      
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Shipment Management</h1>
         <p className="text-gray-600">Review, edit, and approve shipments for delivery</p>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Compact Single Line */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          <StatCard
-            icon={<Clock className="w-5 h-5" />}
-            label="Pending Review"
-            value={stats.pending_review || 0}
-            color="yellow"
-            active={filters.status === 'pending_review'}
-            onClick={() => setFilters({ ...filters, status: 'pending_review', page: 1 })}
-          />
-          <StatCard
-            icon={<CheckCircle className="w-5 h-5" />}
-            label="Placed"
-            value={stats.placed || 0}
-            color="blue"
-            active={filters.status === 'placed'}
-            onClick={() => setFilters({ ...filters, status: 'placed', page: 1 })}
-          />
-          <StatCard
-            icon={<Truck className="w-5 h-5" />}
-            label="In Transit"
-            value={stats.in_transit || 0}
-            color="purple"
-            active={filters.status === 'in_transit'}
-            onClick={() => setFilters({ ...filters, status: 'in_transit', page: 1 })}
-          />
-          <StatCard
-            icon={<Package className="w-5 h-5" />}
-            label="Delivered"
-            value={stats.delivered || 0}
-            color="green"
-            active={filters.status === 'delivered'}
-            onClick={() => setFilters({ ...filters, status: 'delivered', page: 1 })}
-          />
-          <StatCard
-            icon={<Plane className="w-5 h-5" />}
-            label="Express Orders"
-            value={shipments.filter(s => s.shipping_mode === 'Express').length}
-            color="pink"
-            active={false}
-          />
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-6">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <StatCard
+              label="All"
+              value={stats.total || 0}
+              color="yellow"
+              active={filters.status === ''}
+              onClick={() => setFilters({ ...filters, status: '', page: 1 })}
+            />
+            <StatCard
+              label="Pending Review"
+              value={stats.pending_review || 0}
+              color="yellow"
+              active={filters.status === 'pending_review'}
+              onClick={() => setFilters({ ...filters, status: 'pending_review', page: 1 })}
+            />
+            <StatCard
+              label="Approved"
+              value={stats.approved || 0}
+              color="blue"
+              active={filters.status === 'approved'}
+              onClick={() => setFilters({ ...filters, status: 'approved', page: 1 })}
+            />
+            <StatCard
+              label="Placed"
+              value={stats.placed || 0}
+              color="green"
+              active={filters.status === 'placed'}
+              onClick={() => setFilters({ ...filters, status: 'placed', page: 1 })}
+            />
+            <StatCard
+              label="Pending Pickup"
+              value={stats.pending_pickup || 0}
+              color="purple"
+              active={filters.status === 'pending_pickup'}
+              onClick={() => setFilters({ ...filters, status: 'pending_pickup', page: 1 })}
+            />
+            <StatCard
+              label="Picked Up"
+              value={stats.picked_up || 0}
+              color="indigo"
+              active={filters.status === 'picked_up'}
+              onClick={() => setFilters({ ...filters, status: 'picked_up', page: 1 })}
+            />
+            <StatCard
+              label="In Transit"
+              value={stats.in_transit || 0}
+              color="blue"
+              active={filters.status === 'in_transit'}
+              onClick={() => setFilters({ ...filters, status: 'in_transit', page: 1 })}
+            />
+            <StatCard
+              label="Out for Delivery"
+              value={stats.out_for_delivery || 0}
+              color="teal"
+              active={filters.status === 'out_for_delivery'}
+              onClick={() => setFilters({ ...filters, status: 'out_for_delivery', page: 1 })}
+            />
+            <StatCard
+              label="Delivered"
+              value={stats.delivered || 0}
+              color="green"
+              active={filters.status === 'delivered'}
+              onClick={() => setFilters({ ...filters, status: 'delivered', page: 1 })}
+            />
+            <StatCard
+              label="Failed"
+              value={stats.failed || 0}
+              color="red"
+              active={filters.status === 'failed'}
+              onClick={() => setFilters({ ...filters, status: 'failed', page: 1 })}
+            />
+            <StatCard
+              label="Cancelled"
+              value={stats.cancelled || 0}
+              color="gray"
+              active={filters.status === 'cancelled'}
+              onClick={() => setFilters({ ...filters, status: 'cancelled', page: 1 })}
+            />
+          </div>
         </div>
       )}
 
@@ -249,7 +375,13 @@ const AdminShipmentsPage = () => {
 
           {selectedShipments.length > 0 && (
             <button
-              onClick={handleBulkApprove}
+              onClick={() => {
+                if (selectedShipments.length === 0) {
+                  showNotification('Please select at least one shipment.', 'error');
+                  return;
+                }
+                setBulkApproveModal(true);
+              }}
               disabled={bulkApproving}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-semibold"
             >
@@ -301,11 +433,11 @@ const AdminShipmentsPage = () => {
               shipment={shipment}
               selected={selectedShipments.includes(shipment.id)}
               onToggleSelect={() => toggleSelect(shipment.id)}
-              onApprove={handleApprove}
-              onSchedulePickup={handleSchedulePickup}
-              onEditPickup={handleEditPickup} 
-              onEdit={(id) => alert(`Edit shipment: ${id}`)}
-              onViewDetails={(id) => alert(`View details: ${id}`)}
+              onApprove={(id) => setApproveModal(id)}
+              onSchedulePickup={(id) => setPickupModal(id)}
+              onEditPickup={(id) => setEditPickupModal(id)}
+              onEdit={(id) => showNotification(`Edit shipment: ${id}`, 'success')}
+              onViewDetails={(id) => showNotification(`View details: ${id}`, 'success')}
             />
           ))
         )}
@@ -314,30 +446,137 @@ const AdminShipmentsPage = () => {
   );
 };
 
-// ==================== STAT CARD COMPONENT ====================
+// ==================== MODAL COMPONENTS ====================
 
-const StatCard = ({ icon, label, value, color, active, onClick }) => {
-  const colors = {
-    yellow: 'bg-yellow-50 text-yellow-600 border-yellow-200 hover:bg-yellow-100',
-    blue: 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100',
-    purple: 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100',
-    green: 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100',
-    pink: 'bg-pink-50 text-pink-600 border-pink-200 hover:bg-pink-100'
+const ConfirmModal = ({ 
+  title, 
+  message, 
+  icon: Icon, 
+  iconColor, 
+  confirmText, 
+  confirmClass, 
+  onConfirm, 
+  onCancel 
+}) => (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
+      <div className="flex items-start gap-4 mb-6">
+        <div className={`${iconColor} bg-current/10 rounded-full p-3`}>
+          <Icon className={`w-6 h-6 ${iconColor}`} />
+        </div>
+        <div className="flex-1">
+          <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
+          <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">{message}</p>
+        </div>
+      </div>
+      <div className="flex gap-3 justify-end">
+        <button
+          onClick={onCancel}
+          className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold text-gray-700 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={onConfirm}
+          className={`px-4 py-2 text-white rounded-lg font-semibold transition-colors ${confirmClass}`}
+        >
+          {confirmText}
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+const EditPickupModal = ({ onConfirm, onCancel }) => {
+  const [date, setDate] = useState('');
+  const [error, setError] = useState('');
+
+  const handleConfirm = () => {
+    if (!date) {
+      setError('Please enter a date');
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      setError('Invalid date format. Use YYYY-MM-DD');
+      return;
+    }
+    onConfirm(date);
   };
 
   return (
-    <div
-      onClick={onClick}
-      className={`${colors[color]} ${active ? 'ring-2 ring-offset-2 ring-tpppink' : ''} border-2 rounded-lg p-4 cursor-pointer hover:shadow-md transition`}
-    >
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-white rounded-lg shadow-sm">{icon}</div>
-        <div>
-          <p className="text-2xl font-bold">{value}</p>
-          <p className="text-sm font-medium opacity-75">{label}</p>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
+        <div className="flex items-start gap-4 mb-6">
+          <div className="text-amber-600 bg-amber-100 rounded-full p-3">
+            <Clock className="w-6 h-6" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Edit Pickup Date</h3>
+            <p className="text-gray-600 text-sm mb-4">Enter new pickup date</p>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => {
+                setDate(e.target.value);
+                setError('');
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+              min={new Date().toISOString().split('T')[0]}
+            />
+            {error && (
+              <p className="text-red-600 text-sm mt-2">{error}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold text-gray-700 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold transition-colors"
+          >
+            Reschedule Pickup
+          </button>
         </div>
       </div>
     </div>
+  );
+};
+
+// ==================== STAT CARD COMPONENT ====================
+
+const StatCard = ({ label, value, color, active, onClick }) => {
+  const colors = {
+    yellow: 'bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100',
+    blue: 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100',
+    purple: 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100',
+    indigo: 'bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-100',
+    teal: 'bg-teal-50 text-teal-700 border-teal-300 hover:bg-teal-100',
+    green: 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100',
+    red: 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100',
+    gray: 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100'
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        ${colors[color]} 
+        ${active ? 'ring-2 ring-tpppink ring-offset-1 font-bold' : 'font-medium'} 
+        border rounded-lg px-3 py-1.5 
+        transition-all duration-150
+        hover:shadow-sm
+        flex items-center gap-2
+        text-sm whitespace-nowrap
+      `}
+    >
+      <span className="text-xs opacity-75">{label}:</span>
+      <span className="text-lg font-bold">{value}</span>
+    </button>
   );
 };
 
