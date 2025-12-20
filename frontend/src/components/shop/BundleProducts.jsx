@@ -70,7 +70,7 @@ const BundleProducts = ({ items = [] }) => {
         return (
           <div
             key={item.id || index}
-            className="flex gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+            className="flex gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:boarder-gray-300 transition-colors"
           >
             {/* Product Image */}
             <div className="flex-shrink-0">
