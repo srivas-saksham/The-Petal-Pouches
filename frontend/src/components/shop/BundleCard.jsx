@@ -1,29 +1,72 @@
-// frontend/src/components/shop/BundleCard.jsx - WITH PRODUCTS DROPDOWN
+// frontend/src/components/shop/BundleCard.jsx - WITH HOVER IMAGE GALLERY
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, Star, ShoppingCart, Eye, Check, Plus, Minus, Trash2, AlertTriangle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Package, Star, ShoppingCart, Eye, Check, Plus, Minus, Trash2, AlertTriangle, XCircle, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Loader } from 'lucide-react';
 import { formatBundlePrice, getItemDisplayName, getItemImageUrl, isBundleInStock } from '../../utils/bundleHelpers';
 import { getDisplayRating, formatRating } from '../../utils/reviewHelpers';
 import { addBundleToCart, updateCartItem, removeFromCart } from '../../services/cartService';
 import { useCart } from '../../hooks/useCart';
 
 /**
- * BundleCard Component - COMPLETE VERSION
+ * BundleCard Component - COMPLETE VERSION WITH HOVER IMAGE GALLERY
  * 
  * FEATURES:
- * 1. ✅ Shows "Out of Stock" badge when stock_limit === 0
- * 2. ✅ Hides price when out of stock
- * 3. ✅ "Add to Cart" button shows "Out of Stock" when unavailable
- * 4. ✅ Animated collapsible Products Included section
- * 5. ✅ Low stock warnings
- * 6. ✅ Cart integration with debounced updates
+ * 1. ✅ Multi-image gallery with hover-activated navigation
+ * 2. ✅ Left/Right arrow navigation on hover
+ * 3. ✅ Dot indicators showing current image
+ * 4. ✅ Smooth transitions between images
+ * 5. ✅ "Out of Stock" badge when stock_limit === 0
+ * 6. ✅ Hides price when out of stock
+ * 7. ✅ "Add to Cart" button shows "Out of Stock" when unavailable
+ * 8. ✅ Animated collapsible Products Included section
+ * 9. ✅ Low stock warnings
+ * 10. ✅ Cart integration with debounced updates
+ * 11. ✅ Confirm/Cancel remove button (matching BundleKeyDetails)
  */
 const BundleCard = ({ bundle, onQuickView }) => {
+  // ===========================
+  // IMAGE GALLERY STATE
+  // ===========================
+  
+  // Process images: use new images array or fallback to legacy img_url
+  const images = useMemo(() => {
+    if (bundle?.images && Array.isArray(bundle.images) && bundle.images.length > 0) {
+      // Sort by display_order and prioritize primary image
+      return [...bundle.images].sort((a, b) => {
+        if (a.is_primary) return -1;
+        if (b.is_primary) return 1;
+        return a.display_order - b.display_order;
+      });
+    }
+    
+    // Fallback to legacy single image
+    if (bundle?.img_url) {
+      return [{ 
+        id: 'legacy', 
+        img_url: bundle.img_url, 
+        is_primary: true,
+        display_order: 0 
+      }];
+    }
+    
+    return [];
+  }, [bundle]);
+
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+  const hasMultipleImages = images.length > 1;
+  const currentImage = images[currentImageIndex] || null;
+
+  // ===========================
+  // CART & UI STATE
+  // ===========================
+  
   const [adding, setAdding] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [productsExpanded, setProductsExpanded] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   
   // Cart Context
   const { cartItems, refreshCart, getBundleQuantityInCart, getCartItemByBundleId } = useCart();
@@ -46,6 +89,52 @@ const BundleCard = ({ bundle, onQuickView }) => {
   
   // Get rating info (real or placeholder)
   const ratingInfo = getDisplayRating(bundle.reviews, bundle.average_rating);
+
+  // ===========================
+  // IMAGE NAVIGATION HANDLERS
+  // ===========================
+
+  const handlePreviousImage = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const newIndex = currentImageIndex === 0 ? images.length - 1 : currentImageIndex - 1;
+    setCurrentImageIndex(newIndex);
+    setImageLoaded(false);
+  };
+
+  const handleNextImage = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const newIndex = currentImageIndex === images.length - 1 ? 0 : currentImageIndex + 1;
+    setCurrentImageIndex(newIndex);
+    setImageLoaded(false);
+  };
+
+  const handleDotClick = (e, index) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (index !== currentImageIndex) {
+      setCurrentImageIndex(index);
+      setImageLoaded(false);
+    }
+  };
+
+  // Reset image index and ensure image loads when bundle changes
+  useEffect(() => {
+    setCurrentImageIndex(0);
+    setImageLoaded(false);
+    // Force immediate load check for primary image
+    if (images.length > 0 && images[0]?.img_url) {
+      const img = new Image();
+      img.src = images[0].img_url;
+      img.onload = () => setImageLoaded(true);
+      img.onerror = () => setImageLoaded(true); // Still mark as loaded to show fallback
+    }
+  }, [bundle.id, images]);
+
+  // ===========================
+  // CART SYNC EFFECTS
+  // ===========================
 
   // Sync local quantity when cart items change
   useEffect(() => {
@@ -98,6 +187,10 @@ const BundleCard = ({ bundle, onQuickView }) => {
       }
     };
   }, [pendingQuantity, cartItem, stockLimit, refreshCart]);
+
+  // ===========================
+  // CART ACTION HANDLERS
+  // ===========================
 
   const handleQuickView = (e) => {
     e.preventDefault();
@@ -157,15 +250,17 @@ const BundleCard = ({ bundle, onQuickView }) => {
     setPendingQuantity(newQuantity);
   };
 
-  const handleDelete = async (e) => {
+  const handleRemoveClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowRemoveConfirm(true);
+  };
+
+  const handleConfirmRemove = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
     if (!cartItem) return;
-
-    if (!window.confirm(`Remove "${bundle.title}" from cart?`)) {
-      return;
-    }
 
     setUpdating(true);
 
@@ -175,6 +270,7 @@ const BundleCard = ({ bundle, onQuickView }) => {
       if (result.success) {
         setLocalQuantity(0);
         setPendingQuantity(null);
+        setShowRemoveConfirm(false);
         refreshCart();
       } else {
         alert(result.error || 'Failed to remove item');
@@ -186,37 +282,105 @@ const BundleCard = ({ bundle, onQuickView }) => {
     }
   };
 
+  const handleCancelRemove = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowRemoveConfirm(false);
+  };
+
   // Get bundle items
   const bundleItems = bundle?.items || bundle?.Bundle_items || [];
   const displayProducts = bundleItems.slice(0, 3);
   const hasMoreProducts = bundleItems.length > 3;
   const isInCart = localQuantity > 0;
 
+  // ===========================
+  // RENDER
+  // ===========================
+
   return (
     <div className="bg-white rounded-lg border border-tppgrey shadow-sm hover:shadow-md hover:border-tppslate/60 transition-all duration-200 overflow-hidden group">
       
-      {/* Image Section */}
-      <Link to={`/shop/bundles/${bundle.id}`} className="block relative aspect-square overflow-hidden bg-tpppeach/10">
+      {/* ===========================
+          IMAGE SECTION WITH GALLERY
+          =========================== */}
+      <Link 
+        to={`/shop/bundles/${bundle.id}`} 
+        className="block relative aspect-square overflow-hidden bg-tpppeach/10"
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+      >
+        {/* Loading Skeleton */}
         {!imageLoaded && (
           <div className="absolute inset-0 bg-tppgrey/10 animate-pulse" />
         )}
         
-        <img
-          src={bundle.img_url || '/placeholder-bundle.png'}
-          alt={bundle.title}
-          className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${
-            imageLoaded ? 'opacity-100' : 'opacity-0'
-          } ${isOutOfStock ? 'grayscale opacity-60' : ''}`}
-          onLoad={() => setImageLoaded(true)}
-          onError={(e) => {
-            e.target.src = '/placeholder-bundle.png';
-            setImageLoaded(true);
-          }}
-        />
+        {/* Current Image Display */}
+        {currentImage ? (
+          <img
+            key={`${bundle.id}-${currentImageIndex}`}
+            src={currentImage.img_url}
+            alt={`${bundle.title} - Image ${currentImageIndex + 1}`}
+            className={`w-full h-full object-cover transition-all duration-300 ${
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            } ${isOutOfStock ? 'grayscale opacity-60' : 'group-hover:scale-105'}`}
+            onLoad={() => setImageLoaded(true)}
+            onError={(e) => {
+              e.target.src = '/placeholder-bundle.png';
+              setImageLoaded(true);
+            }}
+          />
+        ) : (
+          // Fallback when no images exist
+          <div className="w-full h-full flex items-center justify-center bg-slate-50">
+            <Package size={64} className="text-slate-300" />
+          </div>
+        )}
+
+        {/* Navigation Arrows - ONLY ON HOVER & MULTIPLE IMAGES */}
+        {hasMultipleImages && isHovering && !isOutOfStock && (
+          <>
+            {/* Left Arrow */}
+            <button
+              onClick={handlePreviousImage}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group/arrow z-20"
+              aria-label="Previous image"
+            >
+              <ChevronLeft size={16} className="text-slate-700 group-hover/arrow:text-tpppink transition-colors" />
+            </button>
+            
+            {/* Right Arrow */}
+            <button
+              onClick={handleNextImage}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group/arrow z-20"
+              aria-label="Next image"
+            >
+              <ChevronRight size={16} className="text-slate-700 group-hover/arrow:text-tpppink transition-colors" />
+            </button>
+          </>
+        )}
+
+        {/* Dot Indicators - ONLY ON HOVER & MULTIPLE IMAGES */}
+        {hasMultipleImages && isHovering && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2 py-1.5 bg-black/60 backdrop-blur-sm rounded-full z-20">
+            {images.map((_, index) => (
+              <button
+                key={index}
+                onClick={(e) => handleDotClick(e, index)}
+                className={`transition-all duration-200 rounded-full ${
+                  index === currentImageIndex
+                    ? 'w-2 h-1 bg-white'
+                    : 'w-1 h-1 bg-white/50 hover:bg-white/75'
+                }`}
+                aria-label={`Go to image ${index + 1}`}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Out of Stock Badge */}
         {isOutOfStock && (
-          <div className="font-inter absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-md flex items-center gap-1 shadow-lg">
+          <div className="font-inter absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-md flex items-center gap-1 shadow-lg z-10">
             <XCircle size={14} />
             OUT OF STOCK
           </div>
@@ -224,15 +388,15 @@ const BundleCard = ({ bundle, onQuickView }) => {
 
         {/* Items Count Badge (only if in stock) */}
         {!isOutOfStock && bundleItems.length > 0 && (
-          <div className="font-inter absolute top-2 right-2 bg-tpppink text-white text-xs font-semibold px-2 py-1 rounded-md flex items-center gap-1 shadow-sm">
+          <div className="font-inter absolute top-2 right-2 bg-tpppink text-white text-xs font-semibold px-2 py-1 rounded-md flex items-center gap-1 shadow-sm z-10">
             <Package size={12} />
             {bundleItems.length}
           </div>
         )}
 
-        {/* Quick View on Hover (only if in stock) */}
+        {/* Quick View on Hover (only if in stock) - Desktop Only */}
         {!isOutOfStock && (
-          <div className="hidden md:flex absolute inset-0 bg-tppslate/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 items-end justify-end p-2">
+          <div className="hidden md:flex absolute inset-0 bg-tppslate/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 items-end justify-end p-2 z-10">
             <button
               onClick={handleQuickView}
               className="bg-tpppink text-white hover:bg-tpppink/90 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors shadow-sm"
@@ -243,7 +407,9 @@ const BundleCard = ({ bundle, onQuickView }) => {
         )}
       </Link>
 
-      {/* Content Section */}
+      {/* ===========================
+          CONTENT SECTION
+          =========================== */}
       <div className="p-3">
         
         {/* Title */}
@@ -280,7 +446,7 @@ const BundleCard = ({ bundle, onQuickView }) => {
           )}
         </div>
 
-        {/* ⭐ Products Included Section - Collapsible */}
+        {/* Products Included Section - Collapsible */}
         <div className="mb-3 pb-3 border-b border-tppgrey/30">
           {/* Collapsible Header */}
           <button
@@ -295,7 +461,7 @@ const BundleCard = ({ bundle, onQuickView }) => {
             )}
           </button>
           
-          {/* ⭐ Animated Dropdown Content */}
+          {/* Animated Dropdown Content */}
           <div
             className={`overflow-hidden transition-all duration-300 ease-in-out ${
               productsExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
@@ -458,19 +624,42 @@ const BundleCard = ({ bundle, onQuickView }) => {
               </button>
             </div>
 
-            {/* Remove Button */}
-            <button
-              onClick={handleDelete}
-              disabled={updating}
-              className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded border font-medium text-xs transition-all ${
-                updating
-                  ? 'border-tppgrey text-tppslate/40 cursor-not-allowed'
-                  : 'border-red-500 text-red-600 hover:bg-red-50 active:scale-95'
-              }`}
-            >
-              <Trash2 size={12} />
-              Remove
-            </button>
+            {/* Remove Button with Confirm/Cancel */}
+            {!showRemoveConfirm ? (
+              <button
+                onClick={handleRemoveClick}
+                disabled={updating}
+                className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded border font-medium text-xs transition-all ${
+                  updating
+                    ? 'border-tppgrey text-tppslate/40 cursor-not-allowed'
+                    : 'border-red-500 text-red-600 hover:bg-red-50 active:scale-95'
+                }`}
+              >
+                <Trash2 size={12} />
+                Remove
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleConfirmRemove}
+                  disabled={updating}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded transition-all disabled:opacity-40"
+                >
+                  {updating ? (
+                    <Loader size={14} className="animate-spin mx-auto" />
+                  ) : (
+                    'Confirm'
+                  )}
+                </button>
+                <button
+                  onClick={handleCancelRemove}
+                  disabled={updating}
+                  className="px-3 py-1.5 text-slate-500 hover:text-slate-700 text-xs font-medium disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

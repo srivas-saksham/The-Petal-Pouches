@@ -1,6 +1,6 @@
-// frontend/src/components/shop/ShopHeader.jsx - WITH CART SIDEBAR INTEGRATION
+// frontend/src/components/shop/ShopHeader.jsx - WITH CART SIDEBAR INTEGRATION & LIMITED TAGS
 import React, { useState, useEffect, useRef } from 'react';
-import { LayoutGrid, Grid3x3, Search, X, ShoppingCart, Grid3x2, LogIn, UserPlus } from 'lucide-react';
+import { LayoutGrid, Grid3x3, Search, X, ShoppingCart, Grid3x2, LogIn, UserPlus, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useCart } from '../../hooks/useCart';
@@ -8,7 +8,7 @@ import { useCartSidebar } from '../../hooks/useCartSidebar';
 import UserProfileMenu from './UserProfileMenu';
 
 /**
- * ShopHeader Component - WITH CART SIDEBAR INTEGRATION
+ * ShopHeader Component - WITH CART SIDEBAR INTEGRATION & LIMITED TAGS
  * 
  * FEATURES:
  * - Shows user profile menu when authenticated
@@ -16,6 +16,7 @@ import UserProfileMenu from './UserProfileMenu';
  * - Dynamic cart count from CartContext
  * - Opens cart sidebar on cart button click
  * - Orders & Tracking button for authenticated users
+ * - Shows only top 3 tags with "Show All" toggle
  * - Professional animations and transitions
  * 
  * @param {Object} filters - Current filter values
@@ -49,6 +50,9 @@ const ShopHeader = ({
   const [searchInput, setSearchInput] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const debounceTimerRef = useRef(null);
+
+  // Tags expansion state
+  const [showAllTags, setShowAllTags] = useState(false);
 
   // Sync search input when filters change externally
   useEffect(() => {
@@ -102,6 +106,10 @@ const ShopHeader = ({
 
   // Get cart count
   const cartCount = cartTotals?.item_count || 0;
+
+  // Determine which tags to show
+  const visibleTags = showAllTags ? availableTags : availableTags.slice(0, 3);
+  const hasMoreTags = availableTags.length > 3;
 
   return (
     <>
@@ -249,14 +257,14 @@ const ShopHeader = ({
           </div>
         </div>
 
-        {/* Tags Section */}
+        {/* Tags Section - Limited to Top 3 by Default */}
         <div className="px-6 py-3 bg-white border-b border-slate-100 relative z-10">
           <div className="flex items-center gap-3">
-            {/* Tags Pills - Scrollable */}
+            {/* Tags Pills - Show Top 3 or All */}
             <div className="flex-1 overflow-x-auto scrollbar-hide">
               {!loading && availableTags.length > 0 ? (
                 <div className="flex items-center gap-1.5">
-                  {availableTags.map((tag) => {
+                  {visibleTags.map((tag) => {
                     const isSelected = selectedTags.includes(tag.name);
                     return (
                       <button
@@ -285,11 +293,26 @@ const ShopHeader = ({
                     );
                   })}
                   
+                  {/* Show All / Show Less Toggle */}
+                  {hasMoreTags && (
+                    <button
+                      onClick={() => setShowAllTags(!showAllTags)}
+                      className="flex-shrink-0 inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 
+                        whitespace-nowrap rounded-full border-2 border-slate-300 bg-white text-slate-700
+                        hover:border-tpppink hover:text-tpppink hover:bg-pink-50 transition-all shadow-md"
+                    >
+                      <span>{showAllTags ? 'Show Less' : `Show All (${availableTags.length})`}</span>
+                      {showAllTags ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    </button>
+                  )}
+                  
                   {/* Clear Tags Button */}
                   {selectedTags.length > 0 && (
                     <button
                       onClick={() => onTagClick(null)}
-                      className="flex-shrink-0 text-xs text-white font-bold px-3 py-1.5 whitespace-nowrap bg-tpppink backdrop-blur-md rounded-full shadow-md border-2 border-tpppink hover:bg-tpppink/90 hover:shadow-lg transition-all"
+                      className="flex-shrink-0 text-xs text-white font-bold px-3 py-1.5 whitespace-nowrap 
+                        bg-tpppink backdrop-blur-md rounded-full shadow-md border-2 border-tpppink 
+                        hover:bg-tpppink/90 hover:shadow-lg transition-all"
                     >
                       Clear all
                     </button>
@@ -298,7 +321,7 @@ const ShopHeader = ({
               ) : loading ? (
                 // Loading skeleton for tags
                 <div className="flex gap-1.5">
-                  {[1, 2, 3, 4, 5].map((i) => (
+                  {[1, 2, 3].map((i) => (
                     <div
                       key={i}
                       className="flex-shrink-0 h-8 w-20 bg-white backdrop-blur-md rounded-full animate-pulse shadow-md border-2 border-slate-200"

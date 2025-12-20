@@ -23,32 +23,42 @@ import React, { useEffect, useState } from 'react';
  */
 const ShopLoadingPage = ({ onComplete }) => {
   const [fadeOut, setFadeOut] = useState(false);
+  const [canComplete, setCanComplete] = useState(false);
 
   useEffect(() => {
+    // Mark as completable after 5 seconds
+    const completeTimer = setTimeout(() => {
+      setCanComplete(true);
+    }, 5000);
+
     // Start fade out after 4.5 seconds
     const fadeTimer = setTimeout(() => {
       setFadeOut(true);
     }, 4500);
-
-    // Complete and unmount after 5 seconds
-    const completeTimer = setTimeout(() => {
-      if (onComplete) {
-        onComplete();
-      }
-    }, 5000);
 
     // Cleanup timers
     return () => {
       clearTimeout(fadeTimer);
       clearTimeout(completeTimer);
     };
-  }, [onComplete]);
+  }, []);
 
+  // Only call onComplete after 5 seconds
+  useEffect(() => {
+    if (canComplete && onComplete) {
+      onComplete();
+    }
+  }, [canComplete, onComplete]);
+
+  // Prevent any clicks or interactions
   return (
     <div 
       className={`fixed inset-0 z-[9999] bg-white overflow-hidden transition-opacity duration-500 ${
         fadeOut ? 'opacity-0' : 'opacity-100'
       }`}
+      style={{ pointerEvents: canComplete ? 'none' : 'all' }}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.preventDefault()}
     >
       {/* Zebra Bars Container */}
       <div className="absolute inset-0 flex flex-col justify-center">
@@ -80,7 +90,7 @@ const ShopLoadingPage = ({ onComplete }) => {
             className="text-7xl md:text-8xl lg:text-9xl font-greyqo text-white drop-shadow-2xl mb-4"
             style={{
               animation: 'fadeInScale 1s ease-out 0.3s both',
-              textShadow: '0 4px 20px rgba(236, 72, 153, 0.5), 0 0 40px rgba(236, 72, 153, 0.3)',
+              textShadow: '0 4px 20px rgba(236, 72, 153, 0.9), 0 0 40px rgba(236, 72, 153, 0.3)',
             }}
           >
             The Petal Pouches
@@ -88,10 +98,10 @@ const ShopLoadingPage = ({ onComplete }) => {
 
           {/* Subtitle */}
           <p 
-            className="text-xl md:text-2xl font-semibold text-tpppink drop-shadow-lg"
+            className="text-xl md:text-2xl font-semibold text-white drop-shadow-lg"
             style={{
               animation: 'fadeInUp 1s ease-out 0.8s both',
-              textShadow: '0 2px 10px rgba(255, 255, 255, 0.8)',
+              textShadow: '0 2px 10px rgba(55, 55, 55, 0.8)',
             }}
           >
             Curating Your Perfect Bundle
@@ -105,7 +115,7 @@ const ShopLoadingPage = ({ onComplete }) => {
             }}
           >
             <div 
-              className="h-full bg-white rounded-full shadow-lg"
+              className="h-full bg-tppslate rounded-full shadow-lg"
               style={{
                 animation: 'progressBar 4.5s ease-in-out 0.5s both',
               }}
@@ -122,7 +132,7 @@ const ShopLoadingPage = ({ onComplete }) => {
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                className="w-2 h-2 bg-white rounded-full"
+                className="w-2 h-2 bg-tppslate rounded-full"
                 style={{
                   animation: `pulse 1.5s ease-in-out ${i * 0.2}s infinite`,
                 }}

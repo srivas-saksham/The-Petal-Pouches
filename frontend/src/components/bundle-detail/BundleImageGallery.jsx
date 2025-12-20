@@ -185,7 +185,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
   }, [hasMultipleImages, selectedIndex]);
 
   return (
-    <div className="relative bg-white flex flex-col">
+    <div className="relative bg-white flex flex-col max-w-lg mx-auto">
       
       {/* Main Image Container - STRICT 1:1 ASPECT RATIO */}
       <div className="relative w-full" style={{ aspectRatio: '1 / 1' }}>
