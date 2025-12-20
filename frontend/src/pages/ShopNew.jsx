@@ -1,4 +1,4 @@
-// frontend/src/pages/ShopNew.jsx - FIXED TAG COUNTING
+// frontend/src/pages/ShopNew.jsx - WITH LOADING PAGE
 
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -6,26 +6,32 @@ import BundleGrid from '../components/shop/BundleGrid';
 import BundleEmpty from '../components/shop/BundleEmpty';
 import SidebarFilters from '../components/shop/SidebarFilters';
 import ShopHeader from '../components/shop/ShopHeader';
+import ShopLoadingPage from '../components/shop/ShopLoadingPage'; // ✅ NEW IMPORT
 import useBundleFilters from '../hooks/useBundleFilters';
 import bundleService from '../services/bundleService';
-import api from '../services/api'; // ✅ IMPORT API CLIENT
+import api from '../services/api';
 import { useCart } from '../hooks/useCart';
 
 /**
- * BundleShop Component - FIXED TAG COUNTING
+ * BundleShop Component - WITH LOADING PAGE
  * 
- * KEY FIX:
- * - Tags are now fetched from backend API that scans ALL bundles
- * - Tag counts remain consistent regardless of page/filters
- * - Separate API call for tags ensures accurate counts
+ * FEATURES:
+ * - Shows animated loading page for first 5 seconds
+ * - Zebra bars animation with brand name
+ * - Smooth fade out transition
+ * - Then shows normal shop content
  */
 const BundleShop = () => {
+  // ✅ NEW: Loading page state
+  const [showLoadingPage, setShowLoadingPage] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
   const [bundles, setBundles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [metadata, setMetadata] = useState(null);
   const [availableTags, setAvailableTags] = useState([]);
-  const [tagsLoading, setTagsLoading] = useState(false); // ✅ Separate loading for tags
+  const [tagsLoading, setTagsLoading] = useState(false);
   
   // Layout state - load from localStorage or default to '4'
   const [layoutMode, setLayoutMode] = useState(() => {
@@ -54,19 +60,36 @@ const BundleShop = () => {
     localStorage.setItem('bundleLayoutMode', layoutMode);
   }, [layoutMode]);
 
-  // ==========================================
-  // ✅ FETCH TAGS FROM BACKEND (RUNS ONCE)
-  // ==========================================
+  // ✅ NEW: Check if this is the first visit in this session
+  useEffect(() => {
+    // Check sessionStorage to see if loading page has been shown
+    const hasShownLoading = sessionStorage.getItem('shopLoadingShown');
+    
+    if (hasShownLoading) {
+      // Already shown in this session, skip loading page
+      setShowLoadingPage(false);
+      setIsInitialLoad(false);
+    } else {
+      // First visit, show loading page and mark as shown
+      sessionStorage.setItem('shopLoadingShown', 'true');
+    }
+  }, []);
+
+  // ✅ NEW: Handle loading page completion
+  const handleLoadingComplete = () => {
+    setShowLoadingPage(false);
+    setIsInitialLoad(false);
+  };
+
+  // Fetch tags from backend
   useEffect(() => {
     const fetchTags = async () => {
       setTagsLoading(true);
       try {
         console.log('🏷️ Fetching tags with dynamic counts based on current filters...');
         
-        // Build query params to get context-aware counts
         const params = new URLSearchParams();
         
-        // Pass current filters to get counts based on filtered bundles
         if (filters.search) params.append('search', filters.search);
         if (filters.min_price) params.append('min_price', filters.min_price);
         if (filters.max_price) params.append('max_price', filters.max_price);
@@ -82,7 +105,6 @@ const BundleShop = () => {
         
         if (response.data.success && response.data.data) {
           console.log('✅ Received dynamic tag counts:', response.data.data);
-          console.log('   Context:', response.data.context);
           setAvailableTags(response.data.data);
         } else {
           console.warn('⚠️ No tags returned from backend');
@@ -90,7 +112,6 @@ const BundleShop = () => {
         }
       } catch (err) {
         console.error('❌ Failed to fetch tags:', err);
-        console.error('Error details:', err.response?.data || err.message);
         setAvailableTags([]);
       } finally {
         setTagsLoading(false);
@@ -100,9 +121,7 @@ const BundleShop = () => {
     fetchTags();
   }, [filters.search, filters.min_price, filters.max_price, filters.in_stock, filters.tags]);
 
-  // ==========================================
-  // FETCH BUNDLES (RUNS ON FILTER CHANGES)
-  // ==========================================
+  // Fetch bundles
   useEffect(() => {
     const fetchBundles = async () => {
       setLoading(true);
@@ -119,15 +138,11 @@ const BundleShop = () => {
         const bundlesData = response.data || [];
         setBundles(bundlesData);
         
-        // Update metadata with current count
         const updatedMetadata = {
           ...response.metadata,
           currentCount: bundlesData.length
         };
         setMetadata(updatedMetadata);
-        
-        // ❌ REMOVED: No longer extracting tags from current page bundles
-        // Tags are fetched separately from backend API above
         
       } catch (err) {
         console.error('❌ Failed to fetch bundles:', err);
@@ -174,14 +189,13 @@ const BundleShop = () => {
     }
   };
 
-  // Handle search change (from ShopHeader)
+  // Handle search change
   const handleSearchChange = (value) => {
     handleFilterChange('search', value);
   };
 
-  // Handle tag click (toggle tag in filters)
+  // Handle tag click
   const handleTagClick = (tagName) => {
-    // If tagName is null, clear all tags
     if (tagName === null) {
       handleFilterChange('tags', '');
       return;
@@ -199,11 +213,17 @@ const BundleShop = () => {
     handleFilterChange('tags', newTags.join(','));
   };
 
-  // Get currently selected tags
+  // Get selected tags
   const selectedTags = filters.tags 
     ? filters.tags.split(',').filter(t => t.trim())
     : [];
 
+  // ✅ NEW: Show loading page for first 5 seconds
+  if (showLoadingPage && isInitialLoad) {
+    return <ShopLoadingPage onComplete={handleLoadingComplete} />;
+  }
+
+  // Show main shop content
   return (
     <div 
       className="min-h-screen relative"
@@ -218,22 +238,22 @@ const BundleShop = () => {
 
       {/* Content */}
       <div className="relative z-10">
-        {/* SHOP HEADER - Compact Sticky Header */}
+        {/* SHOP HEADER */}
         <ShopHeader
           filters={filters}
           onSearchChange={handleSearchChange}
           onTagClick={handleTagClick}
           availableTags={availableTags}
           selectedTags={selectedTags}
-          loading={tagsLoading} // ✅ Use tagsLoading for header
+          loading={tagsLoading}
           metadata={metadata}
           layoutMode={layoutMode}
           onLayoutChange={handleLayoutChange}
         />
 
-        {/* CONTENT AREA - Bundles (Left) + Sidebar (Right) */}
+        {/* CONTENT AREA */}
         <div className="flex">
-          {/* LEFT SECTION - Bundles (Full Width) */}
+          {/* LEFT SECTION - Bundles */}
           <div className="flex-1 px-6 py-6">
             <BundleGrid 
               bundles={bundles} 
@@ -332,7 +352,7 @@ const BundleShop = () => {
             )}
           </div>
 
-          {/* RIGHT SECTION - Filters Sidebar (Scrolls with content) */}
+          {/* RIGHT SECTION - Filters Sidebar */}
           <div className="flex-shrink-0 py-6 pr-6">
             <SidebarFilters
               filters={{

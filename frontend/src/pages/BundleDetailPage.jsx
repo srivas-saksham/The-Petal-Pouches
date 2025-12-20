@@ -1,25 +1,24 @@
-// frontend/src/pages/BundleDetailPage.jsx - WITH BREADCRUMBS NAVIGATION
+// frontend/src/pages/BundleDetailPage.jsx - WITH ENHANCED BUNDLE HEADER
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Check, AlertCircle, Package, Star, Share2, Heart } from 'lucide-react';
+import { Check, AlertCircle, Package, Star } from 'lucide-react';
 import useBundleDetail from '../hooks/useBundleDetail';
 import BundleImageGallery from '../components/bundle-detail/BundleImageGallery';
 import BundleKeyDetails from '../components/bundle-detail/BundleKeyDetails';
 import BundleProducts from '../components/bundle-detail/BundleProducts';
 import FloatingSidebar from '../components/bundle-detail/FloatingSidebar/FloatingSidebar';
-import Breadcrumb from '../components/bundle-detail/ui/Breadcrumb'; // ✅ NEW IMPORT
-import { generateBreadcrumbs } from '../utils/bundleHelpers'; // ✅ NEW IMPORT
+import BundleHeader from '../components/bundle-detail/BundleHeader'; // ✅ UPDATED IMPORT
 import { addBundleToCart, updateCartItem, removeFromCart } from '../services/cartService';
 import { useCart } from '../hooks/useCart';
 import { getDisplayRating, formatRating, formatTimeAgo } from '../utils/reviewHelpers';
 
 /**
- * BundleDetailPage - WITH BREADCRUMBS NAVIGATION
+ * BundleDetailPage - WITH ENHANCED BUNDLE HEADER
  * 
- * REPLACED: BundleHeader component with Breadcrumb navigation
- * ✅ Shows: Home > Shop > Bundles > [Current Bundle Name]
- * ✅ Maintains sticky header with Share & Wishlist action buttons
- * ✅ Professional design matching shop aesthetic
+ * ✅ Uses BundleHeader component with:
+ *    - Brand name + Search + Auth/Cart buttons
+ *    - Breadcrumb navigation on second row
+ *    - Share & Wishlist buttons
  */
 const BundleDetailPage = () => {
   const { id } = useParams();
@@ -39,7 +38,7 @@ const BundleDetailPage = () => {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const debounceTimerRef = useRef(null);
   
-  // ✅ NEW: Track current bundle weight with debouncing
+  // Track current bundle weight with debouncing
   const [currentBundleWeight, setCurrentBundleWeight] = useState(1000);
   const [pendingWeight, setPendingWeight] = useState(null);
   const deliveryDebounceTimerRef = useRef(null);
@@ -50,9 +49,6 @@ const BundleDetailPage = () => {
   const items = bundle?.items || [];
   const reviews = bundle?.reviews || [];
   const ratingInfo = bundle ? getDisplayRating(bundle.reviews, bundle.average_rating) : { rating: 0, count: 0 };
-
-  // ✅ Generate breadcrumbs
-  const breadcrumbItems = bundle ? generateBreadcrumbs(bundle) : [];
 
   useEffect(() => {
     if (cartItem) {
@@ -185,28 +181,24 @@ const BundleDetailPage = () => {
     setShowRemoveConfirm(false);
   };
 
-
-  // ✅ ENHANCED: Debounced weight update for delivery recalculation
+  // Debounced weight update for delivery recalculation
   const handleQuantityChangeForDelivery = useCallback((quantity, weight) => {
     console.log(`📦 [BundleDetail] Quantity changed: ${quantity} units (${weight}g) - debouncing...`);
     
-    // Set pending weight immediately for UI feedback
     setPendingWeight(weight);
     
-    // Clear existing timer
     if (deliveryDebounceTimerRef.current) {
       clearTimeout(deliveryDebounceTimerRef.current);
     }
     
-    // Set new timer - sync with cart debounce (800ms)
     deliveryDebounceTimerRef.current = setTimeout(() => {
       console.log(`✅ [BundleDetail] Delivery weight synced: ${weight}g`);
       setCurrentBundleWeight(weight);
       setPendingWeight(null);
-    }, 800); // Same as cart debounce
+    }, 800);
   }, []);
 
-  // ✅ Cleanup debounce timer on unmount
+  // Cleanup debounce timer on unmount
   useEffect(() => {
     return () => {
       if (deliveryDebounceTimerRef.current) {
@@ -214,6 +206,14 @@ const BundleDetailPage = () => {
       }
     };
   }, []);
+
+  // Handle search from BundleHeader
+  const handleSearch = (searchTerm) => {
+    if (searchTerm) {
+      // Navigate to shop with search query
+      navigate(`/shop?search=${encodeURIComponent(searchTerm)}`);
+    }
+  };
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -285,42 +285,17 @@ const BundleDetailPage = () => {
         backgroundSize: 'auto',
       }}
     >
-      {/* ✅ NEW: STICKY HEADER WITH BREADCRUMBS */}
-      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm">
-        <div className="max-w-9xl mx-auto px-6 py-3">
-          <div className="flex items-center justify-between gap-4">
-            {/* Left: Breadcrumbs Navigation */}
-            <Breadcrumb items={breadcrumbItems} />
-
-            {/* Right: Action Buttons (Share & Wishlist) */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={handleShare}
-                className="p-2 border-2 border-slate-200 rounded-lg hover:border-tpppink hover:bg-tpppink/5 
-                  transition-all text-slate-600 hover:text-tpppink"
-                title="Share Bundle"
-                aria-label="Share bundle"
-              >
-                <Share2 size={16} />
-              </button>
-              
-              <button
-                onClick={handleWishlist}
-                className="p-2 border-2 border-slate-200 rounded-lg hover:border-tpppink hover:bg-tpppink/5 
-                  transition-all text-slate-600 hover:text-tpppink"
-                title="Add to Wishlist"
-                aria-label="Add to wishlist"
-              >
-                <Heart size={16} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* ✅ ENHANCED BUNDLE HEADER - Replaces old sticky header */}
+      <BundleHeader
+        bundle={bundle}
+        onShare={handleShare}
+        onWishlist={handleWishlist}
+        onSearchChange={handleSearch}
+      />
 
       {/* Share Success Toast */}
       {showShareModal && (
-        <div className="fixed top-16 right-4 z-50 bg-green-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm">
+        <div className="fixed top-24 right-4 z-50 bg-green-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm animate-in slide-in-from-top-4 duration-200">
           <Check size={14} />
           <span className="font-medium">Link copied!</span>
         </div>
