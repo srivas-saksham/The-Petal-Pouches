@@ -535,7 +535,8 @@ async createWithCostCalculation(orderId, shipmentData) {
         dimensions_cm: shipment.dimensions_cm,
         payment_mode: shipment.Orders.payment_method === 'cod' ? 'COD' : 'Prepaid',
         cod_amount: shipment.Orders.payment_method === 'cod' ? shipment.Orders.final_total : 0,
-        shipping_mode: shipment.shipping_mode
+        shipping_mode: shipment.shipping_mode,
+        order_total: shipment.Orders.final_total
       });
 
       console.log('✅ Delhivery shipment created:', delhiveryResponse.awb);
