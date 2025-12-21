@@ -1,473 +1,594 @@
 // backend/src/controllers/paymentController.js
-
-const supabase = require('../config/supabaseClient');
-const Razorpay = require('razorpay');
-const crypto = require('crypto');
-
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
-
 /**
  * Payment Controller
- * Handles Razorpay and Stripe payment processing
+ * Handles Razorpay payment operations
+ * - Create payment orders
+ * - Verify payment signatures
+ * - Handle webhooks
+ * - Update order payment status
  */
+
+const razorpayService = require('../services/razorpayService');
+const OrderModel = require('../models/orderModel');
+const CartModel = require('../models/cartModel');
+const PaymentModel = require('../models/paymentModel');
+
 const PaymentController = {
 
-  // ==================== RAZORPAY INTEGRATION ====================
+  // ==================== CREATE PAYMENT ORDER ====================
 
   /**
-   * Create Razorpay order
-   * POST /api/payments/razorpay/create
+   * Create Razorpay order for payment
+   * POST /api/payments/create-order
+   * 
+   * Flow:
+   * 1. Create pending order in database
+   * 2. Create Razorpay order
+   * 3. Return order details + Razorpay order ID
+   * 
+   * @body {
+   *   address_id: string,
+   *   notes?: string,
+   *   gift_wrap?: boolean,
+   *   gift_message?: string,
+   *   delivery_metadata?: object
+   * }
    */
-  createRazorpayOrder: async (req, res) => {
+  createPaymentOrder: async (req, res) => {
     try {
       const userId = req.user.id;
-      const { amount, currency = 'INR', orderId } = req.body;
+      const { 
+        address_id,
+        notes,
+        gift_wrap = false,
+        gift_message,
+        delivery_metadata = {}
+      } = req.body;
 
-      // Validation
-      if (!amount || amount <= 0) {
+      console.log('💳 [Payment] Creating payment order for user:', userId);
+
+      // ===== STEP 1: VALIDATE ADDRESS =====
+      if (!address_id) {
         return res.status(400).json({
           success: false,
-          message: 'Valid amount is required'
+          message: 'Delivery address is required'
         });
       }
 
-      // Verify order exists and belongs to user
-      if (orderId) {
-        const { data: order, error } = await supabase
-          .from('Orders')
-          .select('id, user_id, final_total')
-          .eq('id', orderId)
-          .eq('user_id', userId)
-          .single();
+      const supabase = require('../config/supabaseClient');
+      const { data: address, error: addrError } = await supabase
+        .from('Addresses')
+        .select('*')
+        .eq('id', address_id)
+        .eq('user_id', userId)
+        .single();
 
-        if (error || !order) {
-          return res.status(404).json({
-            success: false,
-            message: 'Order not found'
-          });
-        }
-
-        // Verify amount matches order total
-        if (parseFloat(order.final_total) !== parseFloat(amount)) {
-          return res.status(400).json({
-            success: false,
-            message: 'Amount mismatch with order total'
-          });
-        }
+      if (addrError || !address) {
+        return res.status(404).json({
+          success: false,
+          message: 'Address not found'
+        });
       }
 
-      // Create Razorpay order
-      const razorpayOrder = await razorpay.orders.create({
-        amount: amount * 100, // Convert to paise
-        currency: currency,
-        receipt: orderId || `receipt_${Date.now()}`,
+      // ===== STEP 2: GET CART =====
+      const cartData = await CartModel.getCartWithItems(userId);
+
+      if (!cartData.items || cartData.items.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cart is empty',
+          code: 'CART_EMPTY'
+        });
+      }
+
+      // ===== STEP 3: CHECK STOCK =====
+      const stockCheck = await CartModel.checkStock(userId);
+      
+      if (!stockCheck.all_in_stock) {
+        return res.status(400).json({
+          success: false,
+          message: 'Some items are out of stock',
+          code: 'INSUFFICIENT_STOCK',
+          out_of_stock_items: stockCheck.out_of_stock_items
+        });
+      }
+
+      // ===== STEP 4: CALCULATE TOTALS =====
+      const { calculateOrderTotals } = require('../utils/orderHelpers');
+      const deliveryMode = delivery_metadata.mode || 'surface';
+      const expressCharge = delivery_metadata.express_charge || 0;
+      const totals = calculateOrderTotals(cartData.items, deliveryMode, expressCharge);
+
+      console.log('💰 Order totals:', totals);
+
+      // ===== STEP 5: CREATE RAZORPAY ORDER (NO DB ORDER YET!) =====
+      const razorpayOrder = await razorpayService.createOrder({
+        amount: totals.total,
+        orderId: null, // ⭐ No DB order ID yet!
         notes: {
           user_id: userId,
-          order_id: orderId || null
+          customer_name: req.user.name || 'Customer',
+          customer_email: req.user.email,
+          address_id: address_id,
+          // ⭐ Store order data in notes for later
+          order_metadata: JSON.stringify({
+            address_id,
+            notes,
+            gift_wrap,
+            gift_message,
+            delivery_metadata
+          })
         }
       });
 
-      console.log(`✅ Razorpay order created: ${razorpayOrder.id}`);
+      if (!razorpayOrder.success) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to initialize payment'
+        });
+      }
 
-      res.status(200).json({
+      console.log(`✅ Razorpay order created: ${razorpayOrder.razorpay_order_id}`);
+
+      // ===== STEP 6: RETURN ORDER DETAILS =====
+      return res.status(201).json({
         success: true,
-        message: 'Razorpay order created successfully',
+        message: 'Payment order created',
         data: {
-          razorpay_order_id: razorpayOrder.id,
-          amount: razorpayOrder.amount / 100, // Convert back to rupees
+          razorpay_order_id: razorpayOrder.razorpay_order_id,
+          amount: razorpayOrder.amount_rupees,
           currency: razorpayOrder.currency,
-          key: process.env.RAZORPAY_KEY_ID
+          key_id: process.env.RAZORPAY_KEY_ID,
+          customer: {
+            name: req.user.name || 'Customer',
+            email: req.user.email,
+            phone: address.phone
+          },
+          // ⭐ Return order data to frontend for verification
+          order_data: {
+            address_id,
+            notes,
+            gift_wrap,
+            gift_message,
+            delivery_metadata
+          }
         }
       });
 
     } catch (error) {
-      console.error('Create Razorpay order error:', error);
-      res.status(500).json({
+      console.error('❌ [Payment] Create order error:', error);
+      
+      return res.status(500).json({
         success: false,
-        message: 'Failed to create Razorpay order',
-        error: error.message
+        message: 'Failed to create payment order',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   },
 
+  // ==================== VERIFY PAYMENT ====================
+
   /**
-   * Verify Razorpay payment signature
-   * POST /api/payments/razorpay/verify
+   * Verify payment signature after successful payment
+   * POST /api/payments/verify
    */
-  verifyRazorpayPayment: async (req, res) => {
+  verifyPayment: async (req, res) => {
     try {
       const userId = req.user.id;
       const {
         razorpay_order_id,
         razorpay_payment_id,
         razorpay_signature,
-        orderId
+        order_data // ⭐ Order data from frontend
       } = req.body;
 
-      // Validation
-      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      console.log('🔐 [Payment] Verifying payment:', razorpay_payment_id);
+
+      // ===== STEP 1: VALIDATE INPUT =====
+      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !order_data) {
         return res.status(400).json({
           success: false,
-          message: 'Payment details are required'
+          message: 'Missing payment verification data'
         });
       }
 
-      // Verify signature
-      const body = razorpay_order_id + '|' + razorpay_payment_id;
-      const expectedSignature = crypto
-        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-        .update(body.toString())
-        .digest('hex');
+      // ===== STEP 2: VERIFY RAZORPAY SIGNATURE =====
+      const isValid = razorpayService.verifyPaymentSignature({
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature
+      });
 
-      const isAuthentic = expectedSignature === razorpay_signature;
-
-      if (!isAuthentic) {
-        // Record failed payment
-        if (orderId) {
-          await supabase
-            .from('Payments')
-            .insert([{
-              user_id: userId,
-              order_id: orderId,
-              provider: 'razorpay',
-              payment_id: razorpay_payment_id,
-              amount: 0,
-              status: 'failed',
-              is_success: false,
-              failure_msg: 'Invalid signature'
-            }]);
-
-          // Update order payment status
-          await supabase
-            .from('Orders')
-            .update({ payment_status: 'failed' })
-            .eq('id', orderId);
-        }
-
+      if (!isValid) {
+        console.error('❌ [Payment] Invalid signature');
+        
         return res.status(400).json({
           success: false,
-          message: 'Payment verification failed - Invalid signature'
+          message: 'Payment verification failed',
+          code: 'INVALID_SIGNATURE'
         });
       }
 
-      // Fetch payment details from Razorpay
-      const payment = await razorpay.payments.fetch(razorpay_payment_id);
+      console.log('✅ [Payment] Signature verified');
 
-      // Record successful payment
-      const { data: paymentRecord, error: paymentError } = await supabase
-        .from('Payments')
-        .insert([{
-          user_id: userId,
-          order_id: orderId || null,
-          provider: 'razorpay',
-          payment_id: razorpay_payment_id,
-          amount: payment.amount / 100,
-          currency: payment.currency,
-          status: 'success',
-          is_success: true
-        }])
-        .select()
+      // ===== STEP 3: GET CART (REVALIDATE) =====
+      const cartData = await CartModel.getCartWithItems(userId);
+
+      if (!cartData.items || cartData.items.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cart is empty'
+        });
+      }
+
+      // ===== STEP 4: CHECK STOCK AGAIN =====
+      const stockCheck = await CartModel.checkStock(userId);
+      
+      if (!stockCheck.all_in_stock) {
+        return res.status(400).json({
+          success: false,
+          message: 'Some items are out of stock',
+          code: 'INSUFFICIENT_STOCK',
+          out_of_stock_items: stockCheck.out_of_stock_items
+        });
+      }
+
+      // ===== STEP 5: GET ADDRESS =====
+      const supabase = require('../config/supabaseClient');
+      const { data: address } = await supabase
+        .from('Addresses')
+        .select('*')
+        .eq('id', order_data.address_id)
+        .eq('user_id', userId)
         .single();
 
-      if (paymentError) throw paymentError;
-
-      // Update order status and payment status
-      if (orderId) {
-        // Get current order status
-        const { data: currentOrder } = await supabase
-          .from('Orders')
-          .select('status')
-          .eq('id', orderId)
-          .single();
-
-        const newStatus = currentOrder?.status === 'pending' ? 'confirmed' : currentOrder?.status;
-
-        await supabase
-          .from('Orders')
-          .update({
-            payment_status: 'paid',
-            payment_id: razorpay_payment_id,
-            status: newStatus
-          })
-          .eq('id', orderId);
+      if (!address) {
+        return res.status(404).json({
+          success: false,
+          message: 'Address not found'
+        });
       }
 
-      console.log(`✅ Payment verified: ${razorpay_payment_id}`);
+      // ===== STEP 6: CALCULATE TOTALS =====
+      const { calculateOrderTotals } = require('../utils/orderHelpers');
+      const deliveryMode = order_data.delivery_metadata?.mode || 'surface';
+      const expressCharge = order_data.delivery_metadata?.express_charge || 0;
+      const totals = calculateOrderTotals(cartData.items, deliveryMode, expressCharge);
 
-      res.status(200).json({
+      // ===== STEP 7: FETCH PAYMENT DETAILS =====
+      const paymentDetails = await razorpayService.fetchPayment(razorpay_payment_id);
+      console.log('💳 Payment details:', paymentDetails);
+
+      // ===== STEP 8: NOW CREATE DATABASE ORDER =====
+      const orderData = {
+        user_id: userId,
+        subtotal: totals.subtotal,
+        express_charge: totals.express_charge,
+        discount: 0,
+        final_total: totals.total,
+        shipping_address: {
+          line1: address.line1,
+          line2: address.line2,
+          city: address.city,
+          state: address.state,
+          country: address.country || 'India',
+          zip_code: address.zip_code,
+          phone: address.phone,
+          landmark: address.landmark
+        },
+        payment_method: 'online',
+        payment_status: 'paid', // ⭐ Already paid!
+        notes: order_data.notes || null,
+        gift_wrap: order_data.gift_wrap || false,
+        gift_message: order_data.gift_message || null,
+        bundle_type: 'mixed',
+        status: 'confirmed', // ⭐ Already confirmed!
+        razorpay_order_id: razorpay_order_id,
+        razorpay_payment_id: razorpay_payment_id,
+        razorpay_signature: razorpay_signature,
+        delivery_metadata: order_data.delivery_metadata || {}
+      };
+
+      const orderItems = cartData.items.map(item => ({
+        bundle_id: item.bundle_id,
+        bundle_title: item.title,
+        bundle_quantity: item.quantity,
+        price: item.price,
+        bundle_origin: 'brand-bundle'
+      }));
+
+      const order = await OrderModel.create(orderData, orderItems);
+      console.log(`✅ Order created after payment: ${order.id}`);
+
+      // ===== STEP 9: CREATE PAYMENT RECORD =====
+      const PaymentModel = require('../models/paymentModel');
+      const paymentRecord = await PaymentModel.createPaymentRecord({
+        order_id: order.id,
+        user_id: userId,
+        provider: 'Razorpay',
+        payment_id: razorpay_payment_id,
+        amount: paymentDetails.amount_rupees || totals.total,
+        currency: paymentDetails.currency || 'INR',
+        status: paymentDetails.status || 'captured',
+        is_success: true
+      });
+      console.log('✅ Payment record created:', paymentRecord.id);
+
+      // ===== STEP 10: DEDUCT STOCK =====
+      try {
+        const StockService = require('../services/stockService');
+        const stockDeductionItems = orderItems.map(item => ({
+          bundle_id: item.bundle_id,
+          quantity: item.bundle_quantity
+        }));
+
+        await StockService.deductBundleStock(stockDeductionItems);
+        console.log('✅ Stock deducted');
+      } catch (stockError) {
+        console.error('⚠️ Stock deduction error:', stockError);
+      }
+
+      // ===== STEP 11: CLEAR CART =====
+      await CartModel.clearCart(userId);
+      console.log('✅ Cart cleared');
+
+      // ===== STEP 12: CREATE SHIPMENT =====
+      try {
+        const ShipmentModel = require('../models/shipmentModel');
+        const deliveryMetadata = order_data.delivery_metadata || {};
+
+        await ShipmentModel.createWithCostCalculation(order.id, {
+          destination_pincode: address.zip_code,
+          destination_city: address.city,
+          destination_state: address.state,
+          shipping_mode: deliveryMetadata.mode === 'express' ? 'Express' : 'Surface',
+          weight_grams: 1000,
+          order_total: totals.total,
+          payment_mode: 'Prepaid',
+          dimensions_cm: { length: 30, width: 25, height: 10 }
+        });
+        console.log('✅ Shipment created');
+      } catch (shipmentError) {
+        console.error('⚠️ Shipment creation failed:', shipmentError);
+      }
+
+      // ===== STEP 13: RETURN SUCCESS =====
+      return res.status(200).json({
         success: true,
-        message: 'Payment verified successfully',
+        message: 'Payment verified and order created',
         data: {
-          payment: paymentRecord,
-          razorpay_payment_id,
-          razorpay_order_id
+          order_id: order.id,
+          payment_id: razorpay_payment_id,
+          payment_record_id: paymentRecord.id,
+          status: 'paid',
+          amount: paymentDetails.amount_rupees || totals.total,
+          method: paymentDetails.method || 'card'
         }
       });
 
     } catch (error) {
-      console.error('Verify Razorpay payment error:', error);
-      res.status(500).json({
+      console.error('❌ [Payment] Verify payment error:', error);
+      
+      return res.status(500).json({
         success: false,
         message: 'Payment verification failed',
-        error: error.message
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   },
 
+  // ==================== WEBHOOK HANDLER ====================
+
   /**
-   * Razorpay webhook handler
-   * POST /api/payments/razorpay/webhook
+   * Handle Razorpay webhooks
+   * POST /api/payments/webhook
+   * 
+   * Handles:
+   * - payment.captured
+   * - payment.failed
+   * - order.paid
    */
-  razorpayWebhook: async (req, res) => {
+  handleWebhook: async (req, res) => {
     try {
-      const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
       const signature = req.headers['x-razorpay-signature'];
+      const body = JSON.stringify(req.body);
 
-      // Verify webhook signature
-      const expectedSignature = crypto
-        .createHmac('sha256', secret)
-        .update(JSON.stringify(req.body))
-        .digest('hex');
+      console.log('🔔 [Webhook] Received Razorpay webhook');
 
-      if (signature !== expectedSignature) {
+      // ===== STEP 1: VERIFY WEBHOOK SIGNATURE =====
+      const isValid = razorpayService.verifyWebhookSignature(signature, body);
+
+      if (!isValid) {
+        console.error('❌ [Webhook] Invalid signature');
         return res.status(400).json({
           success: false,
           message: 'Invalid webhook signature'
         });
       }
 
+      console.log('✅ [Webhook] Signature verified');
+
+      // ===== STEP 2: PROCESS WEBHOOK EVENT =====
       const event = req.body.event;
-      const payload = req.body.payload;
+      const payload = req.body.payload?.payment?.entity || req.body.payload?.order?.entity;
 
-      console.log(`📨 Razorpay webhook: ${event}`);
+      console.log(`📨 [Webhook] Event: ${event}`);
 
-      // Handle different events
       switch (event) {
         case 'payment.captured':
-          // Payment successful
-          console.log(`✅ Payment captured: ${payload.payment.entity.id}`);
+          await this.handlePaymentCaptured(payload);
           break;
 
         case 'payment.failed':
-          // Payment failed
-          console.log(`❌ Payment failed: ${payload.payment.entity.id}`);
-          
-          // Update order status
-          const orderId = payload.payment.entity.notes?.order_id;
-          if (orderId) {
-            await supabase
-              .from('Orders')
-              .update({ payment_status: 'failed' })
-              .eq('id', orderId);
-          }
+          await this.handlePaymentFailed(payload);
           break;
 
-        case 'refund.created':
-          // Refund initiated
-          console.log(`💰 Refund created: ${payload.refund.entity.id}`);
+        case 'order.paid':
+          await this.handleOrderPaid(payload);
           break;
 
         default:
-          console.log(`ℹ️ Unhandled event: ${event}`);
+          console.log(`ℹ️ [Webhook] Unhandled event: ${event}`);
       }
 
-      res.status(200).json({ success: true });
+      // ===== STEP 3: ACKNOWLEDGE WEBHOOK =====
+      return res.status(200).json({
+        success: true,
+        message: 'Webhook processed'
+      });
 
     } catch (error) {
-      console.error('Razorpay webhook error:', error);
-      res.status(500).json({
+      console.error('❌ [Webhook] Processing error:', error);
+      
+      // Return 200 to prevent Razorpay retries on server errors
+      return res.status(200).json({
         success: false,
-        message: 'Webhook processing failed',
-        error: error.message
+        message: 'Webhook received but processing failed'
       });
     }
   },
 
-  // ==================== STRIPE INTEGRATION ====================
+  // ==================== WEBHOOK EVENT HANDLERS ====================
 
   /**
-   * Create Stripe payment intent
-   * POST /api/payments/stripe/intent
+   * Handle payment.captured event
    */
-  createStripeIntent: async (req, res) => {
+  handlePaymentCaptured: async (payload) => {
+    try {
+      const { order_id, id: payment_id } = payload;
+      
+      console.log(`✅ [Webhook] Payment captured: ${payment_id}`);
+
+      // Find order by Razorpay order ID
+      const supabase = require('../config/supabaseClient');
+      const { data: order, error } = await supabase
+        .from('Orders')
+        .select('id, payment_status')
+        .eq('payment_id', order_id)
+        .single();
+
+      if (error || !order) {
+        console.warn(`⚠️ [Webhook] Order not found for Razorpay order: ${order_id}`);
+        return;
+      }
+
+      // Update if not already paid
+      if (order.payment_status !== 'paid') {
+        await OrderModel.updatePaymentStatus(order.id, 'paid', payment_id);
+        await OrderModel.updateStatus(order.id, 'confirmed');
+        console.log(`✅ [Webhook] Order ${order.id} marked as paid`);
+      }
+
+    } catch (error) {
+      console.error('❌ [Webhook] Payment captured handler error:', error);
+    }
+  },
+
+  /**
+   * Handle payment.failed event
+   */
+  handlePaymentFailed: async (payload) => {
+    try {
+      const { order_id, id: payment_id, error_description } = payload;
+      
+      console.log(`❌ [Webhook] Payment failed: ${payment_id} - ${error_description}`);
+
+      // Find order
+      const supabase = require('../config/supabaseClient');
+      const { data: order, error } = await supabase
+        .from('Orders')
+        .select('id')
+        .eq('payment_id', order_id)
+        .single();
+
+      if (error || !order) {
+        console.warn(`⚠️ [Webhook] Order not found for Razorpay order: ${order_id}`);
+        return;
+      }
+
+      // Mark payment as failed
+      await OrderModel.updatePaymentStatus(order.id, 'failed', payment_id);
+      console.log(`❌ [Webhook] Order ${order.id} payment failed`);
+
+    } catch (error) {
+      console.error('❌ [Webhook] Payment failed handler error:', error);
+    }
+  },
+
+  /**
+   * Handle order.paid event
+   */
+  handleOrderPaid: async (payload) => {
+    try {
+      const { id: razorpay_order_id, amount_paid } = payload;
+      
+      console.log(`✅ [Webhook] Order paid: ${razorpay_order_id}`);
+
+      // Find order
+      const supabase = require('../config/supabaseClient');
+      const { data: order, error } = await supabase
+        .from('Orders')
+        .select('id, payment_status')
+        .eq('payment_id', razorpay_order_id)
+        .single();
+
+      if (error || !order) {
+        console.warn(`⚠️ [Webhook] Order not found: ${razorpay_order_id}`);
+        return;
+      }
+
+      // Update if not already paid
+      if (order.payment_status !== 'paid') {
+        await OrderModel.updatePaymentStatus(order.id, 'paid');
+        await OrderModel.updateStatus(order.id, 'confirmed');
+        console.log(`✅ [Webhook] Order ${order.id} confirmed`);
+      }
+
+    } catch (error) {
+      console.error('❌ [Webhook] Order paid handler error:', error);
+    }
+  },
+
+  // ==================== PAYMENT STATUS CHECK ====================
+
+  /**
+   * Check payment status
+   * GET /api/payments/status/:order_id
+   */
+  getPaymentStatus: async (req, res) => {
     try {
       const userId = req.user.id;
-      const { amount, currency = 'inr', orderId } = req.body;
+      const orderId = req.params.order_id;
 
-      // Validation
-      if (!amount || amount <= 0) {
-        return res.status(400).json({
+      const order = await OrderModel.findById(orderId, userId);
+
+      if (!order) {
+        return res.status(404).json({
           success: false,
-          message: 'Valid amount is required'
+          message: 'Order not found'
         });
       }
 
-      // Note: Stripe integration requires stripe npm package
-      // const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-      
-      res.status(501).json({
-        success: false,
-        message: 'Stripe integration not yet implemented. Please use Razorpay or COD.'
-      });
-
-    } catch (error) {
-      console.error('Create Stripe intent error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to create Stripe payment intent',
-        error: error.message
-      });
-    }
-  },
-
-  /**
-   * Stripe webhook handler
-   * POST /api/payments/stripe/webhook
-   */
-  stripeWebhook: async (req, res) => {
-    try {
-      // Note: Requires stripe package for signature verification
-      
-      res.status(501).json({
-        success: false,
-        message: 'Stripe webhook not yet implemented'
-      });
-
-    } catch (error) {
-      console.error('Stripe webhook error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Webhook processing failed',
-        error: error.message
-      });
-    }
-  },
-
-  // ==================== PAYMENT QUERIES ====================
-
-  /**
-   * Get user's payment history
-   * GET /api/payments/history
-   */
-  getPaymentHistory: async (req, res) => {
-    try {
-      const userId = req.user.id;
-      const { page = 1, limit = 10, status } = req.query;
-      const offset = (page - 1) * limit;
-
-      // Build query
-      let query = supabase
-        .from('Payments')
-        .select(`
-          *,
-          Orders (
-            id,
-            final_total,
-            status
-          )
-        `, { count: 'exact' })
-        .eq('user_id', userId);
-
-      // Filter by status
-      if (status) {
-        query = query.eq('status', status);
-      }
-
-      // Apply pagination and ordering
-      const { data: payments, error, count } = await query
-        .order('created_at', { ascending: false })
-        .range(offset, offset + parseInt(limit) - 1);
-
-      if (error) throw error;
-
-      // Transform data to match original structure
-      const transformedPayments = (payments || []).map(payment => ({
-        ...payment,
-        order_number: payment.Orders?.id || null,
-        order_amount: payment.Orders?.final_total || null,
-        order_status: payment.Orders?.status || null
-      }));
-
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
-        message: 'Payment history retrieved successfully',
-        data: transformedPayments,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total: count || 0,
-          pages: Math.ceil((count || 0) / limit)
+        data: {
+          order_id: order.id,
+          payment_status: order.payment_status,
+          payment_id: order.payment_id,
+          payment_method: order.payment_method,
+          amount: order.final_total
         }
       });
 
     } catch (error) {
-      console.error('Get payment history error:', error);
-      res.status(500).json({
+      console.error('❌ [Payment] Get status error:', error);
+      
+      return res.status(500).json({
         success: false,
-        message: 'Failed to retrieve payment history',
-        error: error.message
-      });
-    }
-  },
-
-  /**
-   * Get payment details by ID
-   * GET /api/payments/:id
-   */
-  getPaymentDetails: async (req, res) => {
-    try {
-      const userId = req.user.id;
-      const { id } = req.params;
-
-      const { data: payment, error } = await supabase
-        .from('Payments')
-        .select(`
-          *,
-          Orders (
-            id,
-            final_total,
-            status
-          )
-        `)
-        .eq('id', id)
-        .eq('user_id', userId)
-        .single();
-
-      if (error || !payment) {
-        return res.status(404).json({
-          success: false,
-          message: 'Payment not found'
-        });
-      }
-
-      // Transform data to match original structure
-      const transformedPayment = {
-        ...payment,
-        order_number: payment.Orders?.id || null,
-        order_amount: payment.Orders?.final_total || null,
-        order_status: payment.Orders?.status || null
-      };
-
-      res.status(200).json({
-        success: true,
-        message: 'Payment details retrieved successfully',
-        data: transformedPayment
-      });
-
-    } catch (error) {
-      console.error('Get payment details error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to retrieve payment details',
-        error: error.message
+        message: 'Failed to get payment status'
       });
     }
   }
-
 };
 
 module.exports = PaymentController;

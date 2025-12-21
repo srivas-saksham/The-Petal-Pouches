@@ -1,4 +1,5 @@
-// frontend/src/pages/user/OrderDetails.jsx
+// frontend/src/pages/user/OrderDetails.jsx - COMPLETELY FIXED
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
@@ -32,10 +33,10 @@ const OrderDetailsPage = () => {
       setOrder(orderResult.data);
 
       // Load tracking info ONLY if order is confirmed or later
-      if (['confirmed', 'shipped', 'delivered'].includes(orderResult.data.status)) {
+      if (['confirmed', 'processing', 'shipped', 'delivered'].includes(orderResult.data.status)) {
         const trackingResult = await getOrderTracking(orderId);
         if (trackingResult.success) {
-          setTracking(trackingResult.data);
+          setTracking(trackingResult.data); // ✅ Use .data not .tracking
         }
       }
     } catch (error) {
@@ -52,7 +53,7 @@ const OrderDetailsPage = () => {
       setRefreshing(true);
       const result = await refreshTracking(orderId);
       if (result.success) {
-        setTracking(result.data);
+        setTracking(result.data); // ✅ Use .data not .tracking
         alert('✅ Tracking updated!');
       } else {
         alert('❌ Failed to refresh tracking');
@@ -73,6 +74,15 @@ const OrderDetailsPage = () => {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
+    });
+  };
+
+  const formatDateOnly = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    return new Date(dateStr).toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
   };
 
@@ -136,6 +146,8 @@ const OrderDetailsPage = () => {
                 order.status === 'delivered' ? 'bg-green-100 text-green-800' :
                 order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                 order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
+                order.status === 'processing' ? 'bg-tpppink/10 text-tpppink' :
+                order.status === 'confirmed' ? 'bg-blue-100 text-blue-700' :
                 'bg-yellow-100 text-yellow-800'
               }`}>
                 {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
@@ -181,7 +193,7 @@ const OrderDetailsPage = () => {
                     {shipment.estimated_delivery && (
                       <div>
                         <p className="text-xs text-gray-500 mb-1">Estimated Delivery</p>
-                        <p className="font-semibold text-tppslate">{formatDate(shipment.estimated_delivery)}</p>
+                        <p className="font-semibold text-tppslate">{formatDateOnly(shipment.estimated_delivery)}</p>
                       </div>
                     )}
                     
@@ -201,22 +213,10 @@ const OrderDetailsPage = () => {
                         href={shipment.tracking_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-inter flex items-center gap-2 px-4 py-2 bg-tpppink text-white rounded-lg hover:bg-tpppink/90 transition-colors text-sm font-semibold"
+                        className="flex items-center gap-2 px-4 py-2 bg-tpppink text-white rounded-lg hover:bg-tpppink/90 transition-colors text-sm font-semibold"
                       >
                         <ExternalLink className="w-4 h-4" />
                         Track on {shipment.courier || 'Courier Website'}
-                      </a>
-                    )}
-                    
-                    {shipment.label_url && (
-                      <a
-                        href={shipment.label_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-4 py-2 border-2 border-tppslate text-tppslate rounded-lg hover:bg-tppslate hover:text-white transition-colors text-sm font-semibold"
-                      >
-                        <Download className="w-4 h-4" />
-                        Download Label
                       </a>
                     )}
                     
@@ -236,23 +236,28 @@ const OrderDetailsPage = () => {
               </div>
             )}
 
-            {/* Tracking Timeline */}
+            {/* ✅ Tracking Timeline - Pass order prop */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-tppslate">Order Tracking</h2>
-                {tracking?.awb && (
-                  <button
-                    onClick={handleRefreshTracking}
-                    disabled={refreshing}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm bg-tpppink text-white rounded-lg hover:bg-tpppink/90 transition-colors disabled:opacity-50"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                    {refreshing ? 'Updating...' : 'Refresh'}
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  
+                  {/* Refresh button */}
+                  {tracking && (
+                    <button
+                      onClick={handleRefreshTracking}
+                      disabled={refreshing}
+                      className="flex items-center gap-2 px-3 py-1.5 text-sm bg-tpppink text-white rounded-lg hover:bg-tpppink/90 transition-colors disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                      {refreshing ? 'Updating...' : 'Refresh'}
+                    </button>
+                  )}
+                </div>
               </div>
               
-              <TrackingTimeline tracking={tracking} />
+              {/* ✅ CRITICAL: Pass BOTH tracking AND order props */}
+              <TrackingTimeline tracking={tracking} order={order} />
             </div>
 
             {/* Order Items */}

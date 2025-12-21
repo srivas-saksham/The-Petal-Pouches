@@ -9,12 +9,21 @@ dotenv.config();
 
 const app = express();
 
-// Middleware Configuration
+// ============================================
+// MIDDLEWARE CONFIGURATION
+// ============================================
+
 app.use(helmet());
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true
 }));
+
+// ⭐ IMPORTANT: Raw body parser for Razorpay webhook signature verification
+// Must be BEFORE express.json() for webhook route
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
+// Standard JSON/URL-encoded parsers for all other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -51,6 +60,25 @@ const supabase = require('./config/supabaseClient');
 })();
 
 // ============================================
+// RAZORPAY SERVICE HEALTH CHECK
+// ============================================
+
+const razorpayService = require('./services/razorpayService');
+
+(async () => {
+  try {
+    const healthCheck = await razorpayService.healthCheck();
+    if (healthCheck.healthy) {
+      console.log('✅ Razorpay API configured and reachable');
+    } else {
+      console.log('⚠️  Razorpay configuration issue:', healthCheck.message);
+    }
+  } catch (err) {
+    console.log('⚠️  Could not verify Razorpay configuration:', err.message);
+  }
+})();
+
+// ============================================
 // ROUTES - ORDER MATTERS!
 // ============================================
 
@@ -81,7 +109,7 @@ app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/cart', require('./routes/cart'));            // Shopping Cart
 app.use('/api/wishlist', require('./routes/wishlist'));    // Wishlist
 app.use('/api/orders', require('./routes/orders'));        // Order Management
-app.use('/api/payments', require('./routes/payments'));    // Razorpay/Stripe
+app.use('/api/payments', require('./routes/payments'));    // ⭐ Razorpay Payment Integration
 app.use('/api/delhivery', require('./routes/delhivery'));  // Delhivery Shipping Integration
 
 // ============================================
@@ -92,22 +120,29 @@ app.use('/api/delhivery', require('./routes/delhivery'));  // Delhivery Shipping
 app.get('/health', async (req, res) => {
   try {
     // Test Supabase connection
-    const { error } = await supabase
+    const { error: supabaseError } = await supabase
       .from('Products')
       .select('count')
       .limit(1);
     
-    const supabaseStatus = error ? 'unhealthy' : 'healthy';
-    const overallStatus = error ? 'degraded' : 'healthy';
+    const supabaseStatus = supabaseError ? 'unhealthy' : 'healthy';
     
-    res.status(error ? 503 : 200).json({
-      success: !error,
+    // Test Razorpay connection
+    const razorpayHealth = await razorpayService.healthCheck();
+    const razorpayStatus = razorpayHealth.healthy ? 'healthy' : 'unhealthy';
+    
+    // Overall status
+    const overallStatus = (supabaseError || !razorpayHealth.healthy) ? 'degraded' : 'healthy';
+    
+    res.status(overallStatus === 'healthy' ? 200 : 503).json({
+      success: overallStatus === 'healthy',
       status: overallStatus,
-      message: error ? 'Server running with issues' : 'Server is healthy',
+      message: overallStatus === 'healthy' ? 'All services operational' : 'Some services have issues',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development',
       services: {
-        supabase: supabaseStatus
+        supabase: supabaseStatus,
+        razorpay: razorpayStatus
       }
     });
   } catch (err) {
@@ -127,8 +162,9 @@ app.get('/', (req, res) => {
   res.json({
     success: true,
     message: 'The Petal Pouches API is running! 🌸',
-    version: '1.3.0',
+    version: '1.4.0', // ⭐ Version bump for payment integration
     database: 'Supabase',
+    payment_gateway: 'Razorpay',
     documentation: {
       admin: {
         auth: '/api/admin/auth',
@@ -143,7 +179,7 @@ app.get('/', (req, res) => {
         orders: '/api/orders',
         cart: '/api/cart',
         wishlist: '/api/wishlist',
-        payments: '/api/payments'
+        payments: '/api/payments' // ⭐ Payment endpoints
       },
       catalog: {
         products: '/api/products',
@@ -151,6 +187,12 @@ app.get('/', (req, res) => {
         bundles: '/api/bundles',
         tags: '/api/tags',
         reviews: '/api/reviews'
+      },
+      payments: { // ⭐ NEW: Payment-specific docs
+        create_order: 'POST /api/payments/create-order',
+        verify: 'POST /api/payments/verify',
+        status: 'GET /api/payments/status/:order_id',
+        webhook: 'POST /api/payments/webhook'
       }
     }
   });
@@ -226,6 +268,7 @@ app.listen(PORT, () => {
   console.log(`   Server running on port ${PORT}`);
   console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`   Database: Supabase`);
+  console.log(`   Payment: Razorpay`); // ⭐ NEW
   console.log('🚀 ===================================\n');
   
   console.log('📍 Key Endpoints:');
@@ -234,7 +277,8 @@ app.listen(PORT, () => {
   console.log(`   🛍️ Cart:       http://localhost:${PORT}/api/cart`);
   console.log(`   👤 User Auth:  http://localhost:${PORT}/api/auth/login`);
   console.log(`   🔐 Admin Auth: http://localhost:${PORT}/api/admin/auth/login`);
-  console.log(`   📦 Admin Orders: http://localhost:${PORT}/api/admin/orders`);
+  console.log(`   📦 Orders:     http://localhost:${PORT}/api/orders`);
+  console.log(`   💳 Payments:   http://localhost:${PORT}/api/payments`); // ⭐ NEW
   console.log('\n✨ Server is ready to accept requests!\n');
 });
 

@@ -1,4 +1,22 @@
-// frontend/src/services/orderService.js - COMPLETE MERGED VERSION
+// frontend/src/services/orderService.js - NO CHANGES NEEDED
+
+/**
+ * ✅ This file is COMPLETE and requires NO modifications for Razorpay integration
+ * 
+ * The payment flow is handled separately by:
+ * - paymentService.js (creates payment orders, verifies payments)
+ * - useRazorpay.js hook (manages Razorpay modal and flow)
+ * - Checkout.jsx (initiates payment instead of direct order creation)
+ * 
+ * This service continues to handle:
+ * - Order retrieval (getOrders, getOrderById, etc.)
+ * - Order actions (cancelOrder, reorderItems)
+ * - Order tracking (getOrderTracking)
+ * - Order statistics and analytics
+ * 
+ * The createOrder() function is now only called by the backend after payment verification.
+ * Frontend uses paymentService.createPaymentOrder() instead.
+ */
 
 import api, { apiRequest } from './api';
 
@@ -8,6 +26,9 @@ import api, { apiRequest } from './api';
 
 /**
  * Create new order from cart
+ * ⚠️ NOTE: For online payments, use paymentService.createPaymentOrder() instead
+ * This function is kept for COD orders (if enabled) or internal use
+ * 
  * @param {Object} orderData - { address_id, payment_method, notes?, gift_wrap?, gift_message?, coupon_code? }
  * @returns {Promise<Object>} Created order
  */
@@ -63,7 +84,7 @@ export const getOrderStats = async () => {
   // Fallback: Calculate from all orders
   const result = await apiRequest(() => 
     api.get('/api/orders', { 
-      params: { limit: 10000 } // Get all for stats calculation
+      params: { limit: 10000 }
     })
   );
 

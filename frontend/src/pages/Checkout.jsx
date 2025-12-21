@@ -1,40 +1,33 @@
-// frontend/src/pages/Checkout.jsx - SINGLE PAGE FLOW
+// frontend/src/pages/Checkout.jsx - FIXED VERSION
 
-import React, { useState, useEffect, useRef , useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader, AlertCircle } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { useUserAuth } from '../context/UserAuthContext';
 import { useToast } from '../hooks/useToast';
+import { useRazorpay } from '../hooks/useRazorpay';
 import CheckoutCart from '../components/checkout/CheckoutCart';
 import CheckoutSummary from '../components/checkout/CheckoutSummary';
 import CheckoutForm from '../components/checkout/CheckoutForm';
 import DeliveryDetailsCard from '../components/checkout/DeliveryDetailsCard';
 import bundleService from '../services/bundleService';
 import { getAddresses } from '../services/addressService';
-import { createOrder } from '../services/orderService';
 import { formatBundlePrice } from '../utils/bundleHelpers';
 import { getStoredAddressId, saveDeliveryData, getDeliveryData } from '../utils/deliveryStorage';
 
-/**
- * Checkout Page - Single Page Flow
- * All checkout elements on one page:
- * - Cart items (left)
- * - Delivery details (left, below cart)
- * - Order summary with Place Order button (right)
- * 
- * ✅ No step management - everything visible at once
- * ✅ Silent refresh support - NO page reload on quantity changes
- * ✅ Full refresh on item removal
- * ✅ All delivery-related functionality managed here
- * ✅ Modal-based address form controlled by parent
- * ✅ No tax, no base shipping - only express charges apply
- */
 const Checkout = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const { user, isAuthenticated } = useUserAuth();
   const { cartItems, cartTotals, loading: cartLoading, refreshCart } = useCart();
+  
+  const { 
+    initiatePayment, 
+    isProcessing: paymentProcessing,
+    error: paymentError,  // Still track error, but don't use in useEffect
+    initializeRazorpay 
+  } = useRazorpay();
 
   const [bundles, setBundles] = useState({});
   const [loading, setLoading] = useState(true);
@@ -47,18 +40,24 @@ const Checkout = () => {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [pageInitialized, setPageInitialized] = useState(false);
   const [totalCartWeight, setTotalCartWeight] = useState(1000);
-  const [paymentMethod, setPaymentMethod] = useState('prepaid'); // or 'online'/'prepaid'
-  // ✅ NEW: Debounced weight tracking
   const [pendingCartWeight, setPendingCartWeight] = useState(null);
   const deliveryDebounceTimerRef = useRef(null);
-
-  // ✅ Modal state for address form
   const [showAddressModal, setShowAddressModal] = useState(false);
-
-  // ✅ Delivery state management
   const [deliveryInfo, setDeliveryInfo] = useState(null);
   const [deliveryModeData, setDeliveryModeData] = useState(null);
   const [expressCharge, setExpressCharge] = useState(0);
+
+  // Initialize Razorpay on component mount
+  useEffect(() => {
+    initializeRazorpay();
+  }, [initializeRazorpay]);
+
+  // ❌ REMOVED: The problematic useEffect that caused infinite loop
+  // useEffect(() => {
+  //   if (paymentError) {
+  //     toast.error(paymentError);
+  //   }
+  // }, [paymentError, toast]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -67,7 +66,9 @@ const Checkout = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // ✅ Fetch addresses and auto-select from localStorage
+  // ... rest of your existing useEffects ...
+
+  // Fetch addresses and auto-select from localStorage
   useEffect(() => {
     const fetchAddressesData = async () => {
       try {
@@ -75,14 +76,12 @@ const Checkout = () => {
         if (result.success) {
           setAddresses(result.data);
           
-          // Only run auto-select once
           if (initialLoadComplete) {
             return;
           }
 
           console.log('🔍 [Checkout] Loading stored address from localStorage');
           
-          // Try to restore address from localStorage first
           const storedAddressId = getStoredAddressId();
           let addressToSelect = null;
 
@@ -95,7 +94,6 @@ const Checkout = () => {
             }
           }
 
-          // Fallback to default address
           if (!addressToSelect) {
             const defaultAddr = result.data.find(a => a.is_default);
             if (defaultAddr) {
@@ -123,7 +121,9 @@ const Checkout = () => {
     }
   }, [isAuthenticated, initialLoadComplete]);
 
-  // ✅ Load delivery data from localStorage on mount
+  // ... rest of your existing useEffects ...
+
+  // Load delivery data from localStorage on mount
   useEffect(() => {
     const loadStoredDeliveryData = () => {
       const storedData = getDeliveryData();
@@ -134,12 +134,10 @@ const Checkout = () => {
 
       console.log('📦 [Checkout] Found stored delivery data:', storedData);
 
-      // Load delivery check data
       if (storedData.deliveryCheck) {
         setDeliveryInfo(storedData.deliveryCheck);
       }
 
-      // Load delivery mode data
       if (storedData.deliveryModeData) {
         setDeliveryModeData(storedData.deliveryModeData);
         setExpressCharge(storedData.deliveryModeData.extraCharge || 0);
@@ -179,9 +177,8 @@ const Checkout = () => {
         setBundles(bundlesMap);
         console.log('✅ Bundle details fetched:', bundlesMap);
         
-        // ✅ WEIGHT-BASED: Calculate total weight from cart items
         const totalWeight = cartItems.reduce((sum, item) => {
-          return sum + (item.quantity * 1000); // 1000g per bundle
+          return sum + (item.quantity * 1000);
         }, 0);
         setTotalCartWeight(totalWeight);
         console.log(`📦 [Checkout] Total cart weight calculated: ${totalWeight}g (${totalWeight/1000}kg)`);
@@ -198,9 +195,8 @@ const Checkout = () => {
     fetchBundleDetails();
   }, [cartItems]);
 
-  // ✅ FIX: Also trigger delivery refresh when weight updates
+  // Trigger delivery refresh when weight updates
   useEffect(() => {
-    // Skip on initial load or if bundles not loaded yet
     if (!pageInitialized || Object.keys(bundles).length === 0) {
       return;
     }
@@ -208,28 +204,22 @@ const Checkout = () => {
     if (cartItems && cartItems.length > 0) {
       const newWeight = cartItems.reduce((sum, item) => sum + (item.quantity * 1000), 0);
       
-      // Only update if weight actually changed
       if (newWeight !== totalCartWeight) {
         console.log(`📦 [Checkout] Weight changed: ${totalCartWeight}g → ${newWeight}g - debouncing delivery recalculation...`);
         
-        // Set pending weight immediately for UI feedback
         setPendingCartWeight(newWeight);
         
-        // Clear existing timer
         if (deliveryDebounceTimerRef.current) {
           clearTimeout(deliveryDebounceTimerRef.current);
         }
         
-        // Set new timer - sync with cart debounce (800ms)
         deliveryDebounceTimerRef.current = setTimeout(() => {
           console.log(`✅ [Checkout] Delivery weight synced: ${newWeight}g`);
           setTotalCartWeight(newWeight);
           setPendingCartWeight(null);
           
-          // ✅ FIX: Force delivery recalculation with new weight
           if (selectedAddress?.zip_code) {
             console.log(`🔄 [Checkout] Triggering delivery refresh with new weight: ${newWeight}g`);
-            // Trigger delivery update by setting a flag or calling the handler
             handleDeliveryWeightChange(newWeight);
           }
         }, 800);
@@ -237,22 +227,30 @@ const Checkout = () => {
     }
   }, [cartItems, pageInitialized, bundles, totalCartWeight, selectedAddress]);
 
-  // Redirect to shop if no cart items (only after initial load)
+  // Redirect to shop if no cart items
   useEffect(() => {
     if (pageInitialized && !cartLoading && cartItems.length === 0) {
       navigate('/shop');
     }
   }, [pageInitialized, cartLoading, cartItems.length, navigate]);
 
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (deliveryDebounceTimerRef.current) {
+        clearTimeout(deliveryDebounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // ... all your existing handler functions ...
+
   const handleGoBack = () => {
     navigate('/shop');
   };
 
-  // ✅ ENHANCED: Debounced cart update with weight tracking
   const handleCartUpdate = useCallback(async (silentRefresh = false) => {
     console.log(`🔄 [Checkout] Cart update requested: ${silentRefresh ? 'SILENT (summary only)' : 'FULL (entire cart)'}`);
-    
-    // ✅ ALWAYS use silent refresh - no page reload!
     await refreshCart(true);
     
     if (silentRefresh) {
@@ -262,21 +260,10 @@ const Checkout = () => {
     }
   }, [refreshCart]);
 
-  // ✅ Cleanup debounce timer on unmount
-  useEffect(() => {
-    return () => {
-      if (deliveryDebounceTimerRef.current) {
-        clearTimeout(deliveryDebounceTimerRef.current);
-      }
-    };
-  }, []);
-
-  // ✅ Handle address selection (from DeliveryDetailsCard or modal)
   const handleAddressSelect = async (address) => {
     console.log('📍 [Checkout] Address selected:', address);
     setSelectedAddress(address);
     
-    // Refresh addresses list to include the new address
     try {
       const result = await getAddresses();
       if (result.success) {
@@ -287,24 +274,20 @@ const Checkout = () => {
     }
   };
 
-  // ✅ Handle "Add New Address" click from DeliveryDetailsCard
   const handleOpenAddressModal = () => {
     console.log('➕ [Checkout] Opening address modal');
     setShowAddressModal(true);
   };
 
-  // ✅ Handle modal close
   const handleCloseAddressModal = () => {
     console.log('✖️ [Checkout] Closing address modal');
     setShowAddressModal(false);
   };
 
-  // ✅ Handle delivery updates from DeliveryDetailsCard
   const handleDeliveryUpdate = useCallback((updatedDeliveryData) => {
     console.log('🔄 [Checkout] Delivery data updated:', updatedDeliveryData);
     setDeliveryInfo(updatedDeliveryData);
     
-    // Update localStorage with fresh data
     const currentStoredData = getDeliveryData() || {};
     saveDeliveryData({
       ...currentStoredData,
@@ -313,13 +296,11 @@ const Checkout = () => {
     });
   }, []);
 
-  // ✅ Handle delivery mode changes
   const handleDeliveryModeChange = useCallback((modeData) => {
     console.log('🚚 [Checkout] Delivery mode changed:', modeData);
     setDeliveryModeData(modeData);
     setExpressCharge(modeData.extraCharge || 0);
 
-    // Save to localStorage
     const currentStoredData = getDeliveryData() || {};
     saveDeliveryData({
       ...currentStoredData,
@@ -329,18 +310,12 @@ const Checkout = () => {
     });
   }, []);
 
-  // ✅ NEW: Handler to refresh delivery when weight changes
   const handleDeliveryWeightChange = useCallback((newWeight) => {
     console.log(`🔄 [Checkout] Delivery weight change detected: ${newWeight}g`);
     
-    // Force DeliveryDetailsCard to recalculate with new weight
-    // This will be picked up by DeliveryDetailsCard's cartWeight prop change
-    
-    // Optional: Clear delivery metadata to force fresh calculation
     const currentStoredData = getDeliveryData() || {};
     saveDeliveryData({
       ...currentStoredData,
-      // Keep selected mode but clear cached delivery check
       deliveryCheck: null,
       timestamp: Date.now()
     });
@@ -348,8 +323,7 @@ const Checkout = () => {
     console.log(`✅ [Checkout] Delivery data cleared for recalculation`);
   }, []);
 
-  // ⭐ Enhanced Place Order with delivery metadata
-  const handlePlaceOrder = async () => {
+  const handleProceedToPayment = async () => {
     if (!selectedAddress) {
       toast.error('Please select a delivery address');
       return;
@@ -363,39 +337,27 @@ const Checkout = () => {
     try {
       setPlacingOrder(true);
 
-      // ✅ Get ALL delivery data from localStorage
       const storedData = getDeliveryData();
       const deliveryMode = deliveryModeData?.mode || storedData?.selectedDeliveryMode || 'surface';
       const finalDeliveryModeData = deliveryModeData || storedData?.deliveryModeData;
 
-      console.log('📦 [Checkout] Complete delivery metadata:', {
+      console.log('💳 [Checkout] Initiating payment with delivery metadata:', {
         mode: deliveryMode,
         data: finalDeliveryModeData,
         address: selectedAddress
       });
 
-      // ✅ Calculate order total correctly (no tax, no base shipping)
-      const subtotal = cartItems.reduce((total, item) => {
-        const bundle = bundles[item.bundle_id];
-        return total + (bundle?.price || 0) * item.quantity;
-      }, 0);
-      
-      const orderTotal = subtotal + expressCharge - discount;
-
-      // ✅ Create order with comprehensive delivery metadata
       const orderData = {
         address_id: selectedAddress.id,
-        payment_method: paymentMethod,
         notes: '',
         gift_wrap: false,
         gift_message: null,
-        // ✅ COMPLETE delivery metadata
         delivery_metadata: {
           mode: deliveryMode,
           estimated_days: finalDeliveryModeData?.estimatedDays,
           expected_delivery_date: finalDeliveryModeData?.deliveryDate || finalDeliveryModeData?.expectedDeliveryDate,
           express_charge: expressCharge,
-          delivery_option: finalDeliveryModeData,  // ✅ Full option details
+          delivery_option: finalDeliveryModeData,
           pincode: selectedAddress.zip_code,
           city: selectedAddress.city,
           state: selectedAddress.state,
@@ -403,50 +365,49 @@ const Checkout = () => {
         }
       };
 
-      const response = await createOrder(orderData);
+      await initiatePayment(orderData, {
+        onSuccess: (paymentData) => {
+          console.log('✅ [Checkout] Payment successful:', paymentData);
+          
+          const orderMetadata = {
+            orderId: paymentData.order_id,
+            deliveryMode: deliveryMode,
+            deliveryModeData: finalDeliveryModeData,
+            selectedAddress: selectedAddress,
+            paymentId: paymentData.payment_id,
+            timestamp: Date.now()
+          };
+          
+          localStorage.setItem('tpp_last_order', JSON.stringify(orderMetadata));
+        },
+        onError: (errorMsg) => {
+          console.error('❌ [Checkout] Payment failed:', errorMsg);
+          toast.error(errorMsg); // ✅ Error handled here - only once!
+          setPlacingOrder(false);
+        }
+      });
 
-      if (response.success) {
-        const orderId = response.data?.order?.id;
-        
-        // ✅ Save comprehensive metadata for OrderSuccess page
-        const orderMetadata = {
-          orderId: orderId,
-          deliveryMode: deliveryMode,
-          deliveryModeData: finalDeliveryModeData,
-          selectedAddress: selectedAddress,  // ✅ Also save address
-          orderTotals: {
-            subtotal,
-            expressCharge,
-            discount,
-            total: orderTotal
-          },
-          timestamp: Date.now()
-        };
-        
-        localStorage.setItem('tpp_last_order', JSON.stringify(orderMetadata));
-        
-        navigate(`/order-success/${orderId}`);
-      }
     } catch (error) {
-      console.error('❌ Error placing order:', error);
+      console.error('❌ Error initiating payment:', error);
       
-      if (error.response?.data?.code === 'INSUFFICIENT_STOCK') {
-        toast.error('Some items are out of stock. Please update your cart.');
-      } else if (error.response?.data?.code === 'CART_EMPTY') {
+      if (error.message?.includes('Cart is empty')) {
         toast.error('Your cart is empty');
+      } else if (error.message?.includes('out of stock')) {
+        toast.error('Some items are out of stock. Please update your cart.');
       } else {
-        toast.error(error.response?.data?.message || 'Failed to place order. Please try again.');
+        toast.error(error.message || 'Failed to initiate payment. Please try again.');
       }
-    } finally {
+      
       setPlacingOrder(false);
     }
   };
+
+  // ... rest of your component rendering ...
 
   if (!isAuthenticated) {
     return null;
   }
 
-  // ✅ ONLY show loading on INITIAL page load
   if (!pageInitialized && (cartLoading || loading)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -495,14 +456,12 @@ const Checkout = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Cart Items + Delivery Details */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Cart Items */}
             <CheckoutCart
               cartItems={cartItems}
               bundles={bundles}
               onItemUpdate={handleCartUpdate}
             />
-            {console.log('🔍 [Checkout Render] Current totalCartWeight:', totalCartWeight)}
-            {/* ✅ Delivery Details Card - Below Cart Items */}
+            
             <DeliveryDetailsCard 
               selectedAddress={selectedAddress}
               onAddressSelect={handleAddressSelect}
@@ -515,7 +474,7 @@ const Checkout = () => {
             />
           </div>
 
-          {/* Right Column - Order Summary with Place Order */}
+          {/* Right Column - Order Summary */}
           <div className="lg:col-span-1">
             <div className="sticky top-24">
               <CheckoutSummary
@@ -526,8 +485,8 @@ const Checkout = () => {
                 discount={discount}
                 onDiscountChange={setDiscount}
                 selectedAddress={selectedAddress}
-                onPlaceOrder={handlePlaceOrder}
-                placingOrder={placingOrder}
+                onPlaceOrder={handleProceedToPayment}
+                placingOrder={placingOrder || paymentProcessing}
                 expressCharge={expressCharge}
                 deliveryMode={deliveryModeData?.mode || 'surface'}
               />
@@ -536,7 +495,7 @@ const Checkout = () => {
         </div>
       </div>
 
-      {/* ✅ Address Form Modal */}
+      {/* Address Form Modal */}
       <CheckoutForm
         showModal={showAddressModal}
         onCloseModal={handleCloseAddressModal}

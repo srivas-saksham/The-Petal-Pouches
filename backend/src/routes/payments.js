@@ -1,86 +1,63 @@
 // backend/src/routes/payments.js
+/**
+ * Payment Routes
+ * Base path: /api/payments
+ * Handles Razorpay payment operations
+ */
 
 const express = require('express');
 const router = express.Router();
-const {
-  createRazorpayOrder,
-  verifyRazorpayPayment,
-  razorpayWebhook,
-  createStripeIntent,
-  stripeWebhook,
-  getPaymentHistory,
-  getPaymentDetails
-} = require('../controllers/paymentController');
+const PaymentController = require('../controllers/paymentController');
 const { 
   verifyCustomerToken, 
   customerSecurityHeaders 
 } = require('../middleware/userAuth');
 
-// ==================== RAZORPAY ROUTES ====================
+// ==================== PUBLIC ROUTES ====================
 
 /**
- * @route   POST /api/payments/razorpay/create
- * @desc    Create Razorpay order
- * @body    { amount: number, orderId?: uuid }
- * @access  Private (Customer)
+ * @route   POST /api/payments/webhook
+ * @desc    Handle Razorpay webhooks (payment events)
+ * @access  Public (called by Razorpay)
+ * @note    NO AUTH - Razorpay servers call this
+ * @note    Uses raw body parser for signature verification
  */
-router.post('/razorpay/create', verifyCustomerToken, customerSecurityHeaders, createRazorpayOrder);
+router.post('/webhook', PaymentController.handleWebhook);
 
-/**
- * @route   POST /api/payments/razorpay/verify
- * @desc    Verify Razorpay payment signature
- * @body    { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId }
- * @access  Private (Customer)
- */
-router.post('/razorpay/verify', verifyCustomerToken, customerSecurityHeaders, verifyRazorpayPayment);
+// ==================== PROTECTED ROUTES ====================
 
-/**
- * @route   POST /api/payments/razorpay/webhook
- * @desc    Razorpay webhook endpoint
- * @access  Public (Razorpay servers only - signature verified)
- * @note    NO authentication middleware - Razorpay needs direct access
- */
-router.post('/razorpay/webhook', razorpayWebhook);
-
-// ==================== STRIPE ROUTES ====================
-
-/**
- * @route   POST /api/payments/stripe/intent
- * @desc    Create Stripe payment intent
- * @body    { amount: number, orderId?: uuid }
- * @access  Private (Customer)
- */
-router.post('/stripe/intent', verifyCustomerToken, customerSecurityHeaders, createStripeIntent);
-
-/**
- * @route   POST /api/payments/stripe/webhook
- * @desc    Stripe webhook endpoint
- * @access  Public (Stripe servers only - signature verified)
- * @note    NO authentication middleware - Stripe needs direct access
- */
-router.post('/stripe/webhook', stripeWebhook);
-
-// ==================== PAYMENT QUERY ROUTES ====================
-
-// Apply security headers to all query routes
+// Apply security headers to all protected routes
 router.use(customerSecurityHeaders);
 
-// All query routes require authentication
+// Apply authentication to all protected routes
 router.use(verifyCustomerToken);
 
 /**
- * @route   GET /api/payments/history
- * @desc    Get user's payment history
- * @query   ?page=1&limit=10&status=success
+ * @route   POST /api/payments/create-order
+ * @desc    Create Razorpay order for payment
  * @access  Private (Customer)
+ * @body    { address_id, notes?, gift_wrap?, gift_message?, delivery_metadata? }
+ * @returns { order_id, razorpay_order_id, amount, currency, key_id, customer }
  */
-router.get('/history', getPaymentHistory);
+router.post('/create-order', PaymentController.createPaymentOrder);
 
 /**
- * @route   GET /api/payments/:id
- * @desc    Get single payment details
+ * @route   POST /api/payments/verify
+ * @desc    Verify payment signature after successful payment
  * @access  Private (Customer)
+ * @body    { razorpay_order_id, razorpay_payment_id, razorpay_signature, order_id }
+ * @returns { order_id, payment_id, status, amount, method }
  */
-router.get('/:id', getPaymentDetails);
+router.post('/verify', PaymentController.verifyPayment);
+
+/**
+ * @route   GET /api/payments/status/:order_id
+ * @desc    Check payment status for an order
+ * @access  Private (Customer)
+ * @returns { order_id, payment_status, payment_id, payment_method, amount }
+ */
+router.get('/status/:order_id', PaymentController.getPaymentStatus);
+
+// ==================== EXPORT ====================
 
 module.exports = router;

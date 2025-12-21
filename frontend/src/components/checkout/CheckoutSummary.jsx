@@ -1,20 +1,18 @@
-// frontend/src/components/checkout/CheckoutSummary.jsx - SINGLE PAGE FLOW
+// frontend/src/components/checkout/CheckoutSummary.jsx - UPDATED WITH RAZORPAY
 
 import React, { useState, useMemo } from 'react';
-import { Lock, Truck, Gift, Loader } from 'lucide-react';
+import { Lock, Truck, Gift, Loader, CreditCard } from 'lucide-react';
 import { formatBundlePrice } from '../../utils/bundleHelpers';
 import { useCart } from '../../hooks/useCart';
 
 /**
- * CheckoutSummary Component
- * Displays price breakdown, applies promo codes, shows order total
- * Sticky on desktop, scrolls on mobile
- * ⭐ Single-page checkout flow - no step management
- * ⭐ Dynamically calculates totals from cart items in REAL-TIME
- * ⭐ Place Order integration
- * ✅ No tax, no base shipping - only express charges apply
- * ✅ Shows loading spinner only on totals during silent refresh
- * ✅ No dropdown - always shows price breakdown
+ * CheckoutSummary Component - UPDATED FOR RAZORPAY PAYMENT
+ * ⭐ CHANGES:
+ * - "Place Order" button changed to "Proceed to Payment"
+ * - Updated button icon to CreditCard
+ * - Removed "Cash on Delivery available" from security info
+ * - Added "Secure online payment via Razorpay"
+ * - All other functionality preserved
  */
 const CheckoutSummary = ({
   cartItems = [],
@@ -32,10 +30,9 @@ const CheckoutSummary = ({
   const [promoInput, setPromoInput] = useState('');
   const [applyingPromo, setApplyingPromo] = useState(false);
 
-  // ✅ Get refreshingTotals from cart context
   const { refreshingTotals } = useCart();
 
-  // ✅ Calculate subtotal in real-time from cartItems
+  // Calculate subtotal in real-time from cartItems
   const subtotal = useMemo(() => {
     return cartItems.reduce((total, item) => {
       const bundle = bundles[item.bundle_id];
@@ -43,7 +40,7 @@ const CheckoutSummary = ({
     }, 0);
   }, [cartItems, bundles]);
 
-  // ✅ Calculate total in real-time
+  // Calculate total in real-time
   const total = useMemo(() => {
     return subtotal + expressCharge - discount;
   }, [subtotal, expressCharge, discount]);
@@ -57,7 +54,6 @@ const CheckoutSummary = ({
     setApplyingPromo(true);
     
     // TODO: Verify promo code with backend
-    // For now, mock discount logic
     const mockDiscount = promoInput === 'SAVE10' ? Math.round(subtotal * 0.10) : 0;
     
     if (mockDiscount > 0) {
@@ -81,10 +77,10 @@ const CheckoutSummary = ({
           <h2 className="text-lg font-bold text-white">Order Summary</h2>
         </div>
 
-        {/* Price Breakdown - Always Visible */}
+        {/* Price Breakdown */}
         <div className="p-6 space-y-4">
           <div className="space-y-3 pb-4 border-b">
-            {/* Subtotal - ✅ Shows spinner during refresh */}
+            {/* Subtotal */}
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Subtotal</span>
               {refreshingTotals ? (
@@ -96,7 +92,7 @@ const CheckoutSummary = ({
               )}
             </div>
 
-            {/* ✅ Delivery - Shows based on selected delivery mode */}
+            {/* Delivery */}
             <div className="flex justify-between text-sm">
               <div className="flex items-center gap-1">
                 <span className="text-gray-600">
@@ -134,7 +130,7 @@ const CheckoutSummary = ({
             )}
           </div>
 
-          {/* Total - ✅ Shows spinner during refresh */}
+          {/* Total */}
           <div className="flex justify-between items-center pt-4 border-t">
             <span className="text-lg font-bold text-gray-900">Total</span>
             {refreshingTotals ? (
@@ -181,15 +177,15 @@ const CheckoutSummary = ({
         <p className="text-xs text-gray-500 mt-2">Try: SAVE10</p>
       </div>
 
-      {/* ⭐ PLACE ORDER BUTTON - Single Page Flow */}
+      {/* ⭐ UPDATED: PROCEED TO PAYMENT BUTTON */}
       {onPlaceOrder && (
         <div className="bg-gradient-to-r from-tppslate to-tppslate/90 rounded-lg shadow p-6 text-white">
           <div className="flex items-start gap-3 mb-4">
             <Lock size={20} className="flex-shrink-0 mt-1" />
             <div>
-              <h3 className="font-semibold mb-1">Secure Checkout</h3>
+              <h3 className="font-semibold mb-1">Secure Payment</h3>
               <p className="text-sm text-white/80">
-                Your payment information is encrypted and secure
+                Pay securely using UPI, Cards, or Net Banking
               </p>
             </div>
           </div>
@@ -202,10 +198,13 @@ const CheckoutSummary = ({
             {placingOrder ? (
               <span className="flex items-center justify-center gap-2">
                 <Loader size={18} className="animate-spin" />
-                Placing Order...
+                Processing...
               </span>
             ) : (
-              `Place Order - ${formatBundlePrice(total)}`
+              <span className="flex items-center justify-center gap-2">
+                <CreditCard size={18} />
+                Proceed to Payment - {formatBundlePrice(total)}
+              </span>
             )}
           </button>
 
@@ -217,11 +216,15 @@ const CheckoutSummary = ({
         </div>
       )}
 
-      {/* Security Info */}
+      {/* ⭐ UPDATED: Security Info (removed COD, added Razorpay) */}
       <div className="space-y-2 text-xs text-gray-600 px-2">
         <div className="flex items-start gap-2">
           <span className="text-green-600 mt-1">✓</span>
           <span>100% secure and encrypted checkout</span>
+        </div>
+        <div className="flex items-start gap-2">
+          <span className="text-green-600 mt-1">✓</span>
+          <span>Secure online payment via Razorpay</span>
         </div>
         <div className="flex items-start gap-2">
           <span className="text-green-600 mt-1">✓</span>
@@ -230,10 +233,6 @@ const CheckoutSummary = ({
         <div className="flex items-start gap-2">
           <span className="text-green-600 mt-1">✓</span>
           <span>Easy returns and exchanges</span>
-        </div>
-        <div className="flex items-start gap-2">
-          <span className="text-green-600 mt-1">✓</span>
-          <span>Cash on Delivery available</span>
         </div>
       </div>
     </div>
