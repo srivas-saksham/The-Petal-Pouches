@@ -695,7 +695,7 @@ async createShipment(shipmentData) {
   /**
  * Get tracking information from Delhivery
  * @param {string} awb - Air Waybill number
- * @returns {Promise<Object>} Tracking information
+ * @returns {Promise<Object>} Tracking information with status and history
  */
 async getTrackingInfo(awb) {
   try {
@@ -720,60 +720,60 @@ async getTrackingInfo(awb) {
 
     if (response.status !== 200) {
       console.error(`❌ [Delhivery] Tracking API HTTP ${response.status}`);
-      throw new Error(`Tracking API error: ${response.status}`);
+      return null;
     }
 
     const data = response.data;
 
     if (!data.ShipmentData || data.ShipmentData.length === 0) {
       console.warn(`⚠️ [Delhivery] No tracking data for AWB: ${awb}`);
-      return {
-        success: false,
-        error: 'No tracking information available',
-        awb
-      };
+      return null;
     }
 
     const shipmentData = data.ShipmentData[0];
     const shipment = shipmentData.Shipment;
 
-    // Map Delhivery status to our system
-    const currentStatus = this._mapDelhiveryStatus(shipment.Status?.Status);
-
-    // Format tracking history
-    const trackingHistory = (shipment.Scans || []).map(scan => ({
-      status: scan.ScanDetail.Scan,
-      location: scan.ScanDetail.ScannedLocation,
-      timestamp: scan.ScanDetail.ScanDateTime,
-      instructions: scan.ScanDetail.Instructions || null
-    }));
-
+    // Get the current status
+    const currentStatus = shipment.Status?.Status || 'Unknown';
+    
     console.log(`✅ [Delhivery] Tracking fetched: Status = ${currentStatus}`);
 
+    // Format tracking history
+    const trackingHistory = [];
+    
+    if (shipment.Scans && Array.isArray(shipment.Scans)) {
+      shipment.Scans.forEach(scan => {
+        trackingHistory.push({
+          status: scan.ScanDetail?.Scan || 'Unknown',
+          timestamp: scan.ScanDetail?.ScanDateTime || new Date().toISOString(),
+          location: scan.ScanDetail?.ScannedLocation || null,
+          remarks: scan.ScanDetail?.Instructions || null
+        });
+      });
+    }
+
+    // Return standardized format expected by shipmentModel
     return {
-      success: true,
-      awb: shipment.AWB,
-      current_status: currentStatus,
-      status_date: shipment.Status?.StatusDateTime,
+      awb: awb,
+      status: currentStatus, // Raw Delhivery status (will be mapped by statusMapper)
+      history: trackingHistory,
       expected_delivery_date: shipment.ExpectedDeliveryDate || null,
-      origin: shipment.Origin,
-      destination: shipment.Destination,
-      tracking_history: trackingHistory,
-      courier_details: {
-        name: shipment.Courier || 'Delhivery',
-        phone: shipment.CourierPhone || null
-      },
+      current_location: trackingHistory.length > 0 ? 
+        trackingHistory[trackingHistory.length - 1]?.location : null,
       raw_data: shipmentData
     };
 
   } catch (error) {
-    console.error('❌ [Delhivery] Get tracking failed:', error);
-
-    if (error.response?.status === 401) {
-      throw new Error('Delhivery authentication failed');
+    console.error(`❌ [Delhivery] Tracking fetch error for AWB ${awb}:`, error.message);
+    
+    if (error.response) {
+      console.error(`❌ [Delhivery] API Response:`, {
+        status: error.response.status,
+        data: error.response.data
+      });
     }
-
-    throw new Error(`Failed to fetch tracking: ${error.message}`);
+    
+    return null; // Return null on error
   }
 }
 /**

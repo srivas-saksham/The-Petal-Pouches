@@ -42,7 +42,7 @@ twilio@^4.19.0
 # Utility Libraries
 uuid@^9.0.1
 dayjs@^1.11.10
-
+node-cron@^3.0.3
 # ============================================
 # DEVELOPMENT DEPENDENCIES
 # ============================================

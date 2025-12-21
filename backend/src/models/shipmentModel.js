@@ -2,6 +2,7 @@
 
 const supabase = require('../config/supabaseClient');
 const delhiveryService = require('../services/delhiveryService');
+const { mapDelhiveryStatus } = require('../utils/statusMapper');
 
 /**
  * Shipment Model
@@ -678,9 +679,8 @@ async createWithCostCalculation(orderId, shipmentData) {
     }
   },
   /**
-   * Update shipment tracking status from Delhivery
-   * ✅ Also updates order status based on shipment progress
-   * ✅ Handles estimated_delivery updates from courier
+   * ✅ UPDATED: Enhanced tracking status update with order synchronization
+   * Updates shipment AND order status based on courier tracking
    */
   async updateTrackingStatus(shipmentId, trackingData) {
     try {
@@ -693,7 +693,7 @@ async createWithCostCalculation(orderId, shipmentData) {
         updated_at: new Date().toISOString()
       };
 
-      // ✅ Update estimated_delivery if Delhivery provides it
+      // Update estimated_delivery if Delhivery provides it
       if (trackingData.expected_delivery_date) {
         updateData.estimated_delivery = trackingData.expected_delivery_date;
         console.log(`📅 Updated estimated delivery: ${trackingData.expected_delivery_date}`);
@@ -710,13 +710,13 @@ async createWithCostCalculation(orderId, shipmentData) {
 
       console.log(`✅ Shipment tracking updated: ${shipment.awb} -> ${trackingData.current_status}`);
 
-      // ✅ Update order status based on shipment status
+      // ✅ UPDATED: Enhanced order status mapping
       const orderStatusMap = {
         'placed': 'confirmed',
-        'pending_pickup': 'confirmed',
-        'picked_up': 'confirmed',
-        'in_transit': 'shipped',
-        'out_for_delivery': 'shipped',
+        'pending_pickup': 'processing',
+        'picked_up': 'picked_up',
+        'in_transit': 'in_transit',
+        'out_for_delivery': 'out_for_delivery',
         'delivered': 'delivered',
         'cancelled': 'cancelled',
         'failed': 'cancelled',
@@ -732,7 +732,7 @@ async createWithCostCalculation(orderId, shipmentData) {
           updated_at: new Date().toISOString()
         };
 
-        // ✅ Set delivered_at timestamp when delivered
+        // Set delivered_at timestamp when delivered
         if (newOrderStatus === 'delivered') {
           orderUpdate.delivered_at = new Date().toISOString();
         }
@@ -902,7 +902,7 @@ async createWithCostCalculation(orderId, shipmentData) {
       'pending_review': 'Pending',
       'approved': 'Confirmed',
       'placed': 'Confirmed',
-      'pending_pickup': 'Confirmed',
+      'pending_pickup': 'Processing',
       'picked_up': 'Picked Up',
       'in_transit': 'In Transit',
       'out_for_delivery': 'Out for Delivery',
@@ -918,17 +918,23 @@ async createWithCostCalculation(orderId, shipmentData) {
 
   /**
    * Bulk sync active shipments with Delhivery
+   * Fetches tracking info and updates all non-terminal shipments
    */
   async bulkSyncActiveShipments() {
     try {
-      // Get all active shipments (not delivered/cancelled)
+      // Get all active shipments (not in terminal states)
       const { data: shipments, error } = await supabase
         .from('Shipments')
-        .select('id, awb, status')
+        .select('id, awb, status, order_id')
         .not('awb', 'is', null)
         .not('status', 'in', '(delivered,cancelled,rto_delivered)');
 
       if (error) throw error;
+
+      if (!shipments || shipments.length === 0) {
+        console.log('📦 No active shipments to sync');
+        return { success: [], failed: [] };
+      }
 
       console.log(`📦 Syncing ${shipments.length} active shipments...`);
 
@@ -939,20 +945,65 @@ async createWithCostCalculation(orderId, shipmentData) {
 
       for (const shipment of shipments) {
         try {
-          await this.syncWithDelhivery(shipment.id);
+          console.log(`📍 [Delhivery] Fetching tracking for AWB: ${shipment.awb}`);
+          
+          // Fetch tracking info from Delhivery
+          const trackingData = await delhiveryService.getTrackingInfo(shipment.awb);
+          
+          if (!trackingData || !trackingData.status) {
+            console.warn(`⚠️ No tracking data for AWB: ${shipment.awb}`);
+            results.failed.push({ 
+              id: shipment.id, 
+              awb: shipment.awb,
+              error: 'No tracking data received' 
+            });
+            continue;
+          }
+
+          console.log(`✅ [Delhivery] Tracking fetched: Status = ${trackingData.status}`);
+
+          // Map Delhivery status to internal status
+          const mappedStatus = mapDelhiveryStatus(trackingData.status);
+          
+          // Only update if status has changed
+          if (shipment.status === mappedStatus) {
+            console.log(`ℹ️ Status unchanged for ${shipment.awb}: ${mappedStatus}`);
+            results.success.push(shipment.id);
+            continue;
+          }
+
+          // Update shipment with new tracking info
+          await this.updateTrackingStatus(shipment.id, {
+            current_status: mappedStatus,
+            tracking_history: trackingData.history || [],
+            expected_delivery_date: trackingData.expected_delivery_date || null,
+            last_sync_at: new Date().toISOString()
+          });
+
+          console.log(`✅ Shipment tracking updated: ${shipment.awb} -> ${mappedStatus}`);
           results.success.push(shipment.id);
           
-          // Add delay to avoid rate limiting
+          // Add delay to avoid Delhivery API rate limiting (max 60 req/min)
           await new Promise(resolve => setTimeout(resolve, 1000));
-        } catch (error) {
-          console.error(`Failed to sync ${shipment.id}:`, error.message);
-          results.failed.push({ id: shipment.id, error: error.message });
+          
+        } catch (syncError) {
+          console.error(`❌ Failed to sync ${shipment.id} (${shipment.awb}):`, syncError.message);
+          results.failed.push({ 
+            id: shipment.id, 
+            awb: shipment.awb,
+            error: syncError.message 
+          });
         }
       }
 
       console.log(`✅ Sync complete: ${results.success.length} success, ${results.failed.length} failed`);
 
+      if (results.failed.length > 0) {
+        console.warn(`⚠️ Failed shipments:`, results.failed.map(f => f.awb));
+      }
+
       return results;
+
     } catch (error) {
       console.error('❌ Bulk sync error:', error);
       throw error;

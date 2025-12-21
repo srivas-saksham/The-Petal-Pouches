@@ -82,6 +82,10 @@ const razorpayService = require('./services/razorpayService');
 // ROUTES - ORDER MATTERS!
 // ============================================
 
+// 🆕 WEBHOOKS (MUST BE FIRST - before auth middleware)
+// --------------------------------------------
+app.use('/api/webhooks', require('./routes/webhooks'));
+
 // 1. ADMIN & STAFF ROUTES
 // --------------------------------------------
 app.use('/api/admin/auth', require('./routes/adminAuth'));     // Admin Login/Register
@@ -162,15 +166,17 @@ app.get('/', (req, res) => {
   res.json({
     success: true,
     message: 'The Petal Pouches API is running! 🌸',
-    version: '1.4.0', // ⭐ Version bump for payment integration
+    version: '1.5.0', // ⭐ Version bump for webhook + cron integration
     database: 'Supabase',
     payment_gateway: 'Razorpay',
+    shipping: 'Delhivery', // 🆕 NEW
     documentation: {
       admin: {
         auth: '/api/admin/auth',
         products: '/api/admin/products',
         bundles: '/api/bundles/admin',
-        orders: '/api/admin/orders'
+        orders: '/api/admin/orders',
+        shipments: '/api/admin/shipments' // 🆕 NEW
       },
       customer: {
         auth: '/api/auth',
@@ -179,7 +185,7 @@ app.get('/', (req, res) => {
         orders: '/api/orders',
         cart: '/api/cart',
         wishlist: '/api/wishlist',
-        payments: '/api/payments' // ⭐ Payment endpoints
+        payments: '/api/payments'
       },
       catalog: {
         products: '/api/products',
@@ -188,11 +194,15 @@ app.get('/', (req, res) => {
         tags: '/api/tags',
         reviews: '/api/reviews'
       },
-      payments: { // ⭐ NEW: Payment-specific docs
+      payments: {
         create_order: 'POST /api/payments/create-order',
         verify: 'POST /api/payments/verify',
         status: 'GET /api/payments/status/:order_id',
         webhook: 'POST /api/payments/webhook'
+      },
+      webhooks: { // 🆕 NEW
+        delhivery: 'POST /api/webhooks/delhivery',
+        health: 'GET /api/webhooks/delhivery/health'
       }
     }
   });
@@ -252,13 +262,13 @@ app.use((req, res) => {
     message: `Route not found: ${req.method} ${req.path}`,
     availableResources: [
       '/api/auth', '/api/users', '/api/products', 
-      '/api/cart', '/api/orders', '/api/payments'
+      '/api/cart', '/api/orders', '/api/payments', '/api/webhooks'
     ]
   });
 });
 
 // ============================================
-// START SERVER
+// START SERVER + CRON JOBS
 // ============================================
 
 const PORT = process.env.PORT || 5000;
@@ -268,7 +278,8 @@ app.listen(PORT, () => {
   console.log(`   Server running on port ${PORT}`);
   console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`   Database: Supabase`);
-  console.log(`   Payment: Razorpay`); // ⭐ NEW
+  console.log(`   Payment: Razorpay`);
+  console.log(`   Shipping: Delhivery`); // 🆕 NEW
   console.log('🚀 ===================================\n');
   
   console.log('📍 Key Endpoints:');
@@ -278,7 +289,14 @@ app.listen(PORT, () => {
   console.log(`   👤 User Auth:  http://localhost:${PORT}/api/auth/login`);
   console.log(`   🔐 Admin Auth: http://localhost:${PORT}/api/admin/auth/login`);
   console.log(`   📦 Orders:     http://localhost:${PORT}/api/orders`);
-  console.log(`   💳 Payments:   http://localhost:${PORT}/api/payments`); // ⭐ NEW
+  console.log(`   💳 Payments:   http://localhost:${PORT}/api/payments`);
+  console.log(`   🚚 Webhooks:   http://localhost:${PORT}/api/webhooks/delhivery`); // 🆕 NEW
+  
+  // 🆕 START SHIPMENT SYNC CRON JOB
+  console.log('\n🔄 Starting background jobs...');
+  const { startShipmentSyncJob } = require('./jobs/syncShipments');
+  startShipmentSyncJob();
+  
   console.log('\n✨ Server is ready to accept requests!\n');
 });
 

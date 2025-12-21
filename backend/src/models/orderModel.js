@@ -426,7 +426,16 @@ const OrderModel = {
    */
   async updateStatus(orderId, status) {
     try {
-      const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+      const validStatuses = [
+      'pending', 
+      'confirmed', 
+      'processing',
+      'picked_up',
+      'in_transit',
+      'out_for_delivery',
+      'delivered', 
+      'cancelled'
+    ];
       
       if (!validStatuses.includes(status)) {
         throw new Error('INVALID_STATUS');
@@ -585,18 +594,15 @@ const OrderModel = {
           total_orders: 0,
           pending_orders: 0,
           confirmed_orders: 0,
-          shipped_orders: 0,
+          processing_orders: 0,
+          picked_up_orders: 0,
+          in_transit_orders: 0,
+          out_for_delivery_orders: 0,
           delivered_orders: 0,
           cancelled_orders: 0,
           total_spent: 0,
           avg_order_value: 0,
           last_order_date: null,
-          // Legacy aliases for backward compatibility
-          pending: 0,
-          confirmed: 0,
-          shipped: 0,
-          delivered: 0,
-          cancelled: 0,
           recent_orders: []
         };
       }
@@ -606,7 +612,10 @@ const OrderModel = {
         total_orders: orders.length,
         pending_orders: orders.filter(o => o.status === 'pending').length,
         confirmed_orders: orders.filter(o => o.status === 'confirmed').length,
-        shipped_orders: orders.filter(o => o.status === 'shipped').length,
+        processing_orders: orders.filter(o => o.status === 'processing').length,
+        picked_up_orders: orders.filter(o => o.status === 'picked_up').length,
+        in_transit_orders: orders.filter(o => o.status === 'in_transit').length,
+        out_for_delivery_orders: orders.filter(o => o.status === 'out_for_delivery').length,
         delivered_orders: orders.filter(o => o.status === 'delivered').length,
         cancelled_orders: orders.filter(o => o.status === 'cancelled').length,
         total_spent: orders
