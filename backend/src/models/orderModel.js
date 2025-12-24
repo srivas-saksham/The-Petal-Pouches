@@ -427,15 +427,18 @@ const OrderModel = {
   async updateStatus(orderId, status) {
     try {
       const validStatuses = [
-      'pending', 
-      'confirmed', 
-      'processing',
-      'picked_up',
-      'in_transit',
-      'out_for_delivery',
-      'delivered', 
-      'cancelled'
-    ];
+        'pending', 
+        'confirmed', 
+        'processing',
+        'picked_up',
+        'in_transit',
+        'out_for_delivery',
+        'delivered',
+        'failed',
+        'rto_initiated',
+        'rto_delivered',
+        'cancelled'
+      ];
       
       if (!validStatuses.includes(status)) {
         throw new Error('INVALID_STATUS');
@@ -599,6 +602,9 @@ const OrderModel = {
           in_transit_orders: 0,
           out_for_delivery_orders: 0,
           delivered_orders: 0,
+          failed_orders: 0,
+          rto_initiated_orders: 0,
+          rto_delivered_orders: 0,
           cancelled_orders: 0,
           total_spent: 0,
           avg_order_value: 0,
@@ -607,7 +613,6 @@ const OrderModel = {
         };
       }
 
-      // Calculate statistics
       const stats = {
         total_orders: orders.length,
         pending_orders: orders.filter(o => o.status === 'pending').length,
@@ -617,6 +622,9 @@ const OrderModel = {
         in_transit_orders: orders.filter(o => o.status === 'in_transit').length,
         out_for_delivery_orders: orders.filter(o => o.status === 'out_for_delivery').length,
         delivered_orders: orders.filter(o => o.status === 'delivered').length,
+        failed_orders: orders.filter(o => o.status === 'failed').length,
+        rto_initiated_orders: orders.filter(o => o.status === 'rto_initiated').length,
+        rto_delivered_orders: orders.filter(o => o.status === 'rto_delivered').length,
         cancelled_orders: orders.filter(o => o.status === 'cancelled').length,
         total_spent: orders
           .filter(o => o.status !== 'cancelled')
@@ -626,20 +634,17 @@ const OrderModel = {
           const orderDate = new Date(o.created_at);
           return orderDate > latest ? orderDate : latest;
         }, new Date(0)),
-        // Recent orders for dashboard
         recent_orders: orders
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
           .slice(0, 3)
       };
 
-      // Legacy aliases for backward compatibility
       stats.pending = stats.pending_orders;
       stats.confirmed = stats.confirmed_orders;
       stats.shipped = stats.shipped_orders;
       stats.delivered = stats.delivered_orders;
       stats.cancelled = stats.cancelled_orders;
 
-      // Calculate average order value for delivered orders
       const deliveredOrders = orders.filter(o => o.status === 'delivered');
       if (deliveredOrders.length > 0) {
         stats.avg_order_value = Math.round(

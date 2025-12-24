@@ -31,6 +31,41 @@ const OrderCard = ({ order, onReorder, onCancel }) => {
         label: 'Processing',
         icon: Package
       },
+      in_transit: {
+        bg: 'bg-indigo-50',
+        border: 'border-indigo-200',
+        text: 'text-indigo-700',
+        label: 'In Transit',
+        icon: Truck
+      },
+      out_for_delivery: {
+        bg: 'bg-purple-50',
+        border: 'border-purple-200',
+        text: 'text-purple-700',
+        label: 'Out for Delivery',
+        icon: Truck
+      },
+      failed: {
+        bg: 'bg-orange-50',
+        border: 'border-orange-200',
+        text: 'text-orange-700',
+        label: 'Delivery Failed',
+        icon: XCircle
+      },
+      rto_initiated: {
+        bg: 'bg-orange-50',
+        border: 'border-orange-200',
+        text: 'text-orange-700',
+        label: 'Return Initiated',
+        icon: RotateCcw
+      },
+      rto_delivered: {
+        bg: 'bg-gray-50',
+        border: 'border-gray-200',
+        text: 'text-gray-700',
+        label: 'Returned',
+        icon: Package
+      },
       shipped: { 
         bg: 'bg-indigo-50',
         border: 'border-indigo-200', 
@@ -150,7 +185,7 @@ const OrderCard = ({ order, onReorder, onCancel }) => {
   const itemCount = order.items?.length || order.items_preview?.length || order.item_count || 0;
   
   const canCancel = ['pending', 'confirmed'].includes(order.status);
-  const canTrack = ['processing', 'shipped'].includes(order.status);
+  const canTrack = ['processing', 'in_transit', 'out_for_delivery', 'shipped'].includes(order.status);
   
   // Get first item for display (check both items and items_preview)
   const firstItem = order.items_preview?.[0] || order.items?.[0];

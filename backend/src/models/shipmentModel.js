@@ -693,7 +693,6 @@ async createWithCostCalculation(orderId, shipmentData) {
         updated_at: new Date().toISOString()
       };
 
-      // Update estimated_delivery if Delhivery provides it
       if (trackingData.expected_delivery_date) {
         updateData.estimated_delivery = trackingData.expected_delivery_date;
         console.log(`📅 Updated estimated delivery: ${trackingData.expected_delivery_date}`);
@@ -710,18 +709,27 @@ async createWithCostCalculation(orderId, shipmentData) {
 
       console.log(`✅ Shipment tracking updated: ${shipment.awb} -> ${trackingData.current_status}`);
 
-      // ✅ UPDATED: Enhanced order status mapping
+      // ✅ ENHANCED ORDER STATUS MAPPING
       const orderStatusMap = {
+        // Pre-placement statuses → confirmed
+        'pending_review': 'confirmed',
+        'approved': 'confirmed',
+        
+        // Placement and pickup → processing or confirmed
         'placed': 'confirmed',
         'pending_pickup': 'processing',
-        'picked_up': 'picked_up',
+        
+        // Transit statuses (skip picked_up for orders)
+        'picked_up': 'in_transit',
         'in_transit': 'in_transit',
         'out_for_delivery': 'out_for_delivery',
+        
+        // Final statuses
         'delivered': 'delivered',
-        'cancelled': 'cancelled',
-        'failed': 'cancelled',
-        'rto_initiated': 'cancelled',
-        'rto_delivered': 'cancelled'
+        'failed': 'failed',
+        'rto_initiated': 'rto_initiated',
+        'rto_delivered': 'rto_delivered',
+        'cancelled': 'cancelled'
       };
 
       const newOrderStatus = orderStatusMap[trackingData.current_status];
@@ -732,7 +740,6 @@ async createWithCostCalculation(orderId, shipmentData) {
           updated_at: new Date().toISOString()
         };
 
-        // Set delivered_at timestamp when delivered
         if (newOrderStatus === 'delivered') {
           orderUpdate.delivered_at = new Date().toISOString();
         }

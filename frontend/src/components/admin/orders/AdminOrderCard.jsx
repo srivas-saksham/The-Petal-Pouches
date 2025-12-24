@@ -81,6 +81,20 @@ export default function AdminOrderCard({ order, onViewOrder, onStatusUpdate }) {
         label: 'Processing',
         icon: Package
       },
+      in_transit: {
+        bg: 'bg-indigo-50',
+        border: 'border-indigo-200',
+        text: 'text-indigo-700',
+        label: 'In Transit',
+        icon: Truck
+      },
+      out_for_delivery: {
+        bg: 'bg-purple-50',
+        border: 'border-purple-200',
+        text: 'text-purple-700',
+        label: 'Out for Delivery',
+        icon: Truck
+      },
       shipped: { 
         bg: 'bg-indigo-50',
         border: 'border-indigo-200', 
@@ -94,6 +108,27 @@ export default function AdminOrderCard({ order, onViewOrder, onStatusUpdate }) {
         text: 'text-green-700', 
         label: 'Delivered',
         icon: CheckCircle
+      },
+      failed: {
+        bg: 'bg-orange-50',
+        border: 'border-orange-200',
+        text: 'text-orange-700',
+        label: 'Failed',
+        icon: XCircle
+      },
+      rto_initiated: {
+        bg: 'bg-orange-50',
+        border: 'border-orange-200',
+        text: 'text-orange-700',
+        label: 'Return Initiated',
+        icon: AlertCircle
+      },
+      rto_delivered: {
+        bg: 'bg-gray-50',
+        border: 'border-gray-200',
+        text: 'text-gray-700',
+        label: 'Returned',
+        icon: Package
       },
       cancelled: { 
         bg: 'bg-red-50',

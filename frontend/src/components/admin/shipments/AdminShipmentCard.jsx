@@ -129,16 +129,30 @@ export default function AdminShipmentCard({
         icon: CheckCircle
       },
       failed: { 
-        bg: 'bg-red-50',
-        border: 'border-red-200', 
-        text: 'text-red-600', 
+        bg: 'bg-orange-50',
+        border: 'border-orange-200', 
+        text: 'text-orange-700', 
         label: 'Failed',
         icon: XCircle
       },
-      cancelled: { 
+      rto_initiated: {
+        bg: 'bg-orange-50',
+        border: 'border-orange-200',
+        text: 'text-orange-700',
+        label: 'Return Initiated',
+        icon: AlertCircle
+      },
+      rto_delivered: {
         bg: 'bg-gray-50',
-        border: 'border-gray-200', 
-        text: 'text-gray-600', 
+        border: 'border-gray-200',
+        text: 'text-gray-700',
+        label: 'Returned',
+        icon: Package
+      },
+      cancelled: { 
+        bg: 'bg-red-50',
+        border: 'border-red-200', 
+        text: 'text-red-600', 
         label: 'Cancelled',
         icon: XCircle
       },

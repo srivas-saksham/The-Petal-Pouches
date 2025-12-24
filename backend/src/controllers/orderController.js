@@ -533,15 +533,15 @@ const OrderController = {
           status: 'confirmed',
           label: 'Order Confirmed',
           date: tracking.created_at,
-          completed: ['Confirmed', 'Picked Up', 'In Transit', 'Out for Delivery', 'Delivered'].includes(tracking.status),
+          completed: ['Confirmed', 'Processing', 'In Transit', 'Out for Delivery', 'Delivered'].includes(tracking.status),
           description: 'We are preparing your order'
         },
         {
-          status: 'picked_up',
-          label: 'Picked Up',
+          status: 'processing',
+          label: 'Processing',
           date: null,
-          completed: ['Picked Up', 'In Transit', 'Out for Delivery', 'Delivered'].includes(tracking.status),
-          description: 'Collected from warehouse'
+          completed: ['Processing', 'In Transit', 'Out for Delivery', 'Delivered'].includes(tracking.status),
+          description: 'Order is being processed'
         },
         {
           status: 'in_transit',

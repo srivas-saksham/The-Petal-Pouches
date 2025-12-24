@@ -292,12 +292,14 @@ app.listen(PORT, () => {
   console.log(`   💳 Payments:   http://localhost:${PORT}/api/payments`);
   console.log(`   🚚 Webhooks:   http://localhost:${PORT}/api/webhooks/delhivery`); // 🆕 NEW
   
-  // 🆕 START SHIPMENT SYNC CRON JOB
-  console.log('\n🔄 Starting background jobs...');
-  const { startShipmentSyncJob } = require('./jobs/syncShipments');
-  startShipmentSyncJob();
-  
-  console.log('\n✨ Server is ready to accept requests!\n');
+  // 🆕 START SHIPMENT SYNC CRON JOB (conditional)
+  if (process.env.ENABLE_CRON_SYNC !== 'false') {
+    console.log('\n🔄 Starting background jobs...');
+    const { startShipmentSyncJob } = require('./jobs/syncShipments');
+    startShipmentSyncJob();
+  } else {
+    console.log('⏸️  Cron sync disabled (ENABLE_CRON_SYNC=false)');
+  }
 });
 
 module.exports = app;
