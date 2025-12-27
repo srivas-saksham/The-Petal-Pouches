@@ -395,14 +395,12 @@ const Checkout = () => {
       } else if (error.message?.includes('out of stock')) {
         toast.error('Some items are out of stock. Please update your cart.');
       } else {
-        toast.error(error.message || 'Failed to initiate payment. Please try again.');
+        // toast.error(error.message || 'Failed to initiate payment. Please try again.');
       }
       
       setPlacingOrder(false);
     }
   };
-
-  // ... rest of your component rendering ...
 
   if (!isAuthenticated) {
     return null;

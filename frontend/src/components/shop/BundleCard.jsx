@@ -1,12 +1,13 @@
 // frontend/src/components/shop/BundleCard.jsx - WITH HOVER IMAGE GALLERY
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { Package, Star, ShoppingCart, Eye, Check, Plus, Minus, Trash2, AlertTriangle, XCircle, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Loader } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo, } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Package, Star, ShoppingCart, Eye, Check, Plus, Minus, Trash2, AlertTriangle, XCircle, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Loader, ArrowBigRightDash } from 'lucide-react';
 import { formatBundlePrice, getItemDisplayName, getItemImageUrl, isBundleInStock } from '../../utils/bundleHelpers';
 import { getDisplayRating, formatRating } from '../../utils/reviewHelpers';
 import { addBundleToCart, updateCartItem, removeFromCart } from '../../services/cartService';
 import { useCart } from '../../hooks/useCart';
+import { useUserAuth } from '../../context/UserAuthContext';
 
 /**
  * BundleCard Component - COMPLETE VERSION WITH HOVER IMAGE GALLERY
@@ -70,7 +71,8 @@ const BundleCard = ({ bundle, onQuickView }) => {
   
   // Cart Context
   const { cartItems, refreshCart, getBundleQuantityInCart, getCartItemByBundleId } = useCart();
-  
+  const navigate = useNavigate();
+  const { isAuthenticated } = useUserAuth();
   // Find if this bundle is in cart
   const cartItem = getCartItemByBundleId(bundle.id);
   
@@ -288,6 +290,14 @@ const BundleCard = ({ bundle, onQuickView }) => {
     setShowRemoveConfirm(false);
   };
 
+  const handleCheckout = () => {
+    if (isAuthenticated) {
+      navigate('/checkout');
+    } else {
+      navigate('/login', { state: { from: '/checkout' } });
+    }
+  };
+
   // Get bundle items
   const bundleItems = bundle?.items || bundle?.Bundle_items || [];
   const displayProducts = bundleItems.slice(0, 3);
@@ -446,57 +456,6 @@ const BundleCard = ({ bundle, onQuickView }) => {
           )}
         </div>
 
-        {/* Products Included Section - Collapsible */}
-        <div className="mb-3 pb-3 border-b border-tppgrey/30">
-          {/* Collapsible Header */}
-          <button
-            onClick={() => setProductsExpanded(!productsExpanded)}
-            className="w-full flex items-center justify-between text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide hover:text-tpppink transition-colors"
-          >
-            <span>Products Included ({bundleItems.length})</span>
-            {productsExpanded ? (
-              <ChevronUp size={14} className="text-slate-400" />
-            ) : (
-              <ChevronDown size={14} className="text-slate-400" />
-            )}
-          </button>
-          
-          {/* Animated Dropdown Content */}
-          <div
-            className={`overflow-hidden transition-all duration-300 ease-in-out ${
-              productsExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-            }`}
-          >
-            <div className="space-y-1.5 pt-1">
-              {displayProducts.map((item, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-md overflow-hidden bg-tpppeach/20 flex-shrink-0 border border-tppgrey/30">
-                    <img
-                      src={getItemImageUrl(item)}
-                      alt={getItemDisplayName(item)}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.src = '/placeholder-product.png';
-                      }}
-                    />
-                  </div>
-                  <span className="text-xs text-slate-600 line-clamp-1 flex-1">
-                    {getItemDisplayName(item)}
-                    {item.quantity > 1 && (
-                      <span className="text-slate-400 ml-1">×{item.quantity}</span>
-                    )}
-                  </span>
-                </div>
-              ))}
-              {hasMoreProducts && (
-                <p className="text-xs text-tpppink font-medium pl-10">
-                  +{bundleItems.length - 3} more items
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* Price & Stock Section */}
         <div className="mb-3">
           {isOutOfStock ? (
@@ -626,18 +585,32 @@ const BundleCard = ({ bundle, onQuickView }) => {
 
             {/* Remove Button with Confirm/Cancel */}
             {!showRemoveConfirm ? (
-              <button
-                onClick={handleRemoveClick}
-                disabled={updating}
-                className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded border font-medium text-xs transition-all ${
-                  updating
-                    ? 'border-tppgrey text-tppslate/40 cursor-not-allowed'
-                    : 'border-red-500 text-red-600 hover:bg-red-50 active:scale-95'
-                }`}
-              >
-                <Trash2 size={12} />
-                Remove
-              </button>
+              <div className='flex items-center gap-2'>
+                <button
+                  onClick={handleRemoveClick}
+                  disabled={updating}
+                  className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded border font-medium text-xs transition-all ${
+                    updating
+                      ? 'border-tppgrey text-tppslate/40 cursor-not-allowed'
+                      : 'border-red-500 text-red-600 hover:bg-red-50 active:scale-95'
+                  }`}
+                >
+                  <Trash2 size={12} />
+                  Remove
+                </button>
+                <button
+                  onClick={handleCheckout}
+                  disabled={updating}
+                  className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded border font-medium text-xs transition-all ${
+                    updating
+                      ? 'border-tppgrey bg-slate-100 text-tppslate/40 cursor-not-allowed'
+                      : 'border-tpppink bg-tpppink text-white hover:bg-tpppink/90 active:scale-95'
+                  }`}
+                >
+                  Checkout
+                  <ArrowBigRightDash size={16} />
+                </button>
+              </div>
             ) : (
               <div className="flex items-center gap-2">
                 <button

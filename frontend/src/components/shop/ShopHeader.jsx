@@ -1,20 +1,21 @@
-// frontend/src/components/shop/ShopHeader.jsx - WITH CART SIDEBAR INTEGRATION & LIMITED TAGS
 import React, { useState, useEffect, useRef } from 'react';
-import { LayoutGrid, Grid3x3, Search, X, ShoppingCart, Grid3x2, LogIn, UserPlus, ChevronDown, ChevronUp } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { LayoutGrid, Grid3x2, Grid3x3, Search, X, ShoppingCart, LogIn, UserPlus, ChevronDown, ChevronUp } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useCart } from '../../hooks/useCart';
 import { useCartSidebar } from '../../hooks/useCartSidebar';
 import UserProfileMenu from './UserProfileMenu';
 
 /**
- * ShopHeader Component - WITH CART SIDEBAR INTEGRATION & LIMITED TAGS
+ * ShopHeader Component - COMPLETE VERSION WITH TWO-ROW NAVIGATION
  * 
  * FEATURES:
- * - Shows user profile menu when authenticated
- * - Shows Sign In / Sign Up buttons when not authenticated
+ * - Two-row layout: Navigation links on top, Search bar below
+ * - Navigation: Home, Shop, About, FAQs, Categories dropdown
+ * - Full auth integration with UserAuthContext
  * - Dynamic cart count from CartContext
- * - Opens cart sidebar on cart button click
+ * - Cart sidebar integration
+ * - UserProfileMenu when authenticated
  * - Orders & Tracking button for authenticated users
  * - Shows only top 3 tags with "Show All" toggle
  * - Professional animations and transitions
@@ -54,6 +55,10 @@ const ShopHeader = ({
   // Tags expansion state
   const [showAllTags, setShowAllTags] = useState(false);
 
+  // Categories dropdown state
+  const [showCategories, setShowCategories] = useState(false);
+  const categoriesRef = useRef(null);
+
   // Sync search input when filters change externally
   useEffect(() => {
     setSearchInput(filters.search || '');
@@ -67,6 +72,22 @@ const ShopHeader = ({
       }
     };
   }, []);
+
+  // Close categories dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (categoriesRef.current && !categoriesRef.current.contains(event.target)) {
+        setShowCategories(false);
+      }
+    };
+
+    if (showCategories) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCategories]);
 
   // Handle search input with debouncing
   const handleSearchInput = (e) => {
@@ -111,14 +132,23 @@ const ShopHeader = ({
   const visibleTags = showAllTags ? availableTags : availableTags.slice(0, 3);
   const hasMoreTags = availableTags.length > 3;
 
+  // Placeholder categories
+  const categories = [
+    { name: 'Pouches', path: '/shop/category/pouches' },
+    { name: 'Accessories', path: '/shop/category/accessories' },
+    { name: 'Gift Sets', path: '/shop/category/gift-sets' },
+    { name: 'New Arrivals', path: '/shop/category/new-arrivals' },
+    { name: 'Best Sellers', path: '/shop/category/best-sellers' },
+  ];
+
   return (
     <>
-      {/* STICKY SECTION - Tag Pills with Grid Layout Buttons on Right */}
+      {/* STICKY SECTION */}
       <div className="sticky top-0 z-30">
-        <div className="bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm relative z-20">
-          <div className="px-6 py-4">
-            {/* Main Row: Title | Search Bar | Auth & Cart Buttons */}
-            <div className="flex items-center justify-between gap-4">
+        <div className="bg-tpppeach border-b border-slate-200 shadow-sm relative z-20">
+          <div className="px-6 py-2">
+            {/* Main Row: Title | Navigation & Search (2 rows) | Auth & Cart Buttons */}
+            <div className="flex items-center justify-between gap-6">
               {/* Left: Title Section */}
               <div className="flex-shrink-0">
                 <h1 className="text-5xl font-greyqo text-tpppink">
@@ -132,30 +162,105 @@ const ShopHeader = ({
                 )}
               </div>
 
-              {/* Middle: Search Bar - Flex Grow */}
-              <div className="relative flex-1 max-w-md">
-                <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 transition-colors ${
-                  isSearching ? 'text-tpppink animate-pulse' : 'text-slate-400'
-                }`} />
-                <input
-                  type="text"
-                  placeholder="Search bundles..."
-                  value={searchInput}
-                  onChange={handleSearchInput}
-                  className="w-full pl-8 pr-8 py-2 text-sm bg-slate-50 border border-slate-300 rounded-lg
-                    focus:outline-none focus:border-tpppink focus:bg-white
-                    hover:border-slate-400 transition-all text-slate-900 placeholder:text-slate-400
-                    font-medium"
-                />
-                {searchInput && (
-                  <button
-                    onClick={clearSearch}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-tpppink transition-colors"
-                    aria-label="Clear search"
+              {/* Middle: Two-Row Layout - Navigation + Search */}
+              <div className="flex-1 max-w-xl space-y-1">
+                {/* Row 1: Navigation Links */}
+                <div className="flex items-center justify-center gap-6">
+                  {/* Home */}
+                  <Link
+                    to="/"
+                    className="px-4 py-2 text-[16px] font-semibold text-slate-700 hover:text-tpppink 
+                      hover:bg-white/50 rounded-lg transition-all"
                   >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+                    Home
+                  </Link>
+
+                  {/* Shop */}
+                  <Link
+                    to="/shop"
+                    className="px-4 py-2 text-[16px] font-semibold text-slate-700 hover:text-tpppink 
+                      hover:bg-white/50 rounded-lg transition-all"
+                  >
+                    Shop
+                  </Link>
+
+                  {/* Categories Dropdown */}
+                  <div className="relative" ref={categoriesRef}>
+                    <button
+                      onClick={() => setShowCategories(!showCategories)}
+                      className="flex items-center gap-1.5 px-4 py-2 text-[16px] font-semibold text-slate-700 
+                        hover:text-tpppink hover:bg-white/50 rounded-lg transition-all"
+                    >
+                      <span>Categories</span>
+                      <ChevronDown 
+                        size={14} 
+                        className={`transition-transform ${showCategories ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {showCategories && (
+                      <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-slate-200 
+                        rounded-lg shadow-lg py-1 animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+                        {categories.map((category) => (
+                          <Link
+                            key={category.name}
+                            to={category.path}
+                            onClick={() => setShowCategories(false)}
+                            className="block px-4 py-2 text-sm font-medium text-slate-700 
+                              hover:bg-tpppeach hover:text-tpppink transition-colors"
+                          >
+                            {category.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* About */}
+                  <Link
+                    to="/about"
+                    className="px-4 py-2 text-[16px] font-semibold text-slate-700 hover:text-tpppink 
+                      hover:bg-white/50 rounded-lg transition-all"
+                  >
+                    About
+                  </Link>
+
+                  {/* FAQs */}
+                  <Link
+                    to="/faqs"
+                    className="px-4 py-2 text-[16px] font-semibold text-slate-700 hover:text-tpppink 
+                      hover:bg-white/50 rounded-lg transition-all"
+                  >
+                    FAQs
+                  </Link>
+                </div>
+
+                {/* Row 2: Search Bar */}
+                <div className="relative max-w-md mx-auto">
+                  <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 transition-colors ${
+                    isSearching ? 'text-tpppink animate-pulse' : 'text-slate-400'
+                  }`} />
+                  <input
+                    type="text"
+                    placeholder="Search bundles..."
+                    value={searchInput}
+                    onChange={handleSearchInput}
+                    className="w-full pl-8 pr-8 py-2 text-sm bg-slate-50 border border-slate-300 rounded-lg
+                      focus:outline-none focus:border-tpppink focus:bg-white
+                      hover:border-slate-400 transition-all text-slate-900 placeholder:text-slate-400
+                      font-medium"
+                  />
+                  {searchInput && (
+                    <button
+                      onClick={clearSearch}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-tpppink transition-colors"
+                      aria-label="Clear search"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Right: Authentication & Cart Buttons */}
@@ -167,7 +272,7 @@ const ShopHeader = ({
                     <div className="w-9 h-9 bg-slate-100 rounded-lg animate-pulse"></div>
                   </div>
                 ) : isAuthenticated && user ? (
-                  // Authenticated: Show Profile Menu + Orders + Cart Button
+                  // Authenticated: Show Profile Menu + Orders + Cart
                   <>
                     <UserProfileMenu user={user} />
                     
@@ -184,7 +289,7 @@ const ShopHeader = ({
                       </span>
                     </button>
                     
-                    {/* Cart Button - Opens Sidebar */}
+                    {/* Cart Button */}
                     <button
                       onClick={handleCartClick}
                       className="relative p-2.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 
@@ -204,7 +309,7 @@ const ShopHeader = ({
                     </button>
                   </>
                 ) : (
-                  // Not Authenticated: Show Sign In / Sign Up + Cart Button
+                  // Not Authenticated: Show Sign In / Sign Up + Cart
                   <>
                     {/* Sign In Button */}
                     <button
@@ -218,7 +323,7 @@ const ShopHeader = ({
                       <span className="hidden sm:inline">Sign In</span>
                     </button>
 
-                    {/* Sign Up Button (Highlighted) */}
+                    {/* Sign Up Button */}
                     <button
                       onClick={() => navigate('/register')}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-lg 
@@ -231,7 +336,7 @@ const ShopHeader = ({
                       <span className="hidden sm:inline">Sign Up</span>
                     </button>
 
-                    {/* Cart Button - Opens Sidebar (even if not logged in) */}
+                    {/* Cart Button */}
                     <button
                       onClick={handleCartClick}
                       className="relative p-2.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 
@@ -241,7 +346,6 @@ const ShopHeader = ({
                       aria-label="Shopping Cart"
                     >
                       <ShoppingCart size={18} />
-                      {/* Show badge even for guest users if they have items */}
                       {cartCount > 0 && (
                         <span className="absolute -top-1 -right-1 bg-tpppink text-white text-[10px] font-bold 
                           rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1
@@ -257,10 +361,10 @@ const ShopHeader = ({
           </div>
         </div>
 
-        {/* Tags Section - Limited to Top 3 by Default */}
-        <div className="px-6 py-3 bg-white border-b border-slate-100 relative z-10">
+        {/* Tags Section */}
+        <div className="px-6 py-3 bg-transparent backdrop-blur-sm relative z-10">
           <div className="flex items-center gap-3">
-            {/* Tags Pills - Show Top 3 or All */}
+            {/* Tags Pills */}
             <div className="flex-1 overflow-x-auto scrollbar-hide">
               {!loading && availableTags.length > 0 ? (
                 <div className="flex items-center gap-1.5">
@@ -319,7 +423,6 @@ const ShopHeader = ({
                   )}
                 </div>
               ) : loading ? (
-                // Loading skeleton for tags
                 <div className="flex gap-1.5">
                   {[1, 2, 3].map((i) => (
                     <div
@@ -331,7 +434,7 @@ const ShopHeader = ({
               ) : null}
             </div>
 
-            {/* Grid Layout Switcher - Right End */}
+            {/* Grid Layout Switcher */}
             <div className="flex items-center gap-1 bg-slate-100 rounded-md p-0.5 border border-slate-200 flex-shrink-0">
               <button
                 onClick={() => onLayoutChange('4')}

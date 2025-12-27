@@ -7,11 +7,13 @@ import { ChevronDown, ChevronUp, X } from 'lucide-react';
  * FEATURES:
  * - Clean, compact professional design
  * - Clear All button in top right corner
- * - TPP Pink headings with collapsible sections
+ * - TPP Pink headings with collapsible sections (closed by default)
  * - TPP Pink horizontal rules for categorization
  * - Tag filtering support with counts
  * - Active filter indicators
  * - Smooth animations
+ * - Sticky positioning
+ * - Dynamic height container
  */
 const SidebarFilters = ({
   filters = {},
@@ -22,10 +24,10 @@ const SidebarFilters = ({
   metadata = {}
 }) => {
   const [expandedSections, setExpandedSections] = useState({
-    sort: true,
-    price: true,
-    stock: true,
-    tags: true
+    sort: false,
+    price: false,
+    stock: false,
+    tags: false
   });
 
   // Get selected tags - Parse from comma-separated string
@@ -108,7 +110,7 @@ const SidebarFilters = ({
   );
 
   return (
-    <div className="w-80 bg-white border-l border-slate-200 shadow-lg overflow-hidden flex flex-col h-full">
+    <div className="w-80 bg-white border-l border-slate-200 shadow-lg overflow-hidden sticky top-44 max-h-screen flex flex-col">
       {/* Header with Clear All Button */}
       <div className="bg-gradient-to-r from-tpppeach to-white border-b-2 border-tpppink/20 px-6 py-4 flex-shrink-0">
         <div className="flex items-center justify-between">
