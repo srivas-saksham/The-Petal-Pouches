@@ -309,7 +309,7 @@ const BundleCard = ({ bundle, onQuickView }) => {
   // ===========================
 
   return (
-    <div className="bg-white rounded-lg border border-tppgrey shadow-sm hover:shadow-md hover:border-tppslate/60 transition-all duration-200 overflow-hidden group">
+    <div className={`bg-white rounded-lg border border-tppgrey shadow-sm hover:shadow-md hover:border-tppslate/60 transition-all duration-200 overflow-hidden group ${isInCart ? 'border-2 border-tpppink' : ''}`}>
       
       {/* ===========================
           IMAGE SECTION WITH GALLERY

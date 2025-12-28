@@ -580,14 +580,15 @@ const OrderModel = {
 
   /**
    * Get order statistics for a user
+   * ✅ FIXED: Now includes recent_orders with full item details and shipment info
    * @param {string} userId - User UUID
-   * @returns {Promise<Object>} Order statistics
+   * @returns {Promise<Object>} Order statistics with recent orders
    */
   async getStatistics(userId) {
     try {
       const { data: orders, error } = await supabase
         .from('Orders')
-        .select('status, final_total, created_at')
+        .select('id, status, final_total, created_at, delivered_at')
         .eq('user_id', userId);
 
       if (error) throw error;
@@ -595,17 +596,17 @@ const OrderModel = {
       if (!orders || orders.length === 0) {
         return {
           total_orders: 0,
-          pending_orders: 0,
-          confirmed_orders: 0,
-          processing_orders: 0,
-          picked_up_orders: 0,
-          in_transit_orders: 0,
-          out_for_delivery_orders: 0,
-          delivered_orders: 0,
-          failed_orders: 0,
-          rto_initiated_orders: 0,
-          rto_delivered_orders: 0,
-          cancelled_orders: 0,
+          pending: 0,
+          confirmed: 0,
+          processing: 0,
+          picked_up: 0,
+          in_transit: 0,
+          out_for_delivery: 0,
+          delivered: 0,
+          failed: 0,
+          rto_initiated: 0,
+          rto_delivered: 0,
+          cancelled: 0,
           total_spent: 0,
           avg_order_value: 0,
           last_order_date: null,
@@ -615,17 +616,17 @@ const OrderModel = {
 
       const stats = {
         total_orders: orders.length,
-        pending_orders: orders.filter(o => o.status === 'pending').length,
-        confirmed_orders: orders.filter(o => o.status === 'confirmed').length,
-        processing_orders: orders.filter(o => o.status === 'processing').length,
-        picked_up_orders: orders.filter(o => o.status === 'picked_up').length,
-        in_transit_orders: orders.filter(o => o.status === 'in_transit').length,
-        out_for_delivery_orders: orders.filter(o => o.status === 'out_for_delivery').length,
-        delivered_orders: orders.filter(o => o.status === 'delivered').length,
-        failed_orders: orders.filter(o => o.status === 'failed').length,
-        rto_initiated_orders: orders.filter(o => o.status === 'rto_initiated').length,
-        rto_delivered_orders: orders.filter(o => o.status === 'rto_delivered').length,
-        cancelled_orders: orders.filter(o => o.status === 'cancelled').length,
+        pending: orders.filter(o => o.status === 'pending').length,
+        confirmed: orders.filter(o => o.status === 'confirmed').length,
+        processing: orders.filter(o => o.status === 'processing').length,
+        picked_up: orders.filter(o => o.status === 'picked_up').length,
+        in_transit: orders.filter(o => o.status === 'in_transit').length,
+        out_for_delivery: orders.filter(o => o.status === 'out_for_delivery').length,
+        delivered: orders.filter(o => o.status === 'delivered').length,
+        failed: orders.filter(o => o.status === 'failed').length,
+        rto_initiated: orders.filter(o => o.status === 'rto_initiated').length,
+        rto_delivered: orders.filter(o => o.status === 'rto_delivered').length,
+        cancelled: orders.filter(o => o.status === 'cancelled').length,
         total_spent: orders
           .filter(o => o.status !== 'cancelled')
           .reduce((sum, o) => sum + parseFloat(o.final_total || 0), 0),
@@ -633,17 +634,21 @@ const OrderModel = {
         last_order_date: orders.reduce((latest, o) => {
           const orderDate = new Date(o.created_at);
           return orderDate > latest ? orderDate : latest;
-        }, new Date(0)),
-        recent_orders: orders
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-          .slice(0, 3)
+        }, new Date(0))
       };
 
-      stats.pending = stats.pending_orders;
-      stats.confirmed = stats.confirmed_orders;
-      stats.shipped = stats.shipped_orders;
-      stats.delivered = stats.delivered_orders;
-      stats.cancelled = stats.cancelled_orders;
+      // Add legacy status aliases for backward compatibility
+      stats.pending_orders = stats.pending;
+      stats.confirmed_orders = stats.confirmed;
+      stats.processing_orders = stats.processing;
+      stats.picked_up_orders = stats.picked_up;
+      stats.in_transit_orders = stats.in_transit;
+      stats.out_for_delivery_orders = stats.out_for_delivery;
+      stats.delivered_orders = stats.delivered;
+      stats.failed_orders = stats.failed;
+      stats.rto_initiated_orders = stats.rto_initiated;
+      stats.rto_delivered_orders = stats.rto_delivered;
+      stats.cancelled_orders = stats.cancelled;
 
       const deliveredOrders = orders.filter(o => o.status === 'delivered');
       if (deliveredOrders.length > 0) {
@@ -651,6 +656,16 @@ const OrderModel = {
           deliveredOrders.reduce((sum, o) => sum + parseFloat(o.final_total || 0), 0) / deliveredOrders.length
         );
       }
+
+      // ✅ FIX: Get recent orders with FULL details using findByUser
+      const recentOrdersResult = await this.findByUser(userId, {
+        limit: 5,
+        offset: 0,
+        sortBy: 'created_at',
+        sortOrder: 'DESC'
+      });
+
+      stats.recent_orders = recentOrdersResult || [];
 
       return stats;
       

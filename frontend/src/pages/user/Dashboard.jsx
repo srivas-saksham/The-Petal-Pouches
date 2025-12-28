@@ -1,39 +1,17 @@
-// frontend/src/pages/user/Dashboard.jsx - WITH REAL API
+// frontend/src/pages/user/Dashboard.jsx - UPDATED WITH STATSCARD COMPONENT
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, Heart, MapPin, ShoppingBag, TrendingUp, Clock, CheckCircle, ArrowRight } from 'lucide-react';
+import { Heart, MapPin, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useToast } from '../../hooks/useToast';
 import { getOrderStats } from '../../services/orderService';
+import RecentOrders from '../../components/user/dashboard/RecentOrders';
+import { DashboardStats } from '../../components/user/dashboard/StatsCard';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 // ==================== SKELETON COMPONENTS ====================
-
-const StatCardSkeleton = () => (
-  <div className="bg-white border border-tppslate/10 rounded-lg p-3 animate-pulse">
-    <div className="flex items-start justify-between mb-2">
-      <div className="w-4 h-4 bg-tppslate/10 rounded skeleton-shimmer"></div>
-      <div className="w-8 h-4 bg-tppslate/10 rounded skeleton-shimmer"></div>
-    </div>
-    <div className="w-16 h-3 bg-tppslate/10 rounded mb-1 skeleton-shimmer"></div>
-    <div className="w-12 h-5 bg-tppslate/10 rounded skeleton-shimmer"></div>
-  </div>
-);
-
-const OrderCardSkeleton = () => (
-  <div className="p-3 border-b border-tppslate/5 animate-pulse">
-    <div className="flex items-center justify-between gap-2 mb-2">
-      <div className="flex items-center gap-2 flex-1">
-        <div className="w-16 h-3 bg-tppslate/10 rounded skeleton-shimmer"></div>
-        <div className="w-12 h-4 bg-tppslate/10 rounded skeleton-shimmer"></div>
-      </div>
-      <div className="w-12 h-5 bg-tppslate/10 rounded skeleton-shimmer"></div>
-    </div>
-    <div className="w-24 h-3 bg-tppslate/10 rounded skeleton-shimmer"></div>
-  </div>
-);
 
 const QuickLinkSkeleton = () => (
   <div className="bg-white border border-tppslate/10 rounded-lg p-3 animate-pulse">
@@ -54,6 +32,10 @@ export default function Dashboard() {
     total_orders: 0,
     pending: 0,
     confirmed: 0,
+    processing: 0,
+    picked_up: 0,
+    in_transit: 0,
+    out_for_delivery: 0,
     shipped: 0,
     delivered: 0,
     cancelled: 0,
@@ -81,12 +63,33 @@ export default function Dashboard() {
         'Content-Type': 'application/json',
       };
 
-      // ⭐ Fetch order statistics from new API endpoint
+      // ✅ Fetch order statistics from API endpoint
       try {
         const statsResponse = await getOrderStats();
+        console.log('📊 Stats Response:', statsResponse);
+        
         if (statsResponse.success && statsResponse.stats) {
-          setStats(statsResponse.stats);
-          console.log('✅ Order stats loaded:', statsResponse.stats);
+          const statsData = statsResponse.stats;
+          
+          setStats({
+            total_orders: statsData.total_orders || 0,
+            pending: statsData.pending || 0,
+            confirmed: statsData.confirmed || 0,
+            processing: statsData.processing || 0,
+            picked_up: statsData.picked_up || 0,
+            in_transit: statsData.in_transit || 0,
+            out_for_delivery: statsData.out_for_delivery || 0,
+            shipped: statsData.shipped || 0,
+            delivered: statsData.delivered || 0,
+            cancelled: statsData.cancelled || 0,
+            total_spent: statsData.total_spent || 0,
+            avg_order_value: statsData.avg_order_value || 0,
+            recent_orders: statsData.recent_orders || []
+          });
+          
+          console.log('✅ Stats loaded with recent orders:', statsData.recent_orders?.length || 0);
+        } else {
+          console.warn('⚠️ Stats response invalid:', statsResponse);
         }
       } catch (err) {
         console.error('❌ Error loading order stats:', err);
@@ -122,34 +125,6 @@ export default function Dashboard() {
     }
   };
 
-  const getStatusBadge = (status) => {
-    const styles = {
-      delivered: { bg: 'bg-tppslate/10', text: 'text-tppslate', label: 'Delivered' },
-      pending: { bg: 'bg-yellow-50', text: 'text-yellow-700', label: 'Pending' },
-      confirmed: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Confirmed' },
-      processing: { bg: 'bg-tpppink/10', text: 'text-tpppink', label: 'Processing' },
-      shipped: { bg: 'bg-indigo-50', text: 'text-indigo-700', label: 'Shipped' },
-      cancelled: { bg: 'bg-red-50', text: 'text-red-700', label: 'Cancelled' },
-    };
-    return styles[status] || styles.pending;
-  };
-
-  const formatCurrency = (amount) => {
-    const num = parseFloat(amount) || 0;
-    return `₹${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-  };
-
-  const formatDate = (dateString) => {
-    try {
-      return new Date(dateString).toLocaleDateString('en-IN', {
-        month: 'short',
-        day: 'numeric'
-      });
-    } catch {
-      return 'N/A';
-    }
-  };
-
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -160,128 +135,18 @@ export default function Dashboard() {
         <p className="text-xs text-tppslate/60 mt-0.5">Here's your account overview</p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {loading ? (
-          <>
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-          </>
-        ) : (
-          <>
-            {/* Total Orders */}
-            <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
-              <div className="flex items-start justify-between mb-2">
-                <Package className="w-4 h-4 text-tpppink" />
-                <span className="text-xs font-semibold text-tpppink">{stats.total_orders}</span>
-              </div>
-              <p className="text-xs text-tppslate/60 font-medium">Total Orders</p>
-              <p className="text-sm font-bold text-tppslate mt-1">{stats.total_orders}</p>
-            </div>
-
-            {/* Total Spent */}
-            <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
-              <div className="flex items-start justify-between mb-2">
-                <TrendingUp className="w-4 h-4 text-tpppink" />
-                <span className="text-xs text-tppslate/50">Lifetime</span>
-              </div>
-              <p className="text-xs text-tppslate/60 font-medium">Total Spent</p>
-              <p className="text-sm font-bold text-tppslate mt-1">{formatCurrency(stats.total_spent)}</p>
-            </div>
-
-            {/* Pending Orders */}
-            <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
-              <div className="flex items-start justify-between mb-2">
-                <Clock className="w-4 h-4 text-tpppink" />
-                <span className="text-xs font-semibold text-tpppink">{stats.pending}</span>
-              </div>
-              <p className="text-xs text-tppslate/60 font-medium">Pending Orders</p>
-              <p className="text-sm font-bold text-tppslate mt-1">{stats.pending}</p>
-            </div>
-
-            {/* Delivered Orders */}
-            <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
-              <div className="flex items-start justify-between mb-2">
-                <CheckCircle className="w-4 h-4 text-tpppink" />
-                <span className="text-xs font-semibold text-tpppink">{stats.delivered}</span>
-              </div>
-              <p className="text-xs text-tppslate/60 font-medium">Delivered</p>
-              <p className="text-sm font-bold text-tppslate mt-1">{stats.delivered}</p>
-            </div>
-          </>
-        )}
-      </div>
+      {/* ✅ Stats Grid - Now using DashboardStats component */}
+      <DashboardStats stats={stats} loading={loading} />
 
       {/* Main Content - Two Column */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Recent Orders - Wider */}
-        <div className="lg:col-span-2 bg-white border border-tppslate/10 rounded-lg overflow-hidden">
-          <div className="p-3 border-b border-tppslate/10 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-tppslate">Recent Orders</h2>
-            <button
-              onClick={() => navigate('/user/orders')}
-              className="text-xs text-tpppink hover:text-tpppink/80 font-medium transition-colors flex items-center gap-1"
-            >
-              View All
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-
-          {loading ? (
-            <div className="divide-y divide-tppslate/5">
-              <OrderCardSkeleton />
-              <OrderCardSkeleton />
-              <OrderCardSkeleton />
-            </div>
-          ) : !stats.recent_orders || stats.recent_orders.length === 0 ? (
-            <div className="p-6 text-center">
-              <Package className="w-8 h-8 text-tppslate/20 mx-auto mb-2" />
-              <p className="text-xs text-tppslate/60">No orders yet</p>
-              <button
-                onClick={() => navigate('/shop')}
-                className="text-xs text-tpppink hover:text-tpppink/80 font-medium mt-2 transition-colors"
-              >
-                Start shopping →
-              </button>
-            </div>
-          ) : (
-            <div className="divide-y divide-tppslate/5 max-h-64 overflow-y-auto">
-              {stats.recent_orders.map((order) => {
-                const badge = getStatusBadge(order.status);
-                const orderId = order.id?.substring(0, 8).toUpperCase() || '#N/A';
-                
-                return (
-                  <div
-                    key={order.id}
-                    onClick={() => navigate(`/user/orders/${order.id}`)}
-                    className="p-3 hover:bg-tppslate/5 transition-colors cursor-pointer group"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="text-xs font-semibold text-tppslate truncate">#{orderId}</p>
-                          <span className={`text-xs font-medium px-1.5 py-0.5 rounded inline-block flex-shrink-0 ${badge.bg} ${badge.text}`}>
-                            {badge.label}
-                          </span>
-                        </div>
-                        <p className="text-xs text-tppslate/60">
-                          {formatDate(order.created_at)}
-                        </p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-xs font-bold text-tppslate">
-                          {formatCurrency(order.final_total)}
-                        </p>
-                        <p className="text-xs text-tppslate/40 group-hover:text-tpppink transition-colors">View</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+        {/* Recent Orders - Wider (2 columns) */}
+        <div className="lg:col-span-2">
+          <RecentOrders 
+            orders={stats.recent_orders || []} 
+            loading={loading}
+            onViewAll={() => navigate('/user/orders')}
+          />
         </div>
 
         {/* Quick Links - Sidebar */}

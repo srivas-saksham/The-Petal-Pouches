@@ -64,67 +64,110 @@ export const getOrderById = async (orderId) => {
 
 /**
  * Get order statistics for dashboard
- * Uses backend API if available, otherwise calculates from orders
- * @returns {Promise<Object>} Order stats
+ * ✅ FIXED: Properly extracts stats from API response
+ * @returns {Promise<Object>} Order stats with recent_orders
  */
 export const getOrderStats = async () => {
-  // Try backend API first
   try {
-    const result = await apiRequest(() => 
-      api.get('/api/orders/stats')
-    );
+    const response = await api.get('/api/orders/stats');
     
-    if (result.success && result.data) {
-      return result;
+    console.log('📊 Raw API response:', response.data);
+    
+    // Backend returns: { success: true, stats: {...} }
+    if (response.data?.success && response.data?.stats) {
+      return {
+        success: true,
+        stats: response.data.stats  // ✅ Direct extraction
+      };
     }
+    
+    // Fallback if format is different
+    if (response.data?.data) {
+      return {
+        success: true,
+        stats: response.data.data
+      };
+    }
+    
+    throw new Error('Invalid response format');
+    
   } catch (error) {
-    console.log('Backend stats API not available, calculating from orders...');
+    console.error('❌ Backend stats API error:', error);
+    
+    // Fallback: Calculate from all orders
+    try {
+      const result = await apiRequest(() => 
+        api.get('/api/orders', { params: { limit: 10000 } })
+      );
+
+      if (!result.success) {
+        return {
+          success: false,
+          stats: {
+            total_orders: 0,
+            pending: 0,
+            confirmed: 0,
+            processing: 0,
+            in_transit: 0,
+            out_for_delivery: 0,
+            shipped: 0,
+            delivered: 0,
+            cancelled: 0,
+            total_spent: 0,
+            avg_order_value: 0,
+            recent_orders: []
+          }
+        };
+      }
+
+      const orders = result.data.data || result.data || [];
+      
+      const stats = {
+        total_orders: orders.length,
+        pending: orders.filter(o => o.status === 'pending').length,
+        confirmed: orders.filter(o => o.status === 'confirmed').length,
+        processing: orders.filter(o => o.status === 'processing').length,
+        in_transit: orders.filter(o => o.status === 'in_transit').length,
+        out_for_delivery: orders.filter(o => o.status === 'out_for_delivery').length,
+        shipped: orders.filter(o => o.status === 'shipped').length,
+        delivered: orders.filter(o => o.status === 'delivered').length,
+        cancelled: orders.filter(o => o.status === 'cancelled').length,
+        total_spent: orders
+          .filter(o => o.payment_status === 'paid' && o.status !== 'cancelled')
+          .reduce((sum, o) => sum + (o.final_total || 0), 0),
+        avg_order_value: orders.length > 0 
+          ? Math.round(orders.reduce((sum, o) => sum + (o.final_total || 0), 0) / orders.length)
+          : 0,
+        recent_orders: orders
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 5)
+      };
+
+      return {
+        success: true,
+        stats
+      };
+    } catch (fallbackError) {
+      console.error('❌ Fallback calculation failed:', fallbackError);
+      return {
+        success: false,
+        stats: {
+          total_orders: 0,
+          pending: 0,
+          confirmed: 0,
+          processing: 0,
+          in_transit: 0,
+          out_for_delivery: 0,
+          shipped: 0,
+          delivered: 0,
+          cancelled: 0,
+          total_spent: 0,
+          avg_order_value: 0,
+          recent_orders: []
+        }
+      };
+    }
   }
-
-  // Fallback: Calculate from all orders
-  const result = await apiRequest(() => 
-    api.get('/api/orders', { 
-      params: { limit: 10000 }
-    })
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      data: {
-        total: 0,
-        pending: 0,
-        processing: 0,
-        shipped: 0,
-        delivered: 0,
-        cancelled: 0,
-        total_revenue: 0,
-        avg_order_value: 0,
-      },
-    };
-  }
-
-  const orders = result.data.data || [];
-  
-  const stats = {
-    total: orders.length,
-    pending: orders.filter(o => o.status === 'pending').length,
-    processing: orders.filter(o => o.status === 'processing').length,
-    shipped: orders.filter(o => o.status === 'shipped').length,
-    delivered: orders.filter(o => o.status === 'delivered').length,
-    cancelled: orders.filter(o => o.status === 'cancelled').length,
-    total_revenue: orders
-      .filter(o => o.payment_status === 'paid' && o.status !== 'cancelled')
-      .reduce((sum, o) => sum + (o.final_total || 0), 0),
-    avg_order_value: orders.length > 0 
-      ? Math.round(orders.reduce((sum, o) => sum + (o.final_total || 0), 0) / orders.length)
-      : 0,
-  };
-
-  return {
-    success: true,
-    data: stats,
-  };
 };
 
 /**

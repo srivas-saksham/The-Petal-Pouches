@@ -145,7 +145,7 @@ const ShopHeader = ({
     <>
       {/* STICKY SECTION */}
       <div className="sticky top-0 z-30">
-        <div className="bg-tpppeach border-b border-slate-200 shadow-sm relative z-20">
+        <div className="bg-tpppeach/90 backdrop-blur-sm border-b border-slate-200 shadow-sm relative z-20">
           <div className="px-6 py-2">
             {/* Main Row: Title | Navigation & Search (2 rows) | Auth & Cart Buttons */}
             <div className="flex items-center justify-between gap-6">

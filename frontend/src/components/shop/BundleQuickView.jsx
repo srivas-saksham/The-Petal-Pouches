@@ -289,12 +289,26 @@ const BundleQuickView = ({ bundle, isOpen, onClose }) => {
               <Package size={20} className="text-tpppink" />
               Bundle Quick View
             </h2>
-            <button
-              onClick={handleClose}
-              className="p-2 hover:bg-slate-100 rounded-lg transition-colors active:scale-95"
-            >
-              <X className="w-5 h-5 text-slate-600" />
-            </button>
+            <div className='flex items-center'>
+              {/* View Details Link */}
+              <a
+                href={`/shop/bundles/${bundle.id}`}
+                className="
+                  font-inter text-center px-6 py-2 text-tpppink font-semibold
+                  hover:text-tppslate transition-colors
+                  border-b-2 border-transparent hover:border-tpppink
+                "
+                onClick={handleClose}
+              >
+                View Full Bundle Details →
+              </a>
+              <button
+                onClick={handleClose}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors active:scale-95"
+              >
+                <X className="w-5 h-5 text-slate-600" />
+              </button>
+            </div>
           </div>
 
           {/* Scrollable Content */}

@@ -1,79 +1,181 @@
-// frontend/src/components/user/dashboard/RecentOrders.jsx
+// frontend/src/components/user/dashboard/RecentOrders.jsx - BALANCED COMPACT DESIGN
 
 import React, { useState, useEffect } from 'react';
-import { Package, Eye, Truck, ChevronRight, AlertCircle } from 'lucide-react';
+import { Package, Clock, Truck, CheckCircle, XCircle, MapPin, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 /**
- * Get status badge color classes
+ * Get status configuration with colors (matching OrderCard)
  */
-const getStatusColor = (status) => {
-  const statusColors = {
-    pending: 'bg-amber-100 text-amber-800 border-amber-200',
-    processing: 'bg-blue-100 text-blue-800 border-blue-200',
-    shipped: 'bg-purple-100 text-purple-800 border-purple-200',
-    delivered: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    cancelled: 'bg-red-100 text-red-800 border-red-200',
-    returned: 'bg-slate-100 text-slate-800 border-slate-200'
+const getStatusConfig = (status) => {
+  const configs = {
+    pending: { 
+      bg: 'bg-yellow-50', 
+      text: 'text-yellow-700', 
+      label: 'Pending',
+      icon: Clock
+    },
+    confirmed: { 
+      bg: 'bg-blue-50', 
+      text: 'text-blue-700', 
+      label: 'Confirmed',
+      icon: CheckCircle
+    },
+    processing: { 
+      bg: 'bg-tpppink/10', 
+      text: 'text-tpppink', 
+      label: 'Processing',
+      icon: Package
+    },
+    picked_up: {
+      bg: 'bg-indigo-50',
+      text: 'text-indigo-700',
+      label: 'Picked Up',
+      icon: Truck
+    },
+    in_transit: {
+      bg: 'bg-indigo-50',
+      text: 'text-indigo-700',
+      label: 'In Transit',
+      icon: Truck
+    },
+    out_for_delivery: {
+      bg: 'bg-purple-50',
+      text: 'text-purple-700',
+      label: 'Out for Delivery',
+      icon: Truck
+    },
+    shipped: { 
+      bg: 'bg-indigo-50', 
+      text: 'text-indigo-700', 
+      label: 'Shipped',
+      icon: Truck
+    },
+    delivered: { 
+      bg: 'bg-green-50', 
+      text: 'text-green-700', 
+      label: 'Delivered',
+      icon: CheckCircle
+    },
+    cancelled: { 
+      bg: 'bg-red-50', 
+      text: 'text-red-600', 
+      label: 'Cancelled',
+      icon: XCircle
+    },
+    failed: {
+      bg: 'bg-orange-50',
+      text: 'text-orange-700',
+      label: 'Delivery Failed',
+      icon: XCircle
+    },
+    rto_initiated: {
+      bg: 'bg-orange-50',
+      text: 'text-orange-700',
+      label: 'Return Initiated',
+      icon: XCircle
+    },
+    rto_delivered: {
+      bg: 'bg-gray-50',
+      text: 'text-gray-700',
+      label: 'Returned',
+      icon: Package
+    }
   };
-  
-  return statusColors[status] || 'bg-slate-100 text-slate-800 border-slate-200';
+  return configs[status] || { 
+    bg: 'bg-yellow-50', 
+    text: 'text-yellow-700', 
+    label: status || 'Pending', 
+    icon: Clock 
+  };
 };
 
 /**
- * Format order date
+ * Format date to short format
  */
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
-  
-  const date = new Date(dateString);
-  const options = { year: 'numeric', month: 'short', day: 'numeric' };
-  return date.toLocaleDateString('en-US', options);
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+  } catch {
+    return 'N/A';
+  }
 };
 
 /**
  * Format currency
  */
 const formatCurrency = (amount) => {
-  if (!amount && amount !== 0) return '₹0.00';
-  return `₹${parseFloat(amount).toFixed(2)}`;
+  if (!amount && amount !== 0) return '₹0';
+  return `₹${parseFloat(amount).toLocaleString('en-IN')}`;
 };
 
 /**
- * RecentOrders Component
- * Display last 5 orders with quick actions
- * 
- * @param {Array} orders - Array of order objects
- * @param {boolean} loading - Loading state
- * @param {Function} onViewAll - Callback for "View All" button
+ * Parse shipping address
+ */
+const parseShippingAddress = (shipping_address) => {
+  if (!shipping_address) return null;
+  if (typeof shipping_address === 'object') return shipping_address;
+  if (typeof shipping_address === 'string') {
+    try {
+      return JSON.parse(shipping_address);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
+/**
+ * Get estimated delivery date
+ */
+const getEstimatedDelivery = (order) => {
+  if (order.shipment?.estimated_delivery) {
+    return formatDate(order.shipment.estimated_delivery);
+  }
+  if (order.delivery_metadata?.expected_delivery_date) {
+    return formatDate(order.delivery_metadata.expected_delivery_date);
+  }
+  if (order.delivery_metadata?.estimated_days) {
+    const orderDate = new Date(order.created_at);
+    const estimatedDate = new Date(orderDate);
+    estimatedDate.setDate(orderDate.getDate() + order.delivery_metadata.estimated_days);
+    return formatDate(estimatedDate);
+  }
+  return 'Within 7 days';
+};
+
+/**
+ * Balanced Compact RecentOrders Component
  */
 const RecentOrders = ({ orders = [], loading = false, onViewAll }) => {
   const [displayOrders, setDisplayOrders] = useState([]);
 
   useEffect(() => {
+    console.log('📦 Recent Orders received:', orders);
     if (orders && Array.isArray(orders)) {
-      // Show only last 5 orders
       setDisplayOrders(orders.slice(0, 5));
     }
   }, [orders]);
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg border border-slate-200 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="h-6 bg-slate-200 rounded w-32 animate-pulse"></div>
-          <div className="h-4 bg-slate-200 rounded w-20 animate-pulse"></div>
+      <div className="bg-white rounded-xl border border-tppslate/10 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="h-5 bg-tppslate/10 rounded w-32 animate-pulse"></div>
+          <div className="h-4 bg-tppslate/10 rounded w-16 animate-pulse"></div>
         </div>
         
-        <div className="space-y-4">
+        <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="border border-slate-200 rounded-lg p-4 animate-pulse">
-              <div className="flex justify-between items-start mb-3">
-                <div className="h-4 bg-slate-200 rounded w-24"></div>
-                <div className="h-6 bg-slate-200 rounded w-20"></div>
+            <div key={i} className="flex gap-3 p-3 border border-tppslate/10 rounded-lg animate-pulse">
+              <div className="w-16 h-16 bg-tppslate/10 rounded"></div>
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-tppslate/10 rounded w-3/4"></div>
+                <div className="h-3 bg-tppslate/10 rounded w-1/2"></div>
+                <div className="h-3 bg-tppslate/10 rounded w-1/3"></div>
               </div>
-              <div className="h-3 bg-slate-200 rounded w-32 mb-2"></div>
-              <div className="h-3 bg-slate-200 rounded w-40"></div>
             </div>
           ))}
         </div>
@@ -83,28 +185,22 @@ const RecentOrders = ({ orders = [], loading = false, onViewAll }) => {
 
   if (!displayOrders || displayOrders.length === 0) {
     return (
-      <div className="bg-white rounded-lg border border-slate-200 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-            <Package className="w-5 h-5 text-pink-500" />
+      <div className="bg-white rounded-xl border border-tppslate/10 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-tppslate flex items-center gap-2">
+            <Package className="w-4 h-4" />
             Recent Orders
           </h2>
         </div>
 
         <div className="text-center py-12">
-          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Package className="w-8 h-8 text-slate-400" />
-          </div>
-          <p className="text-slate-600 mb-2">No orders yet</p>
-          <p className="text-sm text-slate-500 mb-4">
-            Start shopping to see your orders here
-          </p>
+          <Package className="w-12 h-12 text-tppslate/20 mx-auto mb-3" />
+          <p className="text-sm text-tppslate/60 mb-4">No orders yet</p>
           <Link 
             to="/products" 
-            className="inline-flex items-center gap-2 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-tppslate text-white text-sm font-semibold rounded-lg hover:bg-tppslate/90 transition-colors"
           >
             Browse Products
-            <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
       </div>
@@ -112,87 +208,121 @@ const RecentOrders = ({ orders = [], loading = false, onViewAll }) => {
   }
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-          <Package className="w-5 h-5 text-pink-500" />
+    <div className="bg-white rounded-xl border border-tppslate/10 p-5">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-bold text-tppslate flex items-center gap-2">
+          <Package className="w-4 h-4" />
           Recent Orders
         </h2>
         
         {onViewAll && (
           <button
             onClick={onViewAll}
-            className="text-sm text-pink-500 hover:text-pink-600 font-medium flex items-center gap-1 transition-colors"
+            className="text-sm text-tppslate/60 hover:text-tpppink font-medium transition-colors"
           >
-            View All
-            <ChevronRight className="w-4 h-4" />
+            View All →
           </button>
         )}
       </div>
 
+      {/* Orders List - Balanced Compact */}
       <div className="space-y-3">
-        {displayOrders.map((order) => (
-          <div
-            key={order.id}
-            className="border border-slate-200 rounded-lg p-4 hover:border-pink-200 hover:shadow-sm transition-all duration-200"
-          >
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <Link
-                  to={`/user/orders/${order.id}`}
-                  className="text-sm font-medium text-slate-900 hover:text-pink-500 transition-colors"
-                >
-                  Order #{order.id?.slice(0, 8)}
-                </Link>
-                <p className="text-xs text-slate-500 mt-1">
-                  {formatDate(order.created_at)}
-                </p>
-              </div>
-
-              <span className={`text-xs font-medium px-3 py-1 rounded-full border ${getStatusColor(order.status)}`}>
-                {order.status?.charAt(0).toUpperCase() + order.status?.slice(1) || 'Unknown'}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm text-slate-600">
-                  {order.item_count || order.order_items?.length || 0} item(s)
-                </p>
-                <p className="text-base font-semibold text-pink-500 mt-1">
-                  {formatCurrency(order.final_total || order.total)}
-                </p>
-              </div>
-
-              <div className="flex gap-2">
-                <Link
-                  to={`/user/orders/${order.id}`}
-                  className="p-2 text-slate-600 hover:text-pink-500 hover:bg-pink-50 rounded-lg transition-colors"
-                  title="View Details"
-                >
-                  <Eye className="w-4 h-4" />
-                </Link>
-
-                {(order.status === 'shipped' || order.status === 'processing') && (
-                  <Link
-                    to={`/user/orders/${order.id}/track`}
-                    className="p-2 text-slate-600 hover:text-pink-500 hover:bg-pink-50 rounded-lg transition-colors"
-                    title="Track Order"
-                  >
-                    <Truck className="w-4 h-4" />
-                  </Link>
+        {displayOrders.map((order) => {
+          console.log('📦 Order status:', order.status, 'for order:', order.id);
+          
+          const statusConfig = getStatusConfig(order.status);
+          const StatusIcon = statusConfig.icon;
+          
+          const firstItem = order.items_preview?.[0] || order.items?.[0];
+          const itemCount = order.items?.length || order.items_preview?.length || order.item_count || 0;
+          
+          const shippingAddress = parseShippingAddress(order.shipping_address);
+          const city = shippingAddress?.city || 'N/A';
+          const orderId = order.id?.substring(0, 8).toUpperCase() || 'N/A';
+          
+          return (
+            <Link
+              key={order.id}
+              to={`/user/orders/${order.id}`}
+              className="flex gap-3 p-3 border border-tppslate/30 rounded-lg hover:border-tpppink/90 hover:bg-tppslate/[0.02] transition-all group"
+            >
+              {/* Image */}
+              <div className="relative flex-shrink-0">
+                <div className="w-16 h-16 rounded-lg overflow-hidden bg-tppslate/5">
+                  {firstItem?.bundle_img ? (
+                    <img
+                      src={firstItem.bundle_img}
+                      alt={firstItem.bundle_title || 'Order'}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Package className="w-6 h-6 text-tppslate/20" />
+                    </div>
+                  )}
+                </div>
+                {itemCount > 1 && (
+                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-tppslate text-white rounded-full flex items-center justify-center text-[10px] font-bold">
+                    {itemCount}
+                  </div>
                 )}
               </div>
-            </div>
 
-            {order.payment_status === 'failed' && (
-              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-red-600">
-                <AlertCircle className="w-4 h-4" />
-                <span>Payment failed - Please retry</span>
+              {/* Details - Two Lines */}
+              <div className="flex-1 min-w-0">
+                {/* Line 1: Title + Status */}
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-tppslate truncate">
+                      {firstItem?.bundle_title || 'Order Bundle'}
+                    </h3>
+                    <p className="text-xs text-tppslate/60 font-mono">
+                      #{orderId}
+                      {itemCount > 1 && <span className="text-tppslate/50"> • {itemCount} items</span>}
+                    </p>
+                  </div>
+                  
+                  {/* Status Badge */}
+                  <div className={`flex items-center gap-1 px-2 py-1 ${statusConfig.bg} rounded text-xs font-semibold ${statusConfig.text} whitespace-nowrap`}>
+                    <StatusIcon className="w-3 h-3" />
+                    {statusConfig.label}
+                  </div>
+                </div>
+
+                {/* Line 2: Location + Date + Amount */}
+                <div className="flex items-center gap-3 text-xs text-tppslate/70">
+                  {/* Location */}
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    <span>{city}</span>
+                  </div>
+                  
+                  <span className="text-tppslate/30">•</span>
+                  
+                  {/* Date/Status Info */}
+                  <div className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {order.status === 'delivered' ? (
+                      <span>Delivered {formatDate(order.delivered_at || order.created_at)}</span>
+                    ) : order.status === 'cancelled' ? (
+                      <span>Cancelled {formatDate(order.created_at)}</span>
+                    ) : (
+                      <span>Arriving {getEstimatedDelivery(order)}</span>
+                    )}
+                  </div>
+                  
+                  <span className="text-tppslate/30">•</span>
+                  
+                  {/* Amount */}
+                  <span className="font-semibold text-tppslate ml-auto">
+                    {formatCurrency(order.final_total || order.total)}
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
-        ))}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

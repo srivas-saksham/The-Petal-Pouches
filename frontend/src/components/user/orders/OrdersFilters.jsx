@@ -45,9 +45,14 @@ const OrdersFilters = ({ filters, onFilterChange, onReset }) => {
             <option value="pending">Pending</option>
             <option value="confirmed">Confirmed</option>
             <option value="processing">Processing</option>
+            <option value="in_transit">In Transit</option>
+            <option value="out_for_delivery">Out for Delivery</option>
             <option value="shipped">Shipped</option>
             <option value="delivered">Delivered</option>
             <option value="cancelled">Cancelled</option>
+            <option value="failed">Failed</option>
+            <option value="rto_initiated">Return Initiated</option>
+            <option value="rto_delivered">Returned</option>
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tppslate/40 pointer-events-none" />
         </div>
@@ -144,7 +149,7 @@ const OrdersFilters = ({ filters, onFilterChange, onReset }) => {
             )}
             {filters.status !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-tpppink/10 text-tpppink text-xs rounded-full font-medium">
-                Status: {filters.status}
+                Status: {filters.status.replace(/_/g, ' ')}
                 <X
                   className="w-3 h-3 cursor-pointer hover:text-tpppink/70"
                   onClick={() => onFilterChange('status', 'all')}

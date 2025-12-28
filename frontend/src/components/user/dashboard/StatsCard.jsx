@@ -1,133 +1,272 @@
-// frontend/src/components/user/ui/StatsCard.jsx
+// frontend/src/components/user/dashboard/StatsCard.jsx
 
-import React from 'react';
-import { Package, ShoppingCart, Heart, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { Package, TrendingUp, Clock, CheckCircle, ChevronDown } from 'lucide-react';
 
 /**
- * StatsCard Component
- * Display dashboard statistics with icon and trend
- * 
- * @param {string} title - Card title
- * @param {number|string} value - Stat value to display
- * @param {Component} icon - Lucide icon component
- * @param {string} color - Color theme (pink, slate, mint, amber)
- * @param {Object} trend - Optional trend data { value: number, isPositive: boolean }
- * @param {boolean} loading - Loading state
+ * StatsCard Component - Matches Dashboard.jsx UI exactly
+ * Compact design with icon, label, and value
+ * ✅ Supports dropdown for timeline selection
  */
 const StatsCard = ({ 
-  title, 
-  value, 
   icon: Icon, 
-  color = 'pink', 
-  trend, 
-  loading = false 
+  label, 
+  value, 
+  badge,
+  badgeColor = 'text-tpppink',
+  loading = false,
+  dropdown = null, // { options: [], selected, onChange }
 }) => {
-  const colorClasses = {
-    pink: 'bg-pink-50 text-pink-600',
-    slate: 'bg-slate-50 text-slate-600',
-    mint: 'bg-emerald-50 text-emerald-600',
-    amber: 'bg-amber-50 text-amber-600'
-  };
-
-  const iconBgColor = {
-    pink: 'bg-pink-100',
-    slate: 'bg-slate-100',
-    mint: 'bg-emerald-100',
-    amber: 'bg-amber-100'
-  };
-
-  const borderColor = {
-    pink: 'border-pink-200',
-    slate: 'border-slate-200',
-    mint: 'border-emerald-200',
-    amber: 'border-amber-200'
-  };
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg border border-slate-200 p-6 animate-pulse">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <div className="h-4 bg-slate-200 rounded w-24 mb-3"></div>
-            <div className="h-8 bg-slate-200 rounded w-16"></div>
-          </div>
-          <div className={`w-12 h-12 rounded-lg ${iconBgColor[color]}`}></div>
+      <div className="bg-white border border-tppslate/10 rounded-lg p-3 animate-pulse">
+        <div className="flex items-start justify-between mb-2">
+          <div className="w-4 h-4 bg-tppslate/10 rounded"></div>
+          <div className="w-8 h-4 bg-tppslate/10 rounded"></div>
         </div>
+        <div className="w-16 h-3 bg-tppslate/10 rounded mb-1"></div>
+        <div className="w-12 h-5 bg-tppslate/10 rounded"></div>
       </div>
     );
   }
 
   return (
-    <div className={`bg-white rounded-lg border ${borderColor[color]} p-6 hover:shadow-md transition-shadow duration-200`}>
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-slate-600 mb-1">
-            {title}
-          </p>
-          <h3 className="text-3xl font-bold text-slate-900">
-            {value}
-          </h3>
-          
-          {trend && (
-            <p className={`text-xs mt-2 ${trend.isPositive ? 'text-emerald-600' : 'text-red-600'}`}>
-              <span className="font-medium">
-                {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}%
-              </span>
-              <span className="text-slate-500 ml-1">vs last month</span>
-            </p>
-          )}
-        </div>
-
-        <div className={`w-12 h-12 rounded-lg ${iconBgColor[color]} ${colorClasses[color]} flex items-center justify-center`}>
-          {Icon && <Icon className="w-6 h-6" />}
-        </div>
+    <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
+      <div className="flex items-start justify-between mb-2">
+        <Icon className="w-4 h-4 text-tpppink" />
+        {dropdown ? (
+          <div className="relative">
+            <button
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="flex items-center gap-1 text-xs font-semibold text-tppslate/50 hover:text-tppslate transition-colors"
+            >
+              {dropdown.selected}
+              <ChevronDown className="w-3 h-3" />
+            </button>
+            
+            {dropdownOpen && (
+              <>
+                {/* Backdrop */}
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setDropdownOpen(false)}
+                />
+                
+                {/* Dropdown Menu */}
+                <div className="absolute right-0 top-full mt-1 bg-white border border-tppslate/10 rounded-lg shadow-lg py-1 z-20 min-w-[140px]">
+                  {dropdown.options.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        dropdown.onChange(option.value);
+                        setDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
+                        dropdown.selected === option.label
+                          ? 'bg-tpppink/10 text-tpppink font-semibold'
+                          : 'text-tppslate/80 hover:bg-tppslate/5'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        ) : badge !== undefined ? (
+          <span className={`text-xs font-semibold ${badgeColor}`}>
+            {badge}
+          </span>
+        ) : null}
       </div>
+      <p className="text-xs text-tppslate/60 font-medium">{label}</p>
+      <p className="text-sm font-bold text-tppslate mt-1">{value}</p>
     </div>
   );
 };
 
 /**
- * Pre-configured stat card variants for common use cases
+ * DashboardStats Component - Grid of 4 stat cards
+ * Shows: Total Orders, Total Spent, Pending Orders, Delivered Orders
+ * ✅ Total Spent now has timeline dropdown
  */
-export const OrdersStatsCard = ({ value, trend, loading }) => (
-  <StatsCard
-    title="Total Orders"
-    value={value}
-    icon={Package}
-    color="pink"
-    trend={trend}
-    loading={loading}
-  />
-);
+export const DashboardStats = ({ stats, loading = false }) => {
+  const [spendTimeline, setSpendTimeline] = useState('lifetime');
 
-export const PendingOrdersCard = ({ value, loading }) => (
-  <StatsCard
-    title="Pending Orders"
-    value={value}
-    icon={Clock}
-    color="amber"
-    loading={loading}
-  />
-);
+  // Format currency
+  const formatCurrency = (amount) => {
+    const num = parseFloat(amount) || 0;
+    return `₹${num.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+  };
 
-export const WishlistCard = ({ value, loading }) => (
-  <StatsCard
-    title="Wishlist Items"
-    value={value}
-    icon={Heart}
-    color="pink"
-    loading={loading}
-  />
-);
+  // ✅ Calculate pending orders (all orders that are NOT delivered or cancelled)
+  const pendingCount = (
+    (stats?.pending || 0) +
+    (stats?.confirmed || 0) +
+    (stats?.processing || 0) +
+    (stats?.picked_up || 0) +
+    (stats?.in_transit || 0) +
+    (stats?.out_for_delivery || 0) +
+    (stats?.shipped || 0)
+  );
 
-export const CartCard = ({ value, loading }) => (
-  <StatsCard
-    title="Cart Items"
-    value={value}
-    icon={ShoppingCart}
-    color="mint"
-    loading={loading}
-  />
-);
+  // ✅ Calculate spending based on timeline
+  const calculateSpending = () => {
+    if (!stats?.recent_orders || stats.recent_orders.length === 0) {
+      return 0;
+    }
+
+    const now = new Date();
+    let startDate;
+
+    switch (spendTimeline) {
+      case '15_minutes':
+        startDate = new Date(now);
+        startDate.setMinutes(now.getMinutes() - 15);
+        break;
+      
+      case '30_minutes':
+        startDate = new Date(now);
+        startDate.setMinutes(now.getMinutes() - 30);
+        break;
+      
+      case '1_hour':
+        startDate = new Date(now);
+        startDate.setHours(now.getHours() - 1);
+        break;
+      
+      case 'today':
+        startDate = new Date(now);
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      
+      case 'this_week':
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - now.getDay()); // Start of this week (Sunday)
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      
+      case 'last_week':
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - now.getDay() - 7); // Start of last week
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6); // End of last week
+        endDate.setHours(23, 59, 59, 999);
+        
+        return stats.recent_orders
+          .filter(order => {
+            const orderDate = new Date(order.created_at);
+            return orderDate >= startDate && orderDate <= endDate && order.status !== 'cancelled';
+          })
+          .reduce((sum, order) => sum + (order.final_total || 0), 0);
+      
+      case 'this_month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      
+      case 'last_month':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        
+        return stats.recent_orders
+          .filter(order => {
+            const orderDate = new Date(order.created_at);
+            return orderDate >= startDate && orderDate <= lastMonthEnd && order.status !== 'cancelled';
+          })
+          .reduce((sum, order) => sum + (order.final_total || 0), 0);
+      
+      case '3_months':
+        startDate = new Date(now);
+        startDate.setMonth(now.getMonth() - 3);
+        break;
+      
+      case '6_months':
+        startDate = new Date(now);
+        startDate.setMonth(now.getMonth() - 6);
+        break;
+      
+      case 'this_year':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        break;
+      
+      case 'lifetime':
+      default:
+        return stats?.total_spent || 0;
+    }
+
+    // Filter orders by date range
+    return stats.recent_orders
+      .filter(order => {
+        const orderDate = new Date(order.created_at);
+        return orderDate >= startDate && order.status !== 'cancelled';
+      })
+      .reduce((sum, order) => sum + (order.final_total || 0), 0);
+  };
+
+  // Timeline options
+  const timelineOptions = [
+    // { label: 'Last 15 Minutes', value: '15_minutes' },
+    // { label: 'Last 30 Minutes', value: '30_minutes' },
+    { label: 'Last Hour', value: '1_hour' },
+    { label: 'Today', value: 'today' },
+    { label: 'This Week', value: 'this_week' },
+    { label: 'Last Week', value: 'last_week' },
+    { label: 'This Month', value: 'this_month' },
+    { label: 'Last Month', value: 'last_month' },
+    { label: 'Last 3 Months', value: '3_months' },
+    { label: 'Last 6 Months', value: '6_months' },
+    { label: 'This Year', value: 'this_year' },
+    { label: 'Lifetime', value: 'lifetime' }
+  ];
+
+  const selectedTimelineLabel = timelineOptions.find(opt => opt.value === spendTimeline)?.label || 'Lifetime';
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Total Orders */}
+      <StatsCard
+        icon={Package}
+        label="Total Orders"
+        value={stats?.total_orders || 0}
+        badge={stats?.total_orders || 0}
+        loading={loading}
+      />
+
+      {/* Total Spent - With Timeline Dropdown */}
+      <StatsCard
+        icon={TrendingUp}
+        label="Total Spent"
+        value={formatCurrency(calculateSpending())}
+        dropdown={{
+          options: timelineOptions,
+          selected: selectedTimelineLabel,
+          onChange: setSpendTimeline
+        }}
+        loading={loading}
+      />
+
+      {/* Pending Orders (All non-delivered/cancelled) */}
+      <StatsCard
+        icon={Clock}
+        label="Pending Orders"
+        value={pendingCount}
+        badge={pendingCount}
+        loading={loading}
+      />
+
+      {/* Delivered Orders */}
+      <StatsCard
+        icon={CheckCircle}
+        label="Delivered"
+        value={stats?.delivered || 0}
+        badge={stats?.delivered || 0}
+        loading={loading}
+      />
+    </div>
+  );
+};
 
 export default StatsCard;

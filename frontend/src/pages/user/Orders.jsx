@@ -1,4 +1,4 @@
-// frontend/src/pages/user/Orders.jsx - REDESIGNED
+// frontend/src/pages/user/Orders.jsx - REDESIGNED WITH STATS FILTER
 
 import { useState, useEffect } from 'react';
 import { useUserAuth } from '../../context/UserAuthContext';
@@ -54,8 +54,12 @@ const Orders = () => {
     try {
       setStatsLoading(true);
       const response = await getOrderStats();
-      if (response.success) {
-        setStats(response.data);
+      console.log('📊 Stats response:', response);
+      
+      if (response.success && response.stats) {
+        // Now response.data contains the stats
+        setStats(response.stats);
+        console.log('📊 Stats set:', response.stats);
       }
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -115,6 +119,19 @@ const Orders = () => {
     }
   };
 
+  // Handle stats card click to filter by status
+  const handleStatsFilterClick = (status) => {
+    if (filters.status === status) {
+      // If already filtered by this status, clear filter
+      handleFilterChange('status', 'all');
+    } else {
+      // Apply filter
+      handleFilterChange('status', status);
+    }
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleResetFilters = () => {
     setFilters({
       search: '',
@@ -147,8 +164,13 @@ const Orders = () => {
     <OrdersLayout
       sidebar={<BuyAgainSidebar onReorder={handleReorder} />}
     >
-      {/* Quick Stats */}
-      <OrdersStats stats={stats} loading={statsLoading} />
+      {/* Quick Stats - Now clickable */}
+      <OrdersStats 
+        stats={stats} 
+        loading={statsLoading}
+        activeFilter={filters.status}
+        onFilterClick={handleStatsFilterClick}
+      />
 
       {/* Filters */}
       <OrdersFilters

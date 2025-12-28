@@ -351,7 +351,7 @@ const SmartBundleSearch = ({
 
       {/* Dropdown Results */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border-2 border-slate-200 z-50 max-h-96 overflow-hidden">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border-2 border-slate-200 z-50 max-h-102 overflow-hidden">
           
           {/* Loading State */}
           {loading && (

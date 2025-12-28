@@ -161,8 +161,9 @@ const OrderSuccess = () => {
         backgroundSize: 'auto',
       }}
     >
-      {/* Help Section - Fixed Top Right Corner (Out of Flow) */}
-      <div className="hidden lg:block fixed top-6 right-6 w-64 z-50">
+      {/* Help Section + Action Buttons - Fixed Top Right Corner (Desktop Only) */}
+      <div className="hidden lg:block fixed top-6 right-6 w-64 z-50 space-y-3">
+        {/* Help Section */}
         <div className="bg-gradient-to-b from-tpppink/10 to-white rounded-xl border border-tpppink/20 p-4 shadow-lg backdrop-blur-sm">
           <p className="text-xs font-bold text-tppslate mb-2">Need Help?</p>
           <p className="text-xs text-slate-600 mb-3">
@@ -172,6 +173,9 @@ const OrderSuccess = () => {
             Contact Support →
           </button>
         </div>
+
+        {/* Action Buttons */}
+        <OrderActionsBar />
       </div>
 
       <div className="max-w-4xl mx-auto px-4">
@@ -245,8 +249,8 @@ const OrderSuccess = () => {
           </div>
         </div>
 
-        {/* Action Buttons - Full Width at Bottom */}
-        <div className="mt-6">
+        {/* Action Buttons - Mobile Only (Full Width at Bottom) */}
+        <div className="mt-6 lg:hidden">
           <OrderActionsBar />
         </div>
 
