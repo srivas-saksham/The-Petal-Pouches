@@ -13,6 +13,7 @@ import CustomersPage from '../pages/admin/CustomersPage';
 import NotificationsPage from '../pages/admin/NotificationsPage';
 import SettingsPage from '../pages/admin/SettingsPage';
 import AdminShipmentsPage from '../pages/admin/AdminShipmentsPage';
+import CouponsPage from '../pages/admin/CouponsPage';
 
 export default function AdminRoutes() {
   return (
@@ -23,6 +24,7 @@ export default function AdminRoutes() {
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
         <Route path="/bundles" element={<BundlesPage />} />
+        <Route path="/coupons" element={<CouponsPage />} />
         <Route path="/orders" element={<AdminOrdersPage />} />
         <Route path="shipments" element={<AdminShipmentsPage />} />
         <Route path="/customers" element={<CustomersPage />} />

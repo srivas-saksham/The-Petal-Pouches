@@ -414,7 +414,7 @@ export default function TopBar({ onMenuClick }) {
             </button>
             
             {/* Notifications */}
-            <div className="relative" ref={notifRef}>
+            {/* <div className="relative" ref={notifRef}>
               <button
                 onClick={() => {
                   setShowNotifications(!showNotifications);
@@ -430,48 +430,7 @@ export default function TopBar({ onMenuClick }) {
                   </span>
                 )}
               </button>
-
-              {/* Notifications Dropdown */}
-              {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border-2 border-slate-200 z-50 animate-scale-in">
-                  <div className="p-4 border-b-2 border-slate-200">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-tppslate">Notifications</h3>
-                      {unreadCount > 0 && (
-                        <span className="text-xs px-2 py-1 bg-red-500 text-white rounded-full font-semibold">
-                          {unreadCount} new
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="max-h-96 overflow-y-auto">
-                    {notifications.map((notif) => (
-                      <div
-                        key={notif.id}
-                        className={`p-4 border-b-2 border-slate-200 last:border-b-0 hover:bg-tpppeach/20 transition-all duration-200 cursor-pointer ${
-                          notif.unread ? 'bg-tpppeach/10' : 'bg-white'
-                        }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          {notif.unread && (
-                            <div className="w-2 h-2 bg-red-500 rounded-full mt-1.5 flex-shrink-0"></div>
-                          )}
-                          <div className="flex-1">
-                            <p className="text-sm text-tppslate font-medium">{notif.text}</p>
-                            <p className="text-xs text-tppslate/60 mt-1">{notif.time}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="p-3 text-center border-t-2 border-slate-200 bg-white">
-                    <button className="text-sm text-tppslate hover:text-tppslate/70 font-semibold transition-colors">
-                      View all notifications
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            </div> */}
 
             {/* User Menu - Updated with Auth */}
             <div className="relative" ref={userMenuRef}>

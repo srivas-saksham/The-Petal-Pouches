@@ -91,6 +91,7 @@ app.use('/api/webhooks', require('./routes/webhooks'));
 app.use('/api/admin/auth', require('./routes/adminAuth'));     // Admin Login/Register
 app.use('/api/admin/orders', require('./routes/adminOrders'));
 app.use('/api/admin/shipments', require('./routes/shipments'));
+app.use('/api/admin/coupons', require('./routes/adminCoupons'));
 app.use('/api/admin', require('./routes/admin'));              // Admin Product Management
 
 // 2. CUSTOMER AUTHENTICATION & PROFILE
@@ -112,6 +113,7 @@ app.use('/api/reviews', require('./routes/reviews'));
 // --------------------------------------------
 app.use('/api/cart', require('./routes/cart'));            // Shopping Cart
 app.use('/api/wishlist', require('./routes/wishlist'));    // Wishlist
+app.use('/api/coupons', require('./routes/coupons'));      // ⭐ NEW: Coupon System
 app.use('/api/orders', require('./routes/orders'));        // Order Management
 app.use('/api/payments', require('./routes/payments'));    // ⭐ Razorpay Payment Integration
 app.use('/api/delhivery', require('./routes/delhivery'));  // Delhivery Shipping Integration
@@ -166,17 +168,17 @@ app.get('/', (req, res) => {
   res.json({
     success: true,
     message: 'The Petal Pouches API is running! 🌸',
-    version: '1.5.0', // ⭐ Version bump for webhook + cron integration
+    version: '1.6.0', // ⭐ Version bump for coupon system
     database: 'Supabase',
     payment_gateway: 'Razorpay',
-    shipping: 'Delhivery', // 🆕 NEW
+    shipping: 'Delhivery',
     documentation: {
       admin: {
         auth: '/api/admin/auth',
         products: '/api/admin/products',
         bundles: '/api/bundles/admin',
         orders: '/api/admin/orders',
-        shipments: '/api/admin/shipments' // 🆕 NEW
+        shipments: '/api/admin/shipments'
       },
       customer: {
         auth: '/api/auth',
@@ -185,6 +187,7 @@ app.get('/', (req, res) => {
         orders: '/api/orders',
         cart: '/api/cart',
         wishlist: '/api/wishlist',
+        coupons: '/api/coupons', // ⭐ NEW
         payments: '/api/payments'
       },
       catalog: {
@@ -200,7 +203,12 @@ app.get('/', (req, res) => {
         status: 'GET /api/payments/status/:order_id',
         webhook: 'POST /api/payments/webhook'
       },
-      webhooks: { // 🆕 NEW
+      coupons: { // ⭐ NEW
+        validate: 'POST /api/coupons/validate',
+        active: 'GET /api/coupons/active',
+        check_usage: 'GET /api/coupons/:code/check-usage'
+      },
+      webhooks: {
         delhivery: 'POST /api/webhooks/delhivery',
         health: 'GET /api/webhooks/delhivery/health'
       }
@@ -262,7 +270,8 @@ app.use((req, res) => {
     message: `Route not found: ${req.method} ${req.path}`,
     availableResources: [
       '/api/auth', '/api/users', '/api/products', 
-      '/api/cart', '/api/orders', '/api/payments', '/api/webhooks'
+      '/api/cart', '/api/orders', '/api/payments', 
+      '/api/coupons', '/api/webhooks' // ⭐ UPDATED
     ]
   });
 });
@@ -279,18 +288,19 @@ app.listen(PORT, () => {
   console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`   Database: Supabase`);
   console.log(`   Payment: Razorpay`);
-  console.log(`   Shipping: Delhivery`); // 🆕 NEW
+  console.log(`   Shipping: Delhivery`);
   console.log('🚀 ===================================\n');
   
   console.log('📍 Key Endpoints:');
   console.log(`   🌐 Health:     http://localhost:${PORT}/health`);
   console.log(`   🛒 Products:   http://localhost:${PORT}/api/products`);
   console.log(`   🛍️ Cart:       http://localhost:${PORT}/api/cart`);
+  console.log(`   🎟️ Coupons:    http://localhost:${PORT}/api/coupons`); // ⭐ NEW
   console.log(`   👤 User Auth:  http://localhost:${PORT}/api/auth/login`);
   console.log(`   🔐 Admin Auth: http://localhost:${PORT}/api/admin/auth/login`);
   console.log(`   📦 Orders:     http://localhost:${PORT}/api/orders`);
   console.log(`   💳 Payments:   http://localhost:${PORT}/api/payments`);
-  console.log(`   🚚 Webhooks:   http://localhost:${PORT}/api/webhooks/delhivery`); // 🆕 NEW
+  console.log(`   🚚 Webhooks:   http://localhost:${PORT}/api/webhooks/delhivery`);
   
   // 🆕 START SHIPMENT SYNC CRON JOB (conditional)
   if (process.env.ENABLE_CRON_SYNC !== 'false') {

@@ -32,7 +32,7 @@ export default function PageHeader({
       {/* Header Content */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-text-primary mb-1">
+          <h1 className="text-3xl font-bold text-text-primary mb-1">
             {title}
           </h1>
           {description && (

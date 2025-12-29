@@ -19,6 +19,16 @@ export default function Modal({
   allowFullscreen = true,
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+
+  // Trigger fade-in animation
+  useEffect(() => {
+    if (isOpen) {
+      setIsVisible(true);
+    } else {
+      setIsVisible(false);
+    }
+  }, [isOpen]);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -83,14 +93,17 @@ export default function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[1px] transition-all duration-200"
+      className={`
+        fixed inset-0 z-50 flex items-center justify-center backdrop-blur-[1px] transition-all duration-300
+        ${isVisible ? 'bg-black/50 opacity-100' : 'bg-black/0 opacity-0'}
+      `}
       onClick={handleBackdropClick}
     >
       <div
         className={`
           bg-white rounded-xl shadow-2xl w-full flex flex-col 
           transform transition-all duration-300 ease-out
-          ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}
+          ${isVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}
           ${isFullscreen 
             ? 'h-[100vh] max-w-[100vw] m-0 rounded-none' 
             : `${sizeClasses[size]} max-h-[90vh] m-4`
@@ -100,18 +113,18 @@ export default function Modal({
       >
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between p-6 border-b-2 border-slate-200 flex-shrink-0">
+          <div className="bg-gradient-to-r from-tpppink to-tpppink/90 px-6 py-4 flex items-center justify-between flex-shrink-0 rounded-t-xl">
             <div className="flex items-center gap-3">
               {Icon && (
-                <div className="w-10 h-10 bg-tppslate rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Icon className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Icon className="w-5 h-5 text-tpppink" />
                 </div>
               )}
               {title && (
                 <div>
-                  <h2 className="text-xl font-bold text-tppslate">{title}</h2>
+                  <h2 className="text-xl font-bold text-white">{title}</h2>
                   {subtitle && (
-                    <p className="text-sm text-tppslate/60 mt-0.5">{subtitle}</p>
+                    <p className="text-sm text-white/80 mt-0.5">{subtitle}</p>
                   )}
                 </div>
               )}
@@ -121,7 +134,7 @@ export default function Modal({
                 <button
                   onClick={toggleFullscreen}
                   disabled={loading}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-all duration-200 text-tppslate/60 hover:text-tppslate disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 hover:bg-white/10 rounded-lg transition-all duration-200 text-white/80 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
                   title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
                 >
@@ -136,7 +149,7 @@ export default function Modal({
                 <button
                   onClick={onClose}
                   disabled={loading}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-all duration-200 text-tppslate/60 hover:text-tppslate disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 hover:bg-white/10 rounded-lg transition-all duration-200 text-white/80 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   aria-label="Close modal"
                 >
                   <X className="w-5 h-5" />

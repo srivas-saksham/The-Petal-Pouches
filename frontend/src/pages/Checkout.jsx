@@ -37,6 +37,7 @@ const Checkout = () => {
   const [promoCode, setPromoCode] = useState('');
   const [discount, setDiscount] = useState(0);
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [pageInitialized, setPageInitialized] = useState(false);
   const [totalCartWeight, setTotalCartWeight] = useState(1000);
@@ -323,6 +324,93 @@ const Checkout = () => {
     console.log(`✅ [Checkout] Delivery data cleared for recalculation`);
   }, []);
 
+  // ⭐ NEW: Coupon handlers
+  const handleCouponApply = useCallback((couponData) => {
+    console.log('🎟️ [Checkout] Coupon applied:', couponData);
+    setAppliedCoupon(couponData);
+    setDiscount(couponData.discount);
+    setPromoCode(couponData.code);
+    toast.success(couponData.savings_text || `Coupon applied: ${couponData.code}`);
+  }, [toast]);
+
+  const handleCouponRemove = useCallback(() => {
+    console.log('🎟️ [Checkout] Coupon removed');
+    setAppliedCoupon(null);
+    setDiscount(0);
+    setPromoCode('');
+    toast.info('Coupon removed');
+  }, [toast]);
+
+  // Revalidate coupon when cart subtotal changes
+  useEffect(() => {
+    // Only revalidate if:
+    // 1. Page is initialized
+    // 2. A coupon is currently applied
+    // 3. Cart totals are loaded
+    if (!pageInitialized || !appliedCoupon || !cartTotals) {
+      return;
+    }
+
+    const currentSubtotal = cartTotals.subtotal || 0;
+    
+    console.log('🔍 [Checkout] Cart subtotal changed, revalidating coupon...', {
+      coupon: appliedCoupon.code,
+      subtotal: currentSubtotal
+    });
+
+    // Revalidate the coupon with new cart total
+    const revalidateCoupon = async () => {
+      try {
+        const { validateCoupon } = await import('../services/couponService');
+        
+        const result = await validateCoupon(appliedCoupon.code, currentSubtotal);
+
+        if (result.success) {
+          // Coupon still valid - update discount if it changed
+          const newDiscount = result.data.discount;
+          
+          if (newDiscount !== discount) {
+            console.log('✅ [Checkout] Coupon revalidated - discount updated:', {
+              old: discount,
+              new: newDiscount
+            });
+            
+            setDiscount(newDiscount);
+            setAppliedCoupon({
+              ...appliedCoupon,
+              discount: newDiscount,
+              savings_text: result.data.savings_text
+            });
+          } else {
+            console.log('✅ [Checkout] Coupon still valid - no discount change');
+          }
+        } else {
+          // Coupon no longer valid - remove it
+          console.log('❌ [Checkout] Coupon no longer valid:', result.error);
+          
+          handleCouponRemove();
+          
+          // Show appropriate error message
+          const errorMessage = result.code === 'MIN_ORDER_NOT_MET'
+            ? `Coupon removed: Minimum order value not met (add ₹${result.shortfall} more)`
+            : `Coupon removed: ${result.error}`;
+          
+          toast.warning(errorMessage);
+        }
+      } catch (error) {
+        console.error('❌ [Checkout] Coupon revalidation error:', error);
+        // Don't remove coupon on network errors, just log it
+      }
+    };
+
+    // Debounce revalidation to avoid excessive API calls
+    const revalidationTimer = setTimeout(() => {
+      revalidateCoupon();
+    }, 500);
+
+    return () => clearTimeout(revalidationTimer);
+  }, [cartTotals?.subtotal, pageInitialized]); // Only trigger when subtotal changes
+
   const handleProceedToPayment = async () => {
     if (!selectedAddress) {
       toast.error('Please select a delivery address');
@@ -352,6 +440,7 @@ const Checkout = () => {
         notes: '',
         gift_wrap: false,
         gift_message: null,
+        coupon_code: appliedCoupon?.code || null, // ⭐ NEW
         delivery_metadata: {
           mode: deliveryMode,
           estimated_days: finalDeliveryModeData?.estimatedDays,
@@ -487,6 +576,9 @@ const Checkout = () => {
                 placingOrder={placingOrder || paymentProcessing}
                 expressCharge={expressCharge}
                 deliveryMode={deliveryModeData?.mode || 'surface'}
+                appliedCoupon={appliedCoupon} // ⭐ NEW
+                onCouponApply={handleCouponApply} // ⭐ NEW
+                onCouponRemove={handleCouponRemove} // ⭐ NEW
               />
             </div>
           </div>

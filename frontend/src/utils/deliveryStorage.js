@@ -3,10 +3,12 @@
 /**
  * Delivery Data Storage Helper
  * Manages localStorage for delivery information (address + TAT)
+ * ⭐ UPDATED: Now includes coupon data persistence
  * Persists forever - no expiry on delivery data
  */
 
 const STORAGE_KEY = 'tpp_delivery_data';
+const COUPON_STORAGE_KEY = 'tpp_applied_coupon'; // ⭐ NEW
 
 /**
  * Save delivery data to localStorage
@@ -129,7 +131,110 @@ export const getStoredDeliveryCheck = () => {
   return data?.deliveryCheck || null;
 };
 
+// ==================== ⭐ NEW: COUPON STORAGE FUNCTIONS ====================
+
+/**
+ * Save applied coupon to localStorage
+ * @param {Object} couponData - Coupon information
+ * @param {string} couponData.code - Coupon code
+ * @param {number} couponData.discount - Discount amount
+ * @param {string} couponData.description - Coupon description
+ */
+export const saveCouponData = (couponData) => {
+  try {
+    const storageData = {
+      ...couponData,
+      timestamp: Date.now(),
+      version: '1.0'
+    };
+    
+    localStorage.setItem(COUPON_STORAGE_KEY, JSON.stringify(storageData));
+    console.log('🎟️ [DeliveryStorage] Coupon saved:', storageData);
+    return true;
+  } catch (error) {
+    console.error('❌ [DeliveryStorage] Coupon save failed:', error);
+    return false;
+  }
+};
+
+/**
+ * Get applied coupon from localStorage
+ * @returns {Object|null} Stored coupon data or null
+ */
+export const getCouponData = () => {
+  try {
+    const stored = localStorage.getItem(COUPON_STORAGE_KEY);
+    if (!stored) {
+      console.log('📭 [DeliveryStorage] No coupon found');
+      return null;
+    }
+    
+    const data = JSON.parse(stored);
+    
+    // Check if coupon is expired (24 hours)
+    const hoursSinceSaved = (Date.now() - data.timestamp) / (1000 * 60 * 60);
+    if (hoursSinceSaved > 24) {
+      console.log('⏰ [DeliveryStorage] Coupon expired (>24h), clearing');
+      clearCouponData();
+      return null;
+    }
+    
+    console.log('🎟️ [DeliveryStorage] Coupon retrieved:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ [DeliveryStorage] Coupon retrieve failed:', error);
+    return null;
+  }
+};
+
+/**
+ * Clear coupon data from localStorage
+ */
+export const clearCouponData = () => {
+  try {
+    localStorage.removeItem(COUPON_STORAGE_KEY);
+    console.log('🗑️ [DeliveryStorage] Coupon cleared');
+    return true;
+  } catch (error) {
+    console.error('❌ [DeliveryStorage] Coupon clear failed:', error);
+    return false;
+  }
+};
+
+/**
+ * Check if stored coupon is still valid (within 24 hours)
+ * @returns {boolean} True if coupon is recent
+ */
+export const isCouponRecent = () => {
+  try {
+    const data = getCouponData();
+    if (!data || !data.timestamp) return false;
+    
+    const hoursSinceSaved = (Date.now() - data.timestamp) / (1000 * 60 * 60);
+    return hoursSinceSaved < 24;
+  } catch (error) {
+    return false;
+  }
+};
+
+/**
+ * Clear all checkout-related data (delivery + coupon)
+ * Use this after successful order completion
+ */
+export const clearAllCheckoutData = () => {
+  try {
+    clearDeliveryData();
+    clearCouponData();
+    console.log('🧹 [DeliveryStorage] All checkout data cleared');
+    return true;
+  } catch (error) {
+    console.error('❌ [DeliveryStorage] Clear all failed:', error);
+    return false;
+  }
+};
+
 export default {
+  // Delivery storage
   saveDeliveryData,
   getDeliveryData,
   clearDeliveryData,
@@ -137,5 +242,14 @@ export default {
   isDeliveryCheckRecent,
   getStoredPinCode,
   getStoredAddressId,
-  getStoredDeliveryCheck
+  getStoredDeliveryCheck,
+  
+  // ⭐ NEW: Coupon storage
+  saveCouponData,
+  getCouponData,
+  clearCouponData,
+  isCouponRecent,
+  
+  // ⭐ NEW: Combined cleanup
+  clearAllCheckoutData
 };

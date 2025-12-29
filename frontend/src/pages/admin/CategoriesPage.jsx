@@ -347,7 +347,7 @@ export default function CategoriesPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="Categories"
+        title="Categories Management"
         description="Organize your products with categories"
         actions={
           <Button

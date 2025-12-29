@@ -39,15 +39,15 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Handle common errors
     if (error.response) {
-      // Server responded with error
       const { status, data } = error.response;
+      
+      // ⭐ Check if this is a coupon validation error
+      const isCouponError = error.config?.url?.includes('/api/coupons/validate');
       
       switch (status) {
         case 401:
           console.error('Unauthorized access');
-          // Handle unauthorized (e.g., redirect to login)
           break;
         case 403:
           console.error('Forbidden access');
@@ -57,6 +57,12 @@ api.interceptors.response.use(
           break;
         case 500:
           console.error('Server error');
+          break;
+        case 400:
+          // ⭐ Don't log coupon validation errors - they're expected
+          if (!isCouponError) {
+            console.error('API Error:', data?.message || 'Bad request');
+          }
           break;
         default:
           console.error('API Error:', data?.message || 'Unknown error');

@@ -10,7 +10,7 @@ import { ShipmentCardSkeleton } from '../../components/admin/shipments/ShipmentC
 import { ShipmentsEmptyState } from '../../components/admin/shipments/ShipmentsEmptyState';
 import { ShipmentsLoadingState } from '../../components/admin/shipments/ShipmentsLoadingState';
 import { ShipmentsErrorState } from '../../components/admin/shipments/ShipmentsErrorState';
-
+import PageHeader from '../../components/admin/ui/PageHeader';
 const AdminShipmentsPage = () => {
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -172,7 +172,7 @@ const AdminShipmentsPage = () => {
   // ==================== RENDER ====================
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen">
       
       {/* Notification Toast */}
       {notification && (
@@ -251,10 +251,10 @@ const AdminShipmentsPage = () => {
       )}
       
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Shipment Management</h1>
-        <p className="text-gray-600">Review, edit, and approve shipments for delivery</p>
-      </div>
+      <PageHeader
+        title="Shipment Management"
+        description="Review, edit, and approve shipments for delivery"
+      />
 
       {/* Stats Cards - Compact Single Line */}
       {stats && (

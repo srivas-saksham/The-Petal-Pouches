@@ -249,7 +249,7 @@ export default function BundlesPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="Bundles"
+        title="Bundles Management"
         description="Create and manage product bundles with discounted pricing"
         actions={
           <div className="flex items-center gap-3">

@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { Lock, Truck, Gift, Loader, CreditCard } from 'lucide-react';
 import { formatBundlePrice } from '../../utils/bundleHelpers';
 import { useCart } from '../../hooks/useCart';
+import CouponCard from './CouponCard';
 
 /**
  * CheckoutSummary Component - UPDATED FOR RAZORPAY PAYMENT
@@ -26,10 +27,10 @@ const CheckoutSummary = ({
   placingOrder = false,
   expressCharge = 0,
   deliveryMode = 'surface',
+  appliedCoupon = null, // ⭐ NEW
+  onCouponApply = null, // ⭐ NEW
+  onCouponRemove = null, // ⭐ NEW
 }) => {
-  const [promoInput, setPromoInput] = useState('');
-  const [applyingPromo, setApplyingPromo] = useState(false);
-
   const { refreshingTotals } = useCart();
 
   // Calculate subtotal in real-time from cartItems
@@ -45,28 +46,6 @@ const CheckoutSummary = ({
     return subtotal + expressCharge - discount;
   }, [subtotal, expressCharge, discount]);
 
-  const handleApplyPromo = async () => {
-    if (!promoInput.trim()) {
-      alert('Please enter a promo code');
-      return;
-    }
-
-    setApplyingPromo(true);
-    
-    // TODO: Verify promo code with backend
-    const mockDiscount = promoInput === 'SAVE10' ? Math.round(subtotal * 0.10) : 0;
-    
-    if (mockDiscount > 0) {
-      onDiscountChange(mockDiscount);
-      onPromoCodeChange(promoInput);
-      setPromoInput('');
-    } else {
-      alert('Invalid or expired promo code');
-      setPromoInput('');
-    }
-
-    setApplyingPromo(false);
-  };
 
   return (
     <div className="relative space-y-4">
@@ -144,38 +123,14 @@ const CheckoutSummary = ({
         </div>
       </div>
 
-      {/* Promo Code Section */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="font-semibold text-gray-900 mb-3">Apply Promo Code</h3>
-        
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Enter code"
-            value={promoInput}
-            onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
-            disabled={applyingPromo}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
-          />
-          <button
-            onClick={handleApplyPromo}
-            disabled={applyingPromo}
-            className="px-4 py-2 bg-tpppink text-white rounded-lg font-medium hover:bg-tpppink/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {applyingPromo ? 'Applying...' : 'Apply'}
-          </button>
-        </div>
-
-        {promoCode && (
-          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-sm text-green-700">
-              ✓ Promo code <span className="font-semibold">{promoCode}</span> applied
-            </p>
-          </div>
-        )}
-
-        <p className="text-xs text-gray-500 mt-2">Try: SAVE10</p>
-      </div>
+      {/* ⭐ NEW: Coupon Card Component */}
+      <CouponCard 
+        cartTotal={subtotal}
+        onCouponApply={onCouponApply}
+        onCouponRemove={onCouponRemove}
+        appliedCoupon={appliedCoupon}
+        disabled={placingOrder}
+      />
 
       {/* ⭐ UPDATED: PROCEED TO PAYMENT BUTTON */}
       {onPlaceOrder && (

@@ -13,6 +13,7 @@ import AdminOrdersList from '../../../components/admin/orders/AdminOrdersList';
 import AdminOrdersAnalytics from '../../../components/admin/orders/AdminOrdersAnalytics';
 import OrderDetailModal from '../../../components/admin/orders/OrderDetailModal';
 import { useToast } from '../../../hooks/useToast';
+import PageHeader from '../../../components/admin/ui/PageHeader';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -199,18 +200,12 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-tppslate flex items-center gap-3">
-            <Package className="w-7 h-7 text-tpppink" />
-            Orders Management
-          </h1>
-          <p className="text-sm text-tppslate/60 mt-1">
-            Manage all customer orders and track deliveries
-          </p>
-        </div>
-
+        <PageHeader
+          title="Orders Management"
+          description="Manage all customer orders and track deliveries"
+        />
         {/* Filters */}
         <AdminOrdersFilters
           filters={filters}

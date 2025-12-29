@@ -13,6 +13,7 @@ import {
   ChevronsRight,
   CheckCheck,
   LogOut,
+  Ticket,
   ChevronDown,
   Truck
 } from 'lucide-react';
@@ -93,6 +94,7 @@ export default function Sidebar({ isOpen, onClose }) {
     product: Package,
     category: FolderTree,
     bundle: Gift,
+    coupon: Ticket,
     order: ShoppingCart,
     shipment: Truck,
     customer: Users,
@@ -175,8 +177,8 @@ export default function Sidebar({ isOpen, onClose }) {
               <div key={section}>
                 {/* Section Label */}
                 {section !== 'main' && !isCollapsed && (
-                  <div className="px-3 mb-2">
-                    <h3 className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">
+                  <div className="px-3 py-2 mb-2 border-b border-white/20">
+                    <h3 className="text-[12px] font-semibold text-white/70 uppercase tracking-wider">
                       {NAVIGATION_SECTIONS[section]}
                     </h3>
                   </div>

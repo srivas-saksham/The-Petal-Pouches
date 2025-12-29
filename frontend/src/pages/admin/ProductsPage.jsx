@@ -288,7 +288,7 @@ export default function ProductsPage() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="Products"
+        title="Products Management"
         description="Manage your product catalog"
         actions={
           <Button

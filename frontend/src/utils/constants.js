@@ -109,6 +109,13 @@ export const NAVIGATION_ITEMS = [
     section: 'catalog',
   },
   {
+    id: 'coupons',
+    label: 'Coupons',
+    path: '/admin/coupons',
+    icon: 'coupon',
+    section: 'catalog',
+  },
+  {
     id: 'orders',
     label: 'Orders',
     path: '/admin/orders',
@@ -130,21 +137,21 @@ export const NAVIGATION_ITEMS = [
     icon: 'customer',
     section: 'sales',
   },
-  {
-    id: 'notifications',
-    label: 'Notifications',
-    path: '/admin/notifications',
-    icon: 'notification',
-    section: 'system',
-    badge: true,
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    path: '/admin/settings',
-    icon: 'settings',
-    section: 'system',
-  },
+  // {
+  //   id: 'notifications',
+  //   label: 'Notifications',
+  //   path: '/admin/notifications',
+  //   icon: 'notification',
+  //   section: 'system',
+  //   badge: true,
+  // },
+  // {
+  //   id: 'settings',
+  //   label: 'Settings',
+  //   path: '/admin/settings',
+  //   icon: 'settings',
+  //   section: 'system',
+  // },
 ];
 
 // Navigation Sections

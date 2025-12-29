@@ -6,12 +6,14 @@
  * - Verify payment signatures
  * - Handle webhooks
  * - Update order payment status
+ * ⭐ UPDATED: Integrated coupon validation and application
  */
 
 const razorpayService = require('../services/razorpayService');
 const OrderModel = require('../models/orderModel');
 const CartModel = require('../models/cartModel');
 const PaymentModel = require('../models/paymentModel');
+const CouponController = require('./couponController'); // ⭐ NEW
 
 const PaymentController = {
 
@@ -31,7 +33,8 @@ const PaymentController = {
    *   notes?: string,
    *   gift_wrap?: boolean,
    *   gift_message?: string,
-   *   delivery_metadata?: object
+   *   delivery_metadata?: object,
+   *   coupon_code?: string  ⭐ NEW
    * }
    */
   createPaymentOrder: async (req, res) => {
@@ -42,10 +45,14 @@ const PaymentController = {
         notes,
         gift_wrap = false,
         gift_message,
-        delivery_metadata = {}
+        delivery_metadata = {},
+        coupon_code = null // ⭐ NEW
       } = req.body;
 
       console.log('💳 [Payment] Creating payment order for user:', userId);
+      if (coupon_code) {
+        console.log('🎟️ [Payment] Coupon code provided:', coupon_code);
+      }
 
       // ===== STEP 1: VALIDATE ADDRESS =====
       if (!address_id) {
@@ -93,30 +100,78 @@ const PaymentController = {
         });
       }
 
-      // ===== STEP 4: CALCULATE TOTALS =====
+      // ===== STEP 4: CALCULATE TOTALS (WITHOUT COUPON FIRST) =====
       const { calculateOrderTotals } = require('../utils/orderHelpers');
       const deliveryMode = delivery_metadata.mode || 'surface';
       const expressCharge = delivery_metadata.express_charge || 0;
       const totals = calculateOrderTotals(cartData.items, deliveryMode, expressCharge);
 
-      console.log('💰 Order totals:', totals);
+      console.log('💰 Order totals (before coupon):', totals);
 
-      // ===== STEP 5: CREATE RAZORPAY ORDER (NO DB ORDER YET!) =====
+      // ===== STEP 4.5: VALIDATE AND APPLY COUPON ⭐ NEW =====
+      let couponData = null;
+      let discount = 0;
+
+      if (coupon_code) {
+        try {
+          console.log('🎟️ [Payment] Validating coupon:', coupon_code);
+          
+          const couponResult = await CouponController.applyCouponToOrder(
+            coupon_code,
+            totals.subtotal, // Use subtotal for coupon validation
+            userId
+          );
+
+          if (couponResult.success) {
+            couponData = {
+              coupon_id: couponResult.coupon_id,
+              coupon_code: couponResult.coupon_code,
+              discount: couponResult.discount
+            };
+            discount = couponResult.discount;
+
+            console.log(`✅ [Payment] Coupon applied - Discount: ₹${discount}`);
+          }
+        } catch (couponError) {
+          console.error('❌ [Payment] Coupon validation failed:', couponError.message);
+          
+          return res.status(400).json({
+            success: false,
+            message: couponError.message,
+            code: 'COUPON_INVALID'
+          });
+        }
+      }
+
+      // ===== STEP 5: RECALCULATE FINAL TOTAL WITH DISCOUNT =====
+      const finalTotal = totals.total - discount;
+
+      console.log('💰 Final total (after coupon):', {
+        subtotal: totals.subtotal,
+        express_charge: totals.express_charge,
+        discount: discount,
+        final_total: finalTotal
+      });
+
+      // ===== STEP 6: CREATE RAZORPAY ORDER (NO DB ORDER YET!) =====
       const razorpayOrder = await razorpayService.createOrder({
-        amount: totals.total,
+        amount: finalTotal,
         orderId: null, // ⭐ No DB order ID yet!
         notes: {
           user_id: userId,
           customer_name: req.user.name || 'Customer',
           customer_email: req.user.email,
           address_id: address_id,
+          coupon_code: coupon_code || null, // ⭐ Store coupon in notes
           // ⭐ Store order data in notes for later
           order_metadata: JSON.stringify({
             address_id,
             notes,
             gift_wrap,
             gift_message,
-            delivery_metadata
+            delivery_metadata,
+            coupon_code, // ⭐ Include coupon
+            coupon_data: couponData // ⭐ Include full coupon data
           })
         }
       });
@@ -130,7 +185,7 @@ const PaymentController = {
 
       console.log(`✅ Razorpay order created: ${razorpayOrder.razorpay_order_id}`);
 
-      // ===== STEP 6: RETURN ORDER DETAILS =====
+      // ===== STEP 7: RETURN ORDER DETAILS =====
       return res.status(201).json({
         success: true,
         message: 'Payment order created',
@@ -150,7 +205,9 @@ const PaymentController = {
             notes,
             gift_wrap,
             gift_message,
-            delivery_metadata
+            delivery_metadata,
+            coupon_code, // ⭐ Include coupon
+            coupon_data: couponData // ⭐ Include coupon details
           }
         }
       });
@@ -171,6 +228,7 @@ const PaymentController = {
   /**
    * Verify payment signature after successful payment
    * POST /api/payments/verify
+   * ⭐ UPDATED: Records coupon usage after successful payment
    */
   verifyPayment: async (req, res) => {
     try {
@@ -255,17 +313,48 @@ const PaymentController = {
       const expressCharge = order_data.delivery_metadata?.express_charge || 0;
       const totals = calculateOrderTotals(cartData.items, deliveryMode, expressCharge);
 
+      // ===== STEP 6.5: REVALIDATE COUPON IF PROVIDED ⭐ NEW =====
+      let discount = 0;
+      let couponData = null;
+
+      if (order_data.coupon_code) {
+        try {
+          console.log('🎟️ [Payment] Revalidating coupon:', order_data.coupon_code);
+          
+          const couponResult = await CouponController.applyCouponToOrder(
+            order_data.coupon_code,
+            totals.subtotal,
+            userId
+          );
+
+          if (couponResult.success) {
+            discount = couponResult.discount;
+            couponData = {
+              coupon_id: couponResult.coupon_id,
+              coupon_code: couponResult.coupon_code
+            };
+            
+            console.log(`✅ [Payment] Coupon revalidated - Discount: ₹${discount}`);
+          }
+        } catch (couponError) {
+          console.error('❌ [Payment] Coupon revalidation failed:', couponError.message);
+          // Continue without coupon - don't fail the payment
+          discount = 0;
+          couponData = null;
+        }
+      }
+
       // ===== STEP 7: FETCH PAYMENT DETAILS =====
       const paymentDetails = await razorpayService.fetchPayment(razorpay_payment_id);
       console.log('💳 Payment details:', paymentDetails);
 
       // ===== STEP 8: NOW CREATE DATABASE ORDER =====
-      const orderData = {
+      const orderDataToCreate = {
         user_id: userId,
         subtotal: totals.subtotal,
         express_charge: totals.express_charge,
-        discount: 0,
-        final_total: totals.total,
+        discount: discount, // ⭐ Coupon discount
+        final_total: totals.total - discount, // ⭐ Apply discount
         shipping_address: {
           line1: address.line1,
           line2: address.line2,
@@ -297,7 +386,7 @@ const PaymentController = {
         bundle_origin: 'brand-bundle'
       }));
 
-      const order = await OrderModel.create(orderData, orderItems);
+      const order = await OrderModel.create(orderDataToCreate, orderItems);
       console.log(`✅ Order created after payment: ${order.id}`);
 
       // ===== STEP 9: CREATE PAYMENT RECORD =====
@@ -307,12 +396,57 @@ const PaymentController = {
         user_id: userId,
         provider: 'Razorpay',
         payment_id: razorpay_payment_id,
-        amount: paymentDetails.amount_rupees || totals.total,
+        amount: paymentDetails.amount_rupees || (totals.total - discount),
         currency: paymentDetails.currency || 'INR',
         status: paymentDetails.status || 'captured',
         is_success: true
       });
       console.log('✅ Payment record created:', paymentRecord.id);
+
+      // ===== STEP 9.5: RECORD COUPON USAGE ⭐ CRITICAL =====
+      if (couponData && couponData.coupon_id && discount > 0) {
+        try {
+          console.log('🎟️ [Payment] Recording coupon usage for:', couponData.coupon_code);
+          console.log('📊 [Payment] Coupon ID:', couponData.coupon_id, 'Discount:', discount);
+          
+          const couponUsageResult = await CouponController.recordCouponUsage({
+            order_id: order.id,
+            coupon_id: couponData.coupon_id,
+            discount_amount: discount,
+            user_id: userId
+          });
+
+          if (couponUsageResult.success) {
+            console.log('✅ [Payment] Coupon usage recorded successfully');
+            console.log('📝 [Payment] Application record:', couponUsageResult.application);
+          } else {
+            console.error('❌ [Payment] Coupon usage recording failed (but returned)');
+          }
+
+        } catch (couponError) {
+          console.error('❌❌❌ [Payment] CRITICAL: Failed to record coupon usage:', couponError);
+          console.error('🔍 [Payment] Error details:', {
+            message: couponError.message,
+            stack: couponError.stack,
+            couponId: couponData.coupon_id,
+            orderId: order.id
+          });
+          
+          // ⚠️ IMPORTANT: Don't fail the order, but log for manual reconciliation
+          // Store failed coupon data for manual processing
+          console.error('⚠️ [Payment] ORDER SUCCEEDED BUT COUPON NOT TRACKED - REQUIRES MANUAL REVIEW');
+          console.error('📋 [Payment] Manual fix data:', JSON.stringify({
+            order_id: order.id,
+            coupon_id: couponData.coupon_id,
+            coupon_code: couponData.coupon_code,
+            discount_amount: discount,
+            user_id: userId,
+            timestamp: new Date().toISOString()
+          }));
+        }
+      } else {
+        console.log('ℹ️ [Payment] No coupon to record (coupon data or discount is zero)');
+      }
 
       // ===== STEP 10: DEDUCT STOCK =====
       try {
@@ -343,7 +477,7 @@ const PaymentController = {
           destination_state: address.state,
           shipping_mode: deliveryMetadata.mode === 'express' ? 'Express' : 'Surface',
           weight_grams: 1000,
-          order_total: totals.total,
+          order_total: totals.total - discount, // ⭐ Use final total with discount
           payment_mode: 'Prepaid',
           dimensions_cm: { length: 30, width: 25, height: 10 }
         });
@@ -361,8 +495,10 @@ const PaymentController = {
           payment_id: razorpay_payment_id,
           payment_record_id: paymentRecord.id,
           status: 'paid',
-          amount: paymentDetails.amount_rupees || totals.total,
-          method: paymentDetails.method || 'card'
+          amount: paymentDetails.amount_rupees || (totals.total - discount),
+          method: paymentDetails.method || 'card',
+          discount: discount, // ⭐ Return discount applied
+          coupon_code: couponData?.coupon_code || null // ⭐ Return coupon used
         }
       });
 

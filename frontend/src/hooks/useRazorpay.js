@@ -2,6 +2,7 @@
 /**
  * useRazorpay Hook
  * Custom React hook for handling Razorpay payments
+ * ⭐ UPDATED: Now supports coupon_code in payment flow
  */
 
 import { useState, useCallback } from 'react';
@@ -46,6 +47,10 @@ export const useRazorpay = () => {
 
   /**
    * Process payment with order data
+   * ⭐ UPDATED: Now passes coupon_code to payment service
+   * 
+   * @param {Object} orderData - Order data including address, notes, coupon_code, etc.
+   * @param {Object} options - Callbacks { onSuccess, onError }
    */
   const initiatePayment = useCallback(async (orderData, options = {}) => {
     // Reset state
@@ -61,16 +66,31 @@ export const useRazorpay = () => {
         throw new Error('Payment gateway not available');
       }
 
-      console.log('💳 Initiating payment...');
+      console.log('💳 Initiating payment with order data:', {
+        address_id: orderData.address_id,
+        coupon_code: orderData.coupon_code || 'none', // ⭐ Log coupon
+        delivery_mode: orderData.delivery_metadata?.mode || 'surface'
+      });
 
-      // Process payment
+      // ⭐ Validate order data
+      if (!orderData.address_id) {
+        throw new Error('Delivery address is required');
+      }
+
+      // Process payment (payment service will handle coupon)
       const result = await processPayment(orderData, {
         onSuccess: (data) => {
           console.log('✅ Payment successful:', data);
+          
+          // ⭐ Log coupon usage if applied
+          if (data.coupon_code) {
+            console.log(`🎟️ Coupon applied: ${data.coupon_code} - Discount: ₹${data.discount}`);
+          }
+          
           setPaymentData(data);
           setIsProcessing(false);
 
-          // ⭐ FIXED: Always navigate, even if custom callback exists
+          // Call custom success callback if provided
           if (options.onSuccess) {
             options.onSuccess(data);
           }
@@ -78,8 +98,12 @@ export const useRazorpay = () => {
           // Navigate to success page
           console.log('🚀 Navigating to order success page:', data.order_id);
           navigate(`/order-success/${data.order_id}`, {
-            state: { paymentData: data },
-            replace: true // ⭐ Replace history to prevent back navigation
+            state: { 
+              paymentData: data,
+              couponApplied: data.coupon_code || null, // ⭐ Pass coupon info
+              discountAmount: data.discount || 0 // ⭐ Pass discount amount
+            },
+            replace: true // Replace history to prevent back navigation
           });
         },
         onFailure: (errorMsg) => {
@@ -102,11 +126,23 @@ export const useRazorpay = () => {
 
     } catch (err) {
       console.error('❌ Payment initiation error:', err);
-      setError(err.message || 'Payment failed. Please try again.');
+      
+      // ⭐ Enhanced error messages for coupon-related errors
+      let errorMessage = err.message || 'Payment failed. Please try again.';
+      
+      if (err.message?.includes('coupon')) {
+        errorMessage = err.message; // Show coupon-specific errors as-is
+      } else if (err.message?.includes('Cart is empty')) {
+        errorMessage = 'Your cart is empty';
+      } else if (err.message?.includes('out of stock')) {
+        errorMessage = 'Some items are out of stock';
+      }
+      
+      setError(errorMessage);
       setIsProcessing(false);
 
       if (options.onError) {
-        options.onError(err.message);
+        options.onError(errorMessage);
       }
 
       throw err;
@@ -124,8 +160,16 @@ export const useRazorpay = () => {
 
   /**
    * Retry payment
+   * ⭐ UPDATED: Maintains coupon_code in retry
    */
   const retryPayment = useCallback((orderData, options = {}) => {
+    console.log('🔄 Retrying payment...');
+    
+    // ⭐ Log if coupon is being retried
+    if (orderData.coupon_code) {
+      console.log(`🎟️ Retrying payment with coupon: ${orderData.coupon_code}`);
+    }
+    
     resetPayment();
     return initiatePayment(orderData, options);
   }, [resetPayment, initiatePayment]);

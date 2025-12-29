@@ -10,7 +10,7 @@
  * @param {Array} cartItems - Array of cart items with prices
  * @returns {Object} Totals breakdown
  */
-const calculateOrderTotals = (cartItems, deliveryMode = 'surface', expressCharge = 0) => {
+const calculateOrderTotals = (cartItems, deliveryMode = 'surface', expressCharge = 0, discount = 0) => {
   if (!cartItems || cartItems.length === 0) {
     return {
       subtotal: 0,
@@ -18,6 +18,7 @@ const calculateOrderTotals = (cartItems, deliveryMode = 'surface', expressCharge
       express_charge: 0,
       discount: 0,
       total: 0,
+      final_total: 0,
       item_count: 0,
       total_quantity: 0,
       estimated_weight: 0
@@ -33,20 +34,23 @@ const calculateOrderTotals = (cartItems, deliveryMode = 'surface', expressCharge
   }, 0);
 
   const express_charge = deliveryMode === 'express' ? expressCharge : 0;
-  const discount = 0;
-  const total = subtotal + express_charge - discount;
+  // discount is already a parameter, no need to redeclare
+  const total = subtotal + express_charge;
 
   const estimated_weight = cartItems.reduce((sum, item) => {
     const itemWeight = item.weight || 1000;
     return sum + (itemWeight * item.quantity);
   }, 0);
 
+  // Apply discount to final total
+  const finalTotal = total - discount;
+
   return {
     subtotal: parseFloat(subtotal.toFixed(2)),
-    // ❌ REMOVED: shipping: 0,
     express_charge: parseFloat(express_charge.toFixed(2)),
-    discount: parseFloat(discount.toFixed(2)),
-    total: parseFloat(total.toFixed(2)),
+    discount: parseFloat(discount.toFixed(2)), // ⭐ Coupon discount
+    total: parseFloat(total.toFixed(2)), // Before discount
+    final_total: parseFloat(finalTotal.toFixed(2)), // ⭐ After discount
     item_count: cartItems.length,
     total_quantity,
     estimated_weight
