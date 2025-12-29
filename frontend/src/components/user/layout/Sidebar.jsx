@@ -112,7 +112,7 @@ export default function UserSidebar({ isOpen, onClose }) {
       <aside
         className={`
           fixed lg:sticky top-0 left-0 h-screen
-          relative overflow-hidden
+          relative
           z-50
           transition-all duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
