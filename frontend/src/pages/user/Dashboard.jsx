@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, MapPin, ShoppingBag, ArrowRight } from 'lucide-react';
+import { Heart, MapPin, ShoppingBag, ArrowRight, LayoutDashboard } from 'lucide-react';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useToast } from '../../hooks/useToast';
 import { getOrderStats } from '../../services/orderService';
@@ -126,20 +126,23 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto px-4">
       {/* Header */}
-      <div className="mb-4">
-        <h1 className="text-lg font-bold text-tppslate">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-tppslate flex items-center gap-3">
+          <LayoutDashboard className="w-7 h-7 text-tpppink" />
           Welcome back, {user?.name?.split(' ')[0] || 'User'}
         </h1>
-        <p className="text-xs text-tppslate/60 mt-0.5">Here's your account overview</p>
+        <p className="text-sm text-tppslate/80 mt-1">
+          Here's your account overview
+        </p>
       </div>
 
       {/* ✅ Stats Grid - Now using DashboardStats component */}
       <DashboardStats stats={stats} loading={loading} />
 
       {/* Main Content - Two Column */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
         {/* Recent Orders - Wider (2 columns) */}
         <div className="lg:col-span-2">
           <RecentOrders 

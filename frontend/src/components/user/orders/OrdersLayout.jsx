@@ -9,14 +9,14 @@ import { Package } from 'lucide-react';
 const OrdersLayout = ({ children, sidebar }) => {
   return (
     <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4">
         {/* Page Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-tppslate flex items-center gap-3">
             <Package className="w-7 h-7 text-tpppink" />
             My Orders
           </h1>
-          <p className="text-sm text-tppslate/60 mt-1">
+          <p className="text-sm text-tppslate/80 mt-1">
             Track and manage your orders
           </p>
         </div>

@@ -112,7 +112,7 @@ export default function UserSidebar({ isOpen, onClose }) {
       <aside
         className={`
           fixed lg:sticky top-0 left-0 h-screen
-          bg-gradient-to-b from-tpppink to-tpppink/95
+          relative overflow-hidden
           z-50
           transition-all duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -121,6 +121,24 @@ export default function UserSidebar({ isOpen, onClose }) {
           flex flex-col
         `}
       >
+        {/* Diagonal Split Background */}
+        <div className="absolute inset-0 -z-10">
+          {/* Top Section - Darker Pink */}
+          <div 
+            className="absolute inset-0 bg-tpppink"
+            style={{
+              clipPath: 'polygon(0 0, 100% 0, 100% 50%, 0 60%)'
+            }}
+          />
+          {/* Bottom Section - Lighter Pink */}
+          <div 
+            className="absolute inset-0 bg-[#de6a7d]"
+            style={{
+              clipPath: 'polygon(0 60%, 100% 50%, 100% 100%, 0 100%)'
+            }}
+          />
+        </div>
+
         {/* Toggle Button - Desktop Only */}
         <button
           onClick={toggleSidebar}
@@ -136,7 +154,7 @@ export default function UserSidebar({ isOpen, onClose }) {
 
         {/* Logo Section */}
         <div className={`
-          bg-white/10 flex items-center gap-3 border-b-2 border-white/20 transition-all
+          bg-white/10 flex items-center gap-3 border-b-2 border-white/20 transition-all relative z-10
           ${isCollapsed ? 'justify-center px-3 py-4' : 'px-5 py-5'}
         `}>
           <div className={`
@@ -156,7 +174,7 @@ export default function UserSidebar({ isOpen, onClose }) {
         </div>
 
         {/* Navigation Links */}
-        <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-1 bg-gradient-to-b from-tpppink to-tpppink/95">
+        <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-1 relative z-10">
           {NAVIGATION_ITEMS.map(item => {
             const Icon = item.icon;
             return (
@@ -191,8 +209,65 @@ export default function UserSidebar({ isOpen, onClose }) {
           })}
         </nav>
 
+        {/* Gift Image Section */}
+        {!isCollapsed && (
+          <div className="relative z-10"
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            <img 
+              src="/assets/girl_bw_gifts_red_trans.png"
+              alt="Gift offers"
+              className="w-full h-auto object-contain scale-110"
+              draggable={false}
+            />
+          </div>
+        )}
+
         {/* User Profile Section */}
-        <div className="bg-white/10 border-t-2 border-white/20 p-3">
+        <div className="bg-transparent border-t-2 p-3 relative z-20">
+          {/* User Menu Dropdown - Positioned absolutely above */}
+          {!isCollapsed && showUserMenu && (
+            <div className="absolute bottom-full left-3 right-3 mb-2 space-y-1 animate-scale-in bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-2">
+              {/* Profile Button */}
+              <NavLink
+                to="/user/profile"
+                onClick={() => {
+                  setShowUserMenu(false);
+                  onClose();
+                }}
+                className={({ isActive }) =>
+                  `flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all text-sm font-medium
+                  ${isActive
+                    ? 'bg-tpppink text-white'
+                    : 'text-tppslate hover:bg-tpppink/10'
+                  }`
+                }
+              >
+                <User className="w-4 h-4" />
+                <span>My Profile</span>
+              </NavLink>
+
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoggingOut ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                    <span>Logging out...</span>
+                  </>
+                ) : (
+                  <>
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
           {/* User Info */}
           <div 
             onClick={() => !isCollapsed && setShowUserMenu(!showUserMenu)}
@@ -227,59 +302,16 @@ export default function UserSidebar({ isOpen, onClose }) {
             )}
           </div>
 
-          {/* User Menu Dropdown - Only show when not collapsed */}
-          {!isCollapsed && showUserMenu && (
-            <div className="mt-2 space-y-1 animate-scale-in">
-              {/* Profile Button */}
-              <NavLink
-                to="/user/profile"
-                onClick={() => {
-                  setShowUserMenu(false);
-                  onClose();
-                }}
-                className={({ isActive }) =>
-                  `flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all text-sm font-medium
-                  ${isActive
-                    ? 'bg-white text-tppslate'
-                    : 'text-white/80 hover:bg-white/10 hover:text-white'
-                  }`
-                }
-              >
-                <User className="w-4 h-4" />
-                <span>My Profile</span>
-              </NavLink>
-
-              {/* Logout Button */}
-              <button
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="w-full flex items-center gap-2 px-3 py-2.5 text-red-200 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoggingOut ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-red-200 border-t-transparent rounded-full animate-spin" />
-                    <span>Logging out...</span>
-                  </>
-                ) : (
-                  <>
-                    <LogOut className="w-4 h-4" />
-                    <span>Logout</span>
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-
           {/* Collapsed Logout Button */}
           {isCollapsed && (
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}
               title="Logout"
-              className="w-full mt-2 flex items-center justify-center p-2.5 text-red-200 hover:bg-white/20 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full mt-2 flex items-center justify-center p-2.5 text-red-600 hover:bg-white/20 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoggingOut ? (
-                <div className="w-5 h-5 border-2 border-red-200 border-t-transparent rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
               ) : (
                 <LogOut className="w-5 h-5" />
               )}

@@ -19,71 +19,90 @@ const StatsCard = ({
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  // Determine if value needs more space (2+ digits)
+  const numericValue = typeof value === 'string' && value.includes('₹') 
+    ? value.replace(/[^\d]/g, '').length 
+    : String(value).length;
+  const needsMoreSpace = numericValue >= 2;
+
   if (loading) {
     return (
       <div className="bg-white border border-tppslate/10 rounded-lg p-3 animate-pulse">
-        <div className="flex items-start justify-between mb-2">
-          <div className="w-4 h-4 bg-tppslate/10 rounded"></div>
-          <div className="w-8 h-4 bg-tppslate/10 rounded"></div>
+        <div className="flex items-center justify-between h-full">
+          <div className="flex-1 flex flex-col gap-1">
+            <div className="w-4 h-4 bg-tppslate/10 rounded"></div>
+            <div className="w-20 h-3 bg-tppslate/10 rounded"></div>
+          </div>
+          <div className={`flex items-center justify-center border-l-2 border-dashed border-tppslate/10 pl-3 ${needsMoreSpace ? 'w-[30%]' : 'w-[20%]'}`}>
+            <div className="w-full h-8 bg-tppslate/10 rounded"></div>
+          </div>
         </div>
-        <div className="w-16 h-3 bg-tppslate/10 rounded mb-1"></div>
-        <div className="w-12 h-5 bg-tppslate/10 rounded"></div>
       </div>
     );
   }
 
   return (
     <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
-      <div className="flex items-start justify-between mb-2">
-        <Icon className="w-4 h-4 text-tpppink" />
-        {dropdown ? (
-          <div className="relative">
-            <button
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-1 text-xs font-semibold text-tppslate/50 hover:text-tppslate transition-colors"
-            >
-              {dropdown.selected}
-              <ChevronDown className="w-3 h-3" />
-            </button>
-            
-            {dropdownOpen && (
-              <>
-                {/* Backdrop */}
-                <div 
-                  className="fixed inset-0 z-10" 
-                  onClick={() => setDropdownOpen(false)}
-                />
-                
-                {/* Dropdown Menu */}
-                <div className="absolute right-0 top-full mt-1 bg-white border border-tppslate/10 rounded-lg shadow-lg py-1 z-20 min-w-[140px]">
-                  {dropdown.options.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => {
-                        dropdown.onChange(option.value);
-                        setDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
-                        dropdown.selected === option.label
-                          ? 'bg-tpppink/10 text-tpppink font-semibold'
-                          : 'text-tppslate/80 hover:bg-tppslate/5'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+      <div className="flex items-center justify-between h-full gap-3">
+        {/* Left Column - Icon + Label (80%) */}
+        <div className="flex-1 min-w-0">
+          <div className="mb-1.5">
+            <Icon className="w-4 h-4 text-tpppink flex-shrink-0" />
           </div>
-        ) : badge !== undefined ? (
-          <span className={`text-xs font-semibold ${badgeColor}`}>
-            {badge}
-          </span>
-        ) : null}
+          
+          <p className="text-md text-tppslate/60 font-medium truncate">{label}</p>
+        </div>
+
+        {/* Right Column - Dropdown + Large Value (20-30%) */}
+        <div className={`${needsMoreSpace ? 'w-[30%]' : 'w-[20%]'} flex flex-col items-center justify-center flex-shrink-0 border-l-2 border-dashed border-tppslate/20 pl-3 gap-1`}>
+          {/* Dropdown only (no badge) */}
+          {dropdown && (
+            <div className="relative">
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="flex items-center gap-1 text-xs font-semibold text-tppslate/50 hover:text-tppslate transition-colors"
+              >
+                {dropdown.selected}
+                <ChevronDown className={`w-3 h-3 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {dropdownOpen && (
+                <>
+                  {/* Backdrop */}
+                  <div 
+                    className="fixed inset-0 z-10" 
+                    onClick={() => setDropdownOpen(false)}
+                  />
+                  
+                  {/* Dropdown Menu */}
+                  <div className="absolute right-0 top-full mt-1 bg-white border border-tppslate/10 rounded-lg shadow-lg py-1 z-20 min-w-[140px]">
+                    {dropdown.options.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          dropdown.onChange(option.value);
+                          setDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
+                          dropdown.selected === option.label
+                            ? 'bg-tpppink/10 text-tpppink font-semibold'
+                            : 'text-tppslate/80 hover:bg-tppslate/5'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          
+          <p className="text-2xl font-bold text-tppslate leading-none text-right truncate">
+            {value}
+          </p>
+        </div>
       </div>
-      <p className="text-xs text-tppslate/60 font-medium">{label}</p>
-      <p className="text-sm font-bold text-tppslate mt-1">{value}</p>
     </div>
   );
 };
@@ -231,7 +250,6 @@ export const DashboardStats = ({ stats, loading = false }) => {
         icon={Package}
         label="Total Orders"
         value={stats?.total_orders || 0}
-        badge={stats?.total_orders || 0}
         loading={loading}
       />
 
@@ -253,7 +271,6 @@ export const DashboardStats = ({ stats, loading = false }) => {
         icon={Clock}
         label="Pending Orders"
         value={pendingCount}
-        badge={pendingCount}
         loading={loading}
       />
 
@@ -262,7 +279,6 @@ export const DashboardStats = ({ stats, loading = false }) => {
         icon={CheckCircle}
         label="Delivered"
         value={stats?.delivered || 0}
-        badge={stats?.delivered || 0}
         loading={loading}
       />
     </div>
