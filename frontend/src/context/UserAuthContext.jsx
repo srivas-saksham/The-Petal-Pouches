@@ -1,7 +1,8 @@
-// frontend/src/context/UserAuthContext.jsx - WITH CART MERGE
+// frontend/src/context/UserAuthContext.jsx - WITH CART MERGE + OTP
 
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { mergeCarts } from '../services/cartService';
+import { completeRegistration } from '../services/userAuthService';
 
 const UserAuthContext = createContext();
 
@@ -52,16 +53,16 @@ export function UserAuthProvider({ children }) {
     };
 
     initAuth();
-  }, []);
+  }, [API_URL]);
 
-  // ✅ Register new user
-  const register = useCallback(async (email, password, name) => {
+  // ✅ Register new user - Step 1: Send OTP
+  const register = useCallback(async (email, password, name, phone = null) => {
     setError(null);
     try {
       const response = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name }),
+        body: JSON.stringify({ email, password, name, phone }),
       });
 
       const data = await response.json();
@@ -71,8 +72,32 @@ export function UserAuthProvider({ children }) {
         return { success: false, error: data.message };
       }
 
-      // Auto-login after registration
-      const { token: newToken, user: newUser } = data.data;
+      // ✅ Returns requiresOTP flag
+      return { 
+        success: true, 
+        requiresOTP: data.requiresOTP,
+        message: data.message 
+      };
+    } catch (err) {
+      const errorMsg = err.message || 'Registration error';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  }, [API_URL]);
+
+  // ✅ Complete registration - Step 2: Verify OTP and create account
+  const completeRegistrationWithOTP = useCallback(async (email, password, name, otp, phone = null) => {
+    setError(null);
+    try {
+      const result = await completeRegistration(email, password, name, otp, phone);
+
+      if (!result.success) {
+        setError(result.error || 'Registration completion failed');
+        return { success: false, error: result.error };
+      }
+
+      // Auto-login after successful registration
+      const { token: newToken, user: newUser } = result.data;
       setToken(newToken);
       setUser(newUser);
 
@@ -91,11 +116,11 @@ export function UserAuthProvider({ children }) {
 
       return { success: true };
     } catch (err) {
-      const errorMsg = err.message || 'Registration error';
+      const errorMsg = err.message || 'Registration completion error';
       setError(errorMsg);
       return { success: false, error: errorMsg };
     }
-  }, [API_URL]);
+  }, []);
 
   // ✅ Login user
   const login = useCallback(async (email, password) => {
@@ -139,6 +164,72 @@ export function UserAuthProvider({ children }) {
     }
   }, [API_URL]);
 
+  // ✅ Login with Google OAuth
+  const loginWithGoogle = useCallback(async () => {
+    try {
+      // Redirect to Supabase Google OAuth
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const redirectUrl = `${window.location.origin}/auth/callback`;
+      
+      window.location.href = `${supabaseUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`;
+      
+      return { success: true };
+    } catch (err) {
+      const errorMsg = err.message || 'Google login error';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  }, []);
+
+  // ✅ Handle OAuth callback (call this on redirect page)
+  const handleOAuthCallback = useCallback(async () => {
+    try {
+      const hash = window.location.hash;
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+
+      if (!accessToken) {
+        throw new Error('No access token received');
+      }
+
+      // Exchange Supabase token for our JWT
+      const response = await fetch(`${API_URL}/api/auth/oauth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'OAuth authentication failed');
+      }
+
+      const { token: newToken, user: newUser } = data.data;
+      setToken(newToken);
+      setUser(newUser);
+
+      localStorage.setItem('customer_token', newToken);
+      localStorage.setItem('customer_user', JSON.stringify(newUser));
+
+      // Merge cart for OAuth users too
+      if (newUser.id) {
+        try {
+          await mergeCarts(newUser.id);
+          console.log('✅ Guest cart merged after Google login');
+        } catch (mergeError) {
+          console.error('⚠️ Cart merge failed:', mergeError);
+        }
+      }
+
+      return { success: true };
+    } catch (err) {
+      const errorMsg = err.message || 'OAuth callback error';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  }, [API_URL]);
+
   // ✅ Logout user
   const logout = useCallback(async () => {
     try {
@@ -159,9 +250,6 @@ export function UserAuthProvider({ children }) {
       localStorage.removeItem('customer_token');
       localStorage.removeItem('customer_user');
       setError(null);
-      
-      // Clear guest session on logout (optional - keeps guest cart)
-      // localStorage.removeItem('guest_session_id');
     }
   }, [token, API_URL]);
 
@@ -228,7 +316,10 @@ export function UserAuthProvider({ children }) {
 
     // Methods
     register,
+    completeRegistrationWithOTP,
     login,
+    loginWithGoogle,
+    handleOAuthCallback,
     logout,
     refreshToken,
     updateUser,

@@ -4,6 +4,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const supabase = require('../config/supabaseClient');
 const { clearCustomerRateLimit } = require('../middleware/userAuth');
+const OTPModel = require('../models/otpModel');
+const emailService = require('../services/emailService');
 
 /**
  * User Authentication Controller
@@ -14,7 +16,7 @@ const UserAuthController = {
   // ==================== REGISTRATION ====================
   
   /**
-   * Register a new customer
+   * Register a new customer - Step 1: Send OTP
    * POST /api/auth/register
    */
   register: async (req, res) => {
@@ -38,7 +40,7 @@ const UserAuthController = {
         });
       }
 
-      // Password strength validation (min 8 chars, 1 uppercase, 1 lowercase, 1 number)
+      // Password strength validation
       if (password.length < 8) {
         return res.status(400).json({
           success: false,
@@ -69,6 +71,61 @@ const UserAuthController = {
         });
       }
 
+      // ✅ NEW: Send OTP for email verification
+      const otpResult = await OTPModel.createOTP(email.toLowerCase(), 'registration');
+      
+      if (!otpResult.success) {
+        throw new Error('Failed to generate OTP');
+      }
+
+      // Send OTP email
+      await emailService.sendRegistrationOTP(email, otpResult.otp, name);
+
+      console.log(`[Registration] OTP sent to: ${email}`);
+
+      res.status(200).json({
+        success: true,
+        message: 'Verification code sent to your email. Please verify to complete registration.',
+        requiresOTP: true
+      });
+
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Registration failed. Please try again.',
+        error: error.message
+      });
+    }
+  },
+
+  /**
+   * Complete registration after OTP verification - Step 2
+   * POST /api/auth/register/complete
+   */
+  completeRegistration: async (req, res) => {
+    try {
+      const { name, email, password, phone, otp } = req.body;
+
+      // Validation
+      if (!name || !email || !password || !otp) {
+        return res.status(400).json({
+          success: false,
+          message: 'All fields including OTP are required'
+        });
+      }
+
+      // ✅ Verify OTP
+      const verificationResult = await OTPModel.verifyOTP(email.toLowerCase(), otp, 'registration');
+
+      if (!verificationResult.success) {
+        return res.status(400).json({
+          success: false,
+          message: verificationResult.message,
+          code: verificationResult.error
+        });
+      }
+
       // Hash password
       const saltRounds = 10;
       const passwordHash = await bcrypt.hash(password, saltRounds);
@@ -82,12 +139,15 @@ const UserAuthController = {
           password_hash: passwordHash,
           phone: phone || null,
           is_active: true,
-          email_verified: false
+          email_verified: true // ✅ Auto-verified since OTP confirmed
         }])
         .select('id, name, email, phone, created_at')
         .single();
 
       if (error) throw error;
+
+      // ✅ Delete used OTP
+      await OTPModel.deleteOTP(email.toLowerCase(), 'registration');
 
       // Generate JWT token
       const token = jwt.sign(
@@ -95,7 +155,7 @@ const UserAuthController = {
           id: newUser.id, 
           email: newUser.email, 
           name: newUser.name,
-          email_verified: false
+          email_verified: true
         },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '7d' }
@@ -103,25 +163,31 @@ const UserAuthController = {
 
       console.log(`[Registration] New user registered: ${newUser.email}`);
 
-      // TODO: Send verification email (implement emailService)
+      // ✅ Send welcome email
+      try {
+        await emailService.sendWelcomeEmail(email, name);
+      } catch (emailError) {
+        console.error('Welcome email failed:', emailError);
+        // Don't fail registration if welcome email fails
+      }
 
       res.status(201).json({
         success: true,
-        message: 'Registration successful. Please check your email for verification.',
+        message: 'Registration successful! Welcome to The Petal Pouches.',
         data: {
           user: {
             id: newUser.id,
             name: newUser.name,
             email: newUser.email,
             phone: newUser.phone,
-            email_verified: false
+            email_verified: true
           },
           token
         }
       });
 
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('Complete registration error:', error);
       res.status(500).json({
         success: false,
         message: 'Registration failed. Please try again.',
@@ -472,7 +538,7 @@ const UserAuthController = {
   // ==================== PASSWORD RESET ====================
 
   /**
-   * Request password reset
+   * Request password reset - Send OTP
    * POST /api/auth/forgot-password
    */
   forgotPassword: async (req, res) => {
@@ -498,26 +564,24 @@ const UserAuthController = {
       if (error || !user) {
         return res.json({
           success: true,
-          message: 'If the email exists, a password reset link has been sent.'
+          message: 'If the email exists, a verification code has been sent.'
         });
       }
 
-      // Generate reset token
-      const resetToken = jwt.sign(
-        { id: user.id, email: user.email, type: 'password_reset' },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '1h' }
-      );
+      // ✅ Generate and send OTP
+      const otpResult = await OTPModel.createOTP(email.toLowerCase(), 'password_reset');
+      
+      if (!otpResult.success) {
+        throw new Error('Failed to generate OTP');
+      }
 
-      // TODO: Send password reset email
-      console.log(`[Password Reset] Token generated for: ${user.email}`);
-      console.log(`Reset link: ${process.env.FRONTEND_URL}/reset-password/${resetToken}`);
+      await emailService.sendPasswordResetOTP(email, otpResult.otp, user.name);
+
+      console.log(`[Password Reset] OTP sent to: ${user.email}`);
 
       res.json({
         success: true,
-        message: 'If the email exists, a password reset link has been sent.',
-        // Remove in production - only for testing
-        ...(process.env.NODE_ENV === 'development' && { token: resetToken })
+        message: 'If the email exists, a verification code has been sent.'
       });
 
     } catch (error) {
@@ -530,18 +594,17 @@ const UserAuthController = {
   },
 
   /**
-   * Reset password with token
-   * POST /api/auth/reset-password/:token
+   * Reset password with OTP verification
+   * POST /api/auth/reset-password
    */
   resetPassword: async (req, res) => {
     try {
-      const { token } = req.params;
-      const { password } = req.body;
+      const { email, otp, password } = req.body;
 
-      if (!password) {
+      if (!email || !otp || !password) {
         return res.status(400).json({
           success: false,
-          message: 'New password is required'
+          message: 'Email, OTP, and new password are required'
         });
       }
 
@@ -553,13 +616,29 @@ const UserAuthController = {
         });
       }
 
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      // ✅ Verify OTP
+      const verificationResult = await OTPModel.verifyOTP(email.toLowerCase(), otp, 'password_reset');
 
-      if (decoded.type !== 'password_reset') {
+      if (!verificationResult.success) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid reset token'
+          message: verificationResult.message,
+          code: verificationResult.error
+        });
+      }
+
+      // Get user
+      const { data: user } = await supabase
+        .from('Users')
+        .select('id, email')
+        .eq('email', email.toLowerCase())
+        .eq('is_active', true)
+        .single();
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
         });
       }
 
@@ -568,25 +647,20 @@ const UserAuthController = {
       const passwordHash = await bcrypt.hash(password, saltRounds);
 
       // Update password
-      const { data: updatedUser, error } = await supabase
+      const { error: updateError } = await supabase
         .from('Users')
         .update({ 
           password_hash: passwordHash,
           updated_at: new Date().toISOString()
         })
-        .eq('id', decoded.id)
-        .eq('email', decoded.email)
-        .select('id, email')
-        .single();
+        .eq('id', user.id);
 
-      if (error || !updatedUser) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found'
-        });
-      }
+      if (updateError) throw updateError;
 
-      console.log(`[Password Reset] Password reset successful for: ${decoded.email}`);
+      // ✅ Delete used OTP
+      await OTPModel.deleteOTP(email.toLowerCase(), 'password_reset');
+
+      console.log(`[Password Reset] Password reset successful for: ${user.email}`);
 
       res.json({
         success: true,
@@ -594,14 +668,6 @@ const UserAuthController = {
       });
 
     } catch (error) {
-      if (error.name === 'TokenExpiredError') {
-        return res.status(400).json({
-          success: false,
-          message: 'Reset link expired. Please request a new one.',
-          code: 'TOKEN_EXPIRED'
-        });
-      }
-
       console.error('Reset password error:', error);
       res.status(500).json({
         success: false,
@@ -613,19 +679,66 @@ const UserAuthController = {
   // ==================== CHANGE PASSWORD ====================
 
   /**
-   * Change password (authenticated user)
+   * Change password (authenticated user) - Send OTP first
+   * POST /api/auth/change-password/request
+   */
+  requestPasswordChange: async (req, res) => {
+    try {
+      const userId = req.user.id;
+
+      // Get user email and name
+      const { data: user, error } = await supabase
+        .from('Users')
+        .select('email, name')
+        .eq('id', userId)
+        .single();
+
+      if (error || !user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      // ✅ Generate and send OTP
+      const otpResult = await OTPModel.createOTP(user.email, 'email_change');
+      
+      if (!otpResult.success) {
+        throw new Error('Failed to generate OTP');
+      }
+
+      await emailService.sendEmailChangeOTP(user.email, otpResult.otp, user.name);
+
+      console.log(`[Password Change] OTP sent to: ${user.email}`);
+
+      res.json({
+        success: true,
+        message: 'Verification code sent to your email.'
+      });
+
+    } catch (error) {
+      console.error('Request password change error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to send verification code'
+      });
+    }
+  },
+  
+  /**
+   * Change password after OTP verification
    * PUT /api/auth/change-password
    */
   changePassword: async (req, res) => {
     try {
-      const { currentPassword, newPassword } = req.body;
+      const { otp, currentPassword, newPassword } = req.body;
       const userId = req.user.id;
 
       // Validation
-      if (!currentPassword || !newPassword) {
+      if (!otp || !currentPassword || !newPassword) {
         return res.status(400).json({
           success: false,
-          message: 'Current password and new password are required'
+          message: 'OTP, current password, and new password are required'
         });
       }
 
@@ -636,10 +749,10 @@ const UserAuthController = {
         });
       }
 
-      // Get current password hash
+      // Get user
       const { data: user, error } = await supabase
         .from('Users')
-        .select('password_hash')
+        .select('email, password_hash')
         .eq('id', userId)
         .single();
 
@@ -647,6 +760,17 @@ const UserAuthController = {
         return res.status(404).json({
           success: false,
           message: 'User not found'
+        });
+      }
+
+      // ✅ Verify OTP
+      const verificationResult = await OTPModel.verifyOTP(user.email, otp, 'email_change');
+
+      if (!verificationResult.success) {
+        return res.status(400).json({
+          success: false,
+          message: verificationResult.message,
+          code: verificationResult.error
         });
       }
 
@@ -674,6 +798,9 @@ const UserAuthController = {
         })
         .eq('id', userId);
 
+      // ✅ Delete used OTP
+      await OTPModel.deleteOTP(user.email, 'email_change');
+
       console.log(`[Password Change] Password changed for user ID: ${userId}`);
 
       res.json({
@@ -686,6 +813,97 @@ const UserAuthController = {
       res.status(500).json({
         success: false,
         message: 'Failed to change password'
+      });
+    }
+  },
+
+  // ==================== GOOGLE OAUTH ====================
+
+  /**
+   * Handle Google OAuth callback
+   * POST /api/auth/oauth/google
+   */
+  handleGoogleOAuth: async (req, res) => {
+    try {
+      const { accessToken } = req.body;
+
+      if (!accessToken) {
+        return res.status(400).json({
+          success: false,
+          message: 'Access token is required'
+        });
+      }
+
+      // Verify token with Supabase
+      const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+
+      if (error || !user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid Google token'
+        });
+      }
+
+      // Check if user exists in your database
+      let { data: existingUser } = await supabase
+        .from('Users')
+        .select('*')
+        .eq('email', user.email)
+        .single();
+
+      // Create user if doesn't exist
+      if (!existingUser) {
+        const { data: newUser, error: insertError } = await supabase
+          .from('Users')
+          .insert([{
+            email: user.email,
+            name: user.user_metadata.full_name || user.email.split('@')[0],
+            email_verified: true, // Google emails are pre-verified
+            is_active: true,
+            password_hash: 'Rizara_User' // No password for OAuth users
+          }])
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        existingUser = newUser;
+
+        console.log(`[Google OAuth] New user created: ${user.email}`);
+      } else {
+        console.log(`[Google OAuth] Existing user logged in: ${user.email}`);
+      }
+
+      // Generate your JWT token
+      const token = jwt.sign(
+        { 
+          id: existingUser.id, 
+          email: existingUser.email, 
+          name: existingUser.name,
+          email_verified: true
+        },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' }
+      );
+
+      res.json({
+        success: true,
+        data: {
+          user: {
+            id: existingUser.id,
+            name: existingUser.name,
+            email: existingUser.email,
+            email_verified: true
+          },
+          token
+        }
+      });
+
+    } catch (error) {
+      console.error('Google OAuth error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'OAuth authentication failed',
+        error: error.message
       });
     }
   }

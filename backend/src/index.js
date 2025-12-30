@@ -96,9 +96,10 @@ app.use('/api/admin', require('./routes/admin'));              // Admin Product 
 
 // 2. CUSTOMER AUTHENTICATION & PROFILE
 // --------------------------------------------
-app.use('/api/auth', require('./routes/userAuth'));        // Customer Login/Register
+app.use('/api/auth', require('./routes/userAuth'));          // Customer Login/Register
+app.use('/api/otp', require('./routes/otp'));               // ✅ OTP Verification System
 app.use('/api/users', require('./routes/users'));          // Customer Profile/Dashboard
-app.use('/api/addresses', require('./routes/addresses'));  // Address Book
+app.use('/api/addresses', require('./routes/addresses')); // Address Book
 
 // 3. CATALOG (PUBLIC & ADMIN MIXED)
 // --------------------------------------------
@@ -168,7 +169,7 @@ app.get('/', (req, res) => {
   res.json({
     success: true,
     message: 'The Petal Pouches API is running! 🌸',
-    version: '1.6.0', // ⭐ Version bump for coupon system
+    version: '1.7.0', // ✅ OTP Email Verification System
     database: 'Supabase',
     payment_gateway: 'Razorpay',
     shipping: 'Delhivery',
@@ -182,13 +183,20 @@ app.get('/', (req, res) => {
       },
       customer: {
         auth: '/api/auth',
+        otp: '/api/otp', // ✅ NEW
         profile: '/api/users',
         addresses: '/api/addresses',
         orders: '/api/orders',
         cart: '/api/cart',
         wishlist: '/api/wishlist',
-        coupons: '/api/coupons', // ⭐ NEW
+        coupons: '/api/coupons',
         payments: '/api/payments'
+      },
+      otp: { // ✅ NEW
+        send: 'POST /api/otp/send',
+        verify: 'POST /api/otp/verify',
+        resend: 'POST /api/otp/resend',
+        check_verified: 'GET /api/otp/check-verified'
       },
       catalog: {
         products: '/api/products',
@@ -269,9 +277,9 @@ app.use((req, res) => {
     success: false,
     message: `Route not found: ${req.method} ${req.path}`,
     availableResources: [
-      '/api/auth', '/api/users', '/api/products', 
-      '/api/cart', '/api/orders', '/api/payments', 
-      '/api/coupons', '/api/webhooks' // ⭐ UPDATED
+    '/api/auth', '/api/otp', '/api/users', '/api/products', // ✅ UPDATED
+    '/api/cart', '/api/orders', '/api/payments', 
+    '/api/coupons', '/api/webhooks'
     ]
   });
 });
@@ -296,6 +304,7 @@ app.listen(PORT, () => {
   console.log(`   🛒 Products:   http://localhost:${PORT}/api/products`);
   console.log(`   🛍️ Cart:       http://localhost:${PORT}/api/cart`);
   console.log(`   🎟️ Coupons:    http://localhost:${PORT}/api/coupons`); // ⭐ NEW
+  console.log(`   🔐 OTP:        http://localhost:${PORT}/api/otp`); // ✅ NEW
   console.log(`   👤 User Auth:  http://localhost:${PORT}/api/auth/login`);
   console.log(`   🔐 Admin Auth: http://localhost:${PORT}/api/admin/auth/login`);
   console.log(`   📦 Orders:     http://localhost:${PORT}/api/orders`);

@@ -2,11 +2,130 @@
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
+// ==================== OTP FUNCTIONS ====================
+
 /**
- * Register new customer
+ * Send OTP to email
+ * POST /api/otp/send
+ */
+export const sendOTP = async (email, type, name = '') => {
+  try {
+    const response = await fetch(`${API_URL}/api/otp/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email.trim(),
+        type,
+        name: name.trim(),
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.message || 'Failed to send OTP',
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message,
+      attemptsRemaining: data.attemptsRemaining,
+      expiresIn: data.expiresIn,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'OTP send error',
+    };
+  }
+};
+
+/**
+ * Verify OTP code
+ * POST /api/otp/verify
+ */
+export const verifyOTP = async (email, otp, type) => {
+  try {
+    const response = await fetch(`${API_URL}/api/otp/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email.trim(),
+        otp,
+        type,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.message || 'OTP verification failed',
+        code: data.code,
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message,
+      verified: data.verified,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'OTP verification error',
+    };
+  }
+};
+
+/**
+ * Resend OTP
+ * POST /api/otp/resend
+ */
+export const resendOTP = async (email, type, name = '') => {
+  try {
+    const response = await fetch(`${API_URL}/api/otp/resend`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email.trim(),
+        type,
+        name: name.trim(),
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.message || 'Failed to resend OTP',
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message,
+      attemptsRemaining: data.attemptsRemaining,
+      expiresIn: data.expiresIn,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'OTP resend error',
+    };
+  }
+};
+
+/**
+ * Register new customer - Step 1: Send OTP
  * POST /api/auth/register
  */
-export const registerUser = async (email, password, name) => {
+export const registerUser = async (email, password, name, phone = null) => {
   try {
     const response = await fetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
@@ -15,6 +134,7 @@ export const registerUser = async (email, password, name) => {
         email: email.trim(),
         password,
         name: name.trim(),
+        phone,
       }),
     });
 
@@ -29,12 +149,52 @@ export const registerUser = async (email, password, name) => {
 
     return {
       success: true,
-      data: data.data,
+      requiresOTP: data.requiresOTP,
+      message: data.message,
     };
   } catch (error) {
     return {
       success: false,
       error: error.message || 'Registration error',
+    };
+  }
+};
+
+/**
+ * Complete registration after OTP verification - Step 2
+ * POST /api/auth/register/complete
+ */
+export const completeRegistration = async (email, password, name, otp, phone = null) => {
+  try {
+    const response = await fetch(`${API_URL}/api/auth/register/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email.trim(),
+        password,
+        name: name.trim(),
+        otp,
+        phone,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.message || 'Registration completion failed',
+      };
+    }
+
+    return {
+      success: true,
+      data: data.data,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Registration completion error',
     };
   }
 };
@@ -213,16 +373,17 @@ export const requestPasswordReset = async (email) => {
 };
 
 /**
- * Reset password with token
+ * Reset password with OTP
  * POST /api/auth/reset-password
  */
-export const resetPassword = async (resetToken, newPassword) => {
+export const resetPassword = async (email, otp, newPassword) => {
   try {
     const response = await fetch(`${API_URL}/api/auth/reset-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        reset_token: resetToken,
+        email: email.trim(),
+        otp,
         password: newPassword,
       }),
     });
@@ -279,6 +440,81 @@ export const verifyEmail = async (verificationToken) => {
     return {
       success: false,
       error: error.message || 'Email verification error',
+    };
+  }
+};
+
+/**
+ * Request password change - Send OTP
+ * POST /api/auth/change-password/request
+ */
+export const requestPasswordChange = async (token) => {
+  try {
+    const response = await fetch(`${API_URL}/api/auth/change-password/request`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.message || 'Failed to send verification code',
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Password change request error',
+    };
+  }
+};
+
+/**
+ * Change password with OTP verification
+ * PUT /api/auth/change-password
+ */
+export const changePassword = async (token, otp, currentPassword, newPassword) => {
+  try {
+    const response = await fetch(`${API_URL}/api/auth/change-password`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        otp,
+        currentPassword,
+        newPassword,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.message || 'Password change failed',
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Password change error',
     };
   }
 };

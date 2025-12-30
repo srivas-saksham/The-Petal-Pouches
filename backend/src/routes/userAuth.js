@@ -21,11 +21,27 @@ router.use(customerSecurityHeaders);
 
 /**
  * @route   POST /api/auth/register
- * @desc    Register a new customer account
+ * @desc    Register a new customer - Step 1: Send OTP
  * @access  Public
  * @body    { name, email, password, phone? }
  */
 router.post('/register', UserAuthController.register);
+
+/**
+ * @route   POST /api/auth/register/complete
+ * @desc    Complete registration after OTP verification - Step 2
+ * @access  Public
+ * @body    { name, email, password, phone?, otp }
+ */
+router.post('/register/complete', UserAuthController.completeRegistration);
+
+/**
+ * @route   POST /api/auth/oauth/google
+ * @desc    Handle Google OAuth callback
+ * @access  Public
+ * @body    { accessToken }
+ */
+router.post('/oauth/google', UserAuthController.handleGoogleOAuth);
 
 /**
  * @route   POST /api/auth/login
@@ -37,24 +53,23 @@ router.post('/login', rateLimitCustomerLogin, UserAuthController.login);
 
 /**
  * @route   POST /api/auth/forgot-password
- * @desc    Request password reset email
+ * @desc    Request password reset - Send OTP
  * @access  Public
  * @body    { email }
  */
 router.post('/forgot-password', UserAuthController.forgotPassword);
 
 /**
- * @route   POST /api/auth/reset-password/:token
- * @desc    Reset password with token
+ * @route   POST /api/auth/reset-password
+ * @desc    Reset password with OTP verification
  * @access  Public
- * @params  token (JWT token from email)
- * @body    { password }
+ * @body    { email, otp, password }
  */
-router.post('/reset-password/:token', UserAuthController.resetPassword);
+router.post('/reset-password', UserAuthController.resetPassword);
 
 /**
  * @route   POST /api/auth/verify-email/:token
- * @desc    Verify email with token
+ * @desc    Verify email with token (legacy - kept for compatibility)
  * @access  Public
  * @params  token (JWT token from email)
  */
@@ -94,11 +109,19 @@ router.post('/refresh', UserAuthController.refreshToken);
 router.post('/verify-email/request', UserAuthController.requestEmailVerification);
 
 /**
- * @route   PUT /api/auth/change-password
- * @desc    Change password (authenticated user)
+ * @route   POST /api/auth/change-password/request
+ * @desc    Request password change - Send OTP
  * @access  Private (Customer)
- * @body    { currentPassword, newPassword }
+ */
+router.post('/change-password/request', UserAuthController.requestPasswordChange);
+
+/**
+ * @route   PUT /api/auth/change-password
+ * @desc    Change password with OTP verification
+ * @access  Private (Customer)
+ * @body    { otp, currentPassword, newPassword }
  */
 router.put('/change-password', UserAuthController.changePassword);
+
 
 module.exports = router;

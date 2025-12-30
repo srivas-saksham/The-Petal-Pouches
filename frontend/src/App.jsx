@@ -1,4 +1,4 @@
-// frontend/src/App.jsx - WITH CART SIDEBAR & ORDER ROUTES
+// frontend/src/App.jsx - WITH CART SIDEBAR & ORDER ROUTES & FORGOT PASSWORD
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AdminAuthProvider } from './context/AdminAuthContext';
@@ -19,9 +19,11 @@ import Shop from './pages/ShopNew';
 import BundleDetailPage from './pages/BundleDetailPage';
 import UserLogin from './pages/user/UserLogin';
 import UserRegister from './pages/user/UserRegister';
+import ForgotPassword from './pages/user/ForgotPassword';
+import OAuthCallback from './pages/auth/OAuthCallback';
 import Checkout from './pages/Checkout';
 
-// ✅ NEW: Order Pages
+// Order Pages
 import OrderSuccess from './pages/OrderSuccess';
 import OrderDetails from './pages/user/OrderDetails';
 
@@ -53,6 +55,7 @@ function App() {
                   {/* User Authentication */}
                   <Route path="/login" element={<UserLogin />} />
                   <Route path="/register" element={<UserRegister />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
                   
                   {/* ==================== CHECKOUT ROUTE (Public but Protected) ==================== */}
                   
@@ -67,7 +70,7 @@ function App() {
                   
                   {/* ==================== ORDER SUCCESS ROUTE (Protected) ==================== */}
                   
-                  {/* ✅ NEW: Order Success Page - Shows after successful order placement */}
+                  {/* Order Success Page - Shows after successful order placement */}
                   <Route
                     path="/order-success/:orderId"
                     element={
@@ -89,7 +92,7 @@ function App() {
                     }
                   />
 
-                  {/* ✅ NEW: Individual Order Details Route (Protected) */}
+                  {/* Individual Order Details Route (Protected) */}
                   <Route
                     path="/user/orders/:orderId"
                     element={
@@ -115,6 +118,8 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+
+                  <Route path="/auth/callback" element={<OAuthCallback />} />
 
                   {/* ==================== 404 - CATCH ALL ==================== */}
                   

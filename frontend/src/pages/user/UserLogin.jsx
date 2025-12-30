@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useToast } from '../../hooks/useToast';
+import { LogIn } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -13,7 +14,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [attemptCount, setAttemptCount] = useState(0);
 
-  const { login, isAuthenticated } = useUserAuth();
+  const { login, loginWithGoogle, isAuthenticated } = useUserAuth();
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -76,6 +77,21 @@ export default function Login() {
   // ✅ Handle forgot password
   const handleForgotPassword = () => {
     navigate('/forgot-password');
+  };
+
+  // ✅ Handle Google OAuth login
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      const result = await loginWithGoogle();
+      if (!result.success) {
+        toast.error(result.error || 'Google login failed');
+      }
+      // Note: User will be redirected to Google, so no need to setLoading(false)
+    } catch (error) {
+      toast.error(error.message || 'Google login error');
+      setLoading(false);
+    }
   };
 
   return (
@@ -218,19 +234,16 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Social Login Buttons (Future enhancement) */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Social Login Buttons */}
+          <div className="space-y-3">
             <button
+              type="button"
+              onClick={handleGoogleLogin}
               disabled={loading}
-              className="py-3 px-4 border-2 border-tppslate/20 rounded-xl text-tppslate font-medium hover:border-tpppink hover:bg-tpppeach/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 px-4 border-2 border-tppslate/20 rounded-xl text-tppslate font-medium hover:border-tpppink hover:bg-tpppeach/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
             >
-              Google
-            </button>
-            <button
-              disabled={loading}
-              className="py-3 px-4 border-2 border-tppslate/20 rounded-xl text-tppslate font-medium hover:border-tpppink hover:bg-tpppeach/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Apple
+              <LogIn className="w-5 h-5 text-tpppink" />
+              <span>Continue with Google</span>
             </button>
           </div>
 

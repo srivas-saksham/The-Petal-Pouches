@@ -1,0 +1,99 @@
+// backend/src/templates/RegistrationOTPTemplate.js
+
+function RegistrationOTPTemplate({ name, otp }) {
+  const otpDigits = otp.toString().split('');
+  
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Verify Your Email</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+        <tr>
+          <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+              
+              <!-- Header -->
+              <tr>
+                <td style="padding: 60px 60px 40px; border-bottom: 1px solid #e5e5e5;">
+                  <h1 style="margin: 0; font-size: 14px; font-weight: 400; letter-spacing: 3px; text-transform: uppercase; color: #1a1a1a; text-align: center;">
+                    Rizara Jewels
+                  </h1>
+                </td>
+              </tr>
+
+              <!-- Content -->
+              <tr>
+                <td style="padding: 60px;">
+                  <h2 style="margin: 0 0 24px; font-size: 24px; font-weight: 300; color: #1a1a1a; letter-spacing: -0.5px;">
+                    Email Verification
+                  </h2>
+                  
+                  <p style="margin: 0 0 32px; font-size: 15px; line-height: 24px; color: #525252;">
+                    Hello ${name},
+                  </p>
+                  
+                  <p style="margin: 0 0 40px; font-size: 15px; line-height: 24px; color: #525252;">
+                    Please use the following verification code to complete your registration. This code will expire in 10 minutes.
+                  </p>
+
+                  <!-- OTP Container -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 40px;">
+                    <tr>
+                        <td style="background-color: #fafafa; border: 1px solid #e5e5e5; padding: 32px; text-align: center; border-radius: 2px;">
+                        <p style="margin: 0 0 16px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #737373;">
+                            Verification Code
+                        </p>
+                        <table cellpadding="0" cellspacing="0" align="center">
+                            <tr>
+                            <td style="letter-spacing: -4px;">
+                                ${otpDigits.map(digit => `<span style="display: inline-block; width: 48px; height: 56px; background-color: #ffffff; border: 1px solid #d95669; text-align: center; line-height: 56px; font-size: 24px; font-weight: 500; color: #1a1a1a; letter-spacing: 0; margin: 0 4px;">${digit}</span>`).join('')}
+                            </td>
+                            </tr>
+                        </table>
+                        <p style="margin: 20px 0 0; font-size: 13px; color: #737373;">
+                            Valid for 10 minutes
+                        </p>
+                        </td>
+                    </tr>
+                    </table>
+
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 32px; background-color: #fafafa; border-left: 2px solid #1a1a1a;">
+                    <tr>
+                      <td style="padding: 20px 24px;">
+                        <p style="margin: 0; font-size: 13px; line-height: 20px; color: #525252;">
+                          <strong style="color: #1a1a1a;">Security Notice:</strong> Do not share this code with anyone.
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <p style="margin: 0; font-size: 14px; line-height: 22px; color: #737373;">
+                    If you did not request this verification, please disregard this email.
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="padding: 40px 60px; border-top: 1px solid #e5e5e5; text-align: center;">
+                  <p style="margin: 0; font-size: 12px; line-height: 18px; color: #a3a3a3;">
+                    © ${new Date().getFullYear()} Rizara Jewels. All rights reserved.
+                  </p>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+}
+
+module.exports = RegistrationOTPTemplate;
