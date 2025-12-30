@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Mail, Lock, CheckCircle2, AlertCircle, ArrowRight, X, Chrome } from 'lucide-react';
+import { User, Mail, Lock, CheckCircle2, AlertCircle, ArrowRight, X, Chrome, Check, HeartCrack } from 'lucide-react';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useToast } from '../../hooks/useToast';
 import { sendOTP, verifyOTP, resendOTP } from '../../services/userAuthService';
+import AuthPageTransition from '../../components/auth/AuthPageTransition';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -22,6 +23,7 @@ export default function Register() {
   const [otpError, setOtpError] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [showConfirmClose, setShowConfirmClose] = useState(false);
 
   const { register, completeRegistrationWithOTP, loginWithGoogle, isAuthenticated } = useUserAuth();
   const navigate = useNavigate();
@@ -247,6 +249,7 @@ export default function Register() {
   const closeOtpModal = () => {
     if (!verifyingOtp) {
       setShowOtpModal(false);
+      setShowConfirmClose(false);
       setOtp(['', '', '', '', '', '']);
       setOtpError('');
     }
@@ -254,292 +257,355 @@ export default function Register() {
 
   return (
     <>
-      <div className="min-h-screen flex overflow-hidden bg-gradient-to-br from-tpppeach via-white to-tpppeach/50">
+      <div className="h-screen flex overflow-hidden bg-gradient-to-br from-tpppeach via-white to-tpppeach/50">
         {/* Left Section - Image (60%) */}
         <div className="hidden lg:flex lg:w-3/5 relative items-center justify-center p-8 bg-tpppink">
           <div className="relative w-full max-w-md">
           </div>
         </div>
 
-        {/* Right Section - Register Form (40%) */}
-        <div className="w-full lg:w-2/5 flex items-center justify-center p-6 sm:p-8">
-          <div className="w-full max-w-md">
-            {/* Header */}
-            <div className="mb-8 text-center">
-              <h1 className="text-3xl font-bold text-tppslate mb-2">Create Account</h1>
-              <p className="text-tppslate/60">Join Rizara Jewels community</p>
-            </div>
+        <AuthPageTransition>
+        {/* Right Section - Register Form (40%) - Proper Container */}
+        <div className="w-full flex flex-col p-6 sm:p-8">
+          {/* Back to Shop Link & Sign In Link - FIXED AT TOP */}
+          <div className="mb-4 flex items-center justify-between flex-shrink-0">
+            <Link
+              to="/"
+              className="text-sm text-tppslate/60 hover:text-tpppink font-medium transition-colors inline-flex items-center gap-1"
+            >
+              ← Back to Shop
+            </Link>
 
-            {/* Google Sign Up */}
-            <div className="mb-6">
-              <p className="text-xs font-semibold text-tppslate/60 text-center mb-3 uppercase tracking-wider">
-                Register with
-              </p>
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={loading}
-                className="w-full py-3 px-4 border-2 border-tppslate/20 rounded-xl text-tppslate font-medium hover:border-tpppink hover:bg-tpppeach/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-              >
-                <Chrome className="w-5 h-5 text-tpppink" />
-                <span>Continue with Google</span>
-              </button>
-            </div>
+            <p className="text-sm text-tppslate/60">
+              <Link to="/login" className="hover:text-tpppink transition-colors">
+                Already Registered?{' '}
+              </Link>
+              <Link to="/login" className="text-tpppink hover:text-tpppink/80 font-semibold transition-colors">
+                Sign in
+              </Link>
+            </p>
+          </div>
 
-            {/* Divider */}
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-tppslate/20"></div>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-4 text-tppslate/60 font-semibold">Or register with email</span>
-              </div>
-            </div>
-
-            {/* Registration Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Full Name */}
-              <div>
-                <label className="block text-xs font-semibold text-tppslate mb-1.5">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tppslate/40" />
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="John Doe"
-                    className="w-full pl-10 pr-3 py-2.5 border-2 border-tppslate/10 rounded-lg focus:outline-none focus:border-tpppink focus:ring-2 focus:ring-tpppink/10 transition-all text-sm text-tppslate placeholder-tppslate/40 bg-white hover:border-tppslate/20"
-                    required
-                    disabled={loading}
-                  />
-                </div>
+          {/* Centered Content Container */}
+          <div className="flex-1 flex items-center justify-center">
+            <div className="w-full max-w-lg">
+              {/* Header */}
+              <div className="mb-8 text-center">
+                <h1 className="text-3xl font-bold text-tppslate mb-2">Create Account</h1>
+                <p className="text-tppslate/60">Experience personally curated items for your loved ones.</p>
               </div>
 
-              {/* Email */}
-              <div>
-                <label className="block text-xs font-semibold text-tppslate mb-1.5">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tppslate/40" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="you@example.com"
-                    className="w-full pl-10 pr-3 py-2.5 border-2 border-tppslate/10 rounded-lg focus:outline-none focus:border-tpppink focus:ring-2 focus:ring-tpppink/10 transition-all text-sm text-tppslate placeholder-tppslate/40 bg-white hover:border-tppslate/20"
-                    required
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              {/* Password */}
-              <div>
-                <label className="block text-xs font-semibold text-tppslate mb-1.5">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tppslate/40" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    placeholder="Minimum 8 characters"
-                    className="w-full pl-10 pr-16 py-2.5 border-2 border-tppslate/10 rounded-lg focus:outline-none focus:border-tpppink focus:ring-2 focus:ring-tpppink/10 transition-all text-sm text-tppslate placeholder-tppslate/40 bg-white hover:border-tppslate/20"
-                    required
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-tpppink hover:text-tpppink/80 font-medium transition-colors"
-                    disabled={loading}
-                  >
-                    {showPassword ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Confirm Password */}
-              <div>
-                <label className="block text-xs font-semibold text-tppslate mb-1.5">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tppslate/40" />
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                    placeholder="Re-enter password"
-                    className="w-full pl-10 pr-3 py-2.5 border-2 border-tppslate/10 rounded-lg focus:outline-none focus:border-tpppink focus:ring-2 focus:ring-tpppink/10 transition-all text-sm text-tppslate placeholder-tppslate/40 bg-white hover:border-tppslate/20"
-                    required
-                    disabled={loading}
-                  />
-                </div>
-                {formData.confirmPassword && (
-                  <div className={`mt-1.5 flex items-center gap-1.5 text-xs ${
-                    formData.password === formData.confirmPassword ? 'text-tppmint' : 'text-red-600'
-                  }`}>
-                    {formData.password === formData.confirmPassword ? (
-                      <><CheckCircle2 className="w-3 h-3" /><span>Match</span></>
-                    ) : (
-                      <><AlertCircle className="w-3 h-3" /><span>Don't match</span></>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Terms Checkbox */}
-              <div className="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  id="terms"
-                  checked={agreedToTerms}
-                  onChange={(e) => setAgreedToTerms(e.target.checked)}
-                  className="w-4 h-4 rounded border-2 border-tppslate/20 text-tpppink focus:ring-tpppink cursor-pointer mt-0.5 flex-shrink-0"
+              {/* Google Sign Up */}
+              <div className="mb-6">
+                <p className="text-xs font-semibold text-tppslate/60 text-center mb-3 uppercase tracking-wider">
+                  Register with
+                </p>
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
                   disabled={loading}
-                />
-                <label htmlFor="terms" className="text-xs text-tppslate/80 cursor-pointer leading-tight">
-                  I agree to the{' '}
-                  <Link to="/terms" className="text-tpppink hover:text-tpppink/80 font-semibold">Terms</Link>
-                  {' '}and{' '}
-                  <Link to="/privacy" className="text-tpppink hover:text-tpppink/80 font-semibold">Privacy Policy</Link>
-                </label>
+                  className="w-full py-3 px-4 border-2 border-tppslate/20 rounded-xl text-tppslate font-medium hover:border-tpppink hover:bg-tpppeach/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                >
+                  <Chrome className="w-5 h-5 text-tpppink" />
+                  <span>Continue with Google</span>
+                </button>
               </div>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading || !agreedToTerms}
-                className="w-full py-3 bg-gradient-to-r from-tpppink to-tpppink/90 text-white font-semibold rounded-lg hover:shadow-lg hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 mt-2"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Creating Account...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Create Account</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </form>
+              {/* Divider */}
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-tppslate/20"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-4 text-tppslate/60 font-semibold">Or register with email</span>
+                </div>
+              </div>
 
-            {/* Sign In Link */}
-            <div className="mt-6 text-center">
-              <p className="text-sm text-tppslate/80">
-                Already have an account?{' '}
-                <Link to="/login" className="text-tpppink hover:text-tpppink/80 font-semibold transition-colors">
-                  Sign in
-                </Link>
-              </p>
+              {/* Registration Form */}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Full Name */}
+                <div>
+                  <label className="block text-xs font-semibold text-tppslate mb-1.5">
+                    Full Name
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tppslate/40" />
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder="John Doe"
+                      className="w-full pl-10 pr-3 py-2.5 border-2 border-tppslate/10 rounded-lg focus:outline-none focus:border-tpppink focus:ring-2 focus:ring-tpppink/10 transition-all text-sm text-tppslate placeholder-tppslate/40 bg-white hover:border-tppslate/20"
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="block text-xs font-semibold text-tppslate mb-1.5">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tppslate/40" />
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="you@example.com"
+                      className="w-full pl-10 pr-3 py-2.5 border-2 border-tppslate/10 rounded-lg focus:outline-none focus:border-tpppink focus:ring-2 focus:ring-tpppink/10 transition-all text-sm text-tppslate placeholder-tppslate/40 bg-white hover:border-tppslate/20"
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label className="block text-xs font-semibold text-tppslate mb-1.5">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tppslate/40" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="Minimum 8 characters"
+                      className="w-full pl-10 pr-16 py-2.5 border-2 border-tppslate/10 rounded-lg focus:outline-none focus:border-tpppink focus:ring-2 focus:ring-tpppink/10 transition-all text-sm text-tppslate placeholder-tppslate/40 bg-white hover:border-tppslate/20"
+                      required
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-tpppink hover:text-tpppink/80 font-medium transition-colors"
+                      disabled={loading}
+                    >
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label className="block text-xs font-semibold text-tppslate mb-1.5">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tppslate/40" />
+                    <input
+                      type="password"
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      placeholder="Re-enter password"
+                      className="w-full pl-10 pr-3 py-2.5 border-2 border-tppslate/10 rounded-lg focus:outline-none focus:border-tpppink focus:ring-2 focus:ring-tpppink/10 transition-all text-sm text-tppslate placeholder-tppslate/40 bg-white hover:border-tppslate/20"
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+                  {formData.confirmPassword && (
+                    <div className={`mt-1.5 flex items-center gap-1.5 text-xs ${
+                      formData.password === formData.confirmPassword ? 'text-tppmint' : 'text-red-600'
+                    }`}>
+                      {formData.password === formData.confirmPassword ? (
+                        <><CheckCircle2 className="w-3 h-3" /><span>Match</span></>
+                      ) : (
+                        <><AlertCircle className="w-3 h-3" /><span>Don't match</span></>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Terms Checkbox */}
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    id="terms"
+                    checked={agreedToTerms}
+                    onChange={(e) => setAgreedToTerms(e.target.checked)}
+                    className="w-4 h-4 rounded border-2 border-tppslate/20 text-tpppink focus:ring-tpppink cursor-pointer mt-0.5 flex-shrink-0"
+                    disabled={loading}
+                  />
+                  <label htmlFor="terms" className="text-xs text-tppslate/80 cursor-pointer leading-tight">
+                    I agree to the{' '}
+                    <Link to="/terms" className="text-tpppink hover:text-tpppink/80 font-semibold">Terms</Link>
+                    {' '}and{' '}
+                    <Link to="/privacy" className="text-tpppink hover:text-tpppink/80 font-semibold">Privacy Policy</Link>
+                  </label>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loading || !agreedToTerms}
+                  className="w-full py-3 bg-gradient-to-r from-tpppink to-tpppink/90 text-white font-semibold rounded-lg hover:shadow-lg hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 mt-2"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Creating Account...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Create Account</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Sign In Link */}
+              <div className="mt-6 text-center">
+                <p className="text-sm text-tppslate/80">
+                  Already have an account?{' '}
+                  <Link to="/login" className="text-tpppink hover:text-tpppink/80 font-semibold transition-colors">
+                    Sign in
+                  </Link>
+                </p>
+              </div>
             </div>
           </div>
         </div>
+      </AuthPageTransition>
       </div>
 
       {/* ✅ OTP VERIFICATION MODAL */}
       {showOtpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 animate-slideUp relative">
-            {/* Close Button */}
-            <button
-              onClick={closeOtpModal}
-              disabled={verifyingOtp}
-              className="absolute top-4 right-4 text-tppslate/40 hover:text-tppslate transition-colors disabled:opacity-50"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Icon */}
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-tpppink/10 rounded-full mb-4">
-                <Mail className="w-8 h-8 text-tpppink" />
-              </div>
-              <h2 className="text-2xl font-bold text-tppslate mb-2">
-                Verify Your Email
-              </h2>
-              <p className="text-sm text-tppslate/60">
-                Enter the 6-digit code sent to<br />
-                <span className="font-semibold text-tppslate">{formData.email}</span>
-              </p>
-            </div>
-
-            {/* OTP Input - Individual Boxes */}
-            <div className="flex justify-center gap-2 mb-4">
-              {otp.map((digit, index) => (
-                <input
-                  key={index}
-                  ref={(el) => (otpInputRefs.current[index] = el)}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleOtpChange(index, e.target.value)}
-                  onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                  onPaste={index === 0 ? handleOtpPaste : undefined}
-                  disabled={verifyingOtp}
-                  className={`w-12 h-14 text-center text-2xl font-bold border-2 rounded-lg transition-all focus:outline-none ${
-                    digit
-                      ? 'border-tpppink bg-tpppink/5 text-tpppink'
-                      : 'border-tppslate/20 text-tppslate'
-                  } focus:border-tpppink focus:ring-2 focus:ring-tpppink/20 disabled:opacity-50`}
-                  autoFocus={index === 0}
-                />
-              ))}
-            </div>
-
-            {/* Error Message */}
-            {otpError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-600 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  {otpError}
+        <>
+          {/* Floating sad message */}
+          {showConfirmClose && (
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-[280px] z-[60] animate-fadeIn">
+              <div className="bg-white px-6 py-3 rounded-full shadow-lg border-2">
+                <p className="text-sm font-medium text-tppslate">
+                  Don't wanna sign up with us? <HeartCrack className="inline-block w-4 h-4 text-tppslate -translate-y-0.5" />
                 </p>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Verifying State */}
-            {verifyingOtp && (
-              <div className="mb-4 p-3 bg-tpppink/10 border border-tpppink/20 rounded-lg">
-                <p className="text-sm text-tpppink flex items-center gap-2 justify-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-tpppink border-t-transparent"></div>
-                  <span className="font-medium">Verifying code...</span>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 animate-slideUp relative">
+              {/* Close/Confirm Buttons */}
+              <div className="absolute top-4 right-4 flex items-center gap-2">
+                {showConfirmClose ? (
+                  <>
+                    {/* Cancel (X) Button */}
+                    <button
+                      onClick={() => setShowConfirmClose(false)}
+                      disabled={verifyingOtp}
+                      className="flex items-center justify-center w-9 h-9 text-tppslate hover:bg-tppslate/10 rounded-full transition-all disabled:opacity-50 hover:scale-110"
+                      title="Cancel"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                    {/* Confirm (Check) Button */}
+                    <button
+                      onClick={closeOtpModal}
+                      disabled={verifyingOtp}
+                      className="flex items-center justify-center w-9 h-9 text-tpppink hover:bg-tpppink/20 rounded-full transition-all disabled:opacity-50 hover:scale-110"
+                      title="Confirm Close"
+                    >
+                      <Check className="w-5 h-5" />
+                    </button>
+                  </>
+                ) : (
+                  /* Regular Close Button */
+                  <button
+                    onClick={() => setShowConfirmClose(true)}
+                    disabled={verifyingOtp}
+                    className="text-tppslate/40 hover:text-tppslate transition-colors disabled:opacity-50"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Icon */}
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-tpppink/10 rounded-full mb-4">
+                  <Mail className="w-8 h-8 text-tpppink" />
+                </div>
+                <h2 className="text-2xl font-bold text-tppslate mb-2">
+                  Verify Your Email
+                </h2>
+                <p className="text-sm text-tppslate/60">
+                  Enter the 6-digit code sent to<br />
+                  <span className="font-semibold text-tppslate">{formData.email}</span>
                 </p>
               </div>
-            )}
 
-            {/* Resend Code */}
-            <div className="text-center mb-4">
-              <p className="text-xs text-tppslate/60 mb-2">
-                Didn't receive the code?
+              {/* OTP Input - Individual Boxes */}
+              <div className="flex justify-center gap-2 mb-4">
+                {otp.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(el) => (otpInputRefs.current[index] = el)}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(index, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                    onPaste={index === 0 ? handleOtpPaste : undefined}
+                    disabled={verifyingOtp}
+                    className={`w-12 h-14 text-center text-2xl font-bold border-2 rounded-lg transition-all focus:outline-none ${
+                      digit
+                        ? 'border-tpppink bg-tpppink/5 text-tpppink'
+                        : 'border-tppslate/20 text-tppslate'
+                    } focus:border-tpppink focus:ring-2 focus:ring-tpppink/20 disabled:opacity-50`}
+                    autoFocus={index === 0}
+                  />
+                ))}
+              </div>
+
+              {/* Error Message */}
+              {otpError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-600 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    {otpError}
+                  </p>
+                </div>
+              )}
+
+              {/* Verifying State */}
+              {verifyingOtp && (
+                <div className="mb-4 p-3 bg-tpppink/10 border border-tpppink/20 rounded-lg">
+                  <p className="text-sm text-tpppink flex items-center gap-2 justify-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-tpppink border-t-transparent"></div>
+                    <span className="font-medium">Verifying code...</span>
+                  </p>
+                </div>
+              )}
+
+              {/* Resend Code */}
+              <div className="text-center mb-4">
+                <p className="text-xs text-tppslate/60 mb-2">
+                  Didn't receive the code?
+                </p>
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={resendTimer > 0 || loading || verifyingOtp}
+                  className="text-sm text-tpppink hover:text-tpppink/80 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
+                </button>
+              </div>
+
+              {/* Info Text */}
+              <p className="text-xs text-center text-tppslate/60">
+                Code will be verified automatically
               </p>
-              <button
-                type="button"
-                onClick={handleResendOtp}
-                disabled={resendTimer > 0 || loading || verifyingOtp}
-                className="text-sm text-tpppink hover:text-tpppink/80 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
-              </button>
             </div>
-
-            {/* Info Text */}
-            <p className="text-xs text-center text-tppslate/60">
-              Code will be verified automatically
-            </p>
           </div>
-        </div>
+        </>
       )}
 
       {/* Animations */}
@@ -563,6 +629,17 @@ export default function Register() {
         }
         .animate-slideUp {
           animation: slideUp 0.3s ease-out;
+        }
+        /* Hide scrollbar */
+        body {
+          overflow-y: hidden;
+        }
+        ::-webkit-scrollbar {
+          display: none;
+        }
+        * {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
       `}</style>
     </>
