@@ -8,8 +8,8 @@ import Dashboard from '../pages/admin/Dashboard';
 import ProductsPage from '../pages/admin/ProductsPage';
 import CategoriesPage from '../pages/admin/CategoriesPage';
 import BundlesPage from '../pages/admin/BundlesPage';
-import AdminOrdersPage from '../pages/admin/orders/AdminOrdersPage'; // ✅ CHANGED
-import CustomersPage from '../pages/admin/CustomersPage';
+import AdminOrdersPage from '../pages/admin/orders/AdminOrdersPage';
+import AdminCustomersPage from '../pages/admin/AdminCustomersPage'; // ✅ UPDATED
 import NotificationsPage from '../pages/admin/NotificationsPage';
 import SettingsPage from '../pages/admin/SettingsPage';
 import AdminShipmentsPage from '../pages/admin/AdminShipmentsPage';
@@ -27,7 +27,7 @@ export default function AdminRoutes() {
         <Route path="/coupons" element={<CouponsPage />} />
         <Route path="/orders" element={<AdminOrdersPage />} />
         <Route path="shipments" element={<AdminShipmentsPage />} />
-        <Route path="/customers" element={<CustomersPage />} />
+        <Route path="/customers" element={<AdminCustomersPage />} /> {/* ✅ UPDATED */}
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         

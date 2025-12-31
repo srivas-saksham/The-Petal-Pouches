@@ -90,6 +90,7 @@ app.use('/api/webhooks', require('./routes/webhooks'));
 // --------------------------------------------
 app.use('/api/admin/auth', require('./routes/adminAuth'));     // Admin Login/Register
 app.use('/api/admin/orders', require('./routes/adminOrders'));
+app.use('/api/admin/customers', require('./routes/adminCustomers'));
 app.use('/api/admin/shipments', require('./routes/shipments'));
 app.use('/api/admin/coupons', require('./routes/adminCoupons'));
 app.use('/api/admin', require('./routes/admin'));              // Admin Product Management

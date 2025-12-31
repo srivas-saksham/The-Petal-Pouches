@@ -389,3 +389,20 @@ export default {
   API_MESSAGES,
   VALIDATION,
 };
+
+// Customer Management
+export const CUSTOMER_SORT_OPTIONS = [
+  { value: 'created_at', label: 'Newest First' },
+  { value: 'created_at_asc', label: 'Oldest First' },
+  { value: 'name_asc', label: 'Name: A to Z' },
+  { value: 'name_desc', label: 'Name: Z to A' },
+  { value: 'last_login', label: 'Recently Active' },
+];
+
+export const CUSTOMER_FILTERS = {
+  status: [
+    { value: 'all', label: 'All Customers' },
+    { value: 'active', label: 'Active' },
+    { value: 'inactive', label: 'Inactive' },
+  ],
+};

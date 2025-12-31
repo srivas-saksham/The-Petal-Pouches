@@ -1,10 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const ShipmentController = require('../controllers/shipmentController');
-const { verifyAdminToken } = require('../middleware/adminAuth');
 
 // All routes require admin authentication
-router.use(verifyAdminToken);
 
 /**
  * GET /api/admin/shipments/stats

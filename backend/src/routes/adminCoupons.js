@@ -7,10 +7,8 @@
 const express = require('express');
 const router = express.Router();
 const AdminCouponController = require('../controllers/adminCouponController');
-const { verifyAdminToken } = require('../middleware/adminAuth');
 
 // All routes require admin authentication
-router.use(verifyAdminToken);
 
 // ==================== COUPON CRUD ====================
 

@@ -7,10 +7,6 @@
 const express = require('express');
 const router = express.Router();
 const AdminOrderController = require('../controllers/adminOrderController');
-const { verifyAdminToken } = require('../middleware/adminAuth');
-
-// Apply admin authentication to all routes
-router.use(verifyAdminToken);
 
 /**
  * @route   GET /api/admin/orders/stats
