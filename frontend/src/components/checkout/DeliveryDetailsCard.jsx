@@ -745,7 +745,29 @@ const DeliveryDetailsCard = ({
                           <div className="px-4 pb-4">
                             <div className="pt-3 border-t border-tpppink/20">
                               <div className="flex items-center gap-2">
-                                <AlertCircle size={14} className="text-amber-600 flex-shrink-0" />
+                                <AlertCircle 
+                                  size={12} 
+                                  className="alert-icon text-yellow-600 flex-shrink-0 cursor-help" 
+                                  onMouseEnter={(e) => {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const tooltip = e.currentTarget.nextElementSibling;
+                                    tooltip.style.left = `${rect.right - 256}px`; // 256px = w-64
+                                    tooltip.style.top = `${rect.top - 8}px`;
+                                    tooltip.classList.remove('hidden');
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    const tooltip = e.currentTarget.nextElementSibling;
+                                    tooltip.classList.add('hidden');
+                                  }}
+                                />
+                                {/* Tooltip - using fixed positioning to escape all parent constraints */}
+                                <div className="tooltip fixed hidden w-64 p-2.5 bg-tppslate/100 text-white text-xs rounded-lg shadow-xl z-[99999] -translate-y-full pointer-events-none">
+                                  <p className="font-inter leading-relaxed">
+                                    <b>Delivery charges</b> and <b>express fees</b> are determined and applied directly by our logistics partner, <b>Delhivery</b>, based on <b>shipment weight and destination</b>.
+                                  </p>
+                                  {/* Tooltip arrow - pointing down from bottom right */}
+                                  <div className="absolute top-full right-3 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                                </div>
                                 <p className="text-xs text-amber-700">
                                   <span className="font-semibold">Express delivery:</span>{' '}
                                   <span className="font-bold">{deliveryData.rawData.priceDifference.formatted}</span> extra charges apply

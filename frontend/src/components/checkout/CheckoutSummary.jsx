@@ -120,6 +120,34 @@ const CheckoutSummary = ({
               </span>
             )}
           </div>
+          {/* ⭐ UPDATED: PROCEED TO PAYMENT BUTTON */}
+          {onPlaceOrder && (
+            <div className="bg-gradient-to-r from-tppslate to-tppslate/90 rounded-lg shadow p-6 text-white">
+              <button
+                onClick={onPlaceOrder}
+                disabled={placingOrder || !selectedAddress}
+                className="w-full px-4 py-3 bg-tpppink text-white rounded-lg font-bold hover:bg-tpppink/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+              >
+                {placingOrder ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader size={18} className="animate-spin" />
+                    Processing...
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    <CreditCard size={18} />
+                    Proceed to Payment - {formatBundlePrice(total)}
+                  </span>
+                )}
+              </button>
+
+              {!selectedAddress && (
+                <p className="text-sm text-yellow-300 mt-2 text-center">
+                  Please select a delivery address
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -131,65 +159,6 @@ const CheckoutSummary = ({
         appliedCoupon={appliedCoupon}
         disabled={placingOrder}
       />
-
-      {/* ⭐ UPDATED: PROCEED TO PAYMENT BUTTON */}
-      {onPlaceOrder && (
-        <div className="bg-gradient-to-r from-tppslate to-tppslate/90 rounded-lg shadow p-6 text-white">
-          <div className="flex items-start gap-3 mb-4">
-            <Lock size={20} className="flex-shrink-0 mt-1" />
-            <div>
-              <h3 className="font-semibold mb-1">Secure Payment</h3>
-              <p className="text-sm text-white/80">
-                Pay securely using UPI, Cards, or Net Banking
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={onPlaceOrder}
-            disabled={placingOrder || !selectedAddress}
-            className="w-full px-4 py-3 bg-tpppink text-white rounded-lg font-bold hover:bg-tpppink/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-          >
-            {placingOrder ? (
-              <span className="flex items-center justify-center gap-2">
-                <Loader size={18} className="animate-spin" />
-                Processing...
-              </span>
-            ) : (
-              <span className="flex items-center justify-center gap-2">
-                <CreditCard size={18} />
-                Proceed to Payment - {formatBundlePrice(total)}
-              </span>
-            )}
-          </button>
-
-          {!selectedAddress && (
-            <p className="text-sm text-yellow-300 mt-2 text-center">
-              ⚠️ Please select a delivery address above
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* ⭐ UPDATED: Security Info (removed COD, added Razorpay) */}
-      <div className="space-y-2 text-xs text-gray-600 px-2">
-        <div className="flex items-start gap-2">
-          <span className="text-green-600 mt-1">✓</span>
-          <span>100% secure and encrypted checkout</span>
-        </div>
-        <div className="flex items-start gap-2">
-          <span className="text-green-600 mt-1">✓</span>
-          <span>Secure online payment via Razorpay</span>
-        </div>
-        <div className="flex items-start gap-2">
-          <span className="text-green-600 mt-1">✓</span>
-          <span>Free standard delivery on all orders</span>
-        </div>
-        <div className="flex items-start gap-2">
-          <span className="text-green-600 mt-1">✓</span>
-          <span>Easy returns and exchanges</span>
-        </div>
-      </div>
     </div>
   );
 };

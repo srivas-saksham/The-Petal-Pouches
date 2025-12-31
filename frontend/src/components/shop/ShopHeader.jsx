@@ -145,17 +145,17 @@ const ShopHeader = ({
     <>
       {/* STICKY SECTION */}
       <div className="sticky top-0 z-30">
-        <div className="bg-tpppeach/90 backdrop-blur-sm border-b border-slate-200 shadow-sm relative z-20">
+        <div className="bg-tpppink/90 backdrop-blur-sm border-b border-slate-200 shadow-sm relative z-20">
           <div className="px-6 py-2">
             {/* Main Row: Title | Navigation & Search (2 rows) | Auth & Cart Buttons */}
             <div className="flex items-center justify-between gap-6">
               {/* Left: Title Section */}
               <div className="flex-shrink-0">
-                <h1 className="text-5xl font-greyqo text-tpppink">
+                <h1 className="text-5xl font-greyqo text-white">
                   The Petal Pouches
                 </h1>
                 {!loading && metadata && (
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-white/80 mt-0.5">
                     Showing {metadata.currentCount || 0} of {metadata.totalCount} products
                     {filters.page > 1 && ` • Page ${filters.page} of ${metadata.totalPages}`}
                   </p>
@@ -169,7 +169,7 @@ const ShopHeader = ({
                   {/* Home */}
                   <Link
                     to="/"
-                    className="px-4 py-2 text-[16px] font-semibold text-slate-700 hover:text-tpppink 
+                    className="px-4 py-2 text-[16px] font-semibold text-tppslate hover:text-tpppink 
                       hover:bg-white/50 rounded-lg transition-all"
                   >
                     Home
@@ -178,7 +178,7 @@ const ShopHeader = ({
                   {/* Shop */}
                   <Link
                     to="/shop"
-                    className="px-4 py-2 text-[16px] font-semibold text-slate-700 hover:text-tpppink 
+                    className="px-4 py-2 text-[16px] font-semibold text-tppslate hover:text-tpppink 
                       hover:bg-white/50 rounded-lg transition-all"
                   >
                     Shop
@@ -188,7 +188,7 @@ const ShopHeader = ({
                   <div className="relative" ref={categoriesRef}>
                     <button
                       onClick={() => setShowCategories(!showCategories)}
-                      className="flex items-center gap-1.5 px-4 py-2 text-[16px] font-semibold text-slate-700 
+                      className="flex items-center gap-1.5 px-4 py-2 text-[16px] font-semibold text-tppslate 
                         hover:text-tpppink hover:bg-white/50 rounded-lg transition-all"
                     >
                       <span>Categories</span>
@@ -207,7 +207,7 @@ const ShopHeader = ({
                             key={category.name}
                             to={category.path}
                             onClick={() => setShowCategories(false)}
-                            className="block px-4 py-2 text-sm font-medium text-slate-700 
+                            className="block px-4 py-2 text-sm font-medium text-tppslate 
                               hover:bg-tpppeach hover:text-tpppink transition-colors"
                           >
                             {category.name}
@@ -220,7 +220,7 @@ const ShopHeader = ({
                   {/* About */}
                   <Link
                     to="/about"
-                    className="px-4 py-2 text-[16px] font-semibold text-slate-700 hover:text-tpppink 
+                    className="px-4 py-2 text-[16px] font-semibold text-tppslate hover:text-tpppink 
                       hover:bg-white/50 rounded-lg transition-all"
                   >
                     About
@@ -229,7 +229,7 @@ const ShopHeader = ({
                   {/* FAQs */}
                   <Link
                     to="/faqs"
-                    className="px-4 py-2 text-[16px] font-semibold text-slate-700 hover:text-tpppink 
+                    className="px-4 py-2 text-[16px] font-semibold text-tppslate hover:text-tpppink 
                       hover:bg-white/50 rounded-lg transition-all"
                   >
                     FAQs
