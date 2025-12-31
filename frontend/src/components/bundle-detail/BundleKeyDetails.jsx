@@ -1,8 +1,10 @@
 // frontend/src/components/bundle-detail/BundleKeyDetails.jsx
 // ✅ ENHANCED: Weight-based delivery cost calculations
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Plus, Minus, Check, Trash2, Loader, AlertTriangle, Package, ChevronDown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ShoppingCart, Plus, Minus, Check, Trash2, Loader, AlertTriangle, Package, ChevronDown, ArrowBigRightDash } from 'lucide-react';
 import { formatBundlePrice } from '../../utils/bundleHelpers';
+import { useUserAuth } from '../../context/UserAuthContext';
 
 /**
  * BundleKeyDetails - Right side content with price, cart, description, and products
@@ -32,7 +34,9 @@ const BundleKeyDetails = ({
 }) => {
   const [productsExpanded, setProductsExpanded] = useState(true);
   const isInCart = !!cartItem;
-
+  const { isAuthenticated } = useUserAuth();
+  const navigate = useNavigate();
+  
   // Show max limit message when user tries to exceed
   const showMaxLimitMessage = stockLimit && localQuantity >= stockLimit;
 
@@ -43,6 +47,14 @@ const BundleKeyDetails = ({
       onQuantityChangeForDelivery(localQuantity, weight);
     }
   }, [localQuantity, onQuantityChangeForDelivery]);
+
+  const handleCheckout = () => {
+    if (isAuthenticated) {
+      navigate('/checkout');
+    } else {
+      navigate('/login', { state: { from: '/checkout' } });
+    }
+  };
 
   return (
     <div className="space-y-6 py-4">
@@ -230,6 +242,7 @@ const BundleKeyDetails = ({
 
             {/* Remove Button */}
             {!showRemoveConfirm ? (
+              <div className='flex items-center justify-center gap-3'>
               <button
                 onClick={onRemoveClick}
                 disabled={updating}
@@ -238,6 +251,20 @@ const BundleKeyDetails = ({
                 <Trash2 size={14} />
                 Remove from Cart
               </button>
+              <button
+                onClick={handleCheckout}
+                disabled={updating}
+                className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded border font-medium text-xs transition-all ${
+                  updating
+                    ? 'border-tppgrey bg-slate-100 text-tppslate/40 cursor-not-allowed'
+                    : 'border-tpppink bg-tpppink text-white hover:bg-tpppink/90 active:scale-95'
+                }`}
+              >
+                Checkout
+                <ArrowBigRightDash size={16} />
+              </button>
+              </div>
+              
             ) : (
               <div className="flex items-center gap-2">
                 <button

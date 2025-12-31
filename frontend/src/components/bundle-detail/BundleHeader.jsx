@@ -14,7 +14,7 @@ import SmartBundleSearch from '../common/SmartBundleSearch';
  * Enhanced BundleHeader Component
  * 
  * FEATURES:
- * - Brand name "The Petal Pouches" on the left
+ * - Brand name "Rizara" on the left
  * - SmartBundleSearch with real-time tag matching
  * - User authentication (Sign In/Sign Up or Profile Menu)
  * - Orders & Tracking button
@@ -61,7 +61,7 @@ const BundleHeader = ({ bundle, onShare, onWishlist }) => {
             <div className="flex-shrink-0">
               <h1 className="text-5xl font-greyqo text-tpppink cursor-pointer hover:opacity-80 transition-opacity"
                   onClick={() => navigate('/shop')}>
-                The Petal Pouches
+                Rizara
               </h1>
             </div>
 

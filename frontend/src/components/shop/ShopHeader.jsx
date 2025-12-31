@@ -152,7 +152,7 @@ const ShopHeader = ({
               {/* Left: Title Section */}
               <div className="flex-shrink-0">
                 <h1 className="text-5xl font-greyqo text-white">
-                  The Petal Pouches
+                  Rizara
                 </h1>
                 {!loading && metadata && (
                   <p className="text-xs text-white/80 mt-0.5">

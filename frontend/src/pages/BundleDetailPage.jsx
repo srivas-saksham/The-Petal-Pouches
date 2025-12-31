@@ -309,7 +309,7 @@ const BundleDetailPage = () => {
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
             
             {/* Top Section: Image + Key Details */}
-            <div className="grid lg:grid-cols-[50%_50%]">
+            <div className="grid lg:grid-cols-[45%_55%]">
               <BundleImageGallery bundle={bundle} isOutOfStock={isOutOfStock} />
               
               <div className="p-6 border-l border-slate-200">
