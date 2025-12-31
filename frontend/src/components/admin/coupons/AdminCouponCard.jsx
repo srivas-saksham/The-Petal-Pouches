@@ -30,57 +30,49 @@ export default function AdminCouponCard({ coupon, onEdit, onDelete, onToggle }) 
   };
 
   const getCouponStatus = () => {
-    const now = new Date();
-    const startDate = new Date(coupon.start_date);
-    const endDate = new Date(coupon.end_date);
-
-    if (!coupon.is_active) {
-      return {
-        label: 'INACTIVE',
-        color: 'bg-gray-500',
-        bgColor: 'bg-gray-50',
-        borderColor: 'border-gray-300',
-        icon: XCircle
-      };
+    // ⭐ NEW: Use status field directly
+    switch (coupon.status) {
+      case 'active':
+        return {
+          label: 'ACTIVE',
+          color: 'bg-green-500',
+          bgColor: 'bg-green-50',
+          borderColor: 'border-green-300',
+          icon: CheckCircle
+        };
+      case 'inactive':
+        return {
+          label: 'INACTIVE',
+          color: 'bg-gray-500',
+          bgColor: 'bg-gray-50',
+          borderColor: 'border-gray-300',
+          icon: XCircle
+        };
+      case 'expired':
+        return {
+          label: 'EXPIRED',
+          color: 'bg-red-500',
+          bgColor: 'bg-red-50',
+          borderColor: 'border-red-300',
+          icon: AlertCircle
+        };
+      case 'scheduled':
+        return {
+          label: 'SCHEDULED',
+          color: 'bg-yellow-500',
+          bgColor: 'bg-yellow-50',
+          borderColor: 'border-yellow-300',
+          icon: Clock
+        };
+      default:
+        return {
+          label: 'UNKNOWN',
+          color: 'bg-gray-500',
+          bgColor: 'bg-gray-50',
+          borderColor: 'border-gray-300',
+          icon: XCircle
+        };
     }
-
-    if (now < startDate) {
-      return {
-        label: 'SCHEDULED',
-        color: 'bg-blue-500',
-        bgColor: 'bg-blue-50',
-        borderColor: 'border-blue-300',
-        icon: Clock
-      };
-    }
-
-    if (now > endDate) {
-      return {
-        label: 'EXPIRED',
-        color: 'bg-red-500',
-        bgColor: 'bg-red-50',
-        borderColor: 'border-red-300',
-        icon: AlertCircle
-      };
-    }
-
-    if (coupon.usage_limit && coupon.usage_count >= coupon.usage_limit) {
-      return {
-        label: 'LIMIT REACHED',
-        color: 'bg-orange-500',
-        bgColor: 'bg-orange-50',
-        borderColor: 'border-orange-300',
-        icon: AlertCircle
-      };
-    }
-
-    return {
-      label: 'ACTIVE',
-      color: 'bg-green-500',
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-300',
-      icon: CheckCircle
-    };
   };
 
   const getDiscountDisplay = () => {
@@ -114,14 +106,14 @@ export default function AdminCouponCard({ coupon, onEdit, onDelete, onToggle }) 
   const StatusIcon = status.icon;
   const DiscountIcon = discount.icon;
   const couponId = coupon.id?.substring(0, 8).toUpperCase() || '#N/A';
-  const isActive = coupon.is_active;
-  const isExpired = new Date(coupon.end_date) < new Date();
-
+  const isActive = coupon.status === 'active';
+  const isExpired = coupon.status === 'expired';
+  
   // ==================== RENDER ====================
 
   return (
     <div className={`bg-white rounded-xl border-2 overflow-hidden transition-all hover:shadow-lg ${
-      !isActive ? 'border-gray-300 opacity-70' : 
+      !isActive ? 'border-gray-300 opacity-100' : 
       isExpired ? 'border-red-300' :
       'border-slate-200 hover:border-tpppink'
     }`}>

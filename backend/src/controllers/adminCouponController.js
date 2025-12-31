@@ -294,7 +294,6 @@ const AdminCouponController = {
 
       console.log(`🔄 [AdminCoupon] Toggling active status: ${id}`);
 
-      // Check if coupon exists
       const existing = await CouponModel.findById(id);
       if (!existing) {
         return res.status(404).json({
@@ -303,16 +302,26 @@ const AdminCouponController = {
         });
       }
 
-      // Toggle active status
+      // ⭐ NEW: Prevent toggling expired coupons
+      if (existing.status === 'expired') {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot activate expired coupon'
+        });
+      }
+
+      // ⭐ NEW: Toggle between active/inactive
+      const newStatus = existing.status === 'active' ? 'inactive' : 'active';
+
       const coupon = await CouponModel.update(id, {
-        is_active: !existing.is_active
+        status: newStatus // ⭐ Changed from is_active
       });
 
-      console.log(`✅ [AdminCoupon] Status toggled: ${coupon.is_active ? 'Active' : 'Inactive'}`);
+      console.log(`✅ [AdminCoupon] Status toggled: ${coupon.status}`);
 
       return res.status(200).json({
         success: true,
-        message: `Coupon ${coupon.is_active ? 'activated' : 'deactivated'} successfully`,
+        message: `Coupon ${coupon.status === 'active' ? 'activated' : 'deactivated'} successfully`,
         data: coupon
       });
 

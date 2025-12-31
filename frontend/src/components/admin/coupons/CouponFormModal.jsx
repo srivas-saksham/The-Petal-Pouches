@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { X, Loader, Tag, Percent, DollarSign, Calendar, Users, Lock } from 'lucide-react';
+import { X, Loader, Tag, Percent, DollarSign, Calendar, Users, Lock, AlertCircle, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { createCoupon, updateCoupon } from '../../../services/adminCouponService';
 
 export default function CouponFormModal({ isOpen, coupon = null, onClose, onSuccess }) {
@@ -21,10 +21,26 @@ export default function CouponFormModal({ isOpen, coupon = null, onClose, onSucc
     max_discount: '',
     start_date: '',
     end_date: '',
-    is_active: true,
+    status: 'inactive',
     usage_limit: '',
     usage_per_user: '1'
   });
+
+  // Add helper function at component level
+  const getStatusFromDates = (startDate, endDate) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    
+    const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+    
+    if (end < today) return 'expired';
+    if (start > today) return 'scheduled';
+    return null; // User can choose
+  };
 
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -41,7 +57,7 @@ export default function CouponFormModal({ isOpen, coupon = null, onClose, onSucc
         max_discount: coupon.max_discount?.toString() || '',
         start_date: coupon.start_date ? coupon.start_date.split('T')[0] : '',
         end_date: coupon.end_date ? coupon.end_date.split('T')[0] : '',
-        is_active: coupon.is_active ?? true,
+        status: coupon.status || 'inactive', // ⭐ Changed from is_active
         usage_limit: coupon.usage_limit?.toString() || '',
         usage_per_user: coupon.usage_per_user?.toString() || '1'
       });
@@ -74,15 +90,46 @@ export default function CouponFormModal({ isOpen, coupon = null, onClose, onSucc
 
   // ==================== HANDLERS ====================
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+  const handleStartDateChange = (e) => {
+    const newStartDate = e.target.value;
+    setFormData(prev => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const startDate = new Date(newStartDate);
+      startDate.setHours(0, 0, 0, 0);
 
-    // Clear error for this field
+      // If start date is in future, force 'scheduled'
+      const newStatus = startDate > today ? 'scheduled' : prev.status;
+
+      return {
+        ...prev,
+        start_date: newStartDate,
+        status: newStatus
+      };
+    });
+
+    if (errors.start_date) {
+      setErrors(prev => ({ ...prev, start_date: null }));
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      
+      // Auto-calculate status based on dates
+      if ((name === 'start_date' || name === 'end_date') && updated.start_date && updated.end_date) {
+        const autoStatus = getStatusFromDates(updated.start_date, updated.end_date);
+        if (autoStatus) {
+          updated.status = autoStatus;
+        }
+      }
+      
+      return updated;
+    });
+
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
     }
@@ -103,7 +150,7 @@ export default function CouponFormModal({ isOpen, coupon = null, onClose, onSucc
       newErrors.code = 'Coupon code is required';
     } else if (formData.code.trim().length < 3) {
       newErrors.code = 'Code must be at least 3 characters';
-    } else if (!/^[A-Z0-9-]+$/.test(formData.code.trim())) {
+    } else if (!/^[A-Z0-9-]+$/i.test(formData.code.trim())) {
       newErrors.code = 'Code can only contain uppercase letters, numbers, and hyphens';
     }
 
@@ -179,7 +226,7 @@ export default function CouponFormModal({ isOpen, coupon = null, onClose, onSucc
         max_discount: formData.max_discount ? parseFloat(formData.max_discount) : null,
         start_date: formData.start_date,
         end_date: formData.end_date,
-        is_active: formData.is_active,
+        status: formData.status, // ⭐ Changed from is_active
         usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null,
         usage_per_user: parseInt(formData.usage_per_user)
       };
@@ -207,6 +254,116 @@ export default function CouponFormModal({ isOpen, coupon = null, onClose, onSucc
   if (!isOpen) return null;
 
   // ==================== RENDER ====================
+
+  const renderStatusSection = () => {
+    const autoStatus = formData.start_date && formData.end_date 
+      ? getStatusFromDates(formData.start_date, formData.end_date) 
+      : null;
+
+    if (autoStatus === 'expired') {
+      return (
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-tppslate mb-2">
+            Status
+          </label>
+          <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-red-800 mb-1">
+                This coupon is expired
+              </p>
+              <p className="text-xs text-red-600">
+                End date is in the past. Please update the end date to activate this coupon.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (autoStatus === 'scheduled') {
+      return (
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-tppslate mb-2">
+            Status
+          </label>
+          <div className="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg flex items-start gap-3">
+            <Clock className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-yellow-800 mb-1">
+                This coupon will be scheduled
+              </p>
+              <p className="text-xs text-yellow-600">
+                Start date is in the future. This coupon will automatically activate on{' '}
+                <span className="font-semibold">
+                  {new Date(formData.start_date).toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                  })}
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Normal active/inactive radio buttons
+    return (
+      <div className="space-y-3">
+        <label className="block text-sm font-semibold text-tppslate mb-2">
+          Status
+        </label>
+        
+        <div className="grid grid-cols-2 gap-3">
+          <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+            formData.status === 'active' 
+              ? 'border-green-500 bg-green-50' 
+              : 'border-slate-200 hover:bg-slate-50'
+          }`}>
+            <input
+              type="radio"
+              name="status"
+              value="active"
+              checked={formData.status === 'active'}
+              onChange={handleChange}
+              disabled={submitting}
+              className="w-4 h-4 text-green-600"
+            />
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-600" />
+              <span className="text-sm font-semibold">Active</span>
+            </div>
+          </label>
+
+          <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+            formData.status === 'inactive' 
+              ? 'border-gray-500 bg-gray-50' 
+              : 'border-slate-200 hover:bg-slate-50'
+          }`}>
+            <input
+              type="radio"
+              name="status"
+              value="inactive"
+              checked={formData.status === 'inactive'}
+              onChange={handleChange}
+              disabled={submitting}
+              className="w-4 h-4 text-gray-600"
+            />
+            <div className="flex items-center gap-2">
+              <XCircle className="w-4 h-4 text-gray-600" />
+              <span className="text-sm font-semibold">Inactive</span>
+            </div>
+          </label>
+        </div>
+
+        <p className="text-xs text-slate-500">
+          Active coupons can be used immediately by customers
+        </p>
+      </div>
+    );
+  };
 
   return (
     <div 
@@ -496,21 +653,8 @@ export default function CouponFormModal({ isOpen, coupon = null, onClose, onSucc
             </div>
           </div>
 
-          {/* Active Status */}
-          <div className="flex items-center gap-3 p-4 bg-tppslate/5 rounded-lg border-2 border-tppslate/10">
-            <input
-              type="checkbox"
-              name="is_active"
-              id="is_active"
-              checked={formData.is_active}
-              onChange={handleChange}
-              className="w-5 h-5 text-tpppink focus:ring-tpppink rounded"
-              disabled={submitting}
-            />
-            <label htmlFor="is_active" className="text-sm font-semibold text-tppslate cursor-pointer">
-              Active (coupon can be used immediately)
-            </label>
-          </div>
+          {/* Status Section - Conditional */}
+          {renderStatusSection()}
         </form>
 
         {/* Footer */}

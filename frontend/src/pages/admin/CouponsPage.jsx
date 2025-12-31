@@ -51,46 +51,55 @@ export default function CouponsPage() {
 
   // ==================== DATA FETCHING ====================
 
-  const fetchCoupons = async () => {
-    setLoading(true);
-    
-    try {
-      const result = await getAllCoupons({
-        page: filters.page,
-        limit: filters.limit,
-        status: filters.status || null,
-        search: filters.search || null
+const fetchCoupons = async () => {
+  setLoading(true);
+  
+  try {
+    // Fetch filtered coupons for display
+    const result = await getAllCoupons({
+      page: filters.page,
+      limit: filters.limit,
+      status: filters.status || null,
+      search: filters.search || null
+    });
+
+    if (result.success) {
+      setCoupons(result.data.coupons || []);
+      
+      // ⭐ FIX: Fetch ALL coupons for stats
+      const allCouponsResult = await getAllCoupons({
+        page: 1,
+        limit: 9999,
+        status: null,
+        search: null
       });
 
-      if (result.success) {
-        setCoupons(result.data.coupons || []);
+      if (allCouponsResult.success) {
+        const allCoupons = allCouponsResult.data.coupons || []; // ⭐ DEFINE IT HERE
         
-        // Calculate stats
-        const total = result.data.total || 0;
-        const active = result.data.coupons?.filter(c => 
-          c.is_active && 
-          new Date(c.end_date) >= new Date() &&
-          new Date(c.start_date) <= new Date()
-        ).length || 0;
-        const inactive = result.data.coupons?.filter(c => !c.is_active).length || 0;
-        const expired = result.data.coupons?.filter(c => 
-          new Date(c.end_date) < new Date()
-        ).length || 0;
-        const scheduled = result.data.coupons?.filter(c => 
-          new Date(c.start_date) > new Date()
-        ).length || 0;
+        console.log(`📊 [CouponsPage] Total coupons for stats: ${allCoupons.length}`);
+        
+        // ⭐ NEW: Simple stats using status field
+        const total = allCoupons.length;
+        const active = allCoupons.filter(c => c.status === 'active').length;
+        const inactive = allCoupons.filter(c => c.status === 'inactive').length;
+        const expired = allCoupons.filter(c => c.status === 'expired').length;
+        const scheduled = allCoupons.filter(c => c.status === 'scheduled').length;
+
+        console.log('📊 [CouponsPage] Stats:', { total, active, inactive, expired, scheduled });
 
         setStats({ total, active, inactive, expired, scheduled });
-      } else {
-        toast.error(result.error || 'Failed to fetch coupons');
       }
-    } catch (error) {
-      console.error('Error fetching coupons:', error);
-      toast.error('Failed to fetch coupons');
-    } finally {
-      setLoading(false);
+    } else {
+      toast.error(result.error || 'Failed to fetch coupons');
     }
-  };
+  } catch (error) {
+    console.error('Error fetching coupons:', error);
+    toast.error('Failed to fetch coupons');
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ==================== HANDLERS ====================
 

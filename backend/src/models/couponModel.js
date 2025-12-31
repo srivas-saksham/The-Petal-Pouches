@@ -80,16 +80,14 @@ const CouponModel = {
   async getActiveCoupons(options = {}) {
     try {
       const { cartSubtotal = null, userId = null } = options;
+      const now = new Date().toISOString();
 
       console.log(`📋 [CouponModel] Fetching active coupons for user: ${userId || 'guest'}`);
 
-      // Step 1: Get all active coupons
       let query = supabase
         .from('Coupons')
         .select('*')
-        .eq('is_active', true)
-        .lte('start_date', new Date().toISOString())
-        .gte('end_date', new Date().toISOString());
+        .eq('status', 'active'); // ⭐ Changed from is_active=true
 
       const { data: allCoupons, error } = await query;
 
@@ -100,13 +98,12 @@ const CouponModel = {
         return [];
       }
 
-      // Step 2: If user is logged in, get their usage count for each coupon
+      // Filter by user usage if logged in
       let filteredCoupons = allCoupons;
 
       if (userId) {
-        console.log(`🔍 [CouponModel] Filtering coupons based on user usage for: ${userId}`);
+        console.log(`🔍 [CouponModel] Filtering by user usage: ${userId}`);
 
-        // Get all coupon applications for this user
         const { data: userApplications, error: appsError } = await supabase
           .from('Coupons_applied')
           .select('coupon_id, order_id')
@@ -114,49 +111,33 @@ const CouponModel = {
 
         if (appsError) {
           console.error('⚠️ [CouponModel] Error fetching user applications:', appsError);
-          // Continue without filtering if error (show all coupons)
         } else if (userApplications && userApplications.length > 0) {
-          // Count usage per coupon
           const usageCount = {};
           userApplications.forEach(app => {
             usageCount[app.coupon_id] = (usageCount[app.coupon_id] || 0) + 1;
           });
 
-          console.log('📊 [CouponModel] User usage count:', usageCount);
-
-          // Filter out coupons where user has reached usage_per_user limit
           filteredCoupons = allCoupons.filter(coupon => {
             const userUsage = usageCount[coupon.id] || 0;
-            const canUse = userUsage < coupon.usage_per_user;
-
-            if (!canUse) {
-              console.log(`❌ [CouponModel] Filtering out ${coupon.code} - user has used ${userUsage}/${coupon.usage_per_user} times`);
-            }
-
-            return canUse;
+            return userUsage < coupon.usage_per_user;
           });
 
           console.log(`✅ [CouponModel] After user filtering: ${filteredCoupons.length}/${allCoupons.length} coupons`);
         }
       }
 
-      // Step 3: Sort by min_order_value ascending (lowest unlock requirement first)
-      // Coupons with no min_order_value (null) should appear first
+      // Sort by min_order_value ascending
       filteredCoupons.sort((a, b) => {
         const minA = a.min_order_value || 0;
         const minB = b.min_order_value || 0;
         return minA - minB;
       });
 
-      console.log('📊 [CouponModel] Coupons sorted by min_order_value (ascending)');
-
-      // Step 4: Format coupons with unlock status if cart subtotal provided
       const formatted = filteredCoupons.map(coupon => 
         formatCouponResponse(coupon, cartSubtotal)
       );
 
       console.log(`✅ [CouponModel] Returning ${formatted.length} active coupons`);
-
       return formatted;
     } catch (error) {
       console.error('[CouponModel] Get active coupons error:', error);
@@ -182,18 +163,9 @@ const CouponModel = {
         .from('Coupons')
         .select('*', { count: 'exact' });
 
-      // Filter by status
-      if (status === 'active') {
-        query = query
-          .eq('is_active', true)
-          .lte('start_date', new Date().toISOString())
-          .gte('end_date', new Date().toISOString());
-      } else if (status === 'inactive') {
-        query = query.eq('is_active', false);
-      } else if (status === 'expired') {
-        query = query.lt('end_date', new Date().toISOString());
-      } else if (status === 'scheduled') {
-        query = query.gt('start_date', new Date().toISOString());
+      // ⭐ NEW: Filter by status enum instead of date calculations
+      if (status) {
+        query = query.eq('status', status);
       }
 
       // Search by code or description
@@ -345,23 +317,28 @@ const CouponModel = {
   async create(couponData) {
     try {
       const {
-        code,
-        description,
-        discount_type,
-        discount_value,
-        min_order_value,
-        max_discount,
-        start_date,
-        end_date,
-        is_active = true,
-        usage_limit = null,
-        usage_per_user = 1
+        code, description, discount_type, discount_value,
+        min_order_value, max_discount, start_date, end_date,
+        usage_limit, usage_per_user
       } = couponData;
 
       // Check if code already exists
       const existing = await this.findByCode(code);
       if (existing) {
         throw new Error('COUPON_CODE_EXISTS');
+      }
+
+      // ⭐ NEW: Calculate initial status based on dates
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const startDate = new Date(start_date);
+      startDate.setHours(0, 0, 0, 0);
+
+      let initialStatus = 'inactive';
+      if (startDate > today) {
+        initialStatus = 'scheduled'; // Future start date
+      } else {
+        initialStatus = 'active'; // Can be active now
       }
 
       const { data, error } = await supabase
@@ -375,7 +352,7 @@ const CouponModel = {
           max_discount,
           start_date,
           end_date,
-          is_active,
+          status: initialStatus, // ⭐ NEW: Use calculated status
           usage_limit,
           usage_per_user,
           usage_count: 0,
@@ -386,7 +363,7 @@ const CouponModel = {
 
       if (error) throw error;
 
-      console.log(`✅ Coupon created: ${data.code}`);
+      console.log(`✅ Coupon created: ${data.code} (Status: ${data.status})`);
       return data;
 
     } catch (error) {
@@ -449,6 +426,21 @@ const CouponModel = {
           throw new Error('COUPON_CODE_EXISTS');
         }
         updates.code = updates.code.trim().toUpperCase();
+      }
+
+      // ⭐ NEW: Handle status updates based on dates
+      if (updates.start_date || updates.end_date) {
+        const coupon = await this.findById(couponId);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const startDate = new Date(updates.start_date || coupon.start_date);
+        startDate.setHours(0, 0, 0, 0);
+        
+        // If start date is in future, force scheduled
+        if (startDate > today) {
+          updates.status = 'scheduled';
+        }
       }
 
       const { data, error } = await supabase

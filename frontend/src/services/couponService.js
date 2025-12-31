@@ -35,22 +35,23 @@ export const validateCoupon = async (code, cartTotal) => {
     };
 
   } catch (error) {
-    // ⭐ Only log if it's NOT a business validation error (400)
-    if (error.status !== 400) {
-        console.error('❌ [CouponService] Validation error:', error);
+    // ⭐ FIX: Don't log validation errors (400 = business logic, not system error)
+    if (error.response?.status !== 400) {
+      console.error('❌ [CouponService] Validation error:', error);
     }
 
-    const errorMessage = error.response?.data?.message || 'Failed to validate coupon';
+    // ⭐ FIX: Return exact error message from backend
+    const errorMessage = error.response?.data?.message || 'Unable to validate coupon. Please try again.';
     const errorCode = error.response?.data?.code;
     const shortfall = error.response?.data?.shortfall;
 
     return {
-        success: false,
-        error: errorMessage,
-        code: errorCode,
-        shortfall: shortfall
+      success: false,
+      error: errorMessage, // ⭐ This now shows real backend error
+      code: errorCode,
+      shortfall: shortfall
     };
-    }
+  }
 };
 
 /**

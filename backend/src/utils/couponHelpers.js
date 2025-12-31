@@ -44,28 +44,32 @@ const isCouponValid = (coupon) => {
     return { valid: false, reason: 'Coupon not found' };
   }
 
-  // Check if coupon is active
-  if (!coupon.is_active) {
-    return { valid: false, reason: 'This coupon is not active' };
+  // ⭐ NEW: Check status instead of is_active
+  if (coupon.status === 'inactive') {
+    return { valid: false, reason: 'This coupon is currently inactive' };
   }
 
-  const now = new Date();
-  const startDate = new Date(coupon.start_date);
-  const endDate = new Date(coupon.end_date);
-
-  // Check if coupon has started
-  if (now < startDate) {
-    return { 
-      valid: false, 
-      reason: `This coupon will be valid from ${startDate.toLocaleDateString('en-IN')}` 
-    };
+  if (coupon.status === 'expired') {
+    const endDate = new Date(coupon.end_date);
+    const endDateFormatted = endDate.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+    return { valid: false, reason: `This coupon expired on ${endDateFormatted}` };
   }
 
-  // Check if coupon has expired
-  if (now > endDate) {
-    return { valid: false, reason: 'This coupon has expired' };
+  if (coupon.status === 'scheduled') {
+    const startDate = new Date(coupon.start_date);
+    const startDateFormatted = startDate.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+    return { valid: false, reason: `This coupon will be available from ${startDateFormatted}` };
   }
 
+  // Only 'active' status is valid
   return { valid: true };
 };
 
@@ -208,28 +212,18 @@ const validateCouponFormat = (code) => {
  * @returns {Object} { status: string, color: string, label: string }
  */
 const getCouponStatus = (coupon) => {
-  if (!coupon.is_active) {
-    return { status: 'inactive', color: 'gray', label: 'Inactive' };
+  switch (coupon.status) {
+    case 'active':
+      return { status: 'active', color: 'green', label: 'Active' };
+    case 'inactive':
+      return { status: 'inactive', color: 'gray', label: 'Inactive' };
+    case 'expired':
+      return { status: 'expired', color: 'red', label: 'Expired' };
+    case 'scheduled':
+      return { status: 'scheduled', color: 'blue', label: 'Scheduled' };
+    default:
+      return { status: 'inactive', color: 'gray', label: 'Unknown' };
   }
-
-  const now = new Date();
-  const startDate = new Date(coupon.start_date);
-  const endDate = new Date(coupon.end_date);
-
-  if (now < startDate) {
-    return { status: 'scheduled', color: 'blue', label: 'Scheduled' };
-  }
-
-  if (now > endDate) {
-    return { status: 'expired', color: 'red', label: 'Expired' };
-  }
-
-  // Check usage limit
-  if (coupon.usage_limit && coupon.usage_count >= coupon.usage_limit) {
-    return { status: 'exhausted', color: 'orange', label: 'Limit Reached' };
-  }
-
-  return { status: 'active', color: 'green', label: 'Active' };
 };
 
 module.exports = {

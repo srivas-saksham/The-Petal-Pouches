@@ -27,21 +27,24 @@ const CouponController = {
       if (!code) {
         return res.status(400).json({
           success: false,
-          message: 'Coupon code is required'
+          message: 'Coupon code is required',
+          code: 'MISSING_CODE'
         });
       }
 
       if (!cart_total || cart_total <= 0) {
         return res.status(400).json({
           success: false,
-          message: 'Valid cart total is required'
+          message: 'Valid cart total is required',
+          code: 'INVALID_CART_TOTAL'
         });
       }
 
       if (!userId) {
         return res.status(401).json({
           success: false,
-          message: 'Authentication required'
+          message: 'Authentication required',
+          code: 'AUTH_REQUIRED'
         });
       }
 
@@ -50,7 +53,8 @@ const CouponController = {
       if (!formatCheck.valid) {
         return res.status(400).json({
           success: false,
-          message: formatCheck.reason
+          message: formatCheck.reason,
+          code: 'INVALID_FORMAT'
         });
       }
 
@@ -64,9 +68,10 @@ const CouponController = {
       if (!validation.valid) {
         console.log(`❌ [Coupon] Validation failed: ${validation.reason}`);
         
+        // ⭐ FIX: Return detailed error with proper status code
         return res.status(400).json({
           success: false,
-          message: validation.reason,
+          message: validation.reason, // ⭐ This is the detailed message
           code: validation.code,
           shortfall: validation.shortfall || null
         });
@@ -94,9 +99,11 @@ const CouponController = {
     } catch (error) {
       console.error('❌ [Coupon] Validate error:', error);
       
+      // ⭐ FIX: Better error message
       return res.status(500).json({
         success: false,
-        message: 'Failed to validate coupon',
+        message: error.message || 'Unable to validate coupon. Please try again.',
+        code: 'SERVER_ERROR',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
