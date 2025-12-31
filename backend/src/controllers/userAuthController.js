@@ -844,36 +844,32 @@ const UserAuthController = {
         });
       }
 
-      // Check if user exists in your database
+      // Check if user exists in database
       let { data: existingUser } = await supabase
         .from('Users')
         .select('*')
         .eq('email', user.email)
         .single();
 
-      // Create user if doesn't exist
+      // ✅ NEW USER - Require password setup
       if (!existingUser) {
-        const { data: newUser, error: insertError } = await supabase
-          .from('Users')
-          .insert([{
+        console.log(`[Google OAuth] New user detected: ${user.email} - Requires password setup`);
+        
+        return res.json({
+          success: true,
+          requiresPasswordSetup: true, // ✅ Flag for frontend
+          tempUserData: {
             email: user.email,
             name: user.user_metadata.full_name || user.email.split('@')[0],
-            email_verified: true, // Google emails are pre-verified
-            is_active: true,
-            password_hash: 'Rizara_User' // No password for OAuth users
-          }])
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        existingUser = newUser;
-
-        console.log(`[Google OAuth] New user created: ${user.email}`);
-      } else {
-        console.log(`[Google OAuth] Existing user logged in: ${user.email}`);
+            email_verified: true
+          }
+        });
       }
 
-      // Generate your JWT token
+      // ✅ EXISTING USER - Login normally
+      console.log(`[Google OAuth] Existing user logged in: ${user.email}`);
+
+      // Generate JWT token
       const token = jwt.sign(
         { 
           id: existingUser.id, 
@@ -887,6 +883,7 @@ const UserAuthController = {
 
       res.json({
         success: true,
+        requiresPasswordSetup: false,
         data: {
           user: {
             id: existingUser.id,
@@ -906,7 +903,118 @@ const UserAuthController = {
         error: error.message
       });
     }
-  }
+  },
+
+  /**
+   * Complete Google OAuth signup with password
+   * POST /api/auth/oauth/google/complete
+   */
+  completeGoogleOAuthSignup: async (req, res) => {
+    try {
+      const { email, name, password } = req.body;
+
+      if (!email || !name || !password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email, name, and password are required'
+        });
+      }
+
+      // Password validation
+      if (password.length < 8) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must be at least 8 characters long'
+        });
+      }
+
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
+      if (!passwordRegex.test(password)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+        });
+      }
+
+      // Check if user already exists
+      const { data: existingUser } = await supabase
+        .from('Users')
+        .select('id')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          message: 'Email already registered'
+        });
+      }
+
+      // Hash password
+      const saltRounds = 10;
+      const passwordHash = await bcrypt.hash(password, saltRounds);
+
+      // Create user account
+      const { data: newUser, error } = await supabase
+        .from('Users')
+        .insert([{
+          name: name.trim(),
+          email: email.toLowerCase(),
+          password_hash: passwordHash,
+          phone: null,
+          is_active: true,
+          email_verified: true // Google emails are pre-verified
+        }])
+        .select('id, name, email, phone, created_at')
+        .single();
+
+      if (error) throw error;
+
+      console.log(`[Google OAuth Complete] New user registered: ${newUser.email}`);
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { 
+          id: newUser.id, 
+          email: newUser.email, 
+          name: newUser.name,
+          email_verified: true
+        },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' }
+      );
+
+      // Send welcome email
+      try {
+        await emailService.sendWelcomeEmail(email, name);
+      } catch (emailError) {
+        console.error('Welcome email failed:', emailError);
+      }
+
+      res.status(201).json({
+        success: true,
+        message: 'Registration successful!',
+        data: {
+          user: {
+            id: newUser.id,
+            name: newUser.name,
+            email: newUser.email,
+            phone: newUser.phone,
+            email_verified: true
+          },
+          token
+        }
+      });
+
+    } catch (error) {
+      console.error('Complete Google OAuth signup error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to complete signup',
+        error: error.message
+      });
+    }
+  },
 
 };
 

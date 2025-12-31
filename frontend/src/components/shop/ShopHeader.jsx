@@ -327,7 +327,7 @@ const ShopHeader = ({
                     <button
                       onClick={() => navigate('/register')}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-lg 
-                        bg-tpppink hover:bg-tpppink/90 transition-all text-white
+                        bg-tppslate hover:bg-tppslate/90 transition-all text-white
                         text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-tpppink/50
                         shadow-sm hover:shadow-md"
                       title="Sign Up"

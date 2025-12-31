@@ -44,6 +44,14 @@ router.post('/register/complete', UserAuthController.completeRegistration);
 router.post('/oauth/google', UserAuthController.handleGoogleOAuth);
 
 /**
+ * @route   POST /api/auth/oauth/google/complete
+ * @desc    Complete Google OAuth signup with password
+ * @access  Public
+ * @body    { email, name, password }
+ */
+router.post('/oauth/google/complete', UserAuthController.completeGoogleOAuthSignup);
+
+/**
  * @route   POST /api/auth/login
  * @desc    Login customer
  * @access  Public

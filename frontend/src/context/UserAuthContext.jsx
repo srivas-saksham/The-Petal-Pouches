@@ -181,7 +181,6 @@ export function UserAuthProvider({ children }) {
     }
   }, []);
 
-  // ✅ Handle OAuth callback (call this on redirect page)
   const handleOAuthCallback = useCallback(async () => {
     try {
       const hash = window.location.hash;
@@ -205,6 +204,16 @@ export function UserAuthProvider({ children }) {
         throw new Error(data.message || 'OAuth authentication failed');
       }
 
+      // ✅ NEW USER - Requires password setup
+      if (data.requiresPasswordSetup) {
+        return {
+          success: false,
+          requiresPasswordSetup: true,
+          tempUserData: data.tempUserData
+        };
+      }
+
+      // ✅ EXISTING USER - Complete login
       const { token: newToken, user: newUser } = data.data;
       setToken(newToken);
       setUser(newUser);
@@ -212,7 +221,7 @@ export function UserAuthProvider({ children }) {
       localStorage.setItem('customer_token', newToken);
       localStorage.setItem('customer_user', JSON.stringify(newUser));
 
-      // Merge cart for OAuth users too
+      // Merge cart
       if (newUser.id) {
         try {
           await mergeCarts(newUser.id);
