@@ -1,4 +1,4 @@
-// frontend/src/pages/admin/Dashboard.jsx - UPDATED WITH MODULAR COMPONENTS
+// frontend/src/pages/admin/Dashboard.jsx - UPDATED WITH TOP BUNDLES LABEL
 
 import { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
@@ -21,7 +21,7 @@ import {
 import {
   getDashboardStats,
   getMonthlyRevenue,
-  getTopProducts,
+  getTopProducts, // ✅ Now returns top bundles
 } from '../../services/statsService';
 import { getRecentOrders } from '../../services/orderService';
 
@@ -29,7 +29,7 @@ export default function Dashboard() {
   // ==================== STATE ====================
   const [stats, setStats] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
-  const [topProducts, setTopProducts] = useState([]);
+  const [topBundles, setTopBundles] = useState([]); // ✅ RENAMED: topProducts -> topBundles
   const [monthlyRevenue, setMonthlyRevenue] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -49,12 +49,12 @@ export default function Dashboard() {
       const [
         statsResult,
         ordersResult,
-        productsResult,
+        bundlesResult, // ✅ RENAMED: productsResult -> bundlesResult
         revenueResult,
       ] = await Promise.all([
         getDashboardStats(),
         getRecentOrders(10), // Last 10 orders
-        getTopProducts(5),    // Top 5 products
+        getTopProducts(5),    // ✅ Now returns top 5 bundles
         getMonthlyRevenue(),  // Last 6 months
       ]);
 
@@ -72,13 +72,13 @@ export default function Dashboard() {
         console.log('✅ Recent orders loaded:', ordersData.length);
       }
 
-      // Handle products response
-      if (productsResult.success) {
-        const productsData = Array.isArray(productsResult.data)
-          ? productsResult.data
-          : productsResult.data.data || productsResult.data || [];
-        setTopProducts(productsData);
-        console.log('✅ Top products loaded:', productsData.length);
+      // Handle bundles response (was products)
+      if (bundlesResult.success) {
+        const bundlesData = Array.isArray(bundlesResult.data)
+          ? bundlesResult.data
+          : bundlesResult.data.data || bundlesResult.data || [];
+        setTopBundles(bundlesData); // ✅ RENAMED
+        console.log('✅ Top bundles loaded:', bundlesData.length);
       }
 
       // Handle revenue response
@@ -114,7 +114,7 @@ export default function Dashboard() {
         <QuickStats stats={stats} loading={loading} />
       )}
 
-      {/* Two Column Layout - Recent Orders & Top Products */}
+      {/* Two Column Layout - Recent Orders & Top Bundles */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Recent Orders */}
         <div className="bg-white rounded-lg p-4 border-2 border-tppslate/10 transition-all duration-200 hover:border-tpppink hover:shadow-sm">
@@ -135,12 +135,12 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Top Products */}
+        {/* ✅ UPDATED: Top Bundles (was Top Products) */}
         <div className="bg-white rounded-lg p-4 border-2 border-tppslate/10 transition-all duration-200 hover:border-tpppink hover:shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-tppslate">Top Products</h3>
+            <h3 className="text-sm font-bold text-tppslate">Top Bundles</h3>
             <button
-              onClick={() => window.location.href = '/admin/products'}
+              onClick={() => window.location.href = '/admin/bundles'}
               className="text-xs text-tppslate hover:text-tpppink flex items-center gap-1 transition-colors font-medium"
             >
               View all <ArrowRight className="w-3 h-3" />
@@ -150,7 +150,7 @@ export default function Dashboard() {
           {loading ? (
             <SkeletonProductsList />
           ) : (
-            <TopProductsList products={topProducts} loading={loading} />
+            <TopProductsList products={topBundles} loading={loading} />
           )}
         </div>
       </div>

@@ -1,4 +1,4 @@
-// frontend/src/components/admin/dashboard/QuickStats.jsx - FIXED ORDER COUNT
+// frontend/src/components/admin/dashboard/QuickStats.jsx - UPDATED WITH BUNDLE STATS
 
 import { 
   DollarSign, 
@@ -35,6 +35,8 @@ export default function QuickStats({ stats = null, loading = false }) {
   console.log('📊 QuickStats received stats:', {
     orders: stats.orders,
     orderBreakdown: stats.orderBreakdown,
+    productBreakdown: stats.productBreakdown,
+    bundleBreakdown: stats.bundleBreakdown, // ✅ NEW
     fullStats: stats
   });
 
@@ -111,18 +113,18 @@ export default function QuickStats({ stats = null, loading = false }) {
       icon: TrendingUp,
       color: 'green',
     },
-    // Low Stock
+    // ✅ UPDATED: Low Stock Bundles (was Low Stock Items)
     {
-      label: 'Low Stock Items',
-      value: stats.productBreakdown?.low_stock || 0,
+      label: 'Low Stock Bundles',
+      value: stats.bundleBreakdown?.low_stock || 0,
       change: 0,
       icon: AlertTriangle,
       color: 'amber',
     },
-    // Out of Stock
+    // ✅ UPDATED: Out of Stock Bundles (was Out of Stock Items)
     {
-      label: 'Out of Stock',
-      value: stats.productBreakdown?.out_of_stock || 0,
+      label: 'Out of Stock Bundles',
+      value: stats.bundleBreakdown?.out_of_stock || 0,
       change: 0,
       icon: TrendingDown,
       color: 'red',

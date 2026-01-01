@@ -1,14 +1,16 @@
-// frontend/src/services/statsService.js - COMPLETE FIXED VERSION
+// frontend/src/services/statsService.js - COMPLETE VERSION WITH TOP BUNDLES
 
 import { getProductStats, getProducts } from './productService';
-import { getAdminOrderStats, getRevenuByPeriod } from './orderService'; // ✅ CHANGED: Use getAdminOrderStats
+import { getAdminOrderStats, getRevenuByPeriod } from './orderService';
 import { getCategories } from './categoryService';
 import bundleService from './bundleService';
 import { apiRequest } from './api';
 import adminCustomerService from './adminCustomerService';
 
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 /**
- * Get bundle statistics (helper function since bundleService doesn't have getBundleStats)
+ * Get bundle statistics with stock breakdown
  */
 const getBundleStats = async () => {
   try {
@@ -21,20 +23,33 @@ const getBundleStats = async () => {
           total: 0,
           active: 0,
           inactive: 0,
+          low_stock: 0,
+          out_of_stock: 0,
         },
       };
     }
 
-    // ✅ FIXED: Handle both array and nested data structure
+    // Handle both array and nested data structure
     const bundles = Array.isArray(result.data) 
       ? result.data 
       : result.data.data || [];
     
+    // ✅ CALCULATE BUNDLE STOCK BREAKDOWN
     const stats = {
       total: bundles.length,
       active: bundles.filter(b => b.is_active).length,
       inactive: bundles.filter(b => !b.is_active).length,
+      low_stock: bundles.filter(b => {
+        const stock = b.stock_limit || 0;
+        return stock > 0 && stock <= 3;
+      }).length,
+      out_of_stock: bundles.filter(b => {
+        const stock = b.stock_limit || 0;
+        return stock === 0;
+      }).length,
     };
+
+    console.log('📦 Bundle stats calculated:', stats);
 
     return {
       success: true,
@@ -48,13 +63,15 @@ const getBundleStats = async () => {
         total: 0,
         active: 0,
         inactive: 0,
+        low_stock: 0,
+        out_of_stock: 0,
       },
     };
   }
 };
 
 /**
- * Get complete dashboard statistics - FIXED
+ * Get complete dashboard statistics
  */
 export const getDashboardStats = async () => {
   try {
@@ -70,7 +87,7 @@ export const getDashboardStats = async () => {
     ] = await Promise.all([
       getProductStats(),
       getBundleStats(),
-      getAdminOrderStats(), // ✅ CHANGED: Use admin stats function
+      getAdminOrderStats(),
       getCategories(),
       adminCustomerService.getCustomerStats(),
     ]);
@@ -79,9 +96,7 @@ export const getDashboardStats = async () => {
     const productStats = productStatsResult.success ? productStatsResult.data : {};
     const bundleStats = bundleStatsResult.success ? bundleStatsResult.data : {};
     
-    // ✅ CRITICAL FIX: Extract order stats properly
-    // The backend returns { success: true, stats: {...} }
-    // We need to use the 'stats' field, not 'data'
+    // ✅ Extract order stats properly (backend returns { success: true, stats: {...} })
     const orderStatsData = orderStatsResult.success 
       ? (orderStatsResult.stats || orderStatsResult.data || {})
       : {};
@@ -91,20 +106,18 @@ export const getDashboardStats = async () => {
       hasStats: !!orderStatsResult.stats,
       hasData: !!orderStatsResult.data,
       total_orders: orderStatsData.total_orders,
-      stats: orderStatsResult.stats,
-      data: orderStatsResult.data
     });
 
-    // ✅ FIX: Extract customer stats
+    // Extract customer stats
     const customerStats = customerStatsResult.success ? customerStatsResult.data : { total: 0, active: 0 };
     
-    // ✅ FIX: Handle categories data structure properly
+    // Handle categories data structure
     const categoriesData = categoryResult.success ? categoryResult.data : [];
     const categories = Array.isArray(categoriesData) 
       ? categoriesData 
       : categoriesData.data || [];
 
-    // ✅ CRITICAL FIX: Build the stats object correctly
+    // ✅ Build the stats object correctly
     const dashboardStats = {
       revenue: {
         current: orderStatsData.total_spent || 0,
@@ -112,7 +125,6 @@ export const getDashboardStats = async () => {
         change: 0,
       },
       orders: {
-        // ✅ FIX: Use total_orders from the stats
         current: orderStatsData.total_orders || 0,
         previous: 0,
         change: 0,
@@ -127,7 +139,7 @@ export const getDashboardStats = async () => {
         previous: 0,
         change: 0,
       },
-      // ✅ CRITICAL: Pass through ALL orderBreakdown fields
+      // ✅ Pass through ALL orderBreakdown fields
       orderBreakdown: {
         total_orders: orderStatsData.total_orders || 0,
         pending: orderStatsData.pending || 0,
@@ -141,20 +153,17 @@ export const getDashboardStats = async () => {
         failed: orderStatsData.failed || 0,
         rto_initiated: orderStatsData.rto_initiated || 0,
         rto_delivered: orderStatsData.rto_delivered || 0,
-        // Payment stats
         paid: orderStatsData.paid || 0,
         unpaid: orderStatsData.unpaid || 0,
         refunded: orderStatsData.refunded || 0,
-        // Payment methods
         cod: orderStatsData.cod || 0,
         online: orderStatsData.online || 0,
-        // Delivery modes
         surface: orderStatsData.surface || 0,
         express: orderStatsData.express || 0,
-        // Average
         avg_order_value: orderStatsData.avg_order_value || 0,
       },
       productBreakdown: productStats,
+      // ✅ BUNDLE BREAKDOWN WITH STOCK INFO
       bundleBreakdown: bundleStats,
       categoryCount: categories.length,
     };
@@ -162,10 +171,8 @@ export const getDashboardStats = async () => {
     console.log('📊 [statsService] Final dashboard stats:', {
       'orders.current': dashboardStats.orders.current,
       'orderBreakdown.total_orders': dashboardStats.orderBreakdown.total_orders,
-      'orderBreakdown.pending': dashboardStats.orderBreakdown.pending,
-      'orderBreakdown.delivered': dashboardStats.orderBreakdown.delivered,
-      'products.current': dashboardStats.products.current,
-      'customers.current': dashboardStats.customers.current,
+      'bundleBreakdown.low_stock': dashboardStats.bundleBreakdown.low_stock,
+      'bundleBreakdown.out_of_stock': dashboardStats.bundleBreakdown.out_of_stock,
     });
 
     return {
@@ -183,7 +190,13 @@ export const getDashboardStats = async () => {
         products: { current: 0, previous: 0, change: 0 },
         customers: { current: 0, previous: 0, change: 0 },
         productBreakdown: {},
-        bundleBreakdown: {},
+        bundleBreakdown: {
+          total: 0,
+          active: 0,
+          inactive: 0,
+          low_stock: 0,
+          out_of_stock: 0,
+        },
         orderBreakdown: {
           total_orders: 0,
           pending: 0,
@@ -277,7 +290,6 @@ export const getCategoryDistribution = async () => {
       };
     }
 
-    // ✅ FIXED: Handle both response formats properly
     const categoriesData = categoryResult.data;
     const categories = Array.isArray(categoriesData) 
       ? categoriesData 
@@ -302,7 +314,6 @@ export const getCategoryDistribution = async () => {
       };
     });
 
-    // Sort by count descending
     distribution.sort((a, b) => b.count - a.count);
 
     return {
@@ -320,58 +331,85 @@ export const getCategoryDistribution = async () => {
 };
 
 /**
- * Get top performing products (by sales - would need order_items data)
+ * ✅ UPDATED: Get top bundles by actual sales (from Order_items)
+ * Previously returned products, now returns actual best-selling bundles
  */
 export const getTopProducts = async (limit = 5) => {
   try {
-    // Note: This requires order_items tracking
-    // For now, return products sorted by stock (lower stock = more sold)
-    const result = await getProducts({ limit: 1000 });
+    const token = sessionStorage.getItem('admin_token');
     
-    if (!result.success) {
-      console.error('❌ Failed to get products for top products');
-      return {
-        success: false,
-        data: [],
-      };
-    }
+    console.log('📊 Fetching top bundles from Order_items...');
 
-    // ✅ FIXED: Handle both response formats properly
-    const productsData = result.data;
-    const products = Array.isArray(productsData) 
-      ? productsData 
-      : productsData.data || [];
+    // Step 1: Get all orders with items
+    const ordersResponse = await fetch(`${API_URL}/api/admin/orders?limit=10000`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const ordersResult = await ordersResponse.json();
+    const orders = ordersResult?.data || [];
 
-    console.log('📦 Top products - Total products fetched:', products.length);
+    console.log(`📦 Found ${orders.length} orders`);
 
-    // Filter out products without images
-    const productsWithImages = products.filter(p => p.img_url);
+    // Step 2: Extract all items and aggregate by bundle_id
+    const bundleStats = {};
 
-    // Mock sales data based on stock levels (lower stock = higher sales)
-    const withSalesData = productsWithImages.map(product => ({
-      ...product,
-      sales: Math.max(0, 100 - (product.stock || 0)), // Mock calculation
-      revenue: Math.max(0, 100 - (product.stock || 0)) * (product.price || 0),
-    }));
+    orders.forEach(order => {
+      const items = order.items_preview || [];
+      
+      items.forEach(item => {
+        const bundleId = item.bundle_id;
+        if (!bundleId) return;
 
-    const topProducts = withSalesData
-      .sort((a, b) => b.sales - a.sales)
-      .slice(0, limit);
+        if (!bundleStats[bundleId]) {
+          bundleStats[bundleId] = {
+            id: bundleId,
+            title: item.bundle_title || 'Unknown Bundle',
+            img_url: item.bundle_img || null,
+            total_quantity: 0,
+            total_revenue: 0,
+            order_count: 0
+          };
+        }
 
-    console.log('✅ Top products selected:', topProducts.length);
+        bundleStats[bundleId].total_quantity += item.quantity || 0;
+        bundleStats[bundleId].total_revenue += (item.price || 0) * (item.quantity || 0);
+        bundleStats[bundleId].order_count += 1;
+      });
+    });
+
+    console.log(`📊 Aggregated ${Object.keys(bundleStats).length} unique bundles`);
+
+    // Step 3: Sort by total quantity sold
+    const topBundles = Object.values(bundleStats)
+      .sort((a, b) => b.total_quantity - a.total_quantity)
+      .slice(0, limit)
+      .map(bundle => ({
+        id: bundle.id,
+        title: bundle.title,
+        img_url: bundle.img_url,
+        sales: bundle.total_quantity,
+        revenue: Math.round(bundle.total_revenue)
+      }));
+
+    console.log('✅ Top bundles:', topBundles);
 
     return {
       success: true,
-      data: topProducts,
+      data: topBundles
     };
+
   } catch (error) {
-    console.error('❌ Error in getTopProducts:', error);
+    console.error('❌ Error fetching top bundles:', error);
     return {
       success: false,
-      data: [],
+      data: []
     };
   }
 };
+
+/**
+ * ✅ Alias for backward compatibility
+ */
+export const getTopBundles = getTopProducts;
 
 /**
  * Get inventory alerts (low stock + out of stock)
@@ -389,7 +427,6 @@ export const getInventoryAlerts = async () => {
     };
   }
 
-  // ✅ FIXED: Handle both response formats properly
   const productsData = result.data;
   const products = Array.isArray(productsData) 
     ? productsData 
@@ -413,7 +450,7 @@ export const getInventoryAlerts = async () => {
  * Get order status distribution
  */
 export const getOrderStatusDistribution = async () => {
-  const result = await getOrderStats();
+  const result = await getAdminOrderStats();
   
   if (!result.success) {
     return {
@@ -422,17 +459,22 @@ export const getOrderStatusDistribution = async () => {
     };
   }
 
-  // ✅ FIX: Extract stats properly from result
   const stats = result.stats || result.data || {};
   
   return {
     success: true,
     data: [
       { name: 'Pending', value: stats.pending || 0 },
+      { name: 'Confirmed', value: stats.confirmed || 0 },
       { name: 'Processing', value: stats.processing || 0 },
       { name: 'Shipped', value: stats.shipped || 0 },
+      { name: 'In Transit', value: stats.in_transit || 0 },
+      { name: 'Out for Delivery', value: stats.out_for_delivery || 0 },
       { name: 'Delivered', value: stats.delivered || 0 },
       { name: 'Cancelled', value: stats.cancelled || 0 },
+      { name: 'Failed', value: stats.failed || 0 },
+      { name: 'RTO Initiated', value: stats.rto_initiated || 0 },
+      { name: 'RTO Delivered', value: stats.rto_delivered || 0 },
     ].filter(item => item.value > 0),
   };
 };
@@ -458,10 +500,22 @@ export const getQuickSummary = async () => {
       total_revenue: data.revenue.current,
       total_orders: data.orders.current,
       total_products: data.products.current,
+      total_customers: data.customers.current,
       pending_orders: data.orderBreakdown.pending || 0,
+      confirmed_orders: data.orderBreakdown.confirmed || 0,
+      processing_orders: data.orderBreakdown.processing || 0,
+      shipped_orders: data.orderBreakdown.shipped || 0,
+      in_transit_orders: data.orderBreakdown.in_transit || 0,
+      out_for_delivery_orders: data.orderBreakdown.out_for_delivery || 0,
+      delivered_orders: data.orderBreakdown.delivered || 0,
+      cancelled_orders: data.orderBreakdown.cancelled || 0,
       low_stock_products: data.productBreakdown.low_stock || 0,
       out_of_stock_products: data.productBreakdown.out_of_stock || 0,
       active_bundles: data.bundleBreakdown.active || 0,
+      inactive_bundles: data.bundleBreakdown.inactive || 0,
+      low_stock_bundles: data.bundleBreakdown.low_stock || 0,
+      out_of_stock_bundles: data.bundleBreakdown.out_of_stock || 0,
+      total_categories: data.categoryCount || 0,
     },
   };
 };
@@ -474,11 +528,9 @@ export const getSalesTrends = async () => {
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
   
-  // Current month
   const currentStartDate = new Date(currentYear, currentMonth, 1).toISOString().split('T')[0];
   const currentEndDate = new Date(currentYear, currentMonth + 1, 0).toISOString().split('T')[0];
   
-  // Previous month
   const prevStartDate = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0];
   const prevEndDate = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0];
   
@@ -524,7 +576,8 @@ export default {
   getStatsForDateRange,
   getMonthlyRevenue,
   getCategoryDistribution,
-  getTopProducts,
+  getTopProducts, // ✅ Now returns top bundles
+  getTopBundles,  // ✅ Alias
   getInventoryAlerts,
   getOrderStatusDistribution,
   getQuickSummary,
