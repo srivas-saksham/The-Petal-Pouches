@@ -1,10 +1,11 @@
-// frontend/src/services/statsService.js - FIXED
+// frontend/src/services/statsService.js - COMPLETE FIXED VERSION
 
 import { getProductStats, getProducts } from './productService';
 import { getOrderStats, getRevenuByPeriod } from './orderService';
 import { getCategories } from './categoryService';
 import bundleService from './bundleService';
 import { apiRequest } from './api';
+import adminCustomerService from './adminCustomerService';
 
 /**
  * Get bundle statistics (helper function since bundleService doesn't have getBundleStats)
@@ -53,70 +54,160 @@ const getBundleStats = async () => {
 };
 
 /**
- * Get complete dashboard statistics
+ * Get complete dashboard statistics - FIXED
  */
 export const getDashboardStats = async () => {
   try {
+    console.log('📊 [statsService] Fetching dashboard stats...');
+
     // Fetch all stats in parallel
     const [
       productStatsResult,
       bundleStatsResult,
       orderStatsResult,
       categoryResult,
+      customerStatsResult,
     ] = await Promise.all([
       getProductStats(),
       getBundleStats(),
       getOrderStats(),
       getCategories(),
+      adminCustomerService.getCustomerStats(),
     ]);
 
     // Extract data with fallbacks
     const productStats = productStatsResult.success ? productStatsResult.data : {};
     const bundleStats = bundleStatsResult.success ? bundleStatsResult.data : {};
-    const orderStats = orderStatsResult.success ? orderStatsResult.data : {};
     
-    // ✅ FIXED: Handle categories data structure properly
+    // ✅ CRITICAL FIX: Extract order stats properly
+    // The backend returns { success: true, stats: {...} }
+    // We need to use the 'stats' field, not 'data'
+    const orderStatsData = orderStatsResult.success 
+      ? (orderStatsResult.stats || orderStatsResult.data || {})
+      : {};
+    
+    console.log('📊 [statsService] Raw order stats result:', {
+      success: orderStatsResult.success,
+      hasStats: !!orderStatsResult.stats,
+      hasData: !!orderStatsResult.data,
+      total_orders: orderStatsData.total_orders,
+      stats: orderStatsResult.stats,
+      data: orderStatsResult.data
+    });
+
+    // ✅ FIX: Extract customer stats
+    const customerStats = customerStatsResult.success ? customerStatsResult.data : { total: 0, active: 0 };
+    
+    // ✅ FIX: Handle categories data structure properly
     const categoriesData = categoryResult.success ? categoryResult.data : [];
     const categories = Array.isArray(categoriesData) 
       ? categoriesData 
       : categoriesData.data || [];
 
+    // ✅ CRITICAL FIX: Build the stats object correctly
+    const dashboardStats = {
+      revenue: {
+        current: orderStatsData.total_spent || 0,
+        previous: 0,
+        change: 0,
+      },
+      orders: {
+        // ✅ FIX: Use total_orders from the stats
+        current: orderStatsData.total_orders || 0,
+        previous: 0,
+        change: 0,
+      },
+      products: {
+        current: productStats.total || 0,
+        previous: 0,
+        change: 0,
+      },
+      customers: {
+        current: customerStats.total || 0,
+        previous: 0,
+        change: 0,
+      },
+      // ✅ CRITICAL: Pass through ALL orderBreakdown fields
+      orderBreakdown: {
+        total_orders: orderStatsData.total_orders || 0,
+        pending: orderStatsData.pending || 0,
+        confirmed: orderStatsData.confirmed || 0,
+        processing: orderStatsData.processing || 0,
+        shipped: orderStatsData.shipped || 0,
+        in_transit: orderStatsData.in_transit || 0,
+        out_for_delivery: orderStatsData.out_for_delivery || 0,
+        delivered: orderStatsData.delivered || 0,
+        cancelled: orderStatsData.cancelled || 0,
+        failed: orderStatsData.failed || 0,
+        rto_initiated: orderStatsData.rto_initiated || 0,
+        rto_delivered: orderStatsData.rto_delivered || 0,
+        // Payment stats
+        paid: orderStatsData.paid || 0,
+        unpaid: orderStatsData.unpaid || 0,
+        refunded: orderStatsData.refunded || 0,
+        // Payment methods
+        cod: orderStatsData.cod || 0,
+        online: orderStatsData.online || 0,
+        // Delivery modes
+        surface: orderStatsData.surface || 0,
+        express: orderStatsData.express || 0,
+        // Average
+        avg_order_value: orderStatsData.avg_order_value || 0,
+      },
+      productBreakdown: productStats,
+      bundleBreakdown: bundleStats,
+      categoryCount: categories.length,
+    };
+
+    console.log('📊 [statsService] Final dashboard stats:', {
+      'orders.current': dashboardStats.orders.current,
+      'orderBreakdown.total_orders': dashboardStats.orderBreakdown.total_orders,
+      'orderBreakdown.pending': dashboardStats.orderBreakdown.pending,
+      'orderBreakdown.delivered': dashboardStats.orderBreakdown.delivered,
+      'products.current': dashboardStats.products.current,
+      'customers.current': dashboardStats.customers.current,
+    });
+
     return {
       success: true,
-      data: {
-        revenue: {
-          current: orderStats.total_revenue || 0,
-          previous: 0, // Would need historical data
-          change: 0,
-        },
-        orders: {
-          current: orderStats.total || 0,
-          previous: 0, // Would need historical data
-          change: 0,
-        },
-        products: {
-          current: productStats.total || 0,
-          previous: 0, // Would need historical data
-          change: 0,
-        },
-        customers: {
-          current: 0, // Would need customer tracking
-          previous: 0,
-          change: 0,
-        },
-        // Additional detailed stats
-        productBreakdown: productStats,
-        bundleBreakdown: bundleStats,
-        orderBreakdown: orderStats,
-        categoryCount: categories.length,
-      },
+      data: dashboardStats,
     };
   } catch (error) {
-    console.error('Error getting dashboard stats:', error);
+    console.error('❌ [statsService] Error getting dashboard stats:', error);
     return {
       success: false,
       error: error.message,
-      data: null,
+      data: {
+        revenue: { current: 0, previous: 0, change: 0 },
+        orders: { current: 0, previous: 0, change: 0 },
+        products: { current: 0, previous: 0, change: 0 },
+        customers: { current: 0, previous: 0, change: 0 },
+        productBreakdown: {},
+        bundleBreakdown: {},
+        orderBreakdown: {
+          total_orders: 0,
+          pending: 0,
+          confirmed: 0,
+          processing: 0,
+          shipped: 0,
+          in_transit: 0,
+          out_for_delivery: 0,
+          delivered: 0,
+          cancelled: 0,
+          failed: 0,
+          rto_initiated: 0,
+          rto_delivered: 0,
+          paid: 0,
+          unpaid: 0,
+          refunded: 0,
+          cod: 0,
+          online: 0,
+          surface: 0,
+          express: 0,
+          avg_order_value: 0,
+        },
+        categoryCount: 0,
+      },
     };
   }
 };
@@ -331,7 +422,8 @@ export const getOrderStatusDistribution = async () => {
     };
   }
 
-  const stats = result.data;
+  // ✅ FIX: Extract stats properly from result
+  const stats = result.stats || result.data || {};
   
   return {
     success: true,

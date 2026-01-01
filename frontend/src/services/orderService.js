@@ -1,24 +1,15 @@
-// frontend/src/services/orderService.js - NO CHANGES NEEDED
+// frontend/src/services/orderService.js - COMPLETE FINAL VERSION
 
 /**
- * ✅ This file is COMPLETE and requires NO modifications for Razorpay integration
+ * Order Service
+ * Handles all order-related API operations
  * 
- * The payment flow is handled separately by:
- * - paymentService.js (creates payment orders, verifies payments)
- * - useRazorpay.js hook (manages Razorpay modal and flow)
- * - Checkout.jsx (initiates payment instead of direct order creation)
- * 
- * This service continues to handle:
- * - Order retrieval (getOrders, getOrderById, etc.)
- * - Order actions (cancelOrder, reorderItems)
- * - Order tracking (getOrderTracking)
- * - Order statistics and analytics
- * 
- * The createOrder() function is now only called by the backend after payment verification.
- * Frontend uses paymentService.createPaymentOrder() instead.
+ * IMPORTANT: This file uses ADMIN endpoints for dashboard stats
  */
 
 import api, { apiRequest } from './api';
+
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 /**
  * ==================== ORDER CREATION ====================
@@ -64,43 +55,71 @@ export const getOrderById = async (orderId) => {
 
 /**
  * Get order statistics for dashboard
- * ✅ FIXED: Properly extracts stats from API response
- * @returns {Promise<Object>} Order stats with recent_orders
+ * ✅ FIXED: Now uses ADMIN endpoint for accurate stats
+ * @returns {Promise<Object>} Order stats with all status breakdowns
  */
 export const getOrderStats = async () => {
   try {
-    const response = await api.get('/api/orders/stats');
+    // ✅ CRITICAL FIX: Use ADMIN endpoint, not customer endpoint
+    const token = sessionStorage.getItem('admin_token');
     
-    console.log('📊 Raw API response:', response.data);
+    console.log('📊 [orderService] Fetching admin order stats from /api/admin/orders/stats');
+    console.log('📊 [orderService] Token exists:', !!token);
     
-    // Backend returns: { success: true, stats: {...} }
-    if (response.data?.success && response.data?.stats) {
+    const response = await fetch(`${API_URL}/api/admin/orders/stats`, {
+      method: 'GET',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      console.error('❌ [orderService] Failed to fetch admin stats:', response.status, response.statusText);
+      
+      // ⚠️ Fallback: Try customer endpoint
+      console.log('⚠️ [orderService] Trying customer endpoint as fallback...');
+      const customerResponse = await api.get('/api/orders/stats');
+      
+      console.log('📊 [orderService] Customer stats response:', customerResponse.data);
+      
       return {
         success: true,
-        stats: response.data.stats  // ✅ Direct extraction
+        stats: customerResponse.data?.stats || customerResponse.data?.data || {}
       };
     }
+
+    const result = await response.json();
     
-    // Fallback if format is different
-    if (response.data?.data) {
-      return {
-        success: true,
-        stats: response.data.data
-      };
-    }
-    
-    throw new Error('Invalid response format');
+    console.log('📊 [orderService] Admin stats received:', {
+      success: result.success,
+      hasStats: !!result.stats,
+      total_orders: result.stats?.total_orders,
+      confirmed: result.stats?.confirmed,
+      pending: result.stats?.pending,
+      delivered: result.stats?.delivered,
+      cancelled: result.stats?.cancelled,
+      fullStats: result.stats
+    });
+
+    return {
+      success: true,
+      stats: result.stats || {}
+    };
     
   } catch (error) {
-    console.error('❌ Backend stats API error:', error);
+    console.error('❌ [orderService] Error fetching admin stats:', error);
     
-    // Fallback: Calculate from all orders
+    // ⚠️ FALLBACK: Calculate from all orders
     try {
+      console.log('⚠️ [orderService] Using fallback: calculating from orders list...');
+      
       const result = await apiRequest(() => 
         api.get('/api/orders', { params: { limit: 10000 } })
       );
 
       if (!result.success) {
+        console.error('❌ [orderService] Fallback failed - returning empty stats');
         return {
           success: false,
           stats: {
@@ -113,6 +132,9 @@ export const getOrderStats = async () => {
             shipped: 0,
             delivered: 0,
             cancelled: 0,
+            failed: 0,
+            rto_initiated: 0,
+            rto_delivered: 0,
             total_spent: 0,
             avg_order_value: 0,
             recent_orders: []
@@ -121,6 +143,8 @@ export const getOrderStats = async () => {
       }
 
       const orders = result.data.data || result.data || [];
+      
+      console.log(`📊 [orderService] Fallback: Found ${orders.length} orders`);
       
       const stats = {
         total_orders: orders.length,
@@ -132,6 +156,9 @@ export const getOrderStats = async () => {
         shipped: orders.filter(o => o.status === 'shipped').length,
         delivered: orders.filter(o => o.status === 'delivered').length,
         cancelled: orders.filter(o => o.status === 'cancelled').length,
+        failed: orders.filter(o => o.status === 'failed').length,
+        rto_initiated: orders.filter(o => o.status === 'rto_initiated').length,
+        rto_delivered: orders.filter(o => o.status === 'rto_delivered').length,
         total_spent: orders
           .filter(o => o.payment_status === 'paid' && o.status !== 'cancelled')
           .reduce((sum, o) => sum + (o.final_total || 0), 0),
@@ -143,12 +170,19 @@ export const getOrderStats = async () => {
           .slice(0, 5)
       };
 
+      console.log('✅ [orderService] Fallback stats calculated:', {
+        total_orders: stats.total_orders,
+        confirmed: stats.confirmed,
+        pending: stats.pending,
+        delivered: stats.delivered
+      });
+
       return {
         success: true,
         stats
       };
     } catch (fallbackError) {
-      console.error('❌ Fallback calculation failed:', fallbackError);
+      console.error('❌ [orderService] Fallback calculation failed:', fallbackError);
       return {
         success: false,
         stats: {
@@ -161,6 +195,9 @@ export const getOrderStats = async () => {
           shipped: 0,
           delivered: 0,
           cancelled: 0,
+          failed: 0,
+          rto_initiated: 0,
+          rto_delivered: 0,
           total_spent: 0,
           avg_order_value: 0,
           recent_orders: []

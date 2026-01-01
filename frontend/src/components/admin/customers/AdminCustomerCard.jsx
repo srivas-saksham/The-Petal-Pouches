@@ -1,3 +1,4 @@
+// frontend/src/components/admin/customers/AdminCustomerCard.jsx
 import { 
   User, Mail, Phone, Calendar, DollarSign, Package, 
   Clock, Activity, AlertTriangle, XCircle, CheckCircle

@@ -1,8 +1,7 @@
 // backend/src/controllers/adminOrderController.js
 /**
- * Admin Orders Controller - FIXED FOR SUPABASE UUID SEARCH
+ * Admin Orders Controller - FIXED ORDER STATS
  * Enhanced orders management with advanced search and filtering
- * Searches: order_id, user_id, user_name, user_email, bundle_title
  */
 
 const supabase = require('../config/supabaseClient');
@@ -452,53 +451,127 @@ const AdminOrderController = {
   },
 
   /**
-   * Get order statistics (ADMIN)
+   * Get order statistics (ADMIN) - FIXED
    * GET /api/admin/orders/stats
    */
   async getOrderStats(req, res) {
     try {
-      // Get all orders
+      console.log('📊 [Backend] Fetching order stats...');
+
+      // ✅ FIX: Get ALL orders without any filters
       const { data: orders, error } = await supabase
         .from('Orders')
-        .select('status, payment_status, final_total, express_charge, created_at');
+        .select('*');
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error fetching orders:', error);
+        throw error;
+      }
 
-      // Calculate stats
+      console.log(`📊 [Backend] Total orders found: ${orders?.length || 0}`);
+
+      // ✅ FIX: Calculate stats with correct field names
       const stats = {
-        total: orders.length,
-        pending: orders.filter(o => o.status === 'pending').length,
-        confirmed: orders.filter(o => o.status === 'confirmed').length,
-        processing: orders.filter(o => o.status === 'processing').length,
-        shipped: orders.filter(o => o.status === 'shipped').length,
-        delivered: orders.filter(o => o.status === 'delivered').length,
-        cancelled: orders.filter(o => o.status === 'cancelled').length,
+        // ✅ CRITICAL: Use total_orders (not "total")
+        total_orders: orders?.length || 0,
         
-        // Payment stats
-        paid: orders.filter(o => o.payment_status === 'paid').length,
-        unpaid: orders.filter(o => o.payment_status === 'unpaid').length,
-        refunded: orders.filter(o => o.payment_status === 'refunded').length,
+        // Status breakdown
+        pending: orders?.filter(o => o.status === 'pending').length || 0,
+        confirmed: orders?.filter(o => o.status === 'confirmed').length || 0,
+        processing: orders?.filter(o => o.status === 'processing').length || 0,
+        shipped: orders?.filter(o => o.status === 'shipped').length || 0,
+        in_transit: orders?.filter(o => o.status === 'in_transit').length || 0,
+        out_for_delivery: orders?.filter(o => o.status === 'out_for_delivery').length || 0,
+        delivered: orders?.filter(o => o.status === 'delivered').length || 0,
+        cancelled: orders?.filter(o => o.status === 'cancelled').length || 0,
+        failed: orders?.filter(o => o.status === 'failed').length || 0,
+        rto_initiated: orders?.filter(o => o.status === 'rto_initiated').length || 0,
+        rto_delivered: orders?.filter(o => o.status === 'rto_delivered').length || 0,
         
-        // Revenue
-        total_revenue: orders
-          .filter(o => o.status !== 'cancelled')
-          .reduce((sum, o) => sum + (o.final_total || 0), 0),
+        // Payment status breakdown
+        paid: orders?.filter(o => o.payment_status === 'paid').length || 0,
+        unpaid: orders?.filter(o => o.payment_status === 'unpaid').length || 0,
+        refunded: orders?.filter(o => o.payment_status === 'refunded').length || 0,
         
-        // Express orders
-        express_orders: orders.filter(o => o.express_charge > 0).length,
-        surface_orders: orders.filter(o => o.express_charge === 0).length
+        // Payment method breakdown
+        cod: orders?.filter(o => o.payment_method === 'cod').length || 0,
+        online: orders?.filter(o => o.payment_method === 'online' || o.payment_method === 'razorpay').length || 0,
+        
+        // Revenue (exclude cancelled orders)
+        total_spent: orders
+          ?.filter(o => o.status !== 'cancelled')
+          .reduce((sum, o) => sum + (parseFloat(o.final_total) || 0), 0) || 0,
+        
+        // Delivery mode breakdown
+        surface: orders?.filter(o => {
+          try {
+            const metadata = typeof o.delivery_metadata === 'string' 
+              ? JSON.parse(o.delivery_metadata) 
+              : o.delivery_metadata;
+            return metadata?.mode === 'surface';
+          } catch {
+            return false;
+          }
+        }).length || 0,
+        
+        express: orders?.filter(o => {
+          try {
+            const metadata = typeof o.delivery_metadata === 'string' 
+              ? JSON.parse(o.delivery_metadata) 
+              : o.delivery_metadata;
+            return metadata?.mode === 'express';
+          } catch {
+            return false;
+          }
+        }).length || 0,
+        
+        // Average order value
+        avg_order_value: orders?.length > 0 
+          ? Math.round(orders.reduce((sum, o) => sum + (parseFloat(o.final_total) || 0), 0) / orders.length)
+          : 0,
       };
+
+      console.log('📊 [Backend] Stats calculated:', {
+        total_orders: stats.total_orders,
+        confirmed: stats.confirmed,
+        pending: stats.pending,
+        delivered: stats.delivered,
+        cancelled: stats.cancelled
+      });
 
       return res.status(200).json({
         success: true,
-        data: stats
+        stats  // ✅ Return as "stats" field
       });
 
     } catch (error) {
       console.error('❌ Get order stats error:', error);
       return res.status(500).json({
         success: false,
-        message: 'Failed to fetch order statistics'
+        message: 'Failed to fetch order statistics',
+        stats: {
+          total_orders: 0,
+          pending: 0,
+          confirmed: 0,
+          processing: 0,
+          shipped: 0,
+          in_transit: 0,
+          out_for_delivery: 0,
+          delivered: 0,
+          cancelled: 0,
+          failed: 0,
+          rto_initiated: 0,
+          rto_delivered: 0,
+          paid: 0,
+          unpaid: 0,
+          refunded: 0,
+          cod: 0,
+          online: 0,
+          surface: 0,
+          express: 0,
+          total_spent: 0,
+          avg_order_value: 0
+        }
       });
     }
   }
