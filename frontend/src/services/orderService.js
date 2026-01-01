@@ -1,10 +1,12 @@
-// frontend/src/services/orderService.js - COMPLETE FINAL VERSION
+// frontend/src/services/orderService.js - FIXED WITH SEPARATE CUSTOMER & ADMIN FUNCTIONS
 
 /**
  * Order Service
  * Handles all order-related API operations
  * 
- * IMPORTANT: This file uses ADMIN endpoints for dashboard stats
+ * IMPORTANT: 
+ * - getOrderStats() = CUSTOMER endpoint (user's own orders)
+ * - getAdminOrderStats() = ADMIN endpoint (all orders)
  */
 
 import api, { apiRequest } from './api';
@@ -18,7 +20,6 @@ const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 /**
  * Create new order from cart
  * ⚠️ NOTE: For online payments, use paymentService.createPaymentOrder() instead
- * This function is kept for COD orders (if enabled) or internal use
  * 
  * @param {Object} orderData - { address_id, payment_method, notes?, gift_wrap?, gift_message?, coupon_code? }
  * @returns {Promise<Object>} Created order
@@ -54,72 +55,44 @@ export const getOrderById = async (orderId) => {
 };
 
 /**
- * Get order statistics for dashboard
- * ✅ FIXED: Now uses ADMIN endpoint for accurate stats
- * @returns {Promise<Object>} Order stats with all status breakdowns
+ * Get order statistics for CUSTOMER (user's own orders only)
+ * ✅ CUSTOMER ENDPOINT: /api/orders/stats
+ * @returns {Promise<Object>} Customer's order stats
  */
 export const getOrderStats = async () => {
   try {
-    // ✅ CRITICAL FIX: Use ADMIN endpoint, not customer endpoint
-    const token = sessionStorage.getItem('admin_token');
+    const response = await api.get('/api/orders/stats');
     
-    console.log('📊 [orderService] Fetching admin order stats from /api/admin/orders/stats');
-    console.log('📊 [orderService] Token exists:', !!token);
+    console.log('📊 [Customer] Raw API response:', response.data);
     
-    const response = await fetch(`${API_URL}/api/admin/orders/stats`, {
-      method: 'GET',
-      headers: {
-        'Authorization': token ? `Bearer ${token}` : '',
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      console.error('❌ [orderService] Failed to fetch admin stats:', response.status, response.statusText);
-      
-      // ⚠️ Fallback: Try customer endpoint
-      console.log('⚠️ [orderService] Trying customer endpoint as fallback...');
-      const customerResponse = await api.get('/api/orders/stats');
-      
-      console.log('📊 [orderService] Customer stats response:', customerResponse.data);
-      
+    // Backend returns: { success: true, stats: {...} }
+    if (response.data?.success && response.data?.stats) {
       return {
         success: true,
-        stats: customerResponse.data?.stats || customerResponse.data?.data || {}
+        stats: response.data.stats
       };
     }
-
-    const result = await response.json();
     
-    console.log('📊 [orderService] Admin stats received:', {
-      success: result.success,
-      hasStats: !!result.stats,
-      total_orders: result.stats?.total_orders,
-      confirmed: result.stats?.confirmed,
-      pending: result.stats?.pending,
-      delivered: result.stats?.delivered,
-      cancelled: result.stats?.cancelled,
-      fullStats: result.stats
-    });
-
-    return {
-      success: true,
-      stats: result.stats || {}
-    };
+    // Fallback if format is different
+    if (response.data?.data) {
+      return {
+        success: true,
+        stats: response.data.data
+      };
+    }
+    
+    throw new Error('Invalid response format');
     
   } catch (error) {
-    console.error('❌ [orderService] Error fetching admin stats:', error);
+    console.error('❌ [Customer] Backend stats API error:', error);
     
-    // ⚠️ FALLBACK: Calculate from all orders
+    // Fallback: Calculate from user's orders
     try {
-      console.log('⚠️ [orderService] Using fallback: calculating from orders list...');
-      
       const result = await apiRequest(() => 
         api.get('/api/orders', { params: { limit: 10000 } })
       );
 
       if (!result.success) {
-        console.error('❌ [orderService] Fallback failed - returning empty stats');
         return {
           success: false,
           stats: {
@@ -132,9 +105,6 @@ export const getOrderStats = async () => {
             shipped: 0,
             delivered: 0,
             cancelled: 0,
-            failed: 0,
-            rto_initiated: 0,
-            rto_delivered: 0,
             total_spent: 0,
             avg_order_value: 0,
             recent_orders: []
@@ -144,8 +114,95 @@ export const getOrderStats = async () => {
 
       const orders = result.data.data || result.data || [];
       
-      console.log(`📊 [orderService] Fallback: Found ${orders.length} orders`);
+      const stats = {
+        total_orders: orders.length,
+        pending: orders.filter(o => o.status === 'pending').length,
+        confirmed: orders.filter(o => o.status === 'confirmed').length,
+        processing: orders.filter(o => o.status === 'processing').length,
+        in_transit: orders.filter(o => o.status === 'in_transit').length,
+        out_for_delivery: orders.filter(o => o.status === 'out_for_delivery').length,
+        shipped: orders.filter(o => o.status === 'shipped').length,
+        delivered: orders.filter(o => o.status === 'delivered').length,
+        cancelled: orders.filter(o => o.status === 'cancelled').length,
+        total_spent: orders
+          .filter(o => o.payment_status === 'paid' && o.status !== 'cancelled')
+          .reduce((sum, o) => sum + (o.final_total || 0), 0),
+        avg_order_value: orders.length > 0 
+          ? Math.round(orders.reduce((sum, o) => sum + (o.final_total || 0), 0) / orders.length)
+          : 0,
+        recent_orders: orders
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 5)
+      };
+
+      return {
+        success: true,
+        stats
+      };
+    } catch (fallbackError) {
+      console.error('❌ [Customer] Fallback calculation failed:', fallbackError);
+      return {
+        success: false,
+        stats: {
+          total_orders: 0,
+          pending: 0,
+          confirmed: 0,
+          processing: 0,
+          in_transit: 0,
+          out_for_delivery: 0,
+          shipped: 0,
+          delivered: 0,
+          cancelled: 0,
+          total_spent: 0,
+          avg_order_value: 0,
+          recent_orders: []
+        }
+      };
+    }
+  }
+};
+
+/**
+ * Get order statistics for ADMIN (all orders across all users)
+ * ✅ ADMIN ENDPOINT: /api/admin/orders/stats
+ * @returns {Promise<Object>} Complete order stats for all orders
+ */
+export const getAdminOrderStats = async () => {
+  try {
+    const token = sessionStorage.getItem('admin_token');
+    
+    console.log('📊 [Admin] Fetching admin order stats from /api/admin/orders/stats');
+    console.log('📊 [Admin] Token exists:', !!token);
+    
+    const response = await fetch(`${API_URL}/api/admin/orders/stats`, {
+      method: 'GET',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      console.error('❌ [Admin] Failed to fetch admin stats:', response.status, response.statusText);
       
+      // Fallback: Calculate from all orders
+      console.log('⚠️ [Admin] Using fallback: fetching all orders...');
+      const fallbackResponse = await fetch(`${API_URL}/api/admin/orders?limit=10000`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!fallbackResponse.ok) {
+        throw new Error(`Failed to fetch orders: ${fallbackResponse.statusText}`);
+      }
+
+      const fallbackResult = await fallbackResponse.json();
+      const orders = fallbackResult.data || [];
+
+      console.log(`📊 [Admin] Fallback: Found ${orders.length} orders`);
+
       const stats = {
         total_orders: orders.length,
         pending: orders.filter(o => o.status === 'pending').length,
@@ -159,51 +216,70 @@ export const getOrderStats = async () => {
         failed: orders.filter(o => o.status === 'failed').length,
         rto_initiated: orders.filter(o => o.status === 'rto_initiated').length,
         rto_delivered: orders.filter(o => o.status === 'rto_delivered').length,
+        paid: orders.filter(o => o.payment_status === 'paid').length,
+        unpaid: orders.filter(o => o.payment_status === 'unpaid').length,
+        refunded: orders.filter(o => o.payment_status === 'refunded').length,
+        cod: orders.filter(o => o.payment_method === 'cod').length,
+        online: orders.filter(o => o.payment_method === 'online' || o.payment_method === 'razorpay').length,
         total_spent: orders
-          .filter(o => o.payment_status === 'paid' && o.status !== 'cancelled')
-          .reduce((sum, o) => sum + (o.final_total || 0), 0),
+          .filter(o => o.status !== 'cancelled')
+          .reduce((sum, o) => sum + (parseFloat(o.final_total) || 0), 0),
         avg_order_value: orders.length > 0 
-          ? Math.round(orders.reduce((sum, o) => sum + (o.final_total || 0), 0) / orders.length)
-          : 0,
-        recent_orders: orders
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-          .slice(0, 5)
+          ? Math.round(orders.reduce((sum, o) => sum + (parseFloat(o.final_total) || 0), 0) / orders.length)
+          : 0
       };
-
-      console.log('✅ [orderService] Fallback stats calculated:', {
-        total_orders: stats.total_orders,
-        confirmed: stats.confirmed,
-        pending: stats.pending,
-        delivered: stats.delivered
-      });
 
       return {
         success: true,
         stats
       };
-    } catch (fallbackError) {
-      console.error('❌ [orderService] Fallback calculation failed:', fallbackError);
-      return {
-        success: false,
-        stats: {
-          total_orders: 0,
-          pending: 0,
-          confirmed: 0,
-          processing: 0,
-          in_transit: 0,
-          out_for_delivery: 0,
-          shipped: 0,
-          delivered: 0,
-          cancelled: 0,
-          failed: 0,
-          rto_initiated: 0,
-          rto_delivered: 0,
-          total_spent: 0,
-          avg_order_value: 0,
-          recent_orders: []
-        }
-      };
     }
+
+    const result = await response.json();
+    
+    console.log('📊 [Admin] Admin stats received:', {
+      success: result.success,
+      hasStats: !!result.stats,
+      total_orders: result.stats?.total_orders,
+      confirmed: result.stats?.confirmed,
+      pending: result.stats?.pending,
+      delivered: result.stats?.delivered,
+      cancelled: result.stats?.cancelled
+    });
+
+    return {
+      success: true,
+      stats: result.stats || {}
+    };
+    
+  } catch (error) {
+    console.error('❌ [Admin] Error fetching admin stats:', error);
+    return {
+      success: false,
+      stats: {
+        total_orders: 0,
+        pending: 0,
+        confirmed: 0,
+        processing: 0,
+        in_transit: 0,
+        out_for_delivery: 0,
+        shipped: 0,
+        delivered: 0,
+        cancelled: 0,
+        failed: 0,
+        rto_initiated: 0,
+        rto_delivered: 0,
+        paid: 0,
+        unpaid: 0,
+        refunded: 0,
+        cod: 0,
+        online: 0,
+        surface: 0,
+        express: 0,
+        total_spent: 0,
+        avg_order_value: 0
+      }
+    };
   }
 };
 
@@ -224,7 +300,7 @@ export const getRecentOrders = async (limit = 10) => {
 
 /**
  * Get orders by status
- * @param {string} status - Order status (pending, confirmed, processing, shipped, delivered, cancelled)
+ * @param {string} status - Order status
  * @param {Object} params - Additional params
  */
 export const getOrdersByStatus = async (status, params = {}) => {
@@ -240,7 +316,7 @@ export const getOrdersByStatus = async (status, params = {}) => {
 
 /**
  * Get orders by payment status
- * @param {string} paymentStatus - Payment status (paid, unpaid, refunded)
+ * @param {string} paymentStatus - Payment status
  * @param {Object} params - Additional params
  */
 export const getOrdersByPaymentStatus = async (paymentStatus, params = {}) => {
@@ -575,7 +651,6 @@ export const exportOrdersToCSV = async (filters = {}) => {
 
 /**
  * ==================== DEFAULT EXPORT ====================
- * Export all functions as default object for flexibility
  */
 export default {
   // Creation
@@ -584,7 +659,8 @@ export default {
   // Fetching
   getOrders,
   getOrderById,
-  getOrderStats,
+  getOrderStats,           // ✅ CUSTOMER stats (user's orders)
+  getAdminOrderStats,      // ✅ ADMIN stats (all orders)
   getRecentOrders,
   getOrdersByStatus,
   getOrdersByPaymentStatus,

@@ -1,7 +1,7 @@
 // frontend/src/services/statsService.js - COMPLETE FIXED VERSION
 
 import { getProductStats, getProducts } from './productService';
-import { getOrderStats, getRevenuByPeriod } from './orderService';
+import { getAdminOrderStats, getRevenuByPeriod } from './orderService'; // ✅ CHANGED: Use getAdminOrderStats
 import { getCategories } from './categoryService';
 import bundleService from './bundleService';
 import { apiRequest } from './api';
@@ -70,7 +70,7 @@ export const getDashboardStats = async () => {
     ] = await Promise.all([
       getProductStats(),
       getBundleStats(),
-      getOrderStats(),
+      getAdminOrderStats(), // ✅ CHANGED: Use admin stats function
       getCategories(),
       adminCustomerService.getCustomerStats(),
     ]);
