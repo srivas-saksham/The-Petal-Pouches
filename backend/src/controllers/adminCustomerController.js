@@ -63,10 +63,12 @@ const AdminCustomerController = {
         sort = 'created_at',
         order = 'desc',
         page = 1,
-        limit = 20
+        limit = 20,
+        dateFrom = '',
+        dateTo = ''
       } = req.query;
 
-      console.log('👥 [Admin] Get customers:', { page, limit, status, search, sort });
+      console.log('👥 [Admin] Get customers:', { page, limit, status, search, sort, dateFrom, dateTo });
 
       const offset = (parseInt(page) - 1) * parseInt(limit);
 
@@ -80,6 +82,17 @@ const AdminCustomerController = {
         usersQuery = usersQuery.eq('is_active', true);
       } else if (status === 'inactive') {
         usersQuery = usersQuery.eq('is_active', false);
+      }
+
+      // Date range filter
+      if (dateFrom) {
+        usersQuery = usersQuery.gte('created_at', dateFrom);
+      }
+      if (dateTo) {
+        // Add one day to include the entire "to" date
+        const toDate = new Date(dateTo);
+        toDate.setDate(toDate.getDate() + 1);
+        usersQuery = usersQuery.lt('created_at', toDate.toISOString());
       }
 
       // Search filter
@@ -117,14 +130,26 @@ const AdminCustomerController = {
         'created_at_asc': { column: 'created_at', ascending: true },
         'name_asc': { column: 'name', ascending: true },
         'name_desc': { column: 'name', ascending: false },
-        'last_login': { column: 'last_login', ascending: false }
+        'last_login': { column: 'last_login', ascending: false },
+        'total_spent_desc': { sortBySpending: true, ascending: false },
+        'total_spent_asc': { sortBySpending: true, ascending: true }
       };
 
       const sortConfig = sortMapping[sort] || { column: 'created_at', ascending: false };
-      usersQuery = usersQuery.order(sortConfig.column, { ascending: sortConfig.ascending, nullsFirst: false });
+      
+      // Only apply database sorting if NOT sorting by spending
+      if (!sortConfig.sortBySpending) {
+        usersQuery = usersQuery.order(sortConfig.column, { ascending: sortConfig.ascending, nullsFirst: false });
+      } else {
+        // For spending sort, we'll sort in-memory after aggregating order data
+        usersQuery = usersQuery.order('created_at', { ascending: false, nullsFirst: false });
+      }
 
-      // ===== STEP 4: PAGINATION =====
-      usersQuery = usersQuery.range(offset, offset + parseInt(limit) - 1);
+      // ===== STEP 4: PAGINATION (will be applied after sorting if sorting by spending) =====
+      // If not sorting by spending, apply pagination now
+      if (!sortConfig.sortBySpending) {
+        usersQuery = usersQuery.range(offset, offset + parseInt(limit) - 1);
+      }
 
       // ===== STEP 5: EXECUTE QUERY =====
       const { data: users, error: usersError, count } = await usersQuery;
@@ -190,7 +215,7 @@ const AdminCustomerController = {
       });
 
       // ===== STEP 8: FORMAT RESPONSE =====
-      const formattedUsers = users.map(user => {
+      let formattedUsers = users.map(user => {
         const orderStats = ordersByUser[user.id] || {
           total_orders: 0,
           completed_orders: 0,
@@ -217,6 +242,30 @@ const AdminCustomerController = {
           last_order_date: orderStats.last_order_date
         };
       });
+
+      // ===== STEP 8.5: SORT BY SPENDING IF NEEDED =====
+      if (sortConfig.sortBySpending) {
+        formattedUsers.sort((a, b) => {
+          const comparison = (b.total_spent || 0) - (a.total_spent || 0);
+          return sortConfig.ascending ? -comparison : comparison;
+        });
+        
+        // Apply pagination after sorting
+        const totalCount = formattedUsers.length;
+        formattedUsers = formattedUsers.slice(offset, offset + parseInt(limit));
+        
+        // Return with corrected count
+        return res.json({
+          success: true,
+          data: formattedUsers,
+          metadata: {
+            totalCount: totalCount,
+            totalPages: Math.ceil(totalCount / parseInt(limit)),
+            page: parseInt(page),
+            limit: parseInt(limit)
+          }
+        });
+      }
 
       // ===== STEP 9: RETURN RESPONSE =====
       return res.json({

@@ -27,7 +27,9 @@ export default function AdminCustomersPage() {
     limit: 20,
     search: '',
     sort: 'created_at',
-    order: 'desc'
+    order: 'desc',
+    dateFrom: '',
+    dateTo: ''
   });
 
   const [pagination, setPagination] = useState({
@@ -44,11 +46,15 @@ export default function AdminCustomersPage() {
   useEffect(() => {
     loadCustomers();
     loadStats();
-  }, [filters.status, filters.page, filters.search, filters.sort, filters.order]);
+  }, [filters.status, filters.page, filters.search, filters.sort, filters.order, filters.dateFrom, filters.dateTo]);
 
   const loadCustomers = async () => {
     try {
       setLoading(true);
+      
+      // Log filters being sent
+      console.log('📅 Filters being sent to API:', filters);
+      
       const result = await adminCustomerService.getAllCustomers(filters);
       
       if (result.success) {
@@ -113,7 +119,9 @@ export default function AdminCustomersPage() {
       limit: 20,
       search: '',
       sort: 'created_at',
-      order: 'desc'
+      order: 'desc',
+      dateFrom: '',
+      dateTo: ''
     });
     setPagination(prev => ({ ...prev, page: 1 }));
   };
@@ -139,7 +147,11 @@ export default function AdminCustomersPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const hasActiveFilters = filters.status !== 'all' || filters.search !== '';
+  const hasActiveFilters = 
+    filters.status !== 'all' || 
+    filters.search !== '' || 
+    filters.dateFrom !== '' || 
+    filters.dateTo !== '';
 
   // ==================== RENDER ====================
 
