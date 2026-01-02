@@ -61,7 +61,7 @@ const GridBackground = ({ gridSize = 40, opacity = 0.05, mousePos }) => {
                 height: `${gridSize}px`,
                 opacity: isHovered ? 0.6 : opacity,
                 backgroundColor: isHovered ? '#d9566ab7' : 'transparent',
-                transition: 'all 0.2s ease',
+                transition: 'all 0.0s ease',
               }}
             />
           );
@@ -159,7 +159,7 @@ const GiftQuizModule = () => {
             </p>
 
             {/* Main heading */}
-            <h2 className="text-4xl md:text-5xl font-serif text-tppslate mb-6 leading-tight">
+            <h2 className="text-4xl md:text-5xl font-italianno text-tppslate mb-6 leading-tight">
               Find Her Perfect Gift in 30 Seconds
             </h2>
 
@@ -220,7 +220,7 @@ const GiftQuizModule = () => {
                   <Sparkles size={28} className="text-white" />
                 </div>
 
-                <h3 className="text-2xl font-serif text-tppslate mb-4">
+                <h3 className="text-2xl font-italianno text-tppslate mb-4">
                   Quick Gift Finder
                 </h3>
 

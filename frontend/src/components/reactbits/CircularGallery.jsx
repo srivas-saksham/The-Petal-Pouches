@@ -1,81 +1,8 @@
-// frontend/src/components/home/ExperienceGallery.jsx
-import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+// frontend/src/components/reactbits/CircularGallery.jsx
+
 import { Camera, Mesh, Plane, Program, Renderer, Texture, Transform } from 'ogl';
+import { useEffect, useRef } from 'react';
 
-// Interactive Grid Background Component
-const GridBackground = ({ gridSize = 40, opacity = 0.05, mousePos }) => {
-  const [gridDimensions, setGridDimensions] = useState({ rows: 0, cols: 0 });
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    const updateGridDimensions = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        const cols = Math.ceil(rect.width / gridSize);
-        const rows = Math.ceil(rect.height / gridSize);
-        setGridDimensions({ rows, cols });
-      }
-    };
-
-    updateGridDimensions();
-    window.addEventListener('resize', updateGridDimensions);
-    return () => window.removeEventListener('resize', updateGridDimensions);
-  }, [gridSize]);
-
-  const getHoveredCell = () => {
-    if (!mousePos || !containerRef.current) return null;
-    
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = mousePos.x - rect.left;
-    const y = mousePos.y - rect.top;
-    const col = Math.floor(x / gridSize);
-    const row = Math.floor(y / gridSize);
-    
-    if (col >= 0 && col < gridDimensions.cols && row >= 0 && row < gridDimensions.rows) {
-      return { row, col };
-    }
-    return null;
-  };
-
-  const hoveredCell = getHoveredCell();
-
-  return (
-    <div
-      ref={containerRef}
-      className="absolute inset-0 overflow-hidden pointer-events-none"
-      style={{ zIndex: 1 }}
-    >
-      {Array.from({ length: gridDimensions.rows }).map((_, row) =>
-        Array.from({ length: gridDimensions.cols }).map((_, col) => {
-          const isHovered = hoveredCell && hoveredCell.row === row && hoveredCell.col === col;
-          const distanceFromHover = hoveredCell 
-            ? Math.sqrt(Math.pow(row - hoveredCell.row, 2) + Math.pow(col - hoveredCell.col, 2))
-            : 999;
-          const isNearby = distanceFromHover < 3;
-          
-          return (
-            <div
-              key={`${row}-${col}`}
-              className="absolute border border-tpppink"
-              style={{
-                left: `${col * gridSize}px`,
-                top: `${row * gridSize}px`,
-                width: `${gridSize}px`,
-                height: `${gridSize}px`,
-                opacity: isHovered ? 0.6 : opacity,
-                backgroundColor: isHovered ? '#d9566ab7' : 'transparent',
-                transition: 'all 0.0s ease',
-              }}
-            />
-          );
-        })
-      )}
-    </div>
-  );
-};
-
-// CircularGallery Component (OGL-based)
 function debounce(func, wait) {
   let timeout;
   return function (...args) {
@@ -97,14 +24,14 @@ function autoBind(instance) {
   });
 }
 
-function createTextTexture(gl, text, font = 'bold 24px sans-serif', color = 'white') {
+function createTextTexture(gl, text, font = 'bold 30px monospace', color = 'black') {
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
   context.font = font;
   const metrics = context.measureText(text);
   const textWidth = Math.ceil(metrics.width);
   const textHeight = Math.ceil(parseInt(font, 10) * 1.2);
-  canvas.width = textWidth + 40;
+  canvas.width = textWidth + 20;
   canvas.height = textHeight + 20;
   context.font = font;
   context.fillStyle = color;
@@ -118,7 +45,7 @@ function createTextTexture(gl, text, font = 'bold 24px sans-serif', color = 'whi
 }
 
 class Title {
-  constructor({ gl, plane, renderer, text, textColor = '#ffffff', font = '24px sans-serif' }) {
+  constructor({ gl, plane, renderer, text, textColor = '#545050', font = '30px sans-serif' }) {
     autoBind(this);
     this.gl = gl;
     this.plane = plane;
@@ -161,7 +88,7 @@ class Title {
     const textHeight = this.plane.scale.y * 0.15;
     const textWidth = textHeight * aspect;
     this.mesh.scale.set(textWidth, textHeight, 1);
-    this.mesh.position.y = -this.plane.scale.y * 0.5 - textHeight * 0.5 - 0.1;
+    this.mesh.position.y = -this.plane.scale.y * 0.5 - textHeight * 0.5 - 0.05;
     this.mesh.setParent(this.plane);
   }
 }
@@ -251,6 +178,8 @@ class Media {
           vec4 color = texture2D(tMap, uv);
           
           float d = roundedBoxSDF(vUv - 0.5, vec2(0.5 - uBorderRadius), uBorderRadius);
+          
+          // Smooth antialiasing for edges
           float edgeSmooth = 0.002;
           float alpha = 1.0 - smoothstep(-edgeSmooth, edgeSmooth, d);
           
@@ -289,11 +218,12 @@ class Media {
       renderer: this.renderer,
       text: this.text,
       textColor: this.textColor,
-      font: this.font
+      fontFamily: this.font
     });
   }
   update(scroll, direction) {
     this.plane.position.x = this.x - scroll.current - this.extra;
+
     const x = this.plane.position.x;
     const H = this.viewport.width / 2;
 
@@ -304,6 +234,7 @@ class Media {
       const B_abs = Math.abs(this.bend);
       const R = (H * H + B_abs * B_abs) / (2 * B_abs);
       const effectiveX = Math.min(Math.abs(x), H);
+
       const arc = R - Math.sqrt(R * R - effectiveX * effectiveX);
       if (this.bend > 0) {
         this.plane.position.y = -arc;
@@ -350,12 +281,24 @@ class Media {
   }
 }
 
-class GalleryApp {
-  constructor(container, { items, bend, textColor, borderRadius, font, scrollSpeed, scrollEase } = {}) {
+class App {
+  constructor(
+    container,
+    {
+      items,
+      bend,
+      textColor = '#ffffff',
+      borderRadius = 0,
+      font = 'bold 30px Figtree',
+      scrollSpeed = 2,
+      scrollEase = 0.05
+    } = {}
+  ) {
+    document.documentElement.classList.remove('no-js');
     this.container = container;
     this.scrollSpeed = scrollSpeed;
     this.scroll = { ease: scrollEase, current: 0, target: 0, last: 0 };
-    this.onCheckDebounce = debounce(this.onCheck.bind(this), 200);
+    this.onCheckDebounce = debounce(this.onCheck, 200);
     this.createRenderer();
     this.createCamera();
     this.createScene();
@@ -389,9 +332,23 @@ class GalleryApp {
       widthSegments: 100
     });
   }
-  createMedias(items, bend = 3, textColor, borderRadius, font) {
-    const galleryItems = items.concat(items);
-    this.mediasImages = galleryItems;
+  createMedias(items, bend = 1, textColor, borderRadius, font) {
+    const defaultItems = [
+      { image: `https://picsum.photos/seed/1/800/600?grayscale`, text: 'Bridge' },
+      { image: `https://picsum.photos/seed/2/800/600?grayscale`, text: 'Desk Setup' },
+      { image: `https://picsum.photos/seed/3/800/600?grayscale`, text: 'Waterfall' },
+      { image: `https://picsum.photos/seed/4/800/600?grayscale`, text: 'Strawberries' },
+      { image: `https://picsum.photos/seed/5/800/600?grayscale`, text: 'Deep Diving' },
+      { image: `https://picsum.photos/seed/16/800/600?grayscale`, text: 'Train Track' },
+      { image: `https://picsum.photos/seed/17/800/600?grayscale`, text: 'Santorini' },
+      { image: `https://picsum.photos/seed/8/800/600?grayscale`, text: 'Blurry Lights' },
+      { image: `https://picsum.photos/seed/9/800/600?grayscale`, text: 'New York' },
+      { image: `https://picsum.photos/seed/10/800/600?grayscale`, text: 'Good Boy' },
+      { image: `https://picsum.photos/seed/21/800/600?grayscale`, text: 'Coastline' },
+      { image: `https://picsum.photos/seed/12/800/600?grayscale`, text: 'Palm Trees' }
+    ];
+    const galleryItems = items && items.length ? items : defaultItems;
+    this.mediasImages = galleryItems.concat(galleryItems);
     this.medias = this.mediasImages.map((data, index) => {
       return new Media({
         geometry: this.planeGeometry,
@@ -498,126 +455,21 @@ class GalleryApp {
   }
 }
 
-const CircularGallery = ({ items, bend = 3, textColor = '#ffffff', borderRadius = 0.05, font = 'bold 24px sans-serif', scrollSpeed = 2, scrollEase = 0.05 }) => {
+export default function CircularGallery({
+  items,
+  bend = 3,
+  textColor = '#ffffff',
+  borderRadius = 0.05,
+  font = 'bold 30px Figtree',
+  scrollSpeed = 2,
+  scrollEase = 0.05
+}) {
   const containerRef = useRef(null);
   useEffect(() => {
-    const app = new GalleryApp(containerRef.current, { items, bend, textColor, borderRadius, font, scrollSpeed, scrollEase });
+    const app = new App(containerRef.current, { items, bend, textColor, borderRadius, font, scrollSpeed, scrollEase });
     return () => {
       app.destroy();
     };
   }, [items, bend, textColor, borderRadius, font, scrollSpeed, scrollEase]);
   return <div className="w-full h-full overflow-hidden cursor-grab active:cursor-grabbing" ref={containerRef} />;
-};
-
-// Mock bundle data
-const mockBundles = [
-  {
-    image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800',
-    text: 'Romantic Evening'
-  },
-  {
-    image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=800',
-    text: 'Birthday Celebration'
-  },
-  {
-    image: 'https://images.unsplash.com/photo-1512909006721-3d6018887383?w=800',
-    text: 'Self Care Essentials'
-  },
-  {
-    image: 'https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=800',
-    text: 'Anniversary Special'
-  },
-  {
-    image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800',
-    text: 'Corporate Gift Set'
-  },
-  {
-    image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=800',
-    text: 'Festival Delight'
-  },
-  {
-    image: 'https://images.unsplash.com/photo-1512909006721-3d6018887383?w=800',
-    text: 'Wellness & Spa'
-  },
-  {
-    image: 'https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=800',
-    text: 'New Parents Care'
-  }
-];
-
-const ExperienceGallery = () => {
-  const [mousePos, setMousePos] = useState(null);
-
-  const handleMouseMove = (e) => {
-    setMousePos({ x: e.clientX, y: e.clientY });
-  };
-
-  return (
-    <section 
-      className="relative py-12 bg-gradient-to-b from-white via-pink-50/30 to-white overflow-hidden"
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => setMousePos(null)}
-    >
-      {/* Interactive Grid Background */}
-      <GridBackground gridSize={45} opacity={0.12} mousePos={mousePos} />
-
-      {/* Section Header */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 text-center mb-8">
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-xs tracking-widest text-tppslate/80 mb-2 font-light uppercase"
-        >
-          Curated Collections
-        </motion.p>
-        
-        <motion.h2
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.1 }}
-          className="text-4xl md:text-5xl text-tppslate mb-3"
-        >
-          Featured Gift Experiences
-        </motion.h2>
-        
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.2 }}
-          className="text-sm text-tppslate/90 max-w-xl mx-auto font-light"
-        >
-          Thoughtfully curated bundles for every special moment
-        </motion.p>
-      </div>
-
-      {/* Circular Gallery */}
-      <div className="relative z-10" style={{ height: '600px' }}>
-        <CircularGallery 
-          items={mockBundles}
-          bend={3} 
-          textColor="#ffffff" 
-          borderRadius={0.05} 
-          scrollSpeed={2}
-          scrollEase={0.05}
-          font="bold 24px sans-serif"
-        />
-      </div>
-
-      {/* CTA Button */}
-      <div className="relative z-10 text-center mt-8">
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="px-8 py-3 bg-pink-500 text-white rounded-full text-sm font-semibold shadow-lg hover:shadow-xl hover:bg-pink-600 transition-all"
-        >
-          Explore All Collections
-        </motion.button>
-      </div>
-    </section>
-  );
-};
-
-export default ExperienceGallery;
+}

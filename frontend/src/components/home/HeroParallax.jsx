@@ -55,12 +55,9 @@ const HeroParallax = () => {
           className="absolute inset-0 w-full h-full"
         >
           <motion.img
-            src="/assets/hero-video-poster.jpg"
+            src="/assets/hero-video-poster2.jpg"
             alt="Rizara Gift Experience"
             className="w-full h-full object-cover"
-            animate={{
-              filter: isHovered ? 'blur(0px)' : 'blur(2px)'
-            }}
             transition={{ duration: 0.4, ease: "easeInOut" }}
           />
           
@@ -69,57 +66,68 @@ const HeroParallax = () => {
         </motion.div>
       </div>
 
-      {/* Hero Content - Centered */}
-      <motion.div
-        style={{ opacity: contentOpacity, y: contentY }}
-        className="relative z-10 h-full flex items-center justify-center px-6"
-      >
-        <div className="max-w-4xl mx-auto text-center">
-          
-          {/* Brand Name */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="mb-6"
-          >
-            <h2 className="text-6xl md:text-12xl lg:text-[156px] font-italianno text-tpppink tracking-tight leading-none">
-              Rizara
-            </h2>
-            <p className="text-base md:text-lg text-tppslate/70 mt-3 tracking-wide font-light">
-              Moments Wrapped in Sparkle
-            </p>
-          </motion.div>
+      {/* CTA Buttons - Bottom Aligned */}
+<motion.div
+  style={{ opacity: contentOpacity, y: contentY }}
+  className="absolute bottom-28 left-0 right-0 z-10 px-6"
+>
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.8, delay: 0.4 }}
+    className="flex flex-col sm:flex-row items-center justify-center gap-4"
+  >
+    {/* Primary CTA */}
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.98 }}
+      className="px-8 py-4 bg-tpppink text-white rounded-full text-sm font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-shadow"
+      style={{
+        boxShadow: `
+          2px 2px 0 rgba(0,0,0,0.1),
+          4px 4px 0 rgba(0,0,0,0.09),
+          6px 6px 0 rgba(0,0,0,0.08),
+          8px 8px 0 rgba(0,0,0,0.07),
+          10px 10px 0 rgba(0,0,0,0.06),
+          12px 12px 0 rgba(0,0,0,0.05),
+          14px 14px 0 rgba(0,0,0,0.04),
+          16px 16px 0 rgba(0,0,0,0.03),
+          18px 18px 0 rgba(0,0,0,0.02),
+          20px 20px 0 rgba(0,0,0,0.01)
+        `
+      }}
+    >
+      <span>
+        Explore Collections
+      </span>
+      <ArrowRight size={18} />
+    </motion.button>
 
-          {/* CTA Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
-          >
-            {/* Primary CTA */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.98 }}
-              className="px-8 py-4 bg-tpppink text-white rounded-full text-sm font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-shadow"
-            >
-              Explore Collections
-              <ArrowRight size={18} />
-            </motion.button>
-
-            {/* Secondary CTA */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.98 }}
-              className="px-8 py-4 bg-white/90 backdrop-blur-sm text-tppslate rounded-full text-sm font-medium flex items-center gap-2 border border-tppgrey/30 hover:bg-white transition-colors"
-            >
-              <Sparkles size={18} />
-              Take Gift Quiz
-            </motion.button>
-          </motion.div>
-        </div>
-      </motion.div>
+    {/* Secondary CTA */}
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.98 }}
+      className="px-8 py-4 bg-white/90 backdrop-blur-sm text-tppslate rounded-full text-sm font-medium flex items-center gap-2 border border-tppgrey/30 hover:bg-white transition-colors"
+      style={{
+        boxShadow: `
+          2px 2px 0 rgba(0,0,0,0.08),
+          4px 4px 0 rgba(0,0,0,0.07),
+          6px 6px 0 rgba(0,0,0,0.06),
+          8px 8px 0 rgba(0,0,0,0.05),
+          10px 10px 0 rgba(0,0,0,0.04),
+          12px 12px 0 rgba(0,0,0,0.03),
+          14px 14px 0 rgba(0,0,0,0.02),
+          16px 16px 0 rgba(0,0,0,0.01)
+        `
+      }}
+    >
+      <Sparkles size={18} />
+      <span>
+        Take Gift Quiz
+      </span>
+    </motion.button>
+  </motion.div>
+</motion.div>
 
       {/* Animated Wave Divider - Bottom */}
       <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none overflow-hidden">
