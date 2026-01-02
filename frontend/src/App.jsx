@@ -1,4 +1,4 @@
-// frontend/src/App.jsx - WITH CART SIDEBAR & ORDER ROUTES & FORGOT PASSWORD
+// frontend/src/App.jsx - WITH HOME PAGE, CART SIDEBAR & ORDER ROUTES & FORGOT PASSWORD
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AdminAuthProvider } from './context/AdminAuthContext';
@@ -13,10 +13,12 @@ import ProtectedCustomerRoute from './components/user/ProtectedCustomerRoute';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminRoutes from './routes/adminRoutes';
 
-// User/Customer Pages
-import UserRoutes from './routes/userRoutes';
+// Public Pages
+import Home from './pages/Home';
 import Shop from './pages/ShopNew';
 import BundleDetailPage from './pages/BundleDetailPage';
+
+// User/Customer Auth Pages
 import UserLogin from './pages/user/UserLogin';
 import UserRegister from './pages/user/UserRegister';
 import ForgotPassword from './pages/user/ForgotPassword';
@@ -26,6 +28,9 @@ import Checkout from './pages/Checkout';
 // Order Pages
 import OrderSuccess from './pages/OrderSuccess';
 import OrderDetails from './pages/user/OrderDetails';
+
+// User Routes
+import UserRoutes from './routes/userRoutes';
 
 // Cart Sidebar Component
 import CartSidebar from './components/cart/CartSidebar';
@@ -43,8 +48,8 @@ function App() {
                 <Routes>
                   {/* ==================== PUBLIC ROUTES ==================== */}
                   
-                  {/* Root redirect */}
-                  <Route path="/" element={<Navigate to="/shop" replace />} />
+                  {/* Home Landing Page */}
+                  <Route path="/" element={<Home />} />
                   
                   {/* Shop Pages */}
                   <Route path="/shop" element={<Shop />} />
@@ -119,11 +124,12 @@ function App() {
                     }
                   />
 
+                  {/* OAuth Callback */}
                   <Route path="/auth/callback" element={<OAuthCallback />} />
 
                   {/* ==================== 404 - CATCH ALL ==================== */}
                   
-                  <Route path="*" element={<Navigate to="/shop" replace />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
 
                 {/* ✅ Global Cart Sidebar - Renders on top of everything */}

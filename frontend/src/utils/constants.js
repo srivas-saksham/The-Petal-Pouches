@@ -137,21 +137,6 @@ export const NAVIGATION_ITEMS = [
     icon: 'customer',
     section: 'sales',
   },
-  // {
-  //   id: 'notifications',
-  //   label: 'Notifications',
-  //   path: '/admin/notifications',
-  //   icon: 'notification',
-  //   section: 'system',
-  //   badge: true,
-  // },
-  // {
-  //   id: 'settings',
-  //   label: 'Settings',
-  //   path: '/admin/settings',
-  //   icon: 'settings',
-  //   section: 'system',
-  // },
 ];
 
 // Navigation Sections
@@ -173,7 +158,7 @@ export const DATE_FORMATS = {
   TIME: 'hh:mm A',
 };
 
-// ✅ UPDATED: Sort Options for Products (matches backend exactly)
+// Sort Options for Products
 export const PRODUCT_SORT_OPTIONS = [
   { value: 'created_at', label: 'Newest First' },
   { value: 'created_at_asc', label: 'Oldest First' },
@@ -193,7 +178,7 @@ export const ORDER_SORT_OPTIONS = [
   { value: 'total_asc', label: 'Amount: Low to High' },
 ];
 
-// ✅ UPDATED: Filter Options for Products with comprehensive stock levels
+// Filter Options for Products
 export const PRODUCT_FILTERS = {
   status: [
     { value: '', label: 'All Status' },
@@ -297,12 +282,12 @@ export const NOTIFICATION_TYPES = {
 export const CURRENCY = {
   symbol: '₹',
   code: 'INR',
-  position: 'before', // 'before' or 'after'
+  position: 'before',
 };
 
 // Image Upload Settings
 export const IMAGE_UPLOAD = {
-  maxSize: 5 * 1024 * 1024, // 5MB
+  maxSize: 5 * 1024 * 1024,
   allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
   maxDimensions: {
     width: 2000,
@@ -316,7 +301,7 @@ export const PAGINATION_DEFAULTS = {
   limit: 20,
 };
 
-// ✅ NEW: Stock Level Thresholds
+// Stock Level Thresholds
 export const STOCK_THRESHOLDS = {
   LOW_STOCK: 10,
   OUT_OF_STOCK: 0,
@@ -362,7 +347,72 @@ export const VALIDATION = {
   },
 };
 
-// Export all as default object as well
+// Customer Management
+export const CUSTOMER_SORT_OPTIONS = [
+  { value: 'created_at', label: 'Newest First' },
+  { value: 'created_at_asc', label: 'Oldest First' },
+  { value: 'name_asc', label: 'Name: A to Z' },
+  { value: 'name_desc', label: 'Name: Z to A' },
+  { value: 'last_login', label: 'Recently Active' },
+];
+
+export const CUSTOMER_FILTERS = {
+  status: [
+    { value: 'all', label: 'All Customers' },
+    { value: 'active', label: 'Active' },
+    { value: 'inactive', label: 'Inactive' },
+  ],
+};
+
+// ===========================
+// ✨ NEW: HOME PAGE CONSTANTS
+// ===========================
+
+// Hero Animation Timings (in milliseconds)
+export const HERO_ANIMATION = {
+  parallaxSpeed: 0.5,           // Parallax scroll multiplier
+  imageTransition: 600,         // Image fade/transform duration
+  textFadeIn: 800,              // Text reveal duration
+  buttonHoverScale: 1.05,       // Button scale on hover
+  ribbonFloat: 3000,            // Ribbon floating animation cycle
+  petalDrift: 4000,             // Petal falling animation cycle
+  glassBlur: 12,                // Backdrop blur strength (px)
+};
+
+// Home Page Section Delays (staggered reveals)
+export const SECTION_REVEAL_DELAYS = {
+  hero: 0,
+  giftQuiz: 200,
+  experienceGallery: 400,
+  unboxingReel: 600,
+};
+
+// Curated Gift Box Moods
+export const GIFT_MOODS = [
+  {
+    id: 'romantic',
+    label: 'The Romantic',
+    description: 'For those who believe in grand gestures',
+    colors: ['#FFB5A0', '#FFC5D0'],
+    icon: '💕',
+  },
+  {
+    id: 'bestie',
+    label: 'The Bestie Bundle',
+    description: 'For the ride-or-die friendship',
+    colors: ['#FFD4A3', '#FFF1D0'],
+    icon: '✨',
+  },
+  {
+    id: 'birthday',
+    label: 'The Birthday Sparkle',
+    description: 'Make their special day unforgettable',
+    colors: ['#D4A5FF', '#E8C5FF'],
+    icon: '🎉',
+  },
+];
+
+// Export all as default
 export default {
   PRODUCT_STATUS,
   ORDER_STATUS,
@@ -388,21 +438,9 @@ export default {
   STOCK_THRESHOLDS,
   API_MESSAGES,
   VALIDATION,
-};
-
-// Customer Management
-export const CUSTOMER_SORT_OPTIONS = [
-  { value: 'created_at', label: 'Newest First' },
-  { value: 'created_at_asc', label: 'Oldest First' },
-  { value: 'name_asc', label: 'Name: A to Z' },
-  { value: 'name_desc', label: 'Name: Z to A' },
-  { value: 'last_login', label: 'Recently Active' },
-];
-
-export const CUSTOMER_FILTERS = {
-  status: [
-    { value: 'all', label: 'All Customers' },
-    { value: 'active', label: 'Active' },
-    { value: 'inactive', label: 'Inactive' },
-  ],
+  CUSTOMER_SORT_OPTIONS,
+  CUSTOMER_FILTERS,
+  HERO_ANIMATION,
+  SECTION_REVEAL_DELAYS,
+  GIFT_MOODS,
 };

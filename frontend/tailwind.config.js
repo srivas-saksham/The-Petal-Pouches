@@ -16,6 +16,7 @@ export default {
       fontFamily: {
         sans: ['"Yatra One"', 'system-ui', '-apple-system', 'sans-serif'], // Default font
         greyqo: ['"Grey Qo"', 'cursive'], // Decorative font
+        italianno: ['"Italianno"', 'cursive'], // Italianno decorative font
         inter: ['Inter', 'system-ui', 'sans-serif'], // Fallback modern font
       },
       boxShadow: {

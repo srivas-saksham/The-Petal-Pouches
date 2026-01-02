@@ -1,0 +1,495 @@
+/* frontend/src/styles/home.css */
+
+/* ===========================
+   RIZARA HOME PAGE STYLES - REDESIGNED
+   Minimal, Premium, Curved Sections
+   =========================== */
+
+/* ===========================
+   1. GLOBAL RESETS & BASE
+   =========================== */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ===========================
+   2. HERO SECTION - CURVED MASK
+   =========================== */
+
+.hero-section {
+  position: relative;
+  width: 100%;
+  min-height: 85vh;
+  overflow: hidden;
+}
+
+/* Remove all straight edges */
+.hero-curved-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  clip-path: ellipse(120% 100% at 50% 0%);
+  -webkit-clip-path: ellipse(120% 100% at 50% 0%);
+}
+
+/* Subtle depth overlay */
+.hero-depth-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.05) 0%,
+    transparent 30%,
+    transparent 70%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Content floating above image */
+.hero-content-layer {
+  position: relative;
+  z-index: 10;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* ===========================
+   3. CURVED SECTION DIVIDERS
+   =========================== */
+
+/* Wave separator - top */
+.wave-divider-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 80px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Wave separator - bottom */
+.wave-divider-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 80px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ===========================
+   4. BUNDLE CARDS - IMAGE POP OUT
+   =========================== */
+
+.bundle-card {
+  position: relative;
+  background: white;
+  border-radius: 24px;
+  overflow: visible; /* IMPORTANT - allows image to escape */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.4s ease;
+  cursor: pointer;
+}
+
+.bundle-card:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Image container that pops out */
+.bundle-image-container {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  border-radius: 24px 24px 0 0;
+  overflow: hidden;
+  background: #F7E1D7;
+}
+
+/* The actual image that scales and escapes */
+.bundle-card:hover .bundle-image-container img {
+  transform: scale(1.15) translateY(-12px);
+  z-index: 50;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+  border-radius: 20px;
+}
+
+.bundle-image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
+}
+
+/* ===========================
+   5. TWO-COLUMN QUIZ SECTION
+   =========================== */
+
+.quiz-section {
+  position: relative;
+  padding: 6rem 1.5rem;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 241, 246, 0.3) 50%,
+    rgba(247, 225, 215, 0.3) 100%
+  );
+}
+
+.quiz-two-column {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3rem;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (min-width: 1024px) {
+  .quiz-two-column {
+    grid-template-columns: 55fr 45fr; /* Slightly right-heavy */
+  }
+}
+
+/* Visual card on right */
+.quiz-visual-card {
+  position: relative;
+  background: white;
+  border-radius: 32px;
+  padding: 2rem;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* ===========================
+   6. ORGANIC SECTION BACKGROUNDS
+   =========================== */
+
+/* Soft curved background shapes */
+.section-organic-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.section-organic-bg::before {
+  content: '';
+  position: absolute;
+  top: -10%;
+  left: -5%;
+  width: 60%;
+  height: 60%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 181, 160, 0.08) 0%,
+    transparent 70%
+  );
+  border-radius: 50%;
+}
+
+.section-organic-bg::after {
+  content: '';
+  position: absolute;
+  bottom: -15%;
+  right: -10%;
+  width: 50%;
+  height: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(212, 165, 255, 0.06) 0%,
+    transparent 70%
+  );
+  border-radius: 50%;
+}
+
+/* ===========================
+   7. TYPOGRAPHY SCALE
+   =========================== */
+
+/* Small body text */
+.text-body-sm {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  font-weight: 300;
+  letter-spacing: 0.01em;
+}
+
+/* Medium UI text */
+.text-ui-md {
+  font-size: 1rem;
+  line-height: 1.5;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* Large hero headings only */
+.text-hero-lg {
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Section headings */
+.text-section-title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* ===========================
+   8. SPACING SYSTEM
+   =========================== */
+
+.spacing-section {
+  padding: 5rem 1.5rem;
+}
+
+.spacing-compact {
+  padding: 3rem 1.5rem;
+}
+
+.spacing-tight {
+  padding: 2rem 1.5rem;
+}
+
+/* Vertical rhythm */
+.rhythm-heading {
+  margin-bottom: 1.5rem;
+}
+
+.rhythm-paragraph {
+  margin-bottom: 1rem;
+}
+
+/* ===========================
+   9. PREMIUM INTERACTIONS
+   =========================== */
+
+/* Subtle hover states */
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* Soft button transitions */
+.button-premium {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.button-premium:hover {
+  transform: scale(1.05);
+}
+
+.button-premium:active {
+  transform: scale(0.98);
+}
+
+/* ===========================
+   10. SCROLL PROGRESS BAR
+   =========================== */
+
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #d95669 0%, #FF8FA3 100%);
+  z-index: 9999;
+  box-shadow: 0 1px 4px rgba(217, 86, 105, 0.3);
+  transform-origin: left;
+}
+
+/* ===========================
+   11. DEPTH & LAYERING
+   =========================== */
+
+/* Z-space hierarchy */
+.z-layer-bg {
+  z-index: 1;
+}
+
+.z-layer-content {
+  z-index: 10;
+}
+
+.z-layer-floating {
+  z-index: 20;
+}
+
+.z-layer-overlay {
+  z-index: 30;
+}
+
+.z-layer-nav {
+  z-index: 40;
+}
+
+.z-layer-modal {
+  z-index: 50;
+}
+
+/* Subtle shadow depths */
+.shadow-subtle {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.shadow-soft {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.shadow-medium {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.shadow-strong {
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+}
+
+/* ===========================
+   12. RESPONSIVE ADJUSTMENTS
+   =========================== */
+
+@media (max-width: 1024px) {
+  .hero-section {
+    min-height: 75vh;
+  }
+
+  .spacing-section {
+    padding: 4rem 1.5rem;
+  }
+
+  .text-hero-lg {
+    font-size: clamp(2rem, 6vw, 3.5rem);
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-section {
+    min-height: 65vh;
+  }
+
+  .spacing-section {
+    padding: 3rem 1rem;
+  }
+
+  .bundle-image-container {
+    height: 240px;
+  }
+
+  .wave-divider-top,
+  .wave-divider-bottom {
+    height: 60px;
+  }
+}
+
+/* ===========================
+   13. ACCESSIBILITY & MOTION
+   =========================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus states */
+*:focus-visible {
+  outline: 2px solid #d95669;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ===========================
+   14. LOADING & SKELETON STATES
+   =========================== */
+
+.skeleton-loader {
+  background: linear-gradient(
+    90deg,
+    #F7E1D7 0%,
+    #DEDBD2 50%,
+    #F7E1D7 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite;
+  border-radius: 16px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ===========================
+   15. UTILITY CLASSES
+   =========================== */
+
+/* Curved containers */
+.curved-top {
+  border-radius: 0 0 32px 32px;
+}
+
+.curved-bottom {
+  border-radius: 32px 32px 0 0;
+}
+
+.curved-all {
+  border-radius: 32px;
+}
+
+/* Soft backgrounds */
+.bg-soft-peach {
+  background: linear-gradient(135deg, #FFF1F6 0%, #FFE8E0 100%);
+}
+
+.bg-soft-cream {
+  background: linear-gradient(135deg, #FFFFFF 0%, #F7E1D7 100%);
+}
+
+/* Text weights */
+.font-light {
+  font-weight: 300;
+}
+
+.font-regular {
+  font-weight: 400;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+/* ===========================
+   END OF STYLESHEET
+   =========================== */
