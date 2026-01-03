@@ -3,13 +3,13 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Mail, MapPin, Phone, Instagram, Facebook, Twitter } from 'lucide-react';
-import HomeHeader from './HomeHeader';
+import CommonHeader from '../common/CommonHeader';
 
 /**
  * HomeLayout Component
  * 
  * Features:
- * - New HomeHeader with all ShopHeader functionalities
+ * - New CommonHeader with all ShopHeader functionalities
  * - Scroll progress bar
  * - Premium footer with curved waves
  * - Clean, minimal design
@@ -41,8 +41,8 @@ const HomeLayout = ({ children }) => {
         }}
       />
 
-      {/* New HomeHeader */}
-      <HomeHeader />
+      {/* New CommonHeader */}
+      <CommonHeader />
 
       {/* Main Content */}
       <main>

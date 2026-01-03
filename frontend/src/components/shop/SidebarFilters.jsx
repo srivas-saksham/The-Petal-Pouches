@@ -110,7 +110,7 @@ const SidebarFilters = ({
   );
 
   return (
-    <div className="w-80 bg-white border-l border-slate-200 shadow-lg overflow-hidden sticky top-44 max-h-screen flex flex-col">
+    <div className="w-80 bg-white border-l border-slate-200 shadow-lg overflow-hidden sticky top-40 max-h-screen flex flex-col">
       {/* Header with Clear All Button */}
       <div className="bg-gradient-to-r from-tpppeach to-white border-b-2 border-tpppink/20 px-6 py-4 flex-shrink-0">
         <div className="flex items-center justify-between">

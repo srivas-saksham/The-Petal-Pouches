@@ -5,7 +5,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import BundleGrid from '../components/shop/BundleGrid';
 import BundleEmpty from '../components/shop/BundleEmpty';
 import SidebarFilters from '../components/shop/SidebarFilters';
-import ShopHeader from '../components/shop/ShopHeader';
+import CommonHeader from '../components/common/CommonHeader';
+import ShopFiltersBar from '../components/shop/ShopFiltersBar';
 import ShopLoadingPage from '../components/shop/ShopLoadingPage'; // ✅ NEW IMPORT
 import useBundleFilters from '../hooks/useBundleFilters';
 import bundleService from '../services/bundleService';
@@ -239,7 +240,7 @@ const BundleShop = () => {
       {/* Content */}
       <div className="relative z-10">
         {/* SHOP HEADER */}
-        <ShopHeader
+        <CommonHeader
           filters={filters}
           onSearchChange={handleSearchChange}
           onTagClick={handleTagClick}
@@ -247,6 +248,16 @@ const BundleShop = () => {
           selectedTags={selectedTags}
           loading={tagsLoading}
           metadata={metadata}
+          layoutMode={layoutMode}
+          onLayoutChange={handleLayoutChange}
+        />
+
+        {/* SHOP FILTERS BAR - Tags & Layout */}
+        <ShopFiltersBar
+          availableTags={availableTags}
+          selectedTags={selectedTags}
+          onTagClick={handleTagClick}
+          loading={tagsLoading}
           layoutMode={layoutMode}
           onLayoutChange={handleLayoutChange}
         />

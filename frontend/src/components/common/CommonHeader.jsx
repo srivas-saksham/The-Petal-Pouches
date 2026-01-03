@@ -1,4 +1,4 @@
-// frontend/src/components/home/HomeHeader.jsx
+// frontend/src/components/common/CommonHeader.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ShoppingCart, User, Search, X, ChevronDown, Package } from 'lucide-react';
@@ -8,7 +8,7 @@ import { useCartSidebar } from '../../hooks/useCartSidebar';
 import UserProfileMenu from '../shop/UserProfileMenu';
 import SmartBundleSearch from '../common/SmartBundleSearch';
 
-const HomeHeader = () => {
+const CommonHeader = () => {
   const { isAuthenticated, user, loading: authLoading, logout } = useUserAuth();
   const { cartTotals } = useCart();
   const { openCart } = useCartSidebar();
@@ -91,7 +91,7 @@ const HomeHeader = () => {
           {/* Logo - Left */}
           <Link to="/" className="flex-shrink-0 flex items-center gap-3">
             <img 
-              src="/assets/R_logo.png" 
+              src="/assets/RZ_logo_simple.png" 
               alt="Rizara Logo" 
               className="h-16 w-16 object-contain"
             />
@@ -285,4 +285,4 @@ const HomeHeader = () => {
   );
 };
 
-export default HomeHeader;
+export default CommonHeader;
