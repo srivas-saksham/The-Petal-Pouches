@@ -108,20 +108,19 @@ const UserProfileMenu = ({ user }) => {
       {/* Profile Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all
+        className={`flex items-center rounded-lg border border-transparent transition-all
           ${isOpen 
-            ? 'border-tpppink bg-pink-50 text-tpppink' 
-            : 'border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-slate-400 text-slate-700'
-          }
-          focus:outline-none focus:ring-2 focus:ring-tpppink/30`}
+            ? 'text-tpppink' 
+            : 'text-tppslate hover:text-tpppink'
+          }`}
         aria-label="User menu"
         aria-expanded={isOpen}
       >
         {/* User Avatar */}
-        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all
-          ${isOpen ? 'bg-tpppink text-white' : 'bg-gradient-to-br from-tpppink to-tpppeach text-white'}`}
+        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all`}
         >
-          {getInitials(user?.name)}
+          {/* {getInitials(user?.name)} */}
+          <User size={22}/>
         </div>
 
         {/* User Name (hidden on mobile) */}
@@ -151,11 +150,11 @@ const UserProfileMenu = ({ user }) => {
           <div className="p-4 bg-gradient-to-br from-pink-50 to-orange-50 border-b border-slate-100">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-tpppink to-tpppeach 
-                flex items-center justify-center text-white text-lg font-bold shadow-md">
+                flex items-center justify-center text-white font-inter text-lg font-bold shadow-md">
                 {getInitials(user?.name)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-900 truncate">
+                <p className="text-lg font-semibold text-tppslate truncate">
                   {user?.name || 'User'}
                 </p>
                 <p className="text-xs text-slate-600 truncate">
