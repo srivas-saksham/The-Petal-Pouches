@@ -4,15 +4,26 @@ const supabase = require('../config/supabaseClient');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
+// ✅ ENFORCE SECRET
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+  throw new Error('❌ CRITICAL: JWT_SECRET must be set and at least 32 characters');
+}
+
+// ✅ INPUT SANITIZATION
+const sanitizeInput = (str) => {
+  if (typeof str !== 'string') return str;
+  return str.trim().toLowerCase();
+};
+
 /**
- * Admin Registration (one-time setup by super admin)
+ * Admin Registration
  * POST /api/admin/auth/register
  */
 const registerAdmin = async (req, res) => {
   try {
     const { email, password, name, role } = req.body;
 
-    // Validate
     if (!email || !password || !name) {
       return res.status(400).json({
         success: false,
@@ -20,11 +31,30 @@ const registerAdmin = async (req, res) => {
       });
     }
 
-    // Check if admin already exists
+    // ✅ Sanitize email
+    const sanitizedEmail = sanitizeInput(email);
+
+    // ✅ Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(sanitizedEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid email format'
+      });
+    }
+
+    // ✅ Validate password strength
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters'
+      });
+    }
+
     const { data: existingAdmin } = await supabase
       .from('admin_users')
       .select('id')
-      .eq('email', email)
+      .eq('email', sanitizedEmail)
       .single();
 
     if (existingAdmin) {
@@ -34,23 +64,31 @@ const registerAdmin = async (req, res) => {
       });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // ✅ Use bcrypt cost factor 12 (more secure)
+    const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create admin user
     const { data: admin, error } = await supabase
       .from('admin_users')
       .insert([{
-        email,
+        email: sanitizedEmail,
         password_hash: hashedPassword,
-        name,
-        role: role || 'staff', // Default to staff
+        name: name.trim(),
+        role: role || 'staff',
         is_active: true
       }])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      // ✅ Don't leak database errors
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Admin registration error:', error);
+      }
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to register admin'
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -64,11 +102,12 @@ const registerAdmin = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Admin registration error:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Admin registration error:', error);
+    }
     res.status(500).json({
       success: false,
-      message: 'Failed to register admin',
-      error: error.message
+      message: 'Failed to register admin'
     });
   }
 };
@@ -81,7 +120,6 @@ const loginAdmin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validate
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -89,11 +127,13 @@ const loginAdmin = async (req, res) => {
       });
     }
 
-    // Find admin user
+    // ✅ Sanitize email
+    const sanitizedEmail = sanitizeInput(email);
+
     const { data: admin, error: fetchError } = await supabase
       .from('admin_users')
       .select('*')
-      .eq('email', email)
+      .eq('email', sanitizedEmail)
       .single();
 
     if (fetchError || !admin) {
@@ -103,7 +143,6 @@ const loginAdmin = async (req, res) => {
       });
     }
 
-    // Check if admin is active
     if (!admin.is_active) {
       return res.status(403).json({
         success: false,
@@ -111,7 +150,6 @@ const loginAdmin = async (req, res) => {
       });
     }
 
-    // Verify password
     const passwordMatch = await bcrypt.compare(password, admin.password_hash);
     if (!passwordMatch) {
       return res.status(401).json({
@@ -120,12 +158,12 @@ const loginAdmin = async (req, res) => {
       });
     }
 
-    // ✅ CLEAR RATE LIMIT ON SUCCESSFUL LOGIN
+    // ✅ Clear rate limit
     const { clearRateLimit } = require('../middleware/adminAuth');
     const ip = req.ip || req.connection.remoteAddress;
     clearRateLimit(ip);
 
-    // Generate JWT token with SHORTER expiration (30 minutes for session-based)
+    // ✅ Use enforced secret
     const token = jwt.sign(
       {
         id: admin.id,
@@ -134,11 +172,10 @@ const loginAdmin = async (req, res) => {
         role: admin.role,
         permissions: admin.permissions
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      JWT_SECRET,
       { expiresIn: '30m' }
     );
 
-    // Update last login
     await supabase
       .from('admin_users')
       .update({ last_login: new Date().toISOString() })
@@ -161,24 +198,24 @@ const loginAdmin = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Admin login error:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Admin login error:', error);
+    }
     res.status(500).json({
       success: false,
-      message: 'Login failed',
-      error: error.message
+      message: 'Login failed'
     });
   }
 };
 
 /**
- * ✅ NEW: Verify Admin Password (Re-authentication)
+ * Verify Admin Password
  * POST /api/admin/auth/verify
  */
 const verifyAdminPassword = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validate
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -186,11 +223,12 @@ const verifyAdminPassword = async (req, res) => {
       });
     }
 
-    // Find admin user
+    const sanitizedEmail = sanitizeInput(email);
+
     const { data: admin, error: fetchError } = await supabase
       .from('admin_users')
       .select('*')
-      .eq('email', email)
+      .eq('email', sanitizedEmail)
       .single();
 
     if (fetchError || !admin) {
@@ -200,7 +238,6 @@ const verifyAdminPassword = async (req, res) => {
       });
     }
 
-    // Check if admin is active
     if (!admin.is_active) {
       return res.status(403).json({
         success: false,
@@ -208,7 +245,6 @@ const verifyAdminPassword = async (req, res) => {
       });
     }
 
-    // Verify password
     const passwordMatch = await bcrypt.compare(password, admin.password_hash);
     if (!passwordMatch) {
       return res.status(401).json({
@@ -217,12 +253,10 @@ const verifyAdminPassword = async (req, res) => {
       });
     }
 
-    // ✅ CLEAR RATE LIMIT ON SUCCESSFUL VERIFICATION
     const { clearRateLimit } = require('../middleware/adminAuth');
     const ip = req.ip || req.connection.remoteAddress;
     clearRateLimit(ip);
 
-    // Generate new session token
     const token = jwt.sign(
       {
         id: admin.id,
@@ -231,11 +265,10 @@ const verifyAdminPassword = async (req, res) => {
         role: admin.role,
         permissions: admin.permissions
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      JWT_SECRET,
       { expiresIn: '30m' }
     );
 
-    // Optional: Log re-authentication attempt
     await supabase
       .from('admin_users')
       .update({ 
@@ -260,11 +293,12 @@ const verifyAdminPassword = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Admin verification error:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Admin verification error:', error);
+    }
     res.status(500).json({
       success: false,
-      message: 'Verification failed',
-      error: error.message
+      message: 'Verification failed'
     });
   }
 };
@@ -275,7 +309,6 @@ const verifyAdminPassword = async (req, res) => {
  */
 const getCurrentAdmin = async (req, res) => {
   try {
-    // req.admin is set by middleware
     res.status(200).json({
       success: true,
       data: req.admin
@@ -293,8 +326,6 @@ const getCurrentAdmin = async (req, res) => {
  * POST /api/admin/auth/logout
  */
 const logoutAdmin = async (req, res) => {
-  // JWT logout is client-side (delete token)
-  // Optional: add token to blacklist in DB
   res.status(200).json({
     success: true,
     message: 'Logout successful'
@@ -316,14 +347,9 @@ const refreshToken = async (req, res) => {
       });
     }
 
-    // Verify old token
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || 'your-secret-key',
-      { ignoreExpiration: true }
-    );
+    // ✅ Use enforced secret
+    const decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true });
 
-    // Get fresh admin data
     const { data: admin, error } = await supabase
       .from('admin_users')
       .select('*')
@@ -337,7 +363,13 @@ const refreshToken = async (req, res) => {
       });
     }
 
-    // Generate new token
+    if (!admin.is_active) {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin account deactivated'
+      });
+    }
+
     const newToken = jwt.sign(
       {
         id: admin.id,
@@ -346,8 +378,8 @@ const refreshToken = async (req, res) => {
         role: admin.role,
         permissions: admin.permissions
       },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '30m' } // ✅ Changed to 30m
+      JWT_SECRET,
+      { expiresIn: '30m' }
     );
 
     res.status(200).json({
@@ -374,7 +406,7 @@ const refreshToken = async (req, res) => {
 module.exports = {
   registerAdmin,
   loginAdmin,
-  verifyAdminPassword, // ✅ NEW: Export verify function
+  verifyAdminPassword,
   getCurrentAdmin,
   logoutAdmin,
   refreshToken

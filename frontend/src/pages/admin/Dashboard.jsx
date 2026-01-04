@@ -23,7 +23,7 @@ import {
   getMonthlyRevenue,
   getTopProducts, // ✅ Now returns top bundles
 } from '../../services/statsService';
-import { getRecentOrders } from '../../services/orderService';
+import { getRecentAdminOrders } from '../../services/orderService';
 
 export default function Dashboard() {
   // ==================== STATE ====================
@@ -53,7 +53,7 @@ export default function Dashboard() {
         revenueResult,
       ] = await Promise.all([
         getDashboardStats(),
-        getRecentOrders(10), // Last 10 orders
+        getRecentAdminOrders(10),
         getTopProducts(5),    // ✅ Now returns top 5 bundles
         getMonthlyRevenue(),  // Last 6 months
       ]);

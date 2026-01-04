@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../hooks/useToast';
+import { createProduct } from '../../services/adminProductService'; // ✅ ADDED
+import { getCategories, createCategory } from '../../services/adminCategoryService'; // ✅ ADDED
 
 const InputWrapper = ({ label, name, required, icon: Icon, children, hint, error }) => (
     <div className="space-y-2">
@@ -76,16 +78,20 @@ const CreateProductForm = ({ onSuccess }) => {
     fetchCategories();
   }, []);
 
-  const fetchCategories = async () => {
-    setLoadingCategories(true);
+ const fetchCategories = async () => {
+  setLoadingCategories(true);
     try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_BASE_URL}/api/categories`
-      );
-      const categoriesData = response.data.data || response.data.categories || response.data || [];
+      const response = await getCategories(); // ✅ CHANGED
+      
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load categories');
+      }
+      
+      const categoriesData = response.data.data || response.data || [];
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
     } catch (error) {
       console.error('Error fetching categories:', error);
+      toast.error('Failed to load categories');
     } finally {
       setLoadingCategories(false);
     }
@@ -197,15 +203,16 @@ const CreateProductForm = ({ onSuccess }) => {
     }
 
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL}/api/categories/admin`,
-        {
-          name: newCategory.name,
-          description: newCategory.description
-        }
-      );
+      const response = await createCategory({ // ✅ CHANGED
+        name: newCategory.name,
+        description: newCategory.description
+      });
+      
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to create category');
+      }
 
-      setCategoryMessage({ type: 'success', text: 'Category created successfully!' });
+      toast.success('Category created successfully!');
       
       // Reset form
       setNewCategory({ name: '', description: '' });
@@ -214,18 +221,17 @@ const CreateProductForm = ({ onSuccess }) => {
       await fetchCategories();
       
       // Auto-select the newly created category
-      const newCategoryData = response.data.data;
+      const newCategoryData = response.data.data || response.data;
       setFormData({ ...formData, category_id: newCategoryData.id });
       
       // Close the add category section after a short delay
       setTimeout(() => {
         setShowAddCategory(false);
-        
       }, 1500);
 
     } catch (error) {
       console.error('Error creating category:', error);
-      toast.error(error.response?.data?.message || 'Failed to create category');
+      toast.error(error.message || 'Failed to create category');
     }
   };
 
@@ -269,28 +275,22 @@ const CreateProductForm = ({ onSuccess }) => {
     
 
     try {
-      const data = new FormData();
-      data.append('image', image);
-      data.append('title', formData.title.trim());
-      data.append('description', formData.description.trim());
-      data.append('price', formData.price);
-      data.append('stock', formData.stock);
-      data.append('sku', formData.sku.trim());
-      data.append('has_variants', hasVariants);
-      
-      if (formData.category_id) {
-        data.append('category_id', formData.category_id);
-      }
+      const productData = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        price: formData.price,
+        stock: formData.stock,
+        sku: formData.sku.trim(),
+        has_variants: hasVariants,
+        category_id: formData.category_id || '',
+        image: image // File object
+      };
 
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL}/api/admin/products`,
-        data,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      );
+      const response = await createProduct(productData); // ✅ CHANGED
+      
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to create product');
+      }
 
       toast.success('Product created successfully!');
 
@@ -310,12 +310,13 @@ const CreateProductForm = ({ onSuccess }) => {
       setTouched({});
 
       if (onSuccess) {
-        setTimeout(() => onSuccess(response.data.data), 1500);
+        const productData = response.data.data || response.data;
+        setTimeout(() => onSuccess(productData), 1500);
       }
 
     } catch (error) {
       console.error('Error creating product:', error);
-      toast.error(error.response?.data?.message || 'Failed to create product');
+      toast.error(error.message || 'Failed to create product');
 
     } finally {
       setLoading(false);

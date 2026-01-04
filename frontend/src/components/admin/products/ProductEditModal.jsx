@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import UpdateProductForm from '../../adminComps/UpdateProductForm';
-import { getProductById } from '../../../services/productService';
+import { getProductById } from '../../../services/adminProductService';
 
 /**
  * Wrapper component for UpdateProductForm to work with new modal system

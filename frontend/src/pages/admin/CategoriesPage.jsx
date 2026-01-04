@@ -14,11 +14,11 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
-} from '../../services/categoryService';
-import { getProductsByCategory } from '../../services/productService';
+} from '../../services/adminCategoryService';
+import { getProductsByCategory } from '../../services/adminProductService';
 
 // Import getProducts to fetch all products
-import { getProducts, updateProduct } from '../../services/productService';
+import { getProducts, updateProduct } from '../../services/adminProductService';
 
 // Format currency
 const formatCurrency = (amount) => {

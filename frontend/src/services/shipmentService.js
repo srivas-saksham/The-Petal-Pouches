@@ -1,9 +1,10 @@
 // frontend/src/services/shipmentService.js
-import api from './api';
+import adminApi from './adminApi'; // ✅ FIXED: Use admin API instance
 
 /**
  * Shipment Service - Frontend
  * API calls for admin shipment management
+ * ✅ SECURITY: Uses adminApi to ensure admin_token is sent
  */
 const shipmentService = {
 
@@ -12,7 +13,7 @@ const shipmentService = {
    */
   getAllShipments: async (params = {}) => {
     try {
-      const response = await api.get('/api/admin/shipments', { params });
+      const response = await adminApi.get('/api/admin/shipments', { params });
       return {
         success: true,
         data: response.data.data,
@@ -31,7 +32,7 @@ const shipmentService = {
    */
   getPendingShipments: async () => {
     try {
-      const response = await api.get('/api/admin/shipments/pending');
+      const response = await adminApi.get('/api/admin/shipments/pending');
       return {
         success: true,
         data: response.data.data,
@@ -50,7 +51,7 @@ const shipmentService = {
    */
   getShipmentById: async (shipmentId) => {
     try {
-      const response = await api.get(`/api/admin/shipments/${shipmentId}`);
+      const response = await adminApi.get(`/api/admin/shipments/${shipmentId}`);
       return {
         success: true,
         data: response.data.data
@@ -68,7 +69,7 @@ const shipmentService = {
    */
   updateShipment: async (shipmentId, updateData) => {
     try {
-      const response = await api.put(`/api/admin/shipments/${shipmentId}`, updateData);
+      const response = await adminApi.put(`/api/admin/shipments/${shipmentId}`, updateData);
       return {
         success: true,
         data: response.data.data,
@@ -87,7 +88,7 @@ const shipmentService = {
    */
   recalculateCost: async (shipmentId) => {
     try {
-      const response = await api.post(`/api/admin/shipments/${shipmentId}/recalculate-cost`);
+      const response = await adminApi.post(`/api/admin/shipments/${shipmentId}/recalculate-cost`);
       return {
         success: true,
         data: response.data.data,
@@ -106,7 +107,7 @@ const shipmentService = {
    */
   approveAndPlace: async (shipmentId) => {
     try {
-      const response = await api.post(`/api/admin/shipments/${shipmentId}/approve-and-place`);
+      const response = await adminApi.post(`/api/admin/shipments/${shipmentId}/approve-and-place`);
       return {
         success: true,
         data: response.data.data,
@@ -126,7 +127,7 @@ const shipmentService = {
    */
   schedulePickup: async (shipmentId, pickupDate = null) => {
     try {
-      const response = await api.post(`/api/admin/shipments/${shipmentId}/schedule-pickup`, { 
+      const response = await adminApi.post(`/api/admin/shipments/${shipmentId}/schedule-pickup`, { 
         pickup_date: pickupDate 
       });
       return {
@@ -147,7 +148,7 @@ const shipmentService = {
    */
   bulkApprove: async (shipmentIds) => {
     try {
-      const response = await api.post('/api/admin/shipments/bulk-approve', {
+      const response = await adminApi.post('/api/admin/shipments/bulk-approve', {
         shipment_ids: shipmentIds
       });
       return {
@@ -168,7 +169,7 @@ const shipmentService = {
    */
   cancelShipment: async (shipmentId, reason) => {
     try {
-      const response = await api.post(`/api/admin/shipments/${shipmentId}/cancel`, { reason });
+      const response = await adminApi.post(`/api/admin/shipments/${shipmentId}/cancel`, { reason });
       return {
         success: true,
         data: response.data.data,
@@ -187,7 +188,7 @@ const shipmentService = {
    */
   getShipmentStats: async () => {
     try {
-      const response = await api.get('/api/admin/shipments/stats');
+      const response = await adminApi.get('/api/admin/shipments/stats');
       return {
         success: true,
         data: response.data.data
@@ -207,7 +208,7 @@ const shipmentService = {
    */
   checkEditEligibility: async (shipmentId) => {
     try {
-      const response = await api.get(`/api/admin/shipments/${shipmentId}/edit-eligibility`);
+      const response = await adminApi.get(`/api/admin/shipments/${shipmentId}/edit-eligibility`);
       return {
         success: true,
         eligible: response.data.eligible,
@@ -229,7 +230,7 @@ const shipmentService = {
    */
   editShipment: async (shipmentId, updateData) => {
     try {
-      const response = await api.put(`/api/admin/shipments/${shipmentId}/edit`, updateData);
+      const response = await adminApi.put(`/api/admin/shipments/${shipmentId}/edit`, updateData);
       return {
         success: true,
         data: response.data.data,
@@ -251,7 +252,7 @@ const shipmentService = {
    */
   validateEdit: async (shipmentId, updateData) => {
     try {
-      const response = await api.post(`/api/admin/shipments/${shipmentId}/validate-edit`, updateData);
+      const response = await adminApi.post(`/api/admin/shipments/${shipmentId}/validate-edit`, updateData);
       return {
         success: true,
         valid: response.data.valid,
@@ -273,7 +274,7 @@ const shipmentService = {
    */
   getEditHistory: async (shipmentId) => {
     try {
-      const response = await api.get(`/api/admin/shipments/${shipmentId}/edit-history`);
+      const response = await adminApi.get(`/api/admin/shipments/${shipmentId}/edit-history`);
       return {
         success: true,
         data: response.data.data

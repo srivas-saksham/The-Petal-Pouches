@@ -7,6 +7,11 @@ const { clearCustomerRateLimit } = require('../middleware/userAuth');
 const OTPModel = require('../models/otpModel');
 const emailService = require('../services/emailService');
 
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+  throw new Error('❌ CRITICAL: JWT_SECRET must be set and at least 32 characters');
+}
+
 /**
  * User Authentication Controller
  * Handles customer registration, login, logout, password reset, email verification
@@ -90,11 +95,12 @@ const UserAuthController = {
       });
 
     } catch (error) {
-      console.error('Registration error:', error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Registration error:', error);
+      }
       res.status(500).json({
         success: false,
-        message: 'Registration failed. Please try again.',
-        error: error.message
+        message: 'Registration failed. Please try again.'
       });
     }
   },
@@ -157,7 +163,7 @@ const UserAuthController = {
           name: newUser.name,
           email_verified: true
         },
-        process.env.JWT_SECRET || 'your-secret-key',
+        JWT_SECRET,
         { expiresIn: '7d' }
       );
 
@@ -187,11 +193,12 @@ const UserAuthController = {
       });
 
     } catch (error) {
-      console.error('Complete registration error:', error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Complete registration error:', error);
+      }
       res.status(500).json({
         success: false,
-        message: 'Registration failed. Please try again.',
-        error: error.message
+        message: 'Registration failed. Please try again.'
       });
     }
   },
@@ -268,7 +275,7 @@ const UserAuthController = {
           name: user.name,
           email_verified: user.email_verified
         },
-        process.env.JWT_SECRET || 'your-secret-key',
+        JWT_SECRET,
         { expiresIn: '7d' }
       );
 
@@ -289,11 +296,12 @@ const UserAuthController = {
       });
 
     } catch (error) {
-      console.error('Login error:', error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Login error:', error);
+      }
       res.status(500).json({
         success: false,
-        message: 'Login failed. Please try again.',
-        error: error.message
+        message: 'Login failed. Please try again.'
       });
     }
   },
@@ -392,7 +400,7 @@ const UserAuthController = {
           name: user.name,
           email_verified: user.email_verified
         },
-        process.env.JWT_SECRET || 'your-secret-key',
+        JWT_SECRET,
         { expiresIn: '7d' }
       );
 
@@ -447,7 +455,7 @@ const UserAuthController = {
       // Generate verification token
       const verificationToken = jwt.sign(
         { id: userId, email: user.email, type: 'email_verification' },
-        process.env.JWT_SECRET || 'your-secret-key',
+        JWT_SECRET,
         { expiresIn: '24h' }
       );
 
@@ -480,7 +488,7 @@ const UserAuthController = {
       const { token } = req.params;
 
       // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      const decoded = jwt.verify(token, JWT_SECRET);
 
       if (decoded.type !== 'email_verification') {
         return res.status(400).json({
@@ -877,7 +885,7 @@ const UserAuthController = {
           name: existingUser.name,
           email_verified: true
         },
-        process.env.JWT_SECRET || 'your-secret-key',
+        JWT_SECRET,
         { expiresIn: '7d' }
       );
 
@@ -896,11 +904,12 @@ const UserAuthController = {
       });
 
     } catch (error) {
-      console.error('Google OAuth error:', error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Google OAuth error:', error);
+      }
       res.status(500).json({
         success: false,
-        message: 'OAuth authentication failed',
-        error: error.message
+        message: 'OAuth authentication failed'
       });
     }
   },
@@ -980,7 +989,7 @@ const UserAuthController = {
           name: newUser.name,
           email_verified: true
         },
-        process.env.JWT_SECRET || 'your-secret-key',
+        JWT_SECRET,
         { expiresIn: '7d' }
       );
 
@@ -1007,11 +1016,12 @@ const UserAuthController = {
       });
 
     } catch (error) {
-      console.error('Complete Google OAuth signup error:', error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Complete Google OAuth signup error:', error);
+      }
       res.status(500).json({
         success: false,
-        message: 'Failed to complete signup',
-        error: error.message
+        message: 'Failed to complete signup'
       });
     }
   },

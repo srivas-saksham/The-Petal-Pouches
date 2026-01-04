@@ -2,12 +2,17 @@
 
 const jwt = require('jsonwebtoken');
 
+// ✅ ENFORCE SECRET - Application won't start without it
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+  throw new Error('❌ CRITICAL: JWT_SECRET must be set and at least 32 characters');
+}
+
 /**
  * Middleware to verify JWT token and authenticate customer users
  */
 const verifyCustomerToken = (req, res, next) => {
   try {
-    // Extract token from Authorization header (format: "Bearer <token>")
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -26,10 +31,10 @@ const verifyCustomerToken = (req, res, next) => {
       });
     }
 
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    // ✅ Use enforced secret (no fallback)
+    const decoded = jwt.verify(token, JWT_SECRET);
     
-    // Check token expiration explicitly
+    // Check token expiration
     const currentTime = Math.floor(Date.now() / 1000);
     if (decoded.exp && decoded.exp < currentTime) {
       return res.status(401).json({
@@ -39,15 +44,12 @@ const verifyCustomerToken = (req, res, next) => {
       });
     }
     
-    // Attach user data to request object
     req.user = decoded;
     
-    // Log user activity for security audit (optional)
-    console.log(`[Customer Activity] ${decoded.email} accessed ${req.method} ${req.originalUrl}`);
+    // ✅ REMOVED: Don't log user emails/tokens
     
     next();
   } catch (error) {
-    // Handle specific JWT errors
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
@@ -64,8 +66,11 @@ const verifyCustomerToken = (req, res, next) => {
       });
     }
 
-    // Generic error
-    console.error('Token verification error:', error);
+    // ✅ Don't log error details in production
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Token verification error:', error.message);
+    }
+    
     res.status(401).json({
       success: false,
       message: 'Authentication failed'
@@ -96,77 +101,36 @@ const requireEmailVerified = (req, res, next) => {
 };
 
 /**
- * Rate limiting middleware for sensitive customer endpoints
- * Simple in-memory rate limiter (for production, use Redis)
+ * Rate limiting - Use express-rate-limit package instead
  */
-const customerLoginAttempts = new Map();
+const rateLimit = require('express-rate-limit');
 
-const rateLimitCustomerLogin = (req, res, next) => {
-  const ip = req.ip || req.connection.remoteAddress;
-  const now = Date.now();
-  const windowMs = 15 * 60 * 1000; // 15 minutes
-  const maxAttempts = 5;
-
-  if (!customerLoginAttempts.has(ip)) {
-    customerLoginAttempts.set(ip, []);
-  }
-
-  const attempts = customerLoginAttempts.get(ip).filter(time => now - time < windowMs);
-  
-  if (attempts.length >= maxAttempts) {
-    console.warn(`[Security] Customer rate limit exceeded for IP: ${ip}`);
-    return res.status(429).json({
-      success: false,
-      message: 'Too many login attempts. Please try again later.',
-      retryAfter: Math.ceil((attempts[0] + windowMs - now) / 1000)
-    });
-  }
-
-  // Store the IP for cleanup on success
-  req.rateLimitIp = ip;
-  
-  attempts.push(now);
-  customerLoginAttempts.set(ip, attempts);
-
-  // Clean up old entries periodically
-  if (Math.random() < 0.01) {
-    for (const [key, value] of customerLoginAttempts.entries()) {
-      const filtered = value.filter(time => now - time < windowMs);
-      if (filtered.length === 0) {
-        customerLoginAttempts.delete(key);
-      } else {
-        customerLoginAttempts.set(key, filtered);
-      }
-    }
-  }
-
-  next();
-};
+const rateLimitCustomerLogin = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  message: {
+    success: false,
+    message: 'Too many login attempts. Please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 /**
- * Clear rate limit on successful login
+ * Clear rate limit - Not needed with express-rate-limit
  */
 const clearCustomerRateLimit = (ip) => {
-  if (customerLoginAttempts.has(ip)) {
-    customerLoginAttempts.delete(ip);
-    console.log(`[Security] Customer rate limit cleared for IP: ${ip}`);
-  }
+  // No-op - express-rate-limit handles cleanup
 };
 
 /**
- * Security headers middleware for customer routes
+ * Security headers middleware
  */
 const customerSecurityHeaders = (req, res, next) => {
-  // Prevent clickjacking
   res.setHeader('X-Frame-Options', 'DENY');
-  
-  // Prevent MIME type sniffing
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  
-  // Enable XSS protection
   res.setHeader('X-XSS-Protection', '1; mode=block');
   
-  // HTTPS only (if in production)
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
@@ -175,27 +139,25 @@ const customerSecurityHeaders = (req, res, next) => {
 };
 
 /**
- * Optional middleware to attach user data from token without requiring authentication
- * Useful for routes that work for both authenticated and guest users
+ * Optional auth for guest/authenticated routes
  */
 const optionalAuth = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      // No token provided, continue without auth
       return next();
     }
 
     const token = authHeader.split(' ')[1];
     
     if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      // ✅ Use enforced secret
+      const decoded = jwt.verify(token, JWT_SECRET);
       req.user = decoded;
     }
   } catch (error) {
-    // Token invalid, continue without auth
-    console.log('Optional auth: Invalid token, continuing as guest');
+    // Invalid token, continue as guest (don't log)
   }
   
   next();

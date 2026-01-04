@@ -1,9 +1,9 @@
 // frontend/src/services/statsService.js - COMPLETE VERSION WITH TOP BUNDLES
 
-import { getProductStats, getProducts } from './productService';
+import { getProductStats, getProducts } from './adminProductService';
 import { getAdminOrderStats, getRevenuByPeriod } from './orderService';
-import { getCategories } from './categoryService';
-import bundleService from './bundleService';
+import { getCategories } from './adminCategoryService';
+import bundleService from './adminBundleService';
 import { apiRequest } from './api';
 import adminCustomerService from './adminCustomerService';
 
@@ -336,18 +336,17 @@ export const getCategoryDistribution = async () => {
  */
 export const getTopProducts = async (limit = 5) => {
   try {
-    const token = sessionStorage.getItem('admin_token');
-    
     console.log('📊 Fetching top bundles from Order_items...');
 
-    // Step 1: Get all orders with items
-    const ordersResponse = await fetch(`${API_URL}/api/admin/orders?limit=10000`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const ordersResult = await ordersResponse.json();
-    const orders = ordersResult?.data || [];
-
-    console.log(`📦 Found ${orders.length} orders`);
+    // Step 1: Get all orders with items (uses adminApi with correct token)
+    const { getAdminOrders } = await import('./orderService');
+    const ordersResult = await getAdminOrders({ limit: 10000 });
+    
+    if (!ordersResult.success) {
+      throw new Error('Failed to fetch orders');
+    }
+    
+    const orders = ordersResult.data || [];
 
     // Step 2: Extract all items and aggregate by bundle_id
     const bundleStats = {};

@@ -1,145 +1,11 @@
-// frontend/src/services/bundleService.js - COMPLETE WITH ALL FEATURES + TAGS SUPPORT
+// frontend/src/services/bundleService.js - PUBLIC ONLY (Customer/Guest)
 
-import api, { createFormDataRequest, apiRequest } from './api';
-
-// ==================== ADMIN BUNDLE METHODS ====================
-
-/**
- * Get all bundles with filters and pagination (ADMIN)
- */
-export const getBundles = async (params = {}) => {
-  return apiRequest(() => 
-    api.get('/api/bundles', { params })
-  );
-};
-
-/**
- * Get single bundle by ID
- */
-export const getBundleById = async (bundleId) => {
-  return apiRequest(() => 
-    api.get(`/api/bundles/${bundleId}`)
-  );
-};
-
-/**
- * Get bundle with all items and product details (for detail pages)
- */
-export const getBundleDetails = async (bundleId) => {
-  return apiRequest(() => 
-    api.get(`/api/bundles/${bundleId}/details`)
-  );
-};
-
-/**
- * Create new bundle (ADMIN)
- */
-export const createBundle = async (bundleData) => {
-  const formData = createFormDataRequest(bundleData, 'image');
-  
-  return apiRequest(() => 
-    api.post('/api/bundles/admin', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-  );
-};
-
-/**
- * Update existing bundle (ADMIN)
- */
-export const updateBundle = async (bundleId, bundleData) => {
-  const formData = createFormDataRequest(bundleData, 'image');
-  
-  return apiRequest(() => 
-    api.put(`/api/bundles/admin/${bundleId}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-  );
-};
-
-/**
- * Delete bundle (ADMIN)
- */
-export const deleteBundle = async (bundleId) => {
-  return apiRequest(() => 
-    api.delete(`/api/bundles/admin/${bundleId}`)
-  );
-};
-
-/**
- * Toggle bundle active status (ADMIN)
- */
-export const toggleBundleStatus = async (bundleId) => {
-  return apiRequest(() => 
-    api.patch(`/api/bundles/admin/${bundleId}/toggle`)
-  );
-};
-
-/**
- * Duplicate bundle (ADMIN)
- */
-export const duplicateBundle = async (bundleId) => {
-  return apiRequest(() => 
-    api.post(`/api/bundles/admin/${bundleId}/duplicate`)
-  );
-};
-
-/**
- * Check bundle stock availability
- */
-export const checkBundleStock = async (bundleId) => {
-  return apiRequest(() => 
-    api.get(`/api/bundles/${bundleId}/stock`)
-  );
-};
-
-/**
- * Get bundle statistics (ADMIN)
- */
-export const getBundleStats = async () => {
-  const result = await apiRequest(() => 
-    api.get('/api/bundles', { 
-      params: { limit: 1000 }
-    })
-  );
-
-  if (!result.success) {
-    return {
-      success: false,
-      data: {
-        total: 0,
-        active: 0,
-        inactive: 0,
-        total_value: 0,
-        avg_discount: 0,
-      },
-    };
-  }
-
-  const bundles = result.data.data || [];
-  
-  const stats = {
-    total: bundles.length,
-    active: bundles.filter(b => b.is_active).length,
-    inactive: bundles.filter(b => !b.is_active).length,
-    total_value: bundles.reduce((sum, b) => sum + (b.price || 0), 0),
-    avg_discount: bundles.length > 0 
-      ? Math.round(
-          bundles.reduce((sum, b) => sum + (b.discount_percent || 0), 0) / bundles.length
-        )
-      : 0,
-  };
-
-  return {
-    success: true,
-    data: stats,
-  };
-};
+import api, { apiRequest } from './api';
 
 // ==================== PUBLIC SHOP METHODS ====================
 
 /**
- * Get all bundles for shop with proper sort mapping (public - only active bundles)
+ * Get all bundles for shop (public - only active bundles)
  * @param {Object} params - { page, limit, sort, search, min_price, max_price, in_stock, tags }
  * @returns {Promise<Object>} { bundles, metadata }
  */
@@ -211,6 +77,33 @@ export const getAllBundles = async (params = {}) => {
     console.error('❌ Get bundles error:', error);
     throw error.response?.data || error;
   }
+};
+
+/**
+ * Get single bundle by ID
+ */
+export const getBundleById = async (bundleId) => {
+  return apiRequest(() => 
+    api.get(`/api/bundles/${bundleId}`)
+  );
+};
+
+/**
+ * Get bundle with all items and product details (for detail pages)
+ */
+export const getBundleDetails = async (bundleId) => {
+  return apiRequest(() => 
+    api.get(`/api/bundles/${bundleId}/details`)
+  );
+};
+
+/**
+ * Check bundle stock availability
+ */
+export const checkBundleStock = async (bundleId) => {
+  return apiRequest(() => 
+    api.get(`/api/bundles/${bundleId}/stock`)
+  );
 };
 
 /**
@@ -291,8 +184,6 @@ export const addBundleToCart = async (bundleId, quantity = 1) => {
   }
 };
 
-// ==================== UTILITY METHODS ====================
-
 /**
  * Get active bundles only
  */
@@ -308,165 +199,7 @@ export const getActiveBundles = async (params = {}) => {
 };
 
 /**
- * Validate bundle items stock
- */
-export const validateBundleItems = async (items) => {
-  return apiRequest(() => 
-    api.post('/api/bundles/validate-stock', { items })
-  );
-};
-
-/**
- * Calculate bundle pricing
- */
-export const calculateBundlePrice = (items, bundlePrice) => {
-  const originalPrice = items.reduce((total, item) => {
-    const price = item.variant ? item.variant.price : item.product.price;
-    return total + (price * item.quantity);
-  }, 0);
-
-  const savings = originalPrice - bundlePrice;
-  const discountPercent = originalPrice > 0 
-    ? Math.round((savings / originalPrice) * 100) 
-    : 0;
-
-  return {
-    originalPrice,
-    bundlePrice,
-    savings,
-    discountPercent,
-  };
-};
-
-/**
- * Get bundles by discount range
- */
-export const getBundlesByDiscount = async (minDiscount, maxDiscount) => {
-  const result = await getBundles();
-  
-  if (!result.success) {
-    return result;
-  }
-
-  const bundles = result.data.data || [];
-  const filtered = bundles.filter(b => {
-    const discount = b.discount_percent || 0;
-    return discount >= minDiscount && discount <= maxDiscount;
-  });
-
-  return {
-    success: true,
-    data: {
-      data: filtered,
-      count: filtered.length,
-    },
-  };
-};
-
-/**
- * Get top selling bundles
- */
-export const getTopBundles = async (limit = 10) => {
-  const result = await getActiveBundles();
-  
-  if (!result.success) {
-    return result;
-  }
-
-  const bundles = result.data.data || [];
-  const sorted = bundles
-    .sort((a, b) => (b.discount_percent || 0) - (a.discount_percent || 0))
-    .slice(0, limit);
-
-  return {
-    success: true,
-    data: {
-      data: sorted,
-      count: sorted.length,
-    },
-  };
-};
-
-/**
- * Bulk activate bundles (ADMIN)
- */
-export const bulkActivateBundles = async (bundleIds) => {
-  const results = await Promise.all(
-    bundleIds.map(id => toggleBundleStatus(id))
-  );
-  
-  return {
-    success: results.every(r => r.success),
-    data: results,
-  };
-};
-
-/**
- * Bulk deactivate bundles (ADMIN)
- */
-export const bulkDeactivateBundles = async (bundleIds) => {
-  const results = await Promise.all(
-    bundleIds.map(id => toggleBundleStatus(id))
-  );
-  
-  return {
-    success: results.every(r => r.success),
-    data: results,
-  };
-};
-
-/**
- * Bulk delete bundles (ADMIN)
- */
-export const bulkDeleteBundles = async (bundleIds) => {
-  const results = await Promise.all(
-    bundleIds.map(id => deleteBundle(id))
-  );
-  
-  return {
-    success: results.every(r => r.success),
-    data: results,
-    deleted: results.filter(r => r.success).length,
-    failed: results.filter(r => !r.success).length,
-  };
-};
-
-/**
- * Get bundles with low stock items (ADMIN)
- */
-export const getBundlesWithLowStock = async () => {
-  const result = await getBundles();
-  
-  if (!result.success) {
-    return result;
-  }
-
-  const bundles = result.data.data || [];
-  const withLowStock = [];
-
-  for (const bundle of bundles) {
-    const stockCheck = await checkBundleStock(bundle.id);
-    if (stockCheck.success && !stockCheck.data.available) {
-      withLowStock.push({
-        ...bundle,
-        stockIssues: stockCheck.data.out_of_stock,
-      });
-    }
-  }
-
-  return {
-    success: true,
-    data: {
-      data: withLowStock,
-      count: withLowStock.length,
-    },
-  };
-};
-
-// ==================== ⭐ NEW FUNCTIONS (2 ADDED) ====================
-
-/**
- * ⭐ NEW: Get reviews for a bundle
+ * Get reviews for a bundle
  * @param {string} bundleId - Bundle UUID
  * @param {Object} params - { page, limit, sort }
  * @returns {Promise<Object>} Reviews data
@@ -500,14 +233,13 @@ export const getBundleReviews = async (bundleId, params = {}) => {
 };
 
 /**
- * ⭐ NEW: Get related/similar bundles
+ * Get related/similar bundles
  * @param {string} bundleId - Current bundle UUID
  * @param {number} limit - Max bundles to return (default: 4)
  * @returns {Promise<Object>} Related bundles
  */
 export const getRelatedBundles = async (bundleId, limit = 4) => {
   try {
-    // Fetch current bundle to get tags/category
     const currentBundle = await getBundleById(bundleId);
     
     if (!currentBundle.success) {
@@ -518,7 +250,6 @@ export const getRelatedBundles = async (bundleId, limit = 4) => {
       };
     }
     
-    // Fetch active bundles with same tags or similar price
     const allBundles = await getAllBundles({
       limit: 20,
       active: true
@@ -532,10 +263,8 @@ export const getRelatedBundles = async (bundleId, limit = 4) => {
       };
     }
     
-    const current = currentBundle.data;
     const bundles = allBundles.data || [];
     
-    // Filter out current bundle and sort by similarity
     const related = bundles
       .filter(b => b.id !== bundleId)
       .slice(0, limit);
@@ -555,39 +284,52 @@ export const getRelatedBundles = async (bundleId, limit = 4) => {
   }
 };
 
+// ==================== UTILITY METHODS ====================
+
+/**
+ * Calculate bundle pricing
+ */
+export const calculateBundlePrice = (items, bundlePrice) => {
+  const originalPrice = items.reduce((total, item) => {
+    const price = item.variant ? item.variant.price : item.product.price;
+    return total + (price * item.quantity);
+  }, 0);
+
+  const savings = originalPrice - bundlePrice;
+  const discountPercent = originalPrice > 0 
+    ? Math.round((savings / originalPrice) * 100) 
+    : 0;
+
+  return {
+    originalPrice,
+    bundlePrice,
+    savings,
+    discountPercent,
+  };
+};
+
+/**
+ * Validate bundle items stock
+ */
+export const validateBundleItems = async (items) => {
+  return apiRequest(() => 
+    api.post('/api/bundles/validate-stock', { items })
+  );
+};
+
 // ==================== DEFAULT EXPORT ====================
 
 export default {
-  // Admin functions
-  getBundles,
+  getAllBundles,
   getBundleById,
   getBundleDetails,
-  createBundle,
-  updateBundle,
-  deleteBundle,
-  toggleBundleStatus,
-  duplicateBundle,
-  getBundleStats,
-  
-  // Public shop functions
-  getAllBundles,
+  checkBundleStock,
   searchBundles,
   getBundlesByPrice,
   addBundleToCart,
-  checkBundleStock,
-  
-  // Utility functions
   getActiveBundles,
-  validateBundleItems,
-  calculateBundlePrice,
-  getBundlesByDiscount,
-  getTopBundles,
-  bulkActivateBundles,
-  bulkDeactivateBundles,
-  bulkDeleteBundles,
-  getBundlesWithLowStock,
-  
-  // ⭐ NEW functions
   getBundleReviews,
   getRelatedBundles,
+  calculateBundlePrice,
+  validateBundleItems,
 };

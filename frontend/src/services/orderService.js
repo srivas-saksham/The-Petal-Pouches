@@ -10,6 +10,7 @@
  */
 
 import api, { apiRequest } from './api';
+import adminApi from './adminApi';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -169,38 +170,32 @@ export const getOrderStats = async () => {
  */
 export const getAdminOrderStats = async () => {
   try {
-    const token = sessionStorage.getItem('admin_token');
-    
     console.log('📊 [Admin] Fetching admin order stats from /api/admin/orders/stats');
-    console.log('📊 [Admin] Token exists:', !!token);
     
-    const response = await fetch(`${API_URL}/api/admin/orders/stats`, {
-      method: 'GET',
-      headers: {
-        'Authorization': token ? `Bearer ${token}` : '',
-        'Content-Type': 'application/json'
-      }
+    const response = await adminApi.get('/api/admin/orders/stats');
+    
+    console.log('📊 [Admin] Admin stats received:', {
+      success: response.data.success,
+      hasStats: !!response.data.stats,
+      total_orders: response.data.stats?.total_orders
     });
+
+    return {
+      success: true,
+      stats: response.data.stats || {}
+    };
     
-    if (!response.ok) {
-      console.error('❌ [Admin] Failed to fetch admin stats:', response.status, response.statusText);
-      
-      // Fallback: Calculate from all orders
+  } catch (error) {
+    console.error('❌ [Admin] Error fetching admin stats:', error);
+    
+    // Fallback: Calculate from all orders
+    try {
       console.log('⚠️ [Admin] Using fallback: fetching all orders...');
-      const fallbackResponse = await fetch(`${API_URL}/api/admin/orders?limit=10000`, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json'
-        }
+      const fallbackResponse = await adminApi.get('/api/admin/orders', {
+        params: { limit: 10000 }
       });
 
-      if (!fallbackResponse.ok) {
-        throw new Error(`Failed to fetch orders: ${fallbackResponse.statusText}`);
-      }
-
-      const fallbackResult = await fallbackResponse.json();
-      const orders = fallbackResult.data || [];
-
+      const orders = fallbackResponse.data.data || [];
       console.log(`📊 [Admin] Fallback: Found ${orders.length} orders`);
 
       const stats = {
@@ -233,52 +228,82 @@ export const getAdminOrderStats = async () => {
         success: true,
         stats
       };
+    } catch (fallbackError) {
+      console.error('❌ [Admin] Fallback failed:', fallbackError);
+      return {
+        success: false,
+        stats: {
+          total_orders: 0,
+          pending: 0,
+          confirmed: 0,
+          processing: 0,
+          in_transit: 0,
+          out_for_delivery: 0,
+          shipped: 0,
+          delivered: 0,
+          cancelled: 0,
+          failed: 0,
+          rto_initiated: 0,
+          rto_delivered: 0,
+          paid: 0,
+          unpaid: 0,
+          refunded: 0,
+          cod: 0,
+          online: 0,
+          surface: 0,
+          express: 0,
+          total_spent: 0,
+          avg_order_value: 0
+        }
+      };
     }
+  }
+};
 
-    const result = await response.json();
+/**
+ * Get all admin orders
+ * @param {Object} params - Query params
+ */
+export const getAdminOrders = async (params = {}) => {
+  try {
+    const response = await adminApi.get('/api/admin/orders', { params });
     
-    console.log('📊 [Admin] Admin stats received:', {
-      success: result.success,
-      hasStats: !!result.stats,
-      total_orders: result.stats?.total_orders,
-      confirmed: result.stats?.confirmed,
-      pending: result.stats?.pending,
-      delivered: result.stats?.delivered,
-      cancelled: result.stats?.cancelled
-    });
-
     return {
       success: true,
-      stats: result.stats || {}
+      data: response.data.data || []
     };
-    
   } catch (error) {
-    console.error('❌ [Admin] Error fetching admin stats:', error);
     return {
       success: false,
-      stats: {
-        total_orders: 0,
-        pending: 0,
-        confirmed: 0,
-        processing: 0,
-        in_transit: 0,
-        out_for_delivery: 0,
-        shipped: 0,
-        delivered: 0,
-        cancelled: 0,
-        failed: 0,
-        rto_initiated: 0,
-        rto_delivered: 0,
-        paid: 0,
-        unpaid: 0,
-        refunded: 0,
-        cod: 0,
-        online: 0,
-        surface: 0,
-        express: 0,
-        total_spent: 0,
-        avg_order_value: 0
+      data: [],
+      error: error.message
+    };
+  }
+};
+
+/**
+ * Get recent admin orders (for dashboard)
+ * @param {number} limit - Number of orders
+ */
+export const getRecentAdminOrders = async (limit = 10) => {
+  try {
+    const response = await adminApi.get('/api/admin/orders', {
+      params: {
+        limit,
+        sort: 'created_at',
+        order: 'desc'
       }
+    });
+    
+    return {
+      success: true,
+      data: response.data.data || []
+    };
+  } catch (error) {
+    return {
+      success: false,
+      data: [],
+      error: error.message
     };
   }
 };

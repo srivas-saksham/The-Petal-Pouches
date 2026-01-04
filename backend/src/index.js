@@ -79,50 +79,59 @@ const razorpayService = require('./services/razorpayService');
 })();
 
 // ============================================
+// IMPORT AUTHENTICATION MIDDLEWARE
+// ============================================
+
+const { verifyAdminToken } = require('./middleware/adminAuth');
+const { verifyCustomerToken } = require('./middleware/userAuth');
+
+// ============================================
 // ROUTES - ORDER MATTERS!
 // ============================================
 
-// 🆕 WEBHOOKS (MUST BE FIRST - before auth middleware)
+// 🆕 WEBHOOKS (MUST BE FIRST - before any auth middleware)
 // --------------------------------------------
 app.use('/api/webhooks', require('./routes/webhooks'));
 
-const { verifyAdminToken } = require('./middleware/adminAuth');
-
-// 1. ADMIN & STAFF ROUTES
+// 1. ADMIN AUTHENTICATION (PUBLIC)
 // --------------------------------------------
-app.use('/api/admin/auth', require('./routes/adminAuth'));                          // ✅ Login - NO auth needed
+app.use('/api/admin/auth', require('./routes/adminAuth')); // ✅ Login/Register - NO auth
 
-// ✅ ALL BELOW REQUIRE AUTHENTICATION
-app.use('/api/admin/orders', verifyAdminToken, require('./routes/adminOrders'));       // ✅ FIXED
-app.use('/api/admin/customers', verifyAdminToken, require('./routes/adminCustomers')); // ✅ FIXED
-app.use('/api/admin/shipments', verifyAdminToken, require('./routes/shipments'));      // ✅ Already correct
-app.use('/api/admin/coupons', verifyAdminToken, require('./routes/adminCoupons'));     // ✅ FIXED
-app.use('/api/admin', verifyAdminToken, require('./routes/admin')); 
-
-// 2. CUSTOMER AUTHENTICATION & PROFILE
+// 2. ADMIN PROTECTED ROUTES (ALL REQUIRE verifyAdminToken)
 // --------------------------------------------
-app.use('/api/auth', require('./routes/userAuth'));          // Customer Login/Register
-app.use('/api/otp', require('./routes/otp'));               // ✅ OTP Verification System
-app.use('/api/users', require('./routes/users'));          // Customer Profile/Dashboard
-app.use('/api/addresses', require('./routes/addresses')); // Address Book
+app.use('/api/admin/orders', verifyAdminToken, require('./routes/adminOrders'));
+app.use('/api/admin/customers', verifyAdminToken, require('./routes/adminCustomers'));
+app.use('/api/admin/shipments', verifyAdminToken, require('./routes/shipments'));
+app.use('/api/admin/coupons', verifyAdminToken, require('./routes/adminCoupons'));
+app.use('/api/admin', verifyAdminToken, require('./routes/admin')); // Product management
 
-// 3. CATALOG (PUBLIC & ADMIN MIXED)
+// 3. CUSTOMER AUTHENTICATION (PUBLIC)
 // --------------------------------------------
-app.use('/api/categories', require('./routes/categories'));
-app.use('/api/tags', require('./routes/tagsRoutes'));
-app.use('/api/bundles', require('./routes/bundles'));      // Must be before products to avoid conflicts
-app.use('/api/products', require('./routes/products'));
-app.use('/api/variants', require('./routes/variants'));
-app.use('/api/reviews', require('./routes/reviews'));
+app.use('/api/auth', require('./routes/userAuth'));   // ✅ Login/Register - NO auth
+app.use('/api/otp', require('./routes/otp'));         // ✅ OTP verification - NO auth
 
-// 4. COMMERCE & TRANSACTIONS
+// 4. CUSTOMER PROTECTED ROUTES (ALL REQUIRE verifyCustomerToken)
 // --------------------------------------------
-app.use('/api/cart', require('./routes/cart'));            // Shopping Cart
-app.use('/api/wishlist', require('./routes/wishlist'));    // Wishlist
-app.use('/api/coupons', require('./routes/coupons'));      // ⭐ NEW: Coupon System
-app.use('/api/orders', require('./routes/orders'));        // Order Management
-app.use('/api/payments', require('./routes/payments'));    // ⭐ Razorpay Payment Integration
-app.use('/api/delhivery', require('./routes/delhivery'));  // Delhivery Shipping Integration
+app.use('/api/users', verifyCustomerToken, require('./routes/users'));           // ✅ Profile/Dashboard
+app.use('/api/addresses', verifyCustomerToken, require('./routes/addresses'));   // ✅ Address management
+app.use('/api/cart', require('./routes/cart')); // ✅ NO auth - works for guests too
+app.use('/api/wishlist', verifyCustomerToken, require('./routes/wishlist'));     // ✅ Wishlist
+app.use('/api/orders', verifyCustomerToken, require('./routes/orders'));         // ✅ Order management
+
+// 5. PUBLIC CATALOG ROUTES (NO AUTH REQUIRED)
+// --------------------------------------------
+app.use('/api/categories', require('./routes/categories'));  // ✅ Browse categories
+app.use('/api/tags', require('./routes/tagsRoutes'));       // ✅ Browse tags
+app.use('/api/bundles', require('./routes/bundles'));       // ✅ Browse bundles (admin endpoints inside have own auth)
+app.use('/api/products', require('./routes/products'));     // ✅ Browse products (admin endpoints inside have own auth)
+app.use('/api/variants', require('./routes/variants'));     // ✅ Product variants
+app.use('/api/reviews', require('./routes/reviews'));       // ✅ Product reviews
+app.use('/api/coupons', require('./routes/coupons'));       // ✅ Validate coupons
+
+// 6. PAYMENT & SHIPPING (MIXED - auth handled inside routes)
+// --------------------------------------------
+app.use('/api/payments', require('./routes/payments'));     // ✅ Razorpay integration
+app.use('/api/delhivery', require('./routes/delhivery'));   // ✅ Delhivery shipping
 
 // ============================================
 // HEALTH CHECK & API DOCUMENTATION
@@ -163,8 +172,7 @@ app.get('/health', async (req, res) => {
       status: 'unhealthy',
       message: 'Server health check failed',
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development',
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+      environment: process.env.NODE_ENV || 'development'
     });
   }
 });
@@ -174,56 +182,41 @@ app.get('/', (req, res) => {
   res.json({
     success: true,
     message: 'The Petal Pouches API is running! 🌸',
-    version: '1.7.0', // ✅ OTP Email Verification System
+    version: '1.7.1', // ✅ Security Hardened
     database: 'Supabase',
     payment_gateway: 'Razorpay',
     shipping: 'Delhivery',
     documentation: {
       admin: {
-        auth: '/api/admin/auth',
-        products: '/api/admin/products',
-        bundles: '/api/bundles/admin',
-        orders: '/api/admin/orders',
-        shipments: '/api/admin/shipments'
+        auth: '/api/admin/auth (PUBLIC)',
+        products: '/api/admin/products (PROTECTED)',
+        bundles: '/api/bundles/admin (PROTECTED)',
+        orders: '/api/admin/orders (PROTECTED)',
+        shipments: '/api/admin/shipments (PROTECTED)',
+        customers: '/api/admin/customers (PROTECTED)',
+        coupons: '/api/admin/coupons (PROTECTED)'
       },
       customer: {
-        auth: '/api/auth',
-        otp: '/api/otp', // ✅ NEW
-        profile: '/api/users',
-        addresses: '/api/addresses',
-        orders: '/api/orders',
-        cart: '/api/cart',
-        wishlist: '/api/wishlist',
-        coupons: '/api/coupons',
-        payments: '/api/payments'
-      },
-      otp: { // ✅ NEW
-        send: 'POST /api/otp/send',
-        verify: 'POST /api/otp/verify',
-        resend: 'POST /api/otp/resend',
-        check_verified: 'GET /api/otp/check-verified'
+        auth: '/api/auth (PUBLIC)',
+        otp: '/api/otp (PUBLIC)',
+        profile: '/api/users (PROTECTED)',
+        addresses: '/api/addresses (PROTECTED)',
+        orders: '/api/orders (PROTECTED)',
+        cart: '/api/cart (PROTECTED)',
+        wishlist: '/api/wishlist (PROTECTED)',
+        payments: '/api/payments (MIXED)'
       },
       catalog: {
-        products: '/api/products',
-        categories: '/api/categories',
-        bundles: '/api/bundles',
-        tags: '/api/tags',
-        reviews: '/api/reviews'
-      },
-      payments: {
-        create_order: 'POST /api/payments/create-order',
-        verify: 'POST /api/payments/verify',
-        status: 'GET /api/payments/status/:order_id',
-        webhook: 'POST /api/payments/webhook'
-      },
-      coupons: { // ⭐ NEW
-        validate: 'POST /api/coupons/validate',
-        active: 'GET /api/coupons/active',
-        check_usage: 'GET /api/coupons/:code/check-usage'
+        products: '/api/products (PUBLIC)',
+        categories: '/api/categories (PUBLIC)',
+        bundles: '/api/bundles (PUBLIC)',
+        tags: '/api/tags (PUBLIC)',
+        reviews: '/api/reviews (PUBLIC)',
+        coupons: '/api/coupons (PUBLIC - validation only)'
       },
       webhooks: {
         delhivery: 'POST /api/webhooks/delhivery',
-        health: 'GET /api/webhooks/delhivery/health'
+        razorpay: 'POST /api/payments/webhook'
       }
     }
   });
@@ -235,7 +228,10 @@ app.get('/', (req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('❌ Error:', err.stack);
+  // ✅ SECURITY: Never log full error in production
+  if (process.env.NODE_ENV !== 'production') {
+    console.error('❌ Error:', err.stack);
+  }
   
   // Handle Supabase-specific errors
   let statusCode = err.status || 500;
@@ -266,13 +262,10 @@ app.use((err, req, res, next) => {
     }
   }
   
+  // ✅ SECURITY: Never expose stack traces or internal error codes
   res.status(statusCode).json({
     success: false,
-    message,
-    ...(process.env.NODE_ENV === 'development' && { 
-      stack: err.stack,
-      code: err.code 
-    })
+    message
   });
 });
 
@@ -282,9 +275,9 @@ app.use((req, res) => {
     success: false,
     message: `Route not found: ${req.method} ${req.path}`,
     availableResources: [
-    '/api/auth', '/api/otp', '/api/users', '/api/products', // ✅ UPDATED
-    '/api/cart', '/api/orders', '/api/payments', 
-    '/api/coupons', '/api/webhooks'
+      '/api/auth', '/api/otp', '/api/users', '/api/products',
+      '/api/cart', '/api/orders', '/api/payments', 
+      '/api/coupons', '/api/webhooks'
     ]
   });
 });
@@ -307,12 +300,12 @@ app.listen(PORT, () => {
   console.log('📍 Key Endpoints:');
   console.log(`   🌐 Health:     http://localhost:${PORT}/health`);
   console.log(`   🛒 Products:   http://localhost:${PORT}/api/products`);
-  console.log(`   🛍️ Cart:       http://localhost:${PORT}/api/cart`);
-  console.log(`   🎟️ Coupons:    http://localhost:${PORT}/api/coupons`); // ⭐ NEW
-  console.log(`   🔐 OTP:        http://localhost:${PORT}/api/otp`); // ✅ NEW
+  console.log(`   🛍️ Cart:       http://localhost:${PORT}/api/cart (PROTECTED)`);
+  console.log(`   🎟️ Coupons:    http://localhost:${PORT}/api/coupons`);
+  console.log(`   🔐 OTP:        http://localhost:${PORT}/api/otp`);
   console.log(`   👤 User Auth:  http://localhost:${PORT}/api/auth/login`);
   console.log(`   🔐 Admin Auth: http://localhost:${PORT}/api/admin/auth/login`);
-  console.log(`   📦 Orders:     http://localhost:${PORT}/api/orders`);
+  console.log(`   📦 Orders:     http://localhost:${PORT}/api/orders (PROTECTED)`);
   console.log(`   💳 Payments:   http://localhost:${PORT}/api/payments`);
   console.log(`   🚚 Webhooks:   http://localhost:${PORT}/api/webhooks/delhivery`);
   

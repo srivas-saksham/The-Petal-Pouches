@@ -25,7 +25,7 @@ import {
   toggleBundleStatus,
   duplicateBundle,
   getBundleStats,
-} from '../../services/bundleService';
+} from '../../services/adminBundleService';
 
 export default function BundlesPage() {
   const [bundles, setBundles] = useState([]);

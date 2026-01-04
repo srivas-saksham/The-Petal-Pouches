@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../hooks/useToast';
+import { updateProduct, getProductById } from '../../services/adminProductService'; // ✅ ADDED
+import { getCategories, createCategory } from '../../services/adminCategoryService'; // ✅ ADDED
 
 // InputWrapper component - OUTSIDE the main component
 const InputWrapper = ({ label, name, required, icon: Icon, children, hint, error }) => (
@@ -84,10 +86,13 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
 
   const fetchProduct = async () => {
     try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_BASE_URL}/api/products/${productId}`
-      );
-      const product = response.data.data;
+      const response = await getProductById(productId); // ✅ CHANGED
+      
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load product');
+      }
+      
+      const product = response.data.data || response.data;
       
       setFormData({
         title: product.title || '',
@@ -117,10 +122,13 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
   const fetchCategories = async () => {
     setLoadingCategories(true);
     try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_BASE_URL}/api/categories`
-      );
-      const categoriesData = response.data.data || response.data.categories || response.data || [];
+      const response = await getCategories(); // ✅ CHANGED
+      
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load categories');
+      }
+      
+      const categoriesData = response.data.data || response.data || [];
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -248,13 +256,14 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     }
 
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL}/api/categories/admin`,
-        {
-          name: newCategory.name,
-          description: newCategory.description
-        }
-      );
+      const response = await createCategory({ // ✅ CHANGED
+        name: newCategory.name,
+        description: newCategory.description
+      });
+      
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to create category');
+      }
 
       toast.success('Category created successfully!');
       
@@ -322,30 +331,22 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     
 
     try {
-      const data = new FormData();
-      
-      if (formData.title) data.append('title', formData.title.trim());
-      if (formData.description) data.append('description', formData.description.trim());
-      if (formData.price) data.append('price', formData.price);
-      if (formData.stock !== '') data.append('stock', formData.stock);
-      if (formData.sku) data.append('sku', formData.sku.trim());
-      if (formData.category_id) {
-        data.append('category_id', formData.category_id);
-      } else {
-        data.append('category_id', '');
-      }
-      data.append('has_variants', hasVariants);
-      if (image) data.append('image', image);
+      const updateData = {
+        title: formData.title?.trim(),
+        description: formData.description?.trim(),
+        price: formData.price,
+        stock: formData.stock,
+        sku: formData.sku?.trim(),
+        category_id: formData.category_id || '',
+        has_variants: hasVariants,
+        image: image // File object
+      };
 
-      const response = await axios.put(
-        `${import.meta.env.VITE_API_BASE_URL}/api/admin/products/${productId}`,
-        data,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      );
+      const response = await updateProduct(productId, updateData); // ✅ CHANGED
+      
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update product');
+      }
 
       const successMessage = response.data.variantsDeleted
         ? `${response.data.message} (${variantCount} variants deleted)`

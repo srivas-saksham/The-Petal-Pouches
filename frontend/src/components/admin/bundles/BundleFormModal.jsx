@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import BundleForm from '../../adminComps/BundleForm';
-import { getBundleById } from '../../../services/bundleService';
+import { getBundleById } from '../../../services/adminBundleService';
 
 /**
  * Wrapper component for BundleForm to work with new modal system

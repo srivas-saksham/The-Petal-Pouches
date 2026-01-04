@@ -26,8 +26,8 @@ import {
   getProductStats,
   deleteProduct,
   duplicateProduct,
-} from '../../services/productService';
-import { getCategories } from '../../services/categoryService';
+} from '../../services/adminProductService';
+import { getCategories } from '../../services/adminCategoryService';
 
 export default function ProductsPage() {
   const toast = useToast();
