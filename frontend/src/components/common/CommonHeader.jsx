@@ -52,8 +52,6 @@ const CommonHeader = () => {
     };
   }, [showCategories]);
 
-
-
   const handleCartClick = () => {
     openCart();
   };
@@ -78,9 +76,33 @@ const CommonHeader = () => {
     { name: 'Best Sellers', path: '/shop/category/best-sellers' },
   ];
 
-  // Check if current path matches
-  const isActivePath = (path) => {
-    return location.pathname === path;
+  // ⭐ ENHANCED: Check if current path matches or belongs to a section
+  const isActiveSection = (section) => {
+    const path = location.pathname;
+    
+    switch (section) {
+      case '/':
+        return path === '/';
+      
+      case '/shop':
+        // Shop is active for: /shop, /shop/*, /checkout, /cart, bundle pages, category pages
+        return (
+          path === '/shop' ||
+          path.startsWith('/shop/') ||
+          path === '/checkout' ||
+          path === '/cart' ||
+          path.startsWith('/category/')
+        );
+      
+      case '/about':
+        return path === '/about';
+      
+      case '/faqs':
+        return path === '/faqs';
+      
+      default:
+        return false;
+    }
   };
 
   return (
@@ -105,7 +127,7 @@ const CommonHeader = () => {
             <Link
               to="/"
               className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
-                isActivePath('/') 
+                isActiveSection('/') 
                   ? 'text-tpppink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-tpppink' 
                   : 'text-tppslate hover:text-tpppink'
               }`}
@@ -116,7 +138,7 @@ const CommonHeader = () => {
             <Link
               to="/shop"
               className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
-                isActivePath('/shop') 
+                isActiveSection('/shop') 
                   ? 'text-tpppink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-tpppink' 
                   : 'text-tppslate hover:text-tpppink'
               }`}
@@ -156,7 +178,7 @@ const CommonHeader = () => {
             <Link
               to="/about"
               className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
-                isActivePath('/about') 
+                isActiveSection('/about') 
                   ? 'text-tpppink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-tpppink' 
                   : 'text-tppslate hover:text-tpppink'
               }`}
@@ -167,7 +189,7 @@ const CommonHeader = () => {
             <Link
               to="/faqs"
               className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
-                isActivePath('/faqs') 
+                isActiveSection('/faqs') 
                   ? 'text-tpppink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-tpppink' 
                   : 'text-tppslate hover:text-tpppink'
               }`}
@@ -190,7 +212,7 @@ const CommonHeader = () => {
                 {showSearch ? <X size={20} /> : <Search size={20} />}
               </button>
 
-              {/* Search Dropdown - Same as TopBar */}
+              {/* Search Dropdown */}
               {showSearch && (
                 <div className="absolute right-0 mt-2 w-[450px] bg-transparent rounded-xl z-[100]">
                   <div className="p-3" style={{ minHeight: '400px' }}>

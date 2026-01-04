@@ -5,7 +5,6 @@ import { Check, AlertCircle, Package, Star } from 'lucide-react';
 import useBundleDetail from '../hooks/useBundleDetail';
 import BundleImageGallery from '../components/bundle-detail/BundleImageGallery';
 import BundleKeyDetails from '../components/bundle-detail/BundleKeyDetails';
-import BundleProducts from '../components/bundle-detail/BundleProducts';
 import FloatingSidebar from '../components/bundle-detail/FloatingSidebar/FloatingSidebar';
 import BundleHeader from '../components/bundle-detail/BundleHeader'; // ✅ UPDATED IMPORT
 import { addBundleToCart, updateCartItem, removeFromCart } from '../services/cartService';
@@ -339,22 +338,6 @@ const BundleDetailPage = () => {
 
             {/* Divider */}
             <div className="border-t border-slate-200"></div>
-
-            {/* Full Product Details */}
-            <div className="p-6">
-              <h2 className="text-lg font-bold text-tppslate mb-4 flex items-center gap-2">
-                <Package size={18} className="text-tpppink" />
-                Complete Product List
-              </h2>
-              {items.length > 0 ? (
-                <BundleProducts items={items} />
-              ) : (
-                <div className="text-center py-8">
-                  <Package size={32} className="mx-auto mb-2 text-slate-300" />
-                  <p className="text-sm text-slate-500 font-medium">No products</p>
-                </div>
-              )}
-            </div>
 
             {/* Description Section */}
             {bundle.description && (
