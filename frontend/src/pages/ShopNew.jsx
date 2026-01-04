@@ -7,7 +7,7 @@ import BundleEmpty from '../components/shop/BundleEmpty';
 import SidebarFilters from '../components/shop/SidebarFilters';
 import CommonHeader from '../components/common/CommonHeader';
 import ShopFiltersBar from '../components/shop/ShopFiltersBar';
-import ShopLoadingPage from '../components/shop/ShopLoadingPage'; // ✅ NEW IMPORT
+// import ShopLoadingPage from '../components/shop/ShopLoadingPage'; // ✅ NEW IMPORT
 import useBundleFilters from '../hooks/useBundleFilters';
 import bundleService from '../services/bundleService';
 import api from '../services/api';
@@ -221,7 +221,7 @@ const BundleShop = () => {
 
   // ✅ NEW: Show loading page for first 5 seconds
   if (showLoadingPage && isInitialLoad) {
-    return <ShopLoadingPage onComplete={handleLoadingComplete} />;
+    // return <ShopLoadingPage onComplete={handleLoadingComplete} />;
   }
 
   // Show main shop content

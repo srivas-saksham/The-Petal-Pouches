@@ -7,6 +7,7 @@ import { useCart } from '../hooks/useCart';
 import { useUserAuth } from '../context/UserAuthContext';
 import { useToast } from '../hooks/useToast';
 import { useRazorpay } from '../hooks/useRazorpay';
+import CommonHeader from '../components/common/CommonHeader';
 import CheckoutCart from '../components/checkout/CheckoutCart';
 import CheckoutSummary from '../components/checkout/CheckoutSummary';
 import CheckoutForm from '../components/checkout/CheckoutForm';
@@ -515,21 +516,34 @@ const Checkout = () => {
       }}
     >
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+      <div className="sticky top-0 z-10">
+        <div className="bg-white">
+          <CommonHeader />
+        </div>
+        
+        {/* Back to Shop Button - At very left edge */}
+        <div className="px-4 py-3">
           <button
             onClick={handleGoBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors mb-4"
+            className="flex items-center gap-2 text-slate-600 hover:text-tpppink transition-colors font-medium text-sm group"
           >
-            <ArrowLeft size={20} />
-            Back to Shop
+            <ArrowLeft 
+              size={18} 
+              className="transition-transform group-hover:-translate-x-1" 
+            />
+            <span>Back to Shop</span>
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">Checkout</h1>
         </div>
       </div>
+      
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4">
+        {/* Page Title */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-tppslate">Checkout</h1>
+        </div>
+
         {error && (
           <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg flex items-start gap-3">
             <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
