@@ -1,6 +1,6 @@
 // frontend/src/components/admin/layout/TopBar.jsx
 
-import { Menu, Bell, User, LogOut, Search, X, Settings, Package, ShoppingCart, Users as UsersIcon, Layers } from 'lucide-react';
+import { Menu, Bell, User, LogOut, Search, X, Settings, Package, ShoppingCart, Users as UsersIcon, Layers, Circle } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../../../context/AdminAuthContext';
@@ -401,6 +401,21 @@ export default function TopBar({ onMenuClick }) {
 
           {/* Right Section */}
           <div className="flex items-center gap-3">
+            {/* Go to Home Link */}
+            <button
+              onClick={() => navigate('/')}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg 
+                text-tpppink hover:bg-pink-50 hover:text-tpppink/90 transition-all
+                text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-tpppink/30"
+              title="Go to Home"
+            >
+              {/* <Store size={16} /> */}
+              <span>Go to Home</span>
+            </button>
+
+            {/* Divider */}
+            <Circle size={6} className="hidden sm:block text-tpppink fill-current" />
+
             {/* Go to Shop Link */}
             <button
               onClick={() => navigate('/shop')}

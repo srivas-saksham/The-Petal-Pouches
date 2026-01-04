@@ -267,15 +267,23 @@ export default function Register() {
         <AuthPageTransition>
         {/* Right Section - Register Form (40%) - Proper Container */}
         <div className="w-full flex flex-col p-6 sm:p-8">
-          {/* Back to Shop Link & Sign In Link - FIXED AT TOP */}
+          {/* Back to Shop/Home Links & Sign Up Link - FIXED AT TOP */}
           <div className="mb-4 flex items-center justify-between flex-shrink-0">
-            <Link
-              to="/"
-              className="text-sm text-tppslate/60 hover:text-tpppink font-medium transition-colors inline-flex items-center gap-1"
-            >
-              ← Back to Shop
-            </Link>
-
+            <div className="flex items-center gap-2">
+              <Link
+                to="/"
+                className="text-sm text-tppslate/60 hover:text-tpppink font-medium transition-colors inline-flex items-center gap-1"
+              >
+                ← Home
+              </Link>
+              <div className="w-1 h-1 rounded-full bg-tppslate/50" />
+              <Link
+                to="/shop"
+                className="text-sm text-tppslate/60 hover:text-tpppink font-medium transition-colors"
+              >
+                Shop
+              </Link>
+            </div>
             <p className="text-sm text-tppslate/60">
               <Link to="/login" className="hover:text-tpppink transition-colors">
                 Already Registered?{' '}

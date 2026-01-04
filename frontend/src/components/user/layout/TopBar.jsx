@@ -1,6 +1,6 @@
 // frontend/src/components/user/layout/TopBar.jsx - WITH CART SIDEBAR INTEGRATION
 
-import { Menu, Search, ShoppingBag, Bell, User, LogOut, X, Store, ShoppingCart } from 'lucide-react';
+import { Menu, Search, ShoppingBag, Bell, User, LogOut, X, Store, ShoppingCart, Circle } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserAuth } from '../../../context/UserAuthContext';
@@ -111,6 +111,20 @@ export default function UserTopBar({ onMenuClick }) {
 
           {/* Right Section - Cart, Notifications, User */}
           <div className="flex items-center gap-3 ml-4">
+            {/* Go to Home Link */}
+            <button
+              onClick={() => navigate('/')}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg 
+                text-tpppink hover:bg-pink-50 hover:text-tpppink/90 transition-all
+                text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-tpppink/30"
+              title="Go to Home"
+            >
+              {/* <Store size={16} /> */}
+              <span>Go to Home</span>
+            </button>
+
+            {/* Divider */}
+            <Circle size={6} className="hidden sm:block text-tpppink fill-current" />
 
             {/* Go to Shop Link */}
             <button

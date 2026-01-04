@@ -106,14 +106,23 @@ export default function Login() {
         <AuthPageTransition>
         {/* Right Section - Login Form (40%) - Proper Container */}
         <div className="w-full flex flex-col p-4 sm:p-6">
-          {/* Back to Shop Link & Sign Up Link - FIXED AT TOP */}
+          {/* Back to Shop/Home Links & Sign Up Link - FIXED AT TOP */}
           <div className="mb-4 flex items-center justify-between flex-shrink-0">
-            <Link
-              to="/"
-              className="text-sm text-tppslate/60 hover:text-tpppink font-medium transition-colors inline-flex items-center gap-1"
-            >
-              ← Back to Shop
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                to="/"
+                className="text-sm text-tppslate/60 hover:text-tpppink font-medium transition-colors inline-flex items-center gap-1"
+              >
+                ← Home
+              </Link>
+              <div className="w-1 h-1 rounded-full bg-tppslate/50" />
+              <Link
+                to="/shop"
+                className="text-sm text-tppslate/60 hover:text-tpppink font-medium transition-colors"
+              >
+                Shop
+              </Link>
+            </div>
             <p className="text-sm text-tppslate/60">
               <Link to="/register" className="hover:text-tpppink transition-colors">
                 Don't have an account?{' '}
