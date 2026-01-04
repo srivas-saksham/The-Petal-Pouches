@@ -1,5 +1,4 @@
-// frontend/src/context/CartContext.jsx - GLOBAL CART STATE MANAGEMENT
-// WITH SILENT REFRESH FOR TOTALS ONLY
+// frontend/src/context/CartContext.jsx - WITH LOGOUT HANDLING
 
 import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import { getCart } from '../services/cartService';
@@ -23,7 +22,7 @@ export function CartProvider({ children }) {
     total_quantity: 0
   });
   const [loading, setLoading] = useState(true);
-  const [refreshingTotals, setRefreshingTotals] = useState(false); // ✅ NEW - for silent refresh
+  const [refreshingTotals, setRefreshingTotals] = useState(false);
   const [error, setError] = useState(null);
 
   /**
@@ -33,10 +32,8 @@ export function CartProvider({ children }) {
   const fetchCart = useCallback(async (silentRefresh = false) => {
     try {
       if (silentRefresh) {
-        // Silent refresh - only update totals loading state
         setRefreshingTotals(true);
       } else {
-        // Full refresh - show full loading state
         setLoading(true);
       }
       setError(null);
@@ -120,6 +117,7 @@ export function CartProvider({ children }) {
    * Clear cart state (on logout)
    */
   const clearCartState = useCallback(() => {
+    console.log('🗑️ Clearing cart state...');
     setCartItems([]);
     setCartTotals({
       subtotal: 0,
@@ -137,20 +135,26 @@ export function CartProvider({ children }) {
     fetchCart();
   }, [fetchCart]);
 
-  // Reload cart when user logs in/out
+  // ✅ NEW: Reload cart when user logs in/out
   useEffect(() => {
     if (isAuthenticated) {
       console.log('🔐 User logged in, refreshing cart');
       fetchCart();
+    } else if (isAuthenticated === false) {
+      // User just logged out
+      console.log('🚪 User logged out, clearing and refreshing cart');
+      clearCartState();
+      // Refresh to get new guest cart
+      setTimeout(() => fetchCart(), 100);
     }
-  }, [isAuthenticated, fetchCart]);
+  }, [isAuthenticated, fetchCart, clearCartState]);
 
   const value = {
     // State
     cartItems,
     cartTotals,
     loading,
-    refreshingTotals, // ✅ NEW - expose refreshing totals state
+    refreshingTotals,
     error,
 
     // Methods
