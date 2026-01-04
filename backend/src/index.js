@@ -86,14 +86,18 @@ const razorpayService = require('./services/razorpayService');
 // --------------------------------------------
 app.use('/api/webhooks', require('./routes/webhooks'));
 
+const { verifyAdminToken } = require('./middleware/adminAuth');
+
 // 1. ADMIN & STAFF ROUTES
 // --------------------------------------------
-app.use('/api/admin/auth', require('./routes/adminAuth'));     // Admin Login/Register
-app.use('/api/admin/orders', require('./routes/adminOrders'));
-app.use('/api/admin/customers', require('./routes/adminCustomers'));
-app.use('/api/admin/shipments', require('./routes/shipments'));
-app.use('/api/admin/coupons', require('./routes/adminCoupons'));
-app.use('/api/admin', require('./routes/admin'));              // Admin Product Management
+app.use('/api/admin/auth', require('./routes/adminAuth'));                          // ✅ Login - NO auth needed
+
+// ✅ ALL BELOW REQUIRE AUTHENTICATION
+app.use('/api/admin/orders', verifyAdminToken, require('./routes/adminOrders'));       // ✅ FIXED
+app.use('/api/admin/customers', verifyAdminToken, require('./routes/adminCustomers')); // ✅ FIXED
+app.use('/api/admin/shipments', verifyAdminToken, require('./routes/shipments'));      // ✅ Already correct
+app.use('/api/admin/coupons', verifyAdminToken, require('./routes/adminCoupons'));     // ✅ FIXED
+app.use('/api/admin', verifyAdminToken, require('./routes/admin')); 
 
 // 2. CUSTOMER AUTHENTICATION & PROFILE
 // --------------------------------------------

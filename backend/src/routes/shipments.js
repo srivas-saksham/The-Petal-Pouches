@@ -1,8 +1,17 @@
+// backend/src/routes/shipments.js
 const express = require('express');
 const router = express.Router();
 const ShipmentController = require('../controllers/shipmentController');
+const ShipmentEditController = require('../controllers/shipmentEditController');
+const {
+  validateEditRequest,
+  sanitizeEditData,
+  validateShipmentId,
+  rateLimitEdits,
+  logEditAttempt
+} = require('../middleware/validateShipmentEdit');
 
-// All routes require admin authentication
+// All routes require admin authentication (assumed to be applied at app level)
 
 /**
  * GET /api/admin/shipments/stats
@@ -38,6 +47,73 @@ router.post('/bulk-approve', ShipmentController.bulkApproveAndPlace);
  */
 router.post('/bulk-sync', ShipmentController.bulkSyncShipments);
 
+// ==================== 🆕 EDIT ROUTES ====================
+
+/**
+ * GET /api/admin/shipments/:id/edit-eligibility
+ * Check if shipment can be edited
+ * MUST BE BEFORE /:id ROUTE
+ */
+router.get(
+  '/:id/edit-eligibility',
+  validateShipmentId,
+  ShipmentEditController.checkEditEligibility
+);
+
+/**
+ * GET /api/admin/shipments/:id/edit-history
+ * Get edit history for shipment
+ * MUST BE BEFORE /:id ROUTE
+ */
+router.get(
+  '/:id/edit-history',
+  validateShipmentId,
+  ShipmentEditController.getEditHistory
+);
+
+/**
+ * POST /api/admin/shipments/:id/validate-edit
+ * Validate edit data without submitting
+ * MUST BE BEFORE /:id ROUTE
+ */
+router.post(
+  '/:id/validate-edit',
+  validateShipmentId,
+  validateEditRequest,
+  sanitizeEditData,
+  ShipmentEditController.validateEdit
+);
+
+/**
+ * PUT /api/admin/shipments/:id/edit
+ * Edit shipment details via Delhivery API
+ * MUST BE BEFORE /:id ROUTE
+ * 
+ * Body:
+ * {
+ *   "name": "New Name",
+ *   "phone": "9876543210",
+ *   "address": "New Address",
+ *   "weight": 1200,
+ *   "shipment_height": 15,
+ *   "shipment_width": 20,
+ *   "shipment_length": 25,
+ *   "products_desc": "Updated description",
+ *   "admin_notes": "Edited due to customer request"
+ * }
+ */
+router.put(
+  '/:id/edit',
+  validateShipmentId,
+  rateLimitEdits,
+  validateEditRequest,
+  sanitizeEditData,
+  logEditAttempt,
+  ShipmentEditController.editShipment
+);
+
+// ==================== EXISTING ROUTES ====================
+
 /**
  * GET /api/admin/shipments/:id/label
  * Download shipment label (server-side proxy)
@@ -61,6 +137,9 @@ router.get('/:id', ShipmentController.getShipmentById);
 /**
  * PUT /api/admin/shipments/:id
  * Update shipment details (before placing)
+ * NOTE: This is for editing BEFORE Delhivery placement
+ * Use PUT /api/admin/shipments/:id/edit for AFTER placement
+ * 
  * Body: { weight_grams, dimensions_cm, shipping_mode, admin_notes }
  */
 router.put('/:id', ShipmentController.updateShipmentDetails);

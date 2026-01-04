@@ -17,10 +17,11 @@ api.interceptors.request.use(
     // Add auth token from localStorage
     // Support both customer and admin tokens
     const customerToken = localStorage.getItem('customer_token');
-    const adminToken = localStorage.getItem('adminToken');
+    const adminToken = sessionStorage.getItem('admin_token');
     
-    // Prioritize customer token, fall back to admin token
-    const token = customerToken || adminToken;
+    // ✅ Check if we're on admin routes
+    const isAdminRoute = window.location.pathname.startsWith('/admin');
+    const token = isAdminRoute ? (adminToken || customerToken) : (customerToken || adminToken);
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

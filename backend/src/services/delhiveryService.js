@@ -215,6 +215,241 @@ class DelhiveryService {
     }
   }
 
+  /**
+   * Edit existing shipment with Delhivery
+   * @param {string} awb - Air Waybill number
+   * @param {Object} updateData - Fields to update
+   * @returns {Promise<Object>} Update result
+   */
+  async editShipment(awb, updateData) {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Delhivery API token not configured');
+      }
+
+      if (!awb) {
+        throw new Error('AWB number is required for editing');
+      }
+
+      console.log(`✏️ [Delhivery] Editing shipment: ${awb}`);
+      console.log('   Update data:', updateData);
+
+      const url = `${this.baseURL}/api/p/edit`;
+
+      // Build payload according to Delhivery format
+      const payload = {
+        waybill: awb,
+        ...updateData
+      };
+
+      // Convert weight to grams if provided in kg
+      if (payload.weight && payload.weight < 100) {
+        payload.weight = Math.round(payload.weight * 1000);
+        console.log(`   Converted weight: ${payload.weight}g`);
+      }
+
+      console.log('📤 [Delhivery] Edit Request Payload:', JSON.stringify(payload, null, 2));
+
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Authorization': `Token ${this.apiToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        timeout: 15000,
+        validateStatus: (status) => status < 500
+      });
+
+      console.log('📥 [Delhivery] Edit Response:', {
+        status: response.status,
+        data: response.data
+      });
+
+      // Handle errors
+      if (response.status === 401) {
+        throw new Error('Delhivery authentication failed');
+      }
+
+      if (response.status === 400) {
+        const errorMsg = response.data?.error || response.data?.message || 'Invalid request';
+        throw new Error(`Delhivery validation error: ${errorMsg}`);
+      }
+
+      if (response.status !== 200) {
+        console.error(`❌ [Delhivery] Edit API HTTP ${response.status}:`, response.data);
+        throw new Error(`API returned status ${response.status}`);
+      }
+
+      const result = response.data;
+      console.log('✅ [Delhivery] Shipment edited successfully');
+
+      return {
+        success: true,
+        awb: awb,
+        message: result.message || 'Shipment updated successfully',
+        updated_fields: Object.keys(updateData).filter(k => k !== 'waybill'),
+        raw_response: result
+      };
+
+    } catch (error) {
+      console.error('❌ [Delhivery] Edit shipment failed:', error);
+
+      if (error.response?.status === 401) {
+        throw new Error('Delhivery authentication failed. Check API token.');
+      }
+
+      if (error.response?.status === 400) {
+        const errorMsg = error.response.data?.error || error.response.data?.message || 'Invalid request';
+        throw new Error(`Delhivery validation error: ${errorMsg}`);
+      }
+
+      if (error.response?.status === 404) {
+        throw new Error(`Shipment with AWB ${awb} not found in Delhivery system`);
+      }
+
+      throw new Error(`Failed to edit shipment: ${error.message}`);
+    }
+  }
+
+  /**
+   * Validate if shipment can be edited
+   * @param {string} awb - Air Waybill number
+   * @returns {Promise<Object>} Eligibility info
+   */
+  async validateEditEligibility(awb) {
+    try {
+      console.log(`🔍 [Delhivery] Checking edit eligibility for AWB: ${awb}`);
+
+      // Fetch current tracking status
+      const trackingData = await this.getTrackingInfo(awb);
+      
+      if (!trackingData) {
+        return {
+          eligible: false,
+          reason: 'Unable to fetch shipment tracking information'
+        };
+      }
+
+      const status = trackingData.status || 'Unknown';
+      console.log(`   Current Delhivery status: ${status}`);
+      
+      // Delhivery editable statuses (from API docs)
+      const editableStatuses = [
+        'Manifested',
+        'In Transit',
+        'Pending',
+        'Scheduled' // For RVP
+      ];
+
+      // Terminal statuses (not editable)
+      const terminalStatuses = [
+        'Delivered',
+        'DTO',
+        'RTO',
+        'LOST',
+        'Closed',
+        'Cancelled'
+      ];
+
+      // Check if terminal
+      const isTerminal = terminalStatuses.some(s => 
+        status.toLowerCase().includes(s.toLowerCase())
+      );
+
+      if (isTerminal) {
+        console.log(`   ❌ Terminal status - not editable`);
+        return {
+          eligible: false,
+          reason: `Shipment is in terminal status '${status}' and cannot be edited`,
+          current_status: status
+        };
+      }
+
+      // Check if editable
+      const isEditable = editableStatuses.some(s => 
+        status.toLowerCase().includes(s.toLowerCase())
+      );
+
+      if (!isEditable) {
+        console.log(`   ❌ Status not editable`);
+        return {
+          eligible: false,
+          reason: `Shipment status '${status}' is not eligible for editing. Editable statuses: ${editableStatuses.join(', ')}`,
+          current_status: status,
+          editable_statuses: editableStatuses
+        };
+      }
+
+      console.log(`   ✅ Shipment is eligible for editing`);
+      return {
+        eligible: true,
+        current_status: status,
+        message: 'Shipment can be edited'
+      };
+
+    } catch (error) {
+      console.error('❌ [Delhivery] Edit eligibility check failed:', error);
+      return {
+        eligible: false,
+        reason: `Unable to validate eligibility: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Cancel shipment via Delhivery API
+   * @param {string} awb - Air Waybill number
+   * @returns {Promise<Object>} Cancellation result
+   */
+  async cancelShipment(awb) {
+    try {
+      if (!this.apiToken) {
+        throw new Error('Delhivery API token not configured');
+      }
+
+      if (!awb) {
+        throw new Error('AWB number is required for cancellation');
+      }
+
+      console.log(`🚫 [Delhivery] Cancelling shipment: ${awb}`);
+
+      const url = `${this.baseURL}/api/p/edit`;
+
+      const payload = {
+        waybill: awb,
+        cancellation: 'true'
+      };
+
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Authorization': `Token ${this.apiToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        timeout: 15000,
+        validateStatus: (status) => status < 500
+      });
+
+      if (response.status !== 200) {
+        console.error(`❌ [Delhivery] Cancel API HTTP ${response.status}:`, response.data);
+        throw new Error(`API returned status ${response.status}`);
+      }
+
+      console.log('✅ [Delhivery] Shipment cancelled successfully');
+
+      return {
+        success: true,
+        awb: awb,
+        message: 'Shipment cancelled successfully',
+        raw_response: response.data
+      };
+
+    } catch (error) {
+      console.error('❌ [Delhivery] Cancel shipment failed:', error);
+      throw new Error(`Failed to cancel shipment: ${error.message}`);
+    }
+  }
+
   // ==================== SHIPPING COST CALCULATION (NEW) ====================
 
   /**

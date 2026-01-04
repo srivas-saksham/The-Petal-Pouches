@@ -4,7 +4,7 @@
  * API calls for admin coupon management
  */
 
-import api from './api';
+import adminApi from './adminApi'; 
 
 /**
  * Get all coupons with filters
@@ -23,7 +23,7 @@ export const getAllCoupons = async (params = {}) => {
     if (status) queryParams.append('status', status);
     if (search) queryParams.append('search', search);
 
-    const response = await api.get(`/api/admin/coupons?${queryParams}`);
+    const response = await adminApi.get(`/api/admin/coupons?${queryParams}`);
 
     if (response.data.success) {
       console.log('✅ [AdminCouponService] Coupons fetched:', response.data.data);
@@ -56,7 +56,7 @@ export const getCouponById = async (id) => {
   try {
     console.log('🔍 [AdminCouponService] Fetching coupon:', id);
 
-    const response = await api.get(`/api/admin/coupons/${id}`);
+    const response = await adminApi.get(`/api/admin/coupons/${id}`);
 
     if (response.data.success) {
       console.log('✅ [AdminCouponService] Coupon fetched:', response.data.data);
@@ -89,7 +89,7 @@ export const createCoupon = async (couponData) => {
   try {
     console.log('➕ [AdminCouponService] Creating coupon:', couponData.code);
 
-    const response = await api.post('/api/admin/coupons', couponData);
+    const response = await adminApi.post('/api/admin/coupons', couponData);
 
     if (response.data.success) {
       console.log('✅ [AdminCouponService] Coupon created:', response.data.data);
@@ -124,7 +124,7 @@ export const updateCoupon = async (id, updates) => {
   try {
     console.log('✏️ [AdminCouponService] Updating coupon:', id);
 
-    const response = await api.put(`/api/admin/coupons/${id}`, updates);
+    const response = await adminApi.put(`/api/admin/coupons/${id}`, updates);
 
     if (response.data.success) {
       console.log('✅ [AdminCouponService] Coupon updated:', response.data.data);
@@ -158,7 +158,7 @@ export const deleteCoupon = async (id) => {
   try {
     console.log('🗑️ [AdminCouponService] Deleting coupon:', id);
 
-    const response = await api.delete(`/api/admin/coupons/${id}`);
+    const response = await adminApi.delete(`/api/admin/coupons/${id}`);
 
     if (response.data.success) {
       console.log('✅ [AdminCouponService] Coupon deleted');
@@ -191,7 +191,7 @@ export const toggleCouponStatus = async (id) => {
   try {
     console.log('🔄 [AdminCouponService] Toggling coupon status:', id);
 
-    const response = await api.patch(`/api/admin/coupons/${id}/toggle`);
+    const response = await adminApi.patch(`/api/admin/coupons/${id}/toggle`);
 
     if (response.data.success) {
       console.log('✅ [AdminCouponService] Status toggled:', response.data.data);
@@ -225,7 +225,7 @@ export const getCouponStats = async (id) => {
   try {
     console.log('📊 [AdminCouponService] Fetching stats:', id);
 
-    const response = await api.get(`/api/admin/coupons/${id}/stats`);
+    const response = await adminApi.get(`/api/admin/coupons/${id}/stats`);
 
     if (response.data.success) {
       console.log('✅ [AdminCouponService] Stats fetched:', response.data.data);

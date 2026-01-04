@@ -1,3 +1,4 @@
+// frontend/src/services/shipmentService.js
 import api from './api';
 
 /**
@@ -63,7 +64,7 @@ const shipmentService = {
   },
 
   /**
-   * Update shipment details
+   * Update shipment details (before placing)
    */
   updateShipment: async (shipmentId, updateData) => {
     try {
@@ -195,6 +196,92 @@ const shipmentService = {
       return {
         success: false,
         error: error.response?.data?.message || 'Failed to fetch stats'
+      };
+    }
+  },
+
+  // ==================== 🆕 EDIT METHODS ====================
+
+  /**
+   * Check if shipment is editable
+   */
+  checkEditEligibility: async (shipmentId) => {
+    try {
+      const response = await api.get(`/api/admin/shipments/${shipmentId}/edit-eligibility`);
+      return {
+        success: true,
+        eligible: response.data.eligible,
+        data: response.data,
+        message: response.data.message
+      };
+    } catch (error) {
+      return {
+        success: false,
+        eligible: false,
+        error: error.response?.data?.message || 'Failed to check eligibility',
+        reason: error.response?.data?.reason
+      };
+    }
+  },
+
+  /**
+   * Edit shipment details via Delhivery API
+   */
+  editShipment: async (shipmentId, updateData) => {
+    try {
+      const response = await api.put(`/api/admin/shipments/${shipmentId}/edit`, updateData);
+      return {
+        success: true,
+        data: response.data.data,
+        changes: response.data.changes,
+        message: response.data.message
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to edit shipment',
+        code: error.response?.data?.code,
+        errors: error.response?.data?.errors
+      };
+    }
+  },
+
+  /**
+   * Validate edit data without submitting
+   */
+  validateEdit: async (shipmentId, updateData) => {
+    try {
+      const response = await api.post(`/api/admin/shipments/${shipmentId}/validate-edit`, updateData);
+      return {
+        success: true,
+        valid: response.data.valid,
+        message: response.data.message,
+        fields_to_update: response.data.fields_to_update
+      };
+    } catch (error) {
+      return {
+        success: false,
+        valid: false,
+        error: error.response?.data?.message || 'Validation failed',
+        errors: error.response?.data?.errors || []
+      };
+    }
+  },
+
+  /**
+   * Get edit history for shipment
+   */
+  getEditHistory: async (shipmentId) => {
+    try {
+      const response = await api.get(`/api/admin/shipments/${shipmentId}/edit-history`);
+      return {
+        success: true,
+        data: response.data.data
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch edit history'
       };
     }
   }

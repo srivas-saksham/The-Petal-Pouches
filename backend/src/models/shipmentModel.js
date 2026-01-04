@@ -151,195 +151,195 @@ const ShipmentModel = {
   },
 
   /**
- * Create shipment with cost calculation
- * ✅ Sets estimated_delivery from order metadata
- * ✅ Handles all NULL fields with defaults
- * ✅ Parses detailed cost breakdown from Delhivery
- * ✅ Includes mode comparison (Surface vs Express)
- */
-async createWithCostCalculation(orderId, shipmentData) {
-  try {
-    const supabase = require('../config/supabaseClient');
-    const delhiveryService = require('../services/delhiveryService');
+   * Create shipment with cost calculation
+   * ✅ Sets estimated_delivery from order metadata
+   * ✅ Handles all NULL fields with defaults
+   * ✅ Parses detailed cost breakdown from Delhivery
+   * ✅ Includes mode comparison (Surface vs Express)
+   */
+  async createWithCostCalculation(orderId, shipmentData) {
+    try {
+      const supabase = require('../config/supabaseClient');
+      const delhiveryService = require('../services/delhiveryService');
 
-    const { data: order, error: orderError } = await supabase
-      .from('Orders')
-      .select('*, Users!inner(name, email, phone)')
-      .eq('id', orderId)
-      .single();
+      const { data: order, error: orderError } = await supabase
+        .from('Orders')
+        .select('*, Users!inner(name, email, phone)')
+        .eq('id', orderId)
+        .single();
 
-    if (orderError) throw orderError;
+      if (orderError) throw orderError;
 
-    console.log('📦 Creating shipment for order:', orderId);
+      console.log('📦 Creating shipment for order:', orderId);
 
-    // Calculate cost using Delhivery for selected mode
-    const costData = await delhiveryService.calculateShippingCost(
-      shipmentData.destination_pincode,
-      {
-        mode: shipmentData.shipping_mode === 'Express' ? 'E' : 'S',
-        weight: shipmentData.weight_grams,
-        paymentType: (order.payment_method === 'cod' || order.payment_method === 'COD') ? 'COD' : 'Pre-paid'
+      // Calculate cost using Delhivery for selected mode
+      const costData = await delhiveryService.calculateShippingCost(
+        shipmentData.destination_pincode,
+        {
+          mode: shipmentData.shipping_mode === 'Express' ? 'E' : 'S',
+          weight: shipmentData.weight_grams,
+          paymentType: (order.payment_method === 'cod' || order.payment_method === 'COD') ? 'COD' : 'Pre-paid'
+        }
+      );
+
+      console.log('💰 Calculated shipping cost:', costData.amount);
+
+      // ✅ Also calculate the alternate mode for comparison
+      const alternateMode = shipmentData.shipping_mode === 'Express' ? 'S' : 'E';
+      const alternateCostData = await delhiveryService.calculateShippingCost(
+        shipmentData.destination_pincode,
+        {
+          mode: alternateMode,
+          weight: shipmentData.weight_grams,
+          paymentType: (order.payment_method === 'cod' || order.payment_method === 'COD') ? 'COD' : 'Pre-paid'
+        }
+      );
+
+      // ✅ Parse detailed breakdown from Delhivery response
+      const rawData = costData.rawData?.[0] || costData.rawData || {};
+      const baseCost = rawData.charge_DL || rawData.base_rate || costData.amount;
+      const codCharge = rawData.charge_COD || 0;
+      const otherCharges = (rawData.charge_LM || 0) + (rawData.charge_DPH || 0);
+      const grossAmount = rawData.gross_amount || costData.amount;
+      const cgst = rawData.tax_data?.CGST || 0;
+      const sgst = rawData.tax_data?.SGST || 0;
+      const totalTax = cgst + sgst;
+
+      console.log('💰 Cost breakdown:');
+      console.log('   Base delivery:', baseCost);
+      console.log('   COD charges:', codCharge);
+      console.log('   Other charges:', otherCharges);
+      console.log('   Gross amount:', grossAmount);
+      console.log('   Tax (GST):', totalTax);
+      console.log('   Final total:', costData.amount);
+
+      // ✅ FIXED: Use expected_delivery_date directly from order metadata
+      const deliveryMetadata = order.delivery_metadata || {};
+      let estimatedDeliveryStr;
+
+      // Priority 1: Use the expected_delivery_date if it exists (most accurate)
+      if (deliveryMetadata.expected_delivery_date) {
+        estimatedDeliveryStr = deliveryMetadata.expected_delivery_date;
+        console.log(`📅 Using expected delivery from metadata: ${estimatedDeliveryStr}`);
+      } else if (deliveryMetadata.estimated_days) {
+        // Fallback: Calculate from estimated_days
+        const estimatedDays = deliveryMetadata.estimated_days;
+        const estimatedDate = new Date();
+        estimatedDate.setDate(estimatedDate.getDate() + estimatedDays);
+        estimatedDeliveryStr = estimatedDate.toISOString().split('T')[0];
+        console.log(`📅 Calculated delivery from days: ${estimatedDeliveryStr} (${estimatedDays} days)`);
+      } else {
+        // Default fallback
+        const estimatedDate = new Date();
+        estimatedDate.setDate(estimatedDate.getDate() + 5);
+        estimatedDeliveryStr = estimatedDate.toISOString().split('T')[0];
+        console.log(`📅 Using default 5-day delivery: ${estimatedDeliveryStr}`);
       }
-    );
 
-    console.log('💰 Calculated shipping cost:', costData.amount);
+      // ✅ Build cost comparison note
+      const surfaceCost = shipmentData.shipping_mode === 'Express' 
+        ? Math.ceil(alternateCostData.amount) 
+        : Math.ceil(costData.amount);
+      const expressCost = shipmentData.shipping_mode === 'Express' 
+        ? Math.ceil(costData.amount) 
+        : Math.ceil(alternateCostData.amount);
+      const expressExtra = expressCost - surfaceCost;
 
-    // ✅ Also calculate the alternate mode for comparison
-    const alternateMode = shipmentData.shipping_mode === 'Express' ? 'S' : 'E';
-    const alternateCostData = await delhiveryService.calculateShippingCost(
-      shipmentData.destination_pincode,
-      {
-        mode: alternateMode,
-        weight: shipmentData.weight_grams,
-        paymentType: (order.payment_method === 'cod' || order.payment_method === 'COD') ? 'COD' : 'Pre-paid'
-      }
-    );
+      // Create shipment with all fields properly set
+      const { data: shipment, error: shipmentError } = await supabase
+        .from('Shipments')
+        .insert([{
+          order_id: orderId,
+          status: 'pending_review',
+          
+          // Shipping details
+          shipping_mode: shipmentData.shipping_mode,
+          weight_grams: shipmentData.weight_grams,
+          dimensions_cm: shipmentData.dimensions_cm || { length: 30, width: 25, height: 10 },
+          package_count: 1,
+          
+          // Destination
+          destination_pincode: shipmentData.destination_pincode,
+          destination_city: shipmentData.destination_city,
+          destination_state: shipmentData.destination_state,
+          
+          // Dates - ✅ Set estimated_delivery immediately
+          estimated_delivery: estimatedDeliveryStr,
+          pickup_scheduled_date: shipmentData.pickup_scheduled_date || null,
+          pickup_actual_date: null,
+          placed_at: null,
+          approved_at: null,
+          
+          // Cost - ✅ DETAILED BREAKDOWN
+          estimated_cost: Math.ceil(costData.amount),
+          actual_cost: null, // Will be set after placement
+          cost_breakdown: {
+            base_delivery_charge: Math.ceil(baseCost),
+            cod_charges: Math.ceil(codCharge),
+            other_charges: Math.ceil(otherCharges),
+            gross_amount: Math.ceil(grossAmount),
+            cgst: Math.ceil(cgst),
+            sgst: Math.ceil(sgst),
+            total_tax: Math.ceil(totalTax),
+            total: Math.ceil(costData.amount),
+            currency: 'INR',
+            source: costData.source,
+            // ✅ Mode comparison for reference
+            mode_comparison: {
+              selected_mode: shipmentData.shipping_mode,
+              surface_cost: surfaceCost,
+              express_cost: expressCost,
+              express_extra: expressExtra,
+              customer_paid_extra: shipmentData.shipping_mode === 'Express' ? expressExtra : 0
+            }
+          },
+          
+          // ✅ Courier/Tracking fields - NULL until placement
+          courier: null,
+          awb: null,
+          tracking_url: null,
+          delhivery_order_id: null,
+          
+          // ✅ Document URLs - NULL until placement
+          label_url: null,
+          invoice_url: null,
+          manifest_url: null,
+          
+          // ✅ Tracking data - Empty array instead of NULL
+          tracking_history: [],
+          
+          // Admin fields
+          admin_notes: null,
+          edited_by: null,
+          approved_by: null,
+          editable: true,
+          
+          // Failure tracking
+          failed_reason: null,
+          retry_count: 0,
+          
+          // Timestamps
+          last_sync_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
 
-    // ✅ Parse detailed breakdown from Delhivery response
-    const rawData = costData.rawData?.[0] || costData.rawData || {};
-    const baseCost = rawData.charge_DL || rawData.base_rate || costData.amount;
-    const codCharge = rawData.charge_COD || 0;
-    const otherCharges = (rawData.charge_LM || 0) + (rawData.charge_DPH || 0);
-    const grossAmount = rawData.gross_amount || costData.amount;
-    const cgst = rawData.tax_data?.CGST || 0;
-    const sgst = rawData.tax_data?.SGST || 0;
-    const totalTax = cgst + sgst;
+      if (shipmentError) throw shipmentError;
 
-    console.log('💰 Cost breakdown:');
-    console.log('   Base delivery:', baseCost);
-    console.log('   COD charges:', codCharge);
-    console.log('   Other charges:', otherCharges);
-    console.log('   Gross amount:', grossAmount);
-    console.log('   Tax (GST):', totalTax);
-    console.log('   Final total:', costData.amount);
+      console.log(`✅ Shipment created: ${shipment.id}`);
+      console.log(`   Status: ${shipment.status}`);
+      console.log(`   Estimated cost: ₹${shipment.estimated_cost}`);
+      console.log(`   Estimated delivery: ${shipment.estimated_delivery}`);
+      console.log(`   Mode comparison: Surface ₹${surfaceCost} | Express ₹${expressCost}`);
 
-    // ✅ FIXED: Use expected_delivery_date directly from order metadata
-    const deliveryMetadata = order.delivery_metadata || {};
-    let estimatedDeliveryStr;
-
-    // Priority 1: Use the expected_delivery_date if it exists (most accurate)
-    if (deliveryMetadata.expected_delivery_date) {
-      estimatedDeliveryStr = deliveryMetadata.expected_delivery_date;
-      console.log(`📅 Using expected delivery from metadata: ${estimatedDeliveryStr}`);
-    } else if (deliveryMetadata.estimated_days) {
-      // Fallback: Calculate from estimated_days
-      const estimatedDays = deliveryMetadata.estimated_days;
-      const estimatedDate = new Date();
-      estimatedDate.setDate(estimatedDate.getDate() + estimatedDays);
-      estimatedDeliveryStr = estimatedDate.toISOString().split('T')[0];
-      console.log(`📅 Calculated delivery from days: ${estimatedDeliveryStr} (${estimatedDays} days)`);
-    } else {
-      // Default fallback
-      const estimatedDate = new Date();
-      estimatedDate.setDate(estimatedDate.getDate() + 5);
-      estimatedDeliveryStr = estimatedDate.toISOString().split('T')[0];
-      console.log(`📅 Using default 5-day delivery: ${estimatedDeliveryStr}`);
+      return shipment;
+    } catch (error) {
+      console.error('❌ Create shipment with cost error:', error);
+      throw error;
     }
-
-    // ✅ Build cost comparison note
-    const surfaceCost = shipmentData.shipping_mode === 'Express' 
-      ? Math.ceil(alternateCostData.amount) 
-      : Math.ceil(costData.amount);
-    const expressCost = shipmentData.shipping_mode === 'Express' 
-      ? Math.ceil(costData.amount) 
-      : Math.ceil(alternateCostData.amount);
-    const expressExtra = expressCost - surfaceCost;
-
-    // Create shipment with all fields properly set
-    const { data: shipment, error: shipmentError } = await supabase
-      .from('Shipments')
-      .insert([{
-        order_id: orderId,
-        status: 'pending_review',
-        
-        // Shipping details
-        shipping_mode: shipmentData.shipping_mode,
-        weight_grams: shipmentData.weight_grams,
-        dimensions_cm: shipmentData.dimensions_cm || { length: 30, width: 25, height: 10 },
-        package_count: 1,
-        
-        // Destination
-        destination_pincode: shipmentData.destination_pincode,
-        destination_city: shipmentData.destination_city,
-        destination_state: shipmentData.destination_state,
-        
-        // Dates - ✅ Set estimated_delivery immediately
-        estimated_delivery: estimatedDeliveryStr,
-        pickup_scheduled_date: shipmentData.pickup_scheduled_date || null,
-        pickup_actual_date: null,
-        placed_at: null,
-        approved_at: null,
-        
-        // Cost - ✅ DETAILED BREAKDOWN
-        estimated_cost: Math.ceil(costData.amount),
-        actual_cost: null, // Will be set after placement
-        cost_breakdown: {
-          base_delivery_charge: Math.ceil(baseCost),
-          cod_charges: Math.ceil(codCharge),
-          other_charges: Math.ceil(otherCharges),
-          gross_amount: Math.ceil(grossAmount),
-          cgst: Math.ceil(cgst),
-          sgst: Math.ceil(sgst),
-          total_tax: Math.ceil(totalTax),
-          total: Math.ceil(costData.amount),
-          currency: 'INR',
-          source: costData.source,
-          // ✅ Mode comparison for reference
-          mode_comparison: {
-            selected_mode: shipmentData.shipping_mode,
-            surface_cost: surfaceCost,
-            express_cost: expressCost,
-            express_extra: expressExtra,
-            customer_paid_extra: shipmentData.shipping_mode === 'Express' ? expressExtra : 0
-          }
-        },
-        
-        // ✅ Courier/Tracking fields - NULL until placement
-        courier: null,
-        awb: null,
-        tracking_url: null,
-        delhivery_order_id: null,
-        
-        // ✅ Document URLs - NULL until placement
-        label_url: null,
-        invoice_url: null,
-        manifest_url: null,
-        
-        // ✅ Tracking data - Empty array instead of NULL
-        tracking_history: [],
-        
-        // Admin fields
-        admin_notes: null,
-        edited_by: null,
-        approved_by: null,
-        editable: true,
-        
-        // Failure tracking
-        failed_reason: null,
-        retry_count: 0,
-        
-        // Timestamps
-        last_sync_at: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }])
-      .select()
-      .single();
-
-    if (shipmentError) throw shipmentError;
-
-    console.log(`✅ Shipment created: ${shipment.id}`);
-    console.log(`   Status: ${shipment.status}`);
-    console.log(`   Estimated cost: ₹${shipment.estimated_cost}`);
-    console.log(`   Estimated delivery: ${shipment.estimated_delivery}`);
-    console.log(`   Mode comparison: Surface ₹${surfaceCost} | Express ₹${expressCost}`);
-
-    return shipment;
-  } catch (error) {
-    console.error('❌ Create shipment with cost error:', error);
-    throw error;
-  }
-},
+  },
 
   /**
    * Get all shipments with filters (admin)
@@ -1013,6 +1013,237 @@ async createWithCostCalculation(orderId, shipmentData) {
 
     } catch (error) {
       console.error('❌ Bulk sync error:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Edit shipment details via Delhivery API
+   * Validates eligibility, updates Delhivery, then updates local database
+   * 
+   * @param {string} shipmentId - Shipment UUID
+   * @param {Object} updateData - Fields to update
+   * @param {string} adminId - Admin user ID making the change
+   * @returns {Promise<Object>} Updated shipment
+   */
+  async editShipmentViaAPI(shipmentId, updateData, adminId) {
+    try {
+      const supabase = require('../config/supabaseClient');
+      const delhiveryService = require('../services/delhiveryService');
+      const ShipmentEditValidator = require('../utils/shipmentEditValidator');
+
+      // ===== STEP 1: Fetch shipment =====
+      const { data: shipment, error: fetchError } = await supabase
+        .from('Shipments')
+        .select(`
+          *,
+          Orders!inner(
+            id,
+            payment_method,
+            shipping_address,
+            Users!inner(name, email, phone)
+          )
+        `)
+        .eq('id', shipmentId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      console.log(`✏️ [ShipmentModel] Editing shipment: ${shipmentId}`);
+
+      // ===== STEP 2: Check if shipment has AWB =====
+      if (!shipment.awb) {
+        throw new Error('Shipment does not have AWB yet. It must be placed first before editing.');
+      }
+
+      // ===== STEP 3: Validate shipment status eligibility =====
+      const paymentMode = shipment.Orders.payment_method === 'cod' ? 'COD' : 'Prepaid';
+      const statusCheck = ShipmentEditValidator.isStatusEditable(shipment.status, paymentMode);
+
+      if (!statusCheck.allowed) {
+        throw new Error(statusCheck.reason);
+      }
+
+      // ===== STEP 4: Validate with Delhivery (check current courier status) =====
+      const delhiveryCheck = await delhiveryService.validateEditEligibility(shipment.awb);
+
+      if (!delhiveryCheck.eligible) {
+        throw new Error(delhiveryCheck.reason);
+      }
+
+      console.log(`✅ Shipment eligible for editing (Status: ${shipment.status}, Delhivery: ${delhiveryCheck.current_status})`);
+
+      // ===== STEP 5: Validate update fields =====
+      const fieldValidation = ShipmentEditValidator.validateEditFields(updateData);
+
+      if (!fieldValidation.valid) {
+        throw new Error(`Validation failed: ${fieldValidation.errors.join(', ')}`);
+      }
+
+      // ===== STEP 6: Validate payment mode change (if applicable) =====
+      if (updateData.pt) {
+        const codAmount = updateData.cod_amount || 0;
+        const paymentValidation = ShipmentEditValidator.validatePaymentModeChange(
+          paymentMode,
+          updateData.pt,
+          codAmount
+        );
+
+        if (!paymentValidation.valid) {
+          throw new Error(paymentValidation.reason);
+        }
+      }
+
+      // ===== STEP 7: Build Delhivery API payload =====
+      const delhiveryPayload = {};
+
+      // Map frontend fields to Delhivery API fields
+      if (updateData.name) delhiveryPayload.name = updateData.name;
+      if (updateData.phone) delhiveryPayload.phone = updateData.phone;
+      if (updateData.add || updateData.address) {
+        delhiveryPayload.add = updateData.add || updateData.address;
+      }
+      if (updateData.products_desc) delhiveryPayload.products_desc = updateData.products_desc;
+      if (updateData.weight) delhiveryPayload.weight = updateData.weight; // in grams
+      if (updateData.shipment_height) delhiveryPayload.shipment_height = updateData.shipment_height;
+      if (updateData.shipment_width) delhiveryPayload.shipment_width = updateData.shipment_width;
+      if (updateData.shipment_length) delhiveryPayload.shipment_length = updateData.shipment_length;
+      if (updateData.pt) {
+        delhiveryPayload.pt = updateData.pt;
+        if (updateData.cod_amount) delhiveryPayload.cod = updateData.cod_amount;
+      }
+
+      console.log('📦 Delhivery update payload:', delhiveryPayload);
+
+      // ===== STEP 8: Call Delhivery Edit API =====
+      const delhiveryResult = await delhiveryService.editShipment(
+        shipment.awb,
+        delhiveryPayload
+      );
+
+      if (!delhiveryResult.success) {
+        throw new Error(`Delhivery API error: ${delhiveryResult.message || 'Unknown error'}`);
+      }
+
+      console.log('✅ Delhivery edit successful');
+
+      // ===== STEP 9: Recalculate cost if weight/dimensions changed =====
+      let newCostBreakdown = shipment.cost_breakdown;
+      let newEstimatedCost = shipment.estimated_cost;
+
+      if (updateData.weight || updateData.shipment_height || 
+          updateData.shipment_width || updateData.shipment_length) {
+        
+        console.log('💰 Recalculating shipping cost...');
+
+        try {
+          const costData = await delhiveryService.calculateShippingCost(
+            shipment.destination_pincode,
+            {
+              mode: shipment.shipping_mode === 'Express' ? 'E' : 'S',
+              weight: updateData.weight || shipment.weight_grams,
+              paymentType: updateData.pt || paymentMode
+            }
+          );
+
+          if (costData.success) {
+            newEstimatedCost = Math.ceil(costData.amount);
+            newCostBreakdown = {
+              ...newCostBreakdown,
+              base_rate: costData.amount,
+              total: costData.amount,
+              recalculated_at: new Date().toISOString()
+            };
+            console.log(`   New estimated cost: ₹${newEstimatedCost}`);
+          }
+        } catch (costError) {
+          console.warn('⚠️ Cost recalculation failed, keeping old cost:', costError.message);
+        }
+      }
+
+      // ===== STEP 10: Build edit history entry =====
+      const editHistoryEntry = {
+        edited_at: new Date().toISOString(),
+        edited_by: adminId,
+        fields_changed: Object.keys(updateData),
+        old_values: {},
+        new_values: updateData,
+        delhivery_response: delhiveryResult.message
+      };
+
+      // Store old values for audit
+      Object.keys(updateData).forEach(key => {
+        if (shipment[key] !== undefined) {
+          editHistoryEntry.old_values[key] = shipment[key];
+        }
+      });
+
+      // ===== STEP 11: Update local database =====
+      const dbUpdate = {
+        // Update changed fields
+        updated_at: new Date().toISOString(),
+        last_edited_at: new Date().toISOString(),
+        edited_by: adminId,
+        
+        // Add edit to history
+        edit_history: [
+          ...(shipment.edit_history || []),
+          editHistoryEntry
+        ]
+      };
+
+      // Update specific fields if changed
+      if (updateData.weight) {
+        dbUpdate.weight_grams = parseInt(updateData.weight);
+      }
+
+      if (updateData.shipment_height || updateData.shipment_width || updateData.shipment_length) {
+        dbUpdate.dimensions_cm = {
+          length: updateData.shipment_length || shipment.dimensions_cm?.length || 30,
+          width: updateData.shipment_width || shipment.dimensions_cm?.width || 25,
+          height: updateData.shipment_height || shipment.dimensions_cm?.height || 10
+        };
+      }
+
+      // Update cost if recalculated
+      if (newEstimatedCost !== shipment.estimated_cost) {
+        dbUpdate.estimated_cost = newEstimatedCost;
+        dbUpdate.cost_breakdown = newCostBreakdown;
+      }
+
+      // Update admin notes if provided
+      if (updateData.admin_notes) {
+        dbUpdate.admin_notes = updateData.admin_notes;
+      }
+
+      const { data: updated, error: updateError } = await supabase
+        .from('Shipments')
+        .update(dbUpdate)
+        .eq('id', shipmentId)
+        .select(`
+          *,
+          Orders!inner(
+            id,
+            payment_method,
+            shipping_address,
+            Users!inner(name, email, phone)
+          )
+        `)
+        .single();
+
+      if (updateError) throw updateError;
+
+      console.log('✅ Database updated successfully');
+      console.log(`   Fields changed: ${editHistoryEntry.fields_changed.join(', ')}`);
+
+      return {
+        success: true,
+        shipment: updated,
+        changes: editHistoryEntry
+      };
+
+    } catch (error) {
+      console.error('❌ Edit shipment via API error:', error);
       throw error;
     }
   }

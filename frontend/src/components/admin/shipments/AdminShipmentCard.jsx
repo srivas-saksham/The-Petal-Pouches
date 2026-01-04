@@ -219,6 +219,31 @@ export default function AdminShipmentCard({
     return finalCost;
   };
 
+  /**
+   * Check if shipment can be edited via Delhivery API
+   * Shipment must have AWB and be in editable status
+   */
+  const canEditViaAPI = (shipment) => {
+    if (!shipment.awb) return false;
+    
+    const editableStatuses = [
+      'placed',
+      'pending_pickup', 
+      'picked_up',
+      'in_transit'
+    ];
+    
+    return editableStatuses.includes(shipment.status);
+  };
+
+  /**
+   * Check if shipment can be edited locally (before Delhivery placement)
+   */
+  const canEditLocally = (shipment) => {
+    return shipment.editable && 
+          ['pending_review', 'approved'].includes(shipment.status);
+  };
+
   // ==================== COMPONENT DATA ====================
   
   const statusConfig = getStatusConfig(shipment.status);
@@ -684,14 +709,35 @@ export default function AdminShipmentCard({
             )}
 
             {/* Edit Details (if editable) */}
-            {canEdit && onEdit && (
-              <button
-                onClick={() => onEdit(shipment.id)}
-                className="w-full px-3 py-2 bg-white border border-tppslate/20 text-tppslate text-xs rounded-lg hover:bg-gray-50 font-semibold transition-all flex items-center justify-center gap-1.5"
-              >
-                <Edit className="w-3.5 h-3.5" />
-                Edit Details
-              </button>
+            {(canEditLocally(shipment) || canEditViaAPI(shipment)) && (
+              <>
+                {canEditViaAPI(shipment) ? (
+                  // Edit via Delhivery API (after placement)
+                  <button
+                    onClick={() => onEdit && onEdit(shipment.id)}
+                    className="w-full px-3 py-2 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 font-semibold transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    Edit Shipment
+                  </button>
+                ) : (
+                  // Edit locally (before placement)
+                  <button
+                    onClick={() => onEdit && onEdit(shipment.id)}
+                    className="w-full px-3 py-2 bg-white border border-tppslate/20 text-tppslate text-xs rounded-lg hover:bg-gray-50 font-semibold transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    Edit Details
+                  </button>
+                )}
+              </>
+            )}
+
+            {/* Edit Eligibility Indicator */}
+            {shipment.awb && canEditViaAPI(shipment) && (
+              <div className="mt-2 text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded text-center">
+                ✓ Editable via Delhivery
+              </div>
             )}
 
             {/* Download Label (if available) */}

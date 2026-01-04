@@ -11,6 +11,8 @@ import { ShipmentsEmptyState } from '../../components/admin/shipments/ShipmentsE
 import { ShipmentsLoadingState } from '../../components/admin/shipments/ShipmentsLoadingState';
 import { ShipmentsErrorState } from '../../components/admin/shipments/ShipmentsErrorState';
 import PageHeader from '../../components/admin/ui/PageHeader';
+import EditShipmentModal from '../../components/admin/shipments/EditShipmentModal';
+
 const AdminShipmentsPage = () => {
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,7 +27,9 @@ const AdminShipmentsPage = () => {
   const [editPickupModal, setEditPickupModal] = useState(null);
   const [bulkApproveModal, setBulkApproveModal] = useState(false);
   const [notification, setNotification] = useState(null);
-  
+  const [editModal, setEditModal] = useState(null); // Stores shipment to edit
+  const [editingShipment, setEditingShipment] = useState(null); // Full shipment data
+
   const [filters, setFilters] = useState({
     status: 'pending_review',
     page: 1,
@@ -165,6 +169,51 @@ const AdminShipmentsPage = () => {
       limit: 20,
       search: ''
     });
+  };
+
+  /**
+   * Handle edit button click
+   * Fetches full shipment data and opens edit modal
+   */
+  const handleEdit = async (shipmentId) => {
+    try {
+      console.log('📝 Opening edit modal for shipment:', shipmentId);
+      
+      // Fetch full shipment details
+      const result = await shipmentService.getShipmentById(shipmentId);
+      
+      if (result.success) {
+        setEditingShipment(result.data);
+        setEditModal(shipmentId);
+      } else {
+        showNotification(`❌ Failed to load shipment: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      showNotification(`❌ Error: ${error.message}`, 'error');
+    }
+  };
+
+  /**
+   * Handle edit success
+   * Reloads shipments and shows success message
+   */
+  const handleEditSuccess = (result) => {
+    showNotification(
+      `✅ Shipment updated successfully!\nFields changed: ${result.changes?.fields_changed?.join(', ')}`,
+      'success'
+    );
+    
+    // Reload shipments
+    loadShipments();
+    loadStats();
+  };
+
+  /**
+   * Close edit modal
+   */
+  const handleEditClose = () => {
+    setEditModal(null);
+    setEditingShipment(null);
   };
 
   const hasActiveFilters = filters.status !== 'pending_review' || filters.search !== '';
@@ -436,12 +485,21 @@ const AdminShipmentsPage = () => {
               onApprove={(id) => setApproveModal(id)}
               onSchedulePickup={(id) => setPickupModal(id)}
               onEditPickup={(id) => setEditPickupModal(id)}
-              onEdit={(id) => showNotification(`Edit shipment: ${id}`, 'success')}
+              onEdit={handleEdit}
               onViewDetails={(id) => showNotification(`View details: ${id}`, 'success')}
             />
           ))
         )}
       </div>
+      {/* Edit Shipment Modal */}
+      {editModal && editingShipment && (
+        <EditShipmentModal
+          shipment={editingShipment}
+          isOpen={!!editModal}
+          onClose={handleEditClose}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </div>
   );
 };
