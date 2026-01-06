@@ -6,6 +6,7 @@ import { useToast } from '../../hooks/useToast';
 import PageHeader from '../../components/admin/ui/PageHeader';
 import SearchBar from '../../components/admin/ui/SearchBar';
 import Button from '../../components/admin/ui/Button';
+import InventoryAnalytics from '../../components/admin/products/InventoryAnalytics';
 import ProductsTable from '../../components/admin/products/ProductsTable';
 import ProductsGrid from '../../components/admin/products/ProductsGrid';
 import ProductStats from '../../components/admin/products/ProductStats';
@@ -410,6 +411,7 @@ export default function ProductsPage() {
 
       {/* Stats */}
       <ProductStats stats={stats} loading={statsLoading} />
+      <InventoryAnalytics />
       
       {/* Create Product Modal */}
       {showCreateModal && (

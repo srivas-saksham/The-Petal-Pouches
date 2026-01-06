@@ -3,7 +3,8 @@ const express = require('express');
 const router = express.Router();
 const { 
   getAllProducts, 
-  getProductById 
+  getProductById,
+  getInventoryAnalytics 
 } = require('../controllers/productController');
 const supabase = require('../config/supabaseClient'); // Import supabase client
 
@@ -66,6 +67,7 @@ router.post('/admin/:id/duplicate', async (req, res) => {
   }
 });
 
+router.get('/analytics/inventory', getInventoryAnalytics);
 router.get('/:id', getProductById);
 
 module.exports = router;

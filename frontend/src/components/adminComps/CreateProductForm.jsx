@@ -50,6 +50,7 @@ const CreateProductForm = ({ onSuccess }) => {
     title: '',
     description: '',
     price: '',
+    cost_price: '',
     stock: '',
     sku: '',
     category_id: ''
@@ -112,6 +113,16 @@ const CreateProductForm = ({ onSuccess }) => {
         if (parseFloat(value) > 1000000) return 'Price seems unrealistic';
         return '';
       
+      case 'cost_price':
+        if (!value) return 'Cost price is required';
+        if (isNaN(value) || parseFloat(value) < 0) return 'Cost price must be 0 or greater';
+        if (parseFloat(value) > 1000000) return 'Cost price seems unrealistic';
+        // Check if cost price is greater than selling price
+        if (formData.price && parseFloat(value) > parseFloat(formData.price)) {
+          return 'Cost price cannot exceed selling price';
+        }
+        return '';
+
       case 'stock':
         if (!value) return 'Stock quantity is required';
         if (isNaN(value) || parseInt(value) < 0) return 'Stock must be 0 or greater';
@@ -193,6 +204,19 @@ const CreateProductForm = ({ onSuccess }) => {
       ...newCategory,
       [e.target.name]: e.target.value
     });
+  };
+
+  const calculateMargins = (costPrice, sellingPrice) => {
+    const cost = parseFloat(costPrice) || 0;
+    const price = parseFloat(sellingPrice) || 0;
+    
+    if (cost === 0 || price === 0) return { margin: 0, markup: 0, profit: 0 };
+    
+    const profit = price - cost;
+    const margin = ((profit / price) * 100).toFixed(1);
+    const markup = cost > 0 ? ((profit / cost) * 100).toFixed(1) : 0;
+    
+    return { margin, markup, profit: profit.toFixed(2) };
   };
 
   // Create new category
@@ -279,6 +303,7 @@ const CreateProductForm = ({ onSuccess }) => {
         title: formData.title.trim(),
         description: formData.description.trim(),
         price: formData.price,
+        cost_price: formData.cost_price,
         stock: formData.stock,
         sku: formData.sku.trim(),
         has_variants: hasVariants,
@@ -299,6 +324,7 @@ const CreateProductForm = ({ onSuccess }) => {
         title: '',
         description: '',
         price: '',
+        cost_price: '',
         stock: '',
         sku: '',
         category_id: ''
@@ -429,15 +455,43 @@ const CreateProductForm = ({ onSuccess }) => {
                 />
               </InputWrapper>
             </div>
-
-            {/* Price */}
+            
+            {/* ✅ COST PRICE FIELD - ADD THIS ENTIRE BLOCK */}
             <InputWrapper 
-              label="Price (₹)" 
+              label="Cost Price (Your Purchase Price)" 
+              name="cost_price" 
+              required 
+              icon={DollarSign}
+              error={errors.cost_price}
+              hint="What you paid for this product (excluding your markup)"
+            >
+              <input
+                type="number"
+                id="cost_price"
+                name="cost_price"
+                value={formData.cost_price}
+                onChange={handleInputChange}
+                onBlur={handleBlur}
+                placeholder="600"
+                min="0"
+                step="0.01"
+                className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
+                  errors.cost_price && touched.cost_price
+                    ? 'border-red-300 bg-red-50'
+                    : 'border-tpppink/30 hover:border-tpppink focus:border-tpppink bg-white hover:bg-tpppeach/10'
+                }`}
+                aria-invalid={errors.cost_price && touched.cost_price ? 'true' : 'false'}
+              />
+            </InputWrapper>
+
+            {/* SELLING PRICE with Margin Display */}
+            <InputWrapper 
+              label="Selling Price (Customer Price)" 
               name="price" 
               required 
               icon={DollarSign}
               error={errors.price}
-              hint="Enter amount in INR"
+              hint="Price customers will pay"
             >
               <input
                 type="number"
@@ -452,10 +506,58 @@ const CreateProductForm = ({ onSuccess }) => {
                 className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
                   errors.price && touched.price
                     ? 'border-red-300 bg-red-50'
-                    : 'border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5/40 focus:border-tpppink bg-white hover:bg-tpppeach/10'
+                    : 'border-tpppink/30 hover:border-tpppink focus:border-tpppink bg-white hover:bg-tpppeach/10'
                 }`}
                 aria-invalid={errors.price && touched.price ? 'true' : 'false'}
               />
+              
+              {/* ✅ REAL-TIME MARGIN DISPLAY - ADD THIS */}
+              {formData.cost_price && formData.price && 
+              parseFloat(formData.cost_price) > 0 && 
+              parseFloat(formData.price) > 0 && 
+              parseFloat(formData.cost_price) <= parseFloat(formData.price) && (
+                <div className="mt-3 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border-2 border-green-200 animate-slide-in">
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div className="text-center">
+                      <div className="text-xs text-slate-600 mb-1 font-medium">Margin</div>
+                      <div className="text-xl font-bold text-green-600">
+                        {calculateMargins(formData.cost_price, formData.price).margin}%
+                      </div>
+                      <div className="text-xs text-slate-500 mt-0.5">Profit/Price</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-slate-600 mb-1 font-medium">Markup</div>
+                      <div className="text-xl font-bold text-blue-600">
+                        {calculateMargins(formData.cost_price, formData.price).markup}%
+                      </div>
+                      <div className="text-xs text-slate-500 mt-0.5">Profit/Cost</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-slate-600 mb-1 font-medium">Profit/Unit</div>
+                      <div className="text-xl font-bold text-tppslate">
+                        ₹{calculateMargins(formData.cost_price, formData.price).profit}
+                      </div>
+                      <div className="text-xs text-slate-500 mt-0.5">Per item</div>
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-green-200 text-center">
+                    <span className="text-xs text-slate-600">
+                      Total profit for {formData.stock || 0} units: <span className="font-bold text-tppslate">₹{((parseFloat(formData.price) - parseFloat(formData.cost_price)) * (parseInt(formData.stock) || 0)).toFixed(2)}</span>
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {/* Warning if cost > price */}
+              {formData.cost_price && formData.price && 
+              parseFloat(formData.cost_price) > parseFloat(formData.price) && (
+                <div className="mt-3 p-3 bg-red-50 border-2 border-red-200 rounded-lg animate-shake">
+                  <p className="text-xs text-red-700 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    <strong>Warning:</strong> Cost price (₹{formData.cost_price}) is higher than selling price (₹{formData.price}). You'll lose money!
+                  </p>
+                </div>
+              )}
             </InputWrapper>
 
             {/* Stock */}

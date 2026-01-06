@@ -2,6 +2,7 @@
 const supabase = require('../config/supabaseClient');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../services/cloudinaryService');
 const { extractPublicIdFromUrl } = require('../utils/cloudinaryHelpers');
+const { calculateProductPricing } = require('../utils/productHelpers');
 
 // Helper function to delete all variants for a product
 const deleteAllVariantsForProduct = async (productId) => {
@@ -166,6 +167,14 @@ const createProduct = async (req, res) => {
       has_variants: has_variants === 'true' || has_variants === true || false
     };
 
+    const { cost_price } = req.body; // Extract cost_price from request
+    if (cost_price) {
+      const pricingMetrics = calculateProductPricing(cost_price, price);
+      productData.cost_price = parseInt(cost_price);
+      productData.margin_percent = pricingMetrics.margin_percent;
+      productData.markup_percent = pricingMetrics.markup_percent;
+    }
+
     if (category_id && category_id.trim() !== '') {
       productData.category_id = category_id;
     }
@@ -278,6 +287,22 @@ const updateProduct = async (req, res) => {
     if (price) updateData.price = parseInt(price);
     if (stock !== undefined) updateData.stock = parseInt(stock);
     if (sku) updateData.sku = sku;
+
+    const { cost_price } = req.body;
+    if (cost_price !== undefined) {
+      const newCostPrice = parseInt(cost_price) || 0;
+      const currentPrice = price ? parseInt(price) : existingProduct.price;
+      
+      const pricingMetrics = calculateProductPricing(newCostPrice, currentPrice);
+      updateData.cost_price = newCostPrice;
+      updateData.margin_percent = pricingMetrics.margin_percent;
+      updateData.markup_percent = pricingMetrics.markup_percent;
+    } else if (price && existingProduct.cost_price) {
+      // Recalculate margins if only price changed
+      const pricingMetrics = calculateProductPricing(existingProduct.cost_price, price);
+      updateData.margin_percent = pricingMetrics.margin_percent;
+      updateData.markup_percent = pricingMetrics.markup_percent;
+    }
 
     // CRITICAL: Handle has_variants change
     const newHasVariants = has_variants === 'true' || has_variants === true;
@@ -558,13 +583,105 @@ const getAllProducts = async (req, res) => {
     });
   }
 };
+// ✅ NEW: Get inventory analytics
+const getInventoryAnalytics = async (req, res) => {
+  try {
+    const { data: products, error } = await supabase
+      .from('Products')
+      .select('id, title, price, cost_price, margin_percent, stock, category_id, Categories(name)');
 
+    if (error) throw error;
+
+    // Calculate comprehensive metrics
+    const totalInvestment = products.reduce((sum, p) => 
+      sum + ((p.cost_price || 0) * (p.stock || 0)), 0
+    );
+
+    const potentialRevenue = products.reduce((sum, p) => 
+      sum + ((p.price || 0) * (p.stock || 0)), 0
+    );
+
+    const totalProfit = potentialRevenue - totalInvestment;
+
+    const productsWithMargin = products.filter(p => p.margin_percent != null);
+    const avgMargin = productsWithMargin.length > 0
+      ? productsWithMargin.reduce((sum, p) => sum + (p.margin_percent || 0), 0) / productsWithMargin.length
+      : 0;
+
+    const lowStockProducts = products.filter(p => p.stock > 0 && p.stock <= 10);
+    const outOfStockProducts = products.filter(p => p.stock === 0);
+
+    // Category-wise breakdown
+    const categoryMap = {};
+    products.forEach(p => {
+      const catName = p.Categories?.name || 'Uncategorized';
+      if (!categoryMap[catName]) {
+        categoryMap[catName] = {
+          investment: 0,
+          revenue: 0,
+          profit: 0,
+          count: 0
+        };
+      }
+      categoryMap[catName].investment += (p.cost_price || 0) * (p.stock || 0);
+      categoryMap[catName].revenue += (p.price || 0) * (p.stock || 0);
+      categoryMap[catName].profit += ((p.price || 0) - (p.cost_price || 0)) * (p.stock || 0);
+      categoryMap[catName].count++;
+    });
+
+    const categoryStats = Object.entries(categoryMap)
+      .map(([name, data]) => ({
+        category: name,
+        ...data,
+        margin: data.revenue > 0 ? ((data.profit / data.revenue) * 100).toFixed(1) : 0
+      }))
+      .sort((a, b) => b.profit - a.profit);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        overview: {
+          totalInvestment,
+          potentialRevenue,
+          totalProfit,
+          profitMargin: potentialRevenue > 0 
+            ? ((totalProfit / potentialRevenue) * 100).toFixed(2)
+            : 0,
+          avgMargin: avgMargin.toFixed(1),
+          totalProducts: products.length,
+          lowStockCount: lowStockProducts.length,
+          outOfStockCount: outOfStockProducts.length
+        },
+        categoryStats,
+        topProfitable: products
+          .map(p => ({
+            id: p.id,
+            title: p.title,
+            profit: ((p.price || 0) - (p.cost_price || 0)) * (p.stock || 0),
+            margin: p.margin_percent
+          }))
+          .sort((a, b) => b.profit - a.profit)
+          .slice(0, 5)
+      }
+    });
+  } catch (error) {
+    console.error('Get inventory analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch analytics',
+      error: error.message
+    });
+  }
+};
+
+// ✅ UPDATE MODULE.EXPORTS
 module.exports = {
   createProduct,
   getProductById,
   updateProduct,
   deleteProduct,
   getAllProducts,
-  getProductStats, // ✅ NEW: Export stats function
-  getPriceRange    // ✅ NEW: Export price range helper (can be used by other endpoints)
+  getProductStats,
+  getPriceRange,
+  getInventoryAnalytics // ADD THIS
 };
