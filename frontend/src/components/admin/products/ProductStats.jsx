@@ -1,3 +1,10 @@
+// frontend/src/components/admin/products/ProductStats.jsx
+/**
+ * Enhanced Product Statistics Dashboard
+ * Shows comprehensive analytics with collapsible detailed view
+ * Maintains all existing functionality
+ */
+
 import { useState, useEffect, useRef } from 'react';
 import { 
   Package, 
@@ -82,7 +89,7 @@ const CompactStatCard = ({ icon: Icon, label, value, subValue, variant = 'defaul
       case 'danger':
         return 'text-red-900';
       default:
-        return 'text-slate';
+        return 'text-slate-900';
     }
   };
 
@@ -110,13 +117,13 @@ const ProgressBar = ({ label, value, total, icon: Icon }) => {
           <span className="text-xs font-medium text-slate-700">{label}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-semibold text-slate">{formatNumber(value)}</span>
+          <span className="text-xs font-semibold text-slate-900">{formatNumber(value)}</span>
           <span className="text-xs text-slate-500">({formatPercentage(percentage)})</span>
         </div>
       </div>
       <div className="w-full bg-slate-100 rounded-full h-1.5">
         <div 
-          className="bg-slate-600 h-1.5 rounded-full transition-all duration-500"
+          className="bg-tppslate h-1.5 rounded-full transition-all duration-500"
           style={{ width: `${Math.min(percentage, 100)}%` }}
         ></div>
       </div>
@@ -125,7 +132,7 @@ const ProgressBar = ({ label, value, total, icon: Icon }) => {
 };
 
 // Main Component
-export default function EnhancedProductStats() {
+export default function ProductStats() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -299,7 +306,7 @@ export default function EnhancedProductStats() {
       <div className="space-y-4">
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 className="w-5 h-5 text-slate-600" />
-          <h2 className="text-lg font-semibold text-slate">Product Analytics</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Product Analytics</h2>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[...Array(8)].map((_, i) => <StatCardSkeleton key={i} />)}
@@ -313,7 +320,7 @@ export default function EnhancedProductStats() {
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <BarChart3 className="w-5 h-5 text-slate-600" />
-          <h2 className="text-lg font-semibold text-slate">Product Analytics</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Product Analytics</h2>
         </div>
         <div className="bg-slate-50 border border-dashed border-slate-300 rounded p-8 text-center">
           <Package className="w-12 h-12 text-slate-400 mx-auto mb-3" />
@@ -329,7 +336,7 @@ export default function EnhancedProductStats() {
       {/* Title */}
       <div className="flex items-center gap-2">
         <BarChart3 className="w-5 h-5 text-slate-600" />
-        <h2 className="text-lg font-semibold text-slate">Product Analytics</h2>
+        <h2 className="text-lg font-semibold text-slate-900">Product Analytics</h2>
       </div>
 
       {/* Compact Overview - Always Visible */}
@@ -413,7 +420,7 @@ export default function EnhancedProductStats() {
             }, 100);
           }
         }}
-        className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-white border border-slate-200 rounded text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
+        className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-white border-2 border-slate-200 rounded text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-tpppink transition-all duration-200"
       >
         {showDetails ? (
           <>
@@ -439,10 +446,10 @@ export default function EnhancedProductStats() {
         <div className="space-y-4 pt-2">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Stock Distribution */}
-            <div className="bg-white rounded border border-slate-200 p-4 border-2 transition-all duration-200 hover:border-tpppink hover:shadow-sm hover:bg-tpppink/10">
+            <div className="bg-white rounded border-2 border-slate-200 p-4 transition-all duration-200 hover:border-tpppink hover:shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <PieChart className="w-4 h-4 text-slate-600" />
-                <h3 className="text-sm font-semibold text-slate">Stock Distribution</h3>
+                <h3 className="text-sm font-semibold text-slate-900">Stock Distribution</h3>
               </div>
               <div className="space-y-3">
                 <ProgressBar
@@ -468,21 +475,21 @@ export default function EnhancedProductStats() {
                 <div className="text-xs text-slate-600 space-y-1">
                   <div className="flex justify-between">
                     <span>Avg Stock per Product:</span>
-                    <span className="font-semibold text-slate">{stats.avgStock.toFixed(1)} units</span>
+                    <span className="font-semibold text-slate-900">{stats.avgStock.toFixed(1)} units</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Total Stock Units:</span>
-                    <span className="font-semibold text-slate">{formatNumber(stats.totalStockUnits)}</span>
+                    <span className="font-semibold text-slate-900">{formatNumber(stats.totalStockUnits)}</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Category Distribution */}
-            <div className="bg-white rounded border border-slate-200 p-4 border-2 transition-all duration-200 hover:border-tpppink hover:shadow-sm hover:bg-tpppink/10">
+            <div className="bg-white rounded border-2 border-slate-200 p-4 transition-all duration-200 hover:border-tpppink hover:shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <Tag className="w-4 h-4 text-slate-600" />
-                <h3 className="text-sm font-semibold text-slate">Category Distribution</h3>
+                <h3 className="text-sm font-semibold text-slate-900">Category Distribution</h3>
               </div>
               <div className="space-y-3">
                 {stats.categoryStats.slice(0, 5).map((cat) => (
@@ -503,10 +510,10 @@ export default function EnhancedProductStats() {
 
             {/* Price Range Distribution */}
             {stats.priceRanges.length > 0 && (
-              <div className="bg-white rounded border border-slate-200 p-4 border-2 transition-all duration-200 hover:border-tpppink hover:shadow-sm hover:bg-tpppink/10">
+              <div className="bg-white rounded border-2 border-slate-200 p-4 transition-all duration-200 hover:border-tpppink hover:shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
                   <DollarSign className="w-4 h-4 text-slate-600" />
-                  <h3 className="text-sm font-semibold text-slate">Price Range Distribution</h3>
+                  <h3 className="text-sm font-semibold text-slate-900">Price Range Distribution</h3>
                 </div>
                 <div className="space-y-3">
                   {stats.priceRanges.map((range) => (
@@ -522,10 +529,10 @@ export default function EnhancedProductStats() {
             )}
 
             {/* Product Type Distribution */}
-            <div className="bg-white rounded border border-slate-200 p-4 border-2 transition-all duration-200 hover:border-tpppink hover:shadow-sm hover:bg-tpppink/10">
+            <div className="bg-white rounded border-2 border-slate-200 p-4 transition-all duration-200 hover:border-tpppink hover:shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <Layers className="w-4 h-4 text-slate-600" />
-                <h3 className="text-sm font-semibold text-slate">Product Type Distribution</h3>
+                <h3 className="text-sm font-semibold text-slate-900">Product Type Distribution</h3>
               </div>
               <div className="space-y-3">
                 <ProgressBar
@@ -543,11 +550,11 @@ export default function EnhancedProductStats() {
                 <div className="text-xs text-slate-600 space-y-1">
                   <div className="flex justify-between">
                     <span>Variant Products:</span>
-                    <span className="font-semibold text-slate">{formatPercentage(stats.withVariantsPercent)}</span>
+                    <span className="font-semibold text-slate-900">{formatPercentage(stats.withVariantsPercent)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Simple Products:</span>
-                    <span className="font-semibold text-slate">{formatPercentage(stats.withoutVariantsPercent)}</span>
+                    <span className="font-semibold text-slate-900">{formatPercentage(stats.withoutVariantsPercent)}</span>
                   </div>
                 </div>
               </div>
@@ -555,13 +562,13 @@ export default function EnhancedProductStats() {
           </div>
 
           {/* Key Insights */}
-          <div className="bg-slate-50 rounded border border-slate-200 p-4 border-2 transition-all duration-200 hover:border-tpppink hover:shadow-sm hover:bg-tpppink/10">
-            <h3 className="text-sm font-semibold text-slate mb-3 flex items-center gap-2">
+          <div className="bg-slate-50 rounded border-2 border-slate-200 p-4 transition-all duration-200 hover:border-tpppink hover:shadow-sm">
+            <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-slate-600" />
               Key Insights
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs ">
-              <div className="bg-white rounded border border-slate-200 p-3 border-2 transition-all duration-200 hover:border-tpppink hover:shadow-sm hover:bg-tpppink/10">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div className="bg-white rounded border-2 border-slate-200 p-3 transition-all duration-200 hover:border-tpppink hover:shadow-sm">
                 <div className="font-semibold text-slate-700 mb-1">Inventory Status</div>
                 <div className="text-slate-600">
                   {stats.inStockPercent >= 70 
@@ -571,7 +578,7 @@ export default function EnhancedProductStats() {
                     : '⚠ Low inventory - consider restocking'}
                 </div>
               </div>
-              <div className="bg-white rounded border border-slate-200 p-3 border-2 transition-all duration-200 hover:border-tpppink hover:shadow-sm hover:bg-tpppink/10">
+              <div className="bg-white rounded border-2 border-slate-200 p-3 transition-all duration-200 hover:border-tpppink hover:shadow-sm">
                 <div className="font-semibold text-slate-700 mb-1">Urgent Actions</div>
                 <div className="text-slate-600">
                   {stats.outOfStock > 0 
@@ -581,7 +588,7 @@ export default function EnhancedProductStats() {
                     : '✓ No urgent actions needed'}
                 </div>
               </div>
-              <div className="bg-white rounded border border-slate-200 p-3 border-2 transition-all duration-200 hover:border-tpppink hover:shadow-sm hover:bg-tpppink/10">
+              <div className="bg-white rounded border-2 border-slate-200 p-3 transition-all duration-200 hover:border-tpppink hover:shadow-sm">
                 <div className="font-semibold text-slate-700 mb-1">Product Diversity</div>
                 <div className="text-slate-600">
                   {stats.categoryStats.length} {stats.categoryStats.length === 1 ? 'category' : 'categories'} with 

@@ -1,4 +1,8 @@
 // frontend/src/components/admin/products/BulkActions.jsx
+/**
+ * Bulk Actions Component
+ * Maintains all existing bulk action functionality
+ */
 
 import { X } from 'lucide-react';
 import { useState } from 'react';

@@ -1,14 +1,15 @@
 // frontend/src/components/admin/products/ProductFormModal.jsx
+/**
+ * Wrapper component for CreateProductForm to work with new modal system
+ * Provides consistent styling and handles modal state
+ * Maintains all existing functionality
+ */
 
 import { useState } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import CreateProductForm from '../../adminComps/CreateProductForm';
 
-/**
- * Wrapper component for CreateProductForm to work with new modal system
- * Provides consistent styling and handles modal state
- */
 export default function ProductFormModal({ 
   isOpen, 
   onClose, 
@@ -49,7 +50,7 @@ export default function ProductFormModal({
         </div>
       </div>
 
-      {/* Custom styles to adapt old form to new design */}a
+      {/* Custom styles to adapt old form to new design */}
       <style jsx>{`
         .product-form-modal-wrapper :global(.admin-form-container) {
           background: transparent;

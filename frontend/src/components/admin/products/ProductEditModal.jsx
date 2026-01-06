@@ -1,4 +1,9 @@
 // frontend/src/components/admin/products/ProductEditModal.jsx
+/**
+ * Wrapper component for UpdateProductForm to work with new modal system
+ * Fetches product data and provides consistent styling
+ * Maintains all existing functionality
+ */
 
 import { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
@@ -6,10 +11,6 @@ import Button from '../ui/Button';
 import UpdateProductForm from '../../adminComps/UpdateProductForm';
 import { getProductById } from '../../../services/adminProductService';
 
-/**
- * Wrapper component for UpdateProductForm to work with new modal system
- * Fetches product data and provides consistent styling
- */
 export default function ProductEditModal({ 
   isOpen, 
   onClose, 

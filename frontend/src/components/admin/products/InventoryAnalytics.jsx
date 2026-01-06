@@ -1,4 +1,9 @@
 // frontend/src/components/admin/products/InventoryAnalytics.jsx
+/**
+ * Inventory & Profitability Analytics
+ * Shows cost price, margins, and profitability metrics
+ * Maintains all existing functionality
+ */
 
 import { useState, useEffect } from 'react';
 import { 

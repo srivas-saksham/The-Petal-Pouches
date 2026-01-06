@@ -1,4 +1,8 @@
 // frontend/src/components/admin/products/ProductFilters.jsx
+/**
+ * Product Filters Component
+ * Maintains all existing filter functionality with enhanced styling
+ */
 
 import { X, SlidersHorizontal } from 'lucide-react';
 import { PRODUCT_SORT_OPTIONS, PRODUCT_FILTERS } from '../../../utils/constants';
@@ -35,7 +39,7 @@ export default function ProductFilters({
         )}
       </div>
 
-      {/* Horizontal Filters Grid - 6 columns for new filter */}
+      {/* Horizontal Filters Grid - 6 columns */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
         {/* Category Filter */}
         <div className="space-y-1.5">
