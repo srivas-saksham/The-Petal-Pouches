@@ -1,7 +1,7 @@
 // frontend/src/components/admin/products/ProductRow.jsx
 /**
- * Product Row - Full Width Horizontal Layout (matching Bundle Card UI)
- * Clean, compact design with all information organized horizontally
+ * Product Row - Full Width Horizontal Layout with Multi-Image Support
+ * Now displays primary image from Product_images table
  */
 
 import { 
@@ -101,6 +101,41 @@ export default function ProductRow({
     };
   };
 
+  // ✅ NEW: Get display image with primary image priority
+  const getDisplayImage = () => {
+    // Priority 1: Primary image from Product_images table
+    if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+      const primaryImage = product.images.find(img => img.is_primary);
+      if (primaryImage && primaryImage.img_url) {
+        return primaryImage.img_url;
+      }
+      // Fallback to first image if no primary is set
+      if (product.images[0] && product.images[0].img_url) {
+        return product.images[0].img_url;
+      }
+    }
+
+    // Priority 2: For variant products, use default variant image
+    if (hasVariants && product.variants?.length > 0) {
+      const defaultVariant = product.variants.find(v => v.is_default);
+      if (defaultVariant && defaultVariant.img_url) {
+        return defaultVariant.img_url;
+      }
+      // Fallback to first variant image
+      if (product.variants[0] && product.variants[0].img_url) {
+        return product.variants[0].img_url;
+      }
+    }
+
+    // Priority 3: Legacy img_url field
+    if (product.img_url) {
+      return product.img_url;
+    }
+
+    // No image available
+    return null;
+  };
+
   // ==================== COMPONENT DATA ====================
   
   const stockStatus = getStockStatus();
@@ -109,11 +144,10 @@ export default function ProductRow({
   const StockIcon = stockStatus.icon;
   const hasVariants = product.has_variants;
   const variantCount = product.variants?.length || 0;
+  const displayImage = getDisplayImage();
 
-  // Get display image
-  const displayImage = hasVariants && product.variants?.length > 0
-    ? product.variants.find(v => v.is_default)?.img_url || product.variants[0]?.img_url || product.img_url
-    : product.img_url;
+  // ✅ NEW: Get total image count
+  const imageCount = product.images?.length || 0;
 
   // ==================== RENDER ====================
 
@@ -138,6 +172,13 @@ export default function ProductRow({
                 }}
               />
               
+              {/* ✅ NEW: Image Count Badge (if multiple images) */}
+              {imageCount > 1 && (
+                <div className="absolute top-2 left-2 bg-tppslate/90 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-lg backdrop-blur-sm">
+                  {imageCount} photos
+                </div>
+              )}
+
               {/* Variant Badge */}
               {hasVariants && variantCount > 0 && (
                 <div className="absolute top-2 right-2 bg-tppslate text-white px-1.5 py-0.5 rounded text-[11px] font-bold uppercase shadow-lg flex items-center gap-0.5">
@@ -396,7 +437,7 @@ export default function ProductRow({
           <div className="px-4 py-3 bg-white">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
               {product.variants?.map((variant, idx) => {
-                const variantImage = variant.img_url || product.img_url;
+                const variantImage = variant.img_url || displayImage;
                 
                 return (
                   <div key={idx} className="flex items-center gap-2 bg-gray-50 border border-tppslate/10 rounded-lg p-2 hover:border-tpppink/30 transition-all">

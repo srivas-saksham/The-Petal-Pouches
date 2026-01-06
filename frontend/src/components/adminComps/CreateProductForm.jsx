@@ -14,7 +14,9 @@ import {
   DollarSign,
   Hash,
   FileText,
-  Layers
+  Layers,
+  Star,
+  Image as ImageIcon
 } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../hooks/useToast';
@@ -55,8 +57,8 @@ const CreateProductForm = ({ onSuccess }) => {
     sku: '',
     category_id: ''
   });
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [images, setImages] = useState([]); // Array of { file, preview, id, is_primary }
+  const [imageError, setImageError] = useState('');
   const [hasVariants, setHasVariants] = useState(false);
   const [loading, setLoading] = useState(false);
   const toast = useToast();
@@ -166,36 +168,80 @@ const CreateProductForm = ({ onSuccess }) => {
     setErrors(prev => ({ ...prev, [name]: error }));
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Validate file type
+  const handleImageSelect = (e) => {
+    const files = Array.from(e.target.files);
+    
+    // Check total images limit
+    const totalImages = images.length + files.length;
+    
+    if (totalImages > 8) {
+      toast.error(`Maximum 8 images allowed. You can add ${8 - images.length} more.`);
+      return;
+    }
+
+    // Validate each file
+    const validFiles = [];
+    for (const file of files) {
       if (!file.type.startsWith('image/')) {
-        setErrors(prev => ({ ...prev, image: 'Please select a valid image file' }));
-        return;
+        toast.error(`${file.name} is not a valid image file`);
+        continue;
       }
       
-      // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        setErrors(prev => ({ ...prev, image: 'Image size must be less than 5MB' }));
-        return;
+        toast.error(`${file.name} exceeds 5MB size limit`);
+        continue;
       }
       
-      setImage(file);
-      setErrors(prev => ({ ...prev, image: '' }));
-      
+      validFiles.push(file);
+    }
+
+    // Create preview URLs
+    validFiles.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result);
+        setImages(prev => [
+          ...prev,
+          {
+            file,
+            preview: reader.result,
+            id: `new-${Date.now()}-${Math.random()}`,
+            is_primary: prev.length === 0 // First image is primary
+          }
+        ]);
       };
       reader.readAsDataURL(file);
-    }
+    });
+
+    setImageError('');
   };
 
-  const handleRemoveImage = () => {
-    setImage(null);
-    setImagePreview(null);
-    setErrors(prev => ({ ...prev, image: '' }));
+  const handleRemoveImage = (imageId) => {
+    setImages(prev => {
+      const updated = prev.filter(img => img.id !== imageId);
+      
+      // If removed image was primary and there are other images, set first as primary
+      const removedWasPrimary = prev.find(img => img.id === imageId)?.is_primary;
+      if (removedWasPrimary && updated.length > 0) {
+        updated[0].is_primary = true;
+      }
+      
+      return updated;
+    });
+  };
+
+  const handleSetPrimaryImage = (imageId) => {
+    setImages(prev =>
+      prev.map(img => ({ ...img, is_primary: img.id === imageId }))
+    );
+  };
+
+  // Get primary and secondary images
+  const getPrimaryImage = () => {
+    return images.find(img => img.is_primary) || null;
+  };
+
+  const getSecondaryImages = () => {
+    return images.filter(img => !img.is_primary);
   };
 
   // Handle new category input
@@ -268,19 +314,24 @@ const CreateProductForm = ({ onSuccess }) => {
       if (error) newErrors[key] = error;
     });
     
-    // Validate image
-    if (!image) {
-      newErrors.image = 'Product image is required';
+    // ✅ CHANGED: Validate multiple images
+    if (images.length === 0) {
+      newErrors.images = 'At least one product image is required';
+    }
+    
+    if (images.length > 8) {
+      newErrors.images = 'Maximum 8 images allowed';
     }
     
     setErrors(newErrors);
     setTouched({
       title: true,
       price: true,
+      cost_price: true,
       stock: true,
       sku: true,
       description: true,
-      image: true
+      images: true
     });
     
     return Object.keys(newErrors).length === 0;
@@ -308,7 +359,7 @@ const CreateProductForm = ({ onSuccess }) => {
         sku: formData.sku.trim(),
         has_variants: hasVariants,
         category_id: formData.category_id || '',
-        image: image // File object
+        images: images.map(img => img.file) // ✅ CHANGED: Send array of files
       };
 
       const response = await createProduct(productData); // ✅ CHANGED
@@ -329,8 +380,7 @@ const CreateProductForm = ({ onSuccess }) => {
         sku: '',
         category_id: ''
       });
-      setImage(null);
-      setImagePreview(null);
+      setImages([]); // ✅ CHANGED
       setHasVariants(false);
       setErrors({});
       setTouched({});
@@ -364,59 +414,120 @@ const CreateProductForm = ({ onSuccess }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Image Upload Section */}
-        <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
-          <InputWrapper 
-            label="Product Image" 
-            name="image" 
-            required 
-            icon={Upload}
-            error={errors.image}
-            hint="Recommended: Square image, min 800x800px, max 5MB"
-          >
-            <div className="space-y-3 mt-3">
-              {!imagePreview ? (
-                <label 
-                  htmlFor="image" 
-                  className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-tpppink/30 rounded-lg cursor-pointer bg-tpppeach/10 hover:bg-tpppeach/20 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200 group"
-                >
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className="w-10 h-10 text-tppslate/40 mb-3 group-hover:text-tppslate transition-colors" />
-                    <p className="mb-2 text-sm text-tppslate/60">
-                      <span className="font-semibold">Click to upload</span> or drag and drop
-                    </p>
-                    <p className="text-xs text-tppslate/40">PNG, JPG, WEBP up to 5MB</p>
-                  </div>
-                  <input
-                    id="image"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-                </label>
-              ) : (
-                <div className="relative group">
-                  <img 
-                    src={imagePreview} 
-                    alt="Product preview" 
-                    className="w-full h-48 object-cover rounded-lg border-2 border-tpppink/30"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleRemoveImage}
-                    className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100"
-                    aria-label="Remove image"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                  <div className="absolute bottom-2 left-2 px-3 py-1 bg-black/60 text-white text-xs rounded-full backdrop-blur-sm">
-                    {image?.name}
-                  </div>
-                </div>
-              )}
+        {/* Image Upload Section - MULTI-IMAGE GRID */}
+        <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink transition-all duration-200">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <ImageIcon className="w-4 h-4 text-tppslate/60" />
+              <h3 className="text-sm font-bold text-tppslate">Product Images</h3>
+              <span className="text-xs text-tppslate/60">({images.length}/8)</span>
             </div>
-          </InputWrapper>
+            {images.length < 8 && (
+              <label className="px-3 py-1.5 bg-tpppink/50 text-tppslate rounded-lg hover:bg-tpppink/80 text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1.5 border-2 border-tpppink/50">
+                <Plus className="w-3.5 h-3.5" />
+                Add Images
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+
+          {errors.images && (
+            <div className="mb-3 p-2 bg-red-50 border-2 border-red-200 text-red-700 rounded-lg text-xs flex items-center gap-2">
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+              {errors.images}
+            </div>
+          )}
+
+          {/* Image Grid */}
+          <div className="grid grid-cols-4 gap-2">
+            {/* Primary Image - Takes 2x2 space */}
+            <div className="col-span-2 row-span-2">
+              {(() => {
+                const primaryImg = getPrimaryImage();
+                return primaryImg ? (
+                  <div className="relative group h-full">
+                    <img 
+                      src={primaryImg.preview}
+                      alt="Primary product image" 
+                      className="w-full h-full object-cover rounded-lg border-2 border-tpppink shadow-sm"
+                    />
+                    {/* Primary Badge */}
+                    <div className="absolute top-2 left-2 px-2 py-0.5 bg-tpppink text-white text-[10px] font-bold rounded-full flex items-center gap-1 shadow-md">
+                      <Star className="w-2.5 h-2.5 fill-current" />
+                      PRIMARY
+                    </div>
+                    {/* Remove Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(primaryImg.id)}
+                      className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100 shadow-md"
+                      aria-label="Remove image"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-full h-full border-2 border-dashed border-tpppink/30 rounded-lg flex flex-col items-center justify-center bg-slate-50 min-h-[180px]">
+                    <ImageIcon className="w-8 h-8 text-slate-300 mb-1" />
+                    <p className="text-xs text-tppslate/60 font-medium">Primary Image</p>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Secondary Images - 6 slots */}
+            {[...Array(6)].map((_, idx) => {
+              const secondaryImages = getSecondaryImages();
+              const image = secondaryImages[idx];
+              
+              return (
+                <div key={idx} className="aspect-square">
+                  {image ? (
+                    <div className="relative group h-full">
+                      <img 
+                        src={image.preview}
+                        alt={`Product image ${idx + 2}`}
+                        className="w-full h-full object-cover rounded-lg border-2 border-tpppink/30 hover:border-tpppink transition-all"
+                      />
+                      {/* Set Primary Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleSetPrimaryImage(image.id)}
+                        className="absolute top-1 left-1 p-1 bg-white/90 text-tppslate rounded hover:bg-tpppink hover:text-white transition-all opacity-0 group-hover:opacity-100 shadow-md"
+                        title="Set as primary"
+                      >
+                        <Star className="w-2.5 h-2.5" />
+                      </button>
+                      {/* Remove Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(image.id)}
+                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100 shadow-md"
+                        aria-label="Remove image"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-full h-full border-2 border-dashed border-tpppink/20 rounded-lg flex items-center justify-center bg-slate-50">
+                      <ImageIcon className="w-4 h-4 text-slate-300" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-[11px] text-tppslate/60 mt-2 flex items-center gap-1">
+            <Info className="w-3 h-3 flex-shrink-0" />
+            1-8 images required. First image is primary. PNG, JPG, WEBP up to 5MB each.
+          </p>
         </div>
 
         {/* Product Details Section */}
@@ -456,7 +567,7 @@ const CreateProductForm = ({ onSuccess }) => {
               </InputWrapper>
             </div>
             
-            {/* ✅ COST PRICE FIELD - ADD THIS ENTIRE BLOCK */}
+            {/* ✅ COST PRICE FIELD */}
             <InputWrapper 
               label="Cost Price (Your Purchase Price)" 
               name="cost_price" 
@@ -511,7 +622,7 @@ const CreateProductForm = ({ onSuccess }) => {
                 aria-invalid={errors.price && touched.price ? 'true' : 'false'}
               />
               
-              {/* ✅ REAL-TIME MARGIN DISPLAY - ADD THIS */}
+              {/* ✅ REAL-TIME MARGIN DISPLAY */}
               {formData.cost_price && formData.price && 
               parseFloat(formData.cost_price) > 0 && 
               parseFloat(formData.price) > 0 && 

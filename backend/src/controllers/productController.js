@@ -4,6 +4,9 @@ const { uploadToCloudinary, deleteFromCloudinary } = require('../services/cloudi
 const { extractPublicIdFromUrl } = require('../utils/cloudinaryHelpers');
 const { calculateProductPricing } = require('../utils/productHelpers');
 
+const ProductImageModel = require('../models/productImageModel');
+const { uploadFilesToCloudinary, deleteMultipleFromCloudinary } = require('../services/cloudinaryService');
+
 // Helper function to delete all variants for a product
 const deleteAllVariantsForProduct = async (productId) => {
   try {
@@ -49,6 +52,38 @@ const deleteAllVariantsForProduct = async (productId) => {
     console.error('Error deleting variants:', error);
     throw error;
   }
+};
+
+const uploadAndCreateProductImages = async (productId, files, startOrder = 0, firstIsPrimary = false) => {
+  if (!files || files.length === 0) return [];
+
+  const uploadResults = await uploadFilesToCloudinary(files, 'products');
+  const imagesData = uploadResults.map((result, index) => ({
+    img_url: result.url,
+    display_order: startOrder + index,
+    is_primary: firstIsPrimary && index === 0
+  }));
+
+  const images = await ProductImageModel.addImages(productId, imagesData);
+  return images;
+};
+
+const getProductImages = async (productId) => {
+  try {
+    const images = await ProductImageModel.getImagesByProductId(productId);
+    return images || [];
+  } catch (error) {
+    return [];
+  }
+};
+
+const attachImagesToProduct = (product, images) => {
+  const primaryImage = images.find(img => img.is_primary);
+  return {
+    ...product,
+    images: images || [],
+    img_url: primaryImage ? primaryImage.img_url : (product.img_url || null)
+  };
 };
 
 /**
@@ -146,28 +181,29 @@ const getProductStats = async (req, res) => {
 // CREATE PRODUCT
 const createProduct = async (req, res) => {
   try {
-    const { title, description, price, category_id, stock, sku, has_variants } = req.body;
+    const { title, description, price, category_id, stock, sku, has_variants, cost_price } = req.body;
 
-    if (!req.file) {
+    // ✅ CHANGED: Support both 'images' array and 'image' single file
+    const files = req.files || (req.file ? [req.file] : []);
+
+    if (files.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Product image is required'
       });
     }
 
-    const cloudinaryResult = await uploadToCloudinary(req.file.buffer, 'products');
-
+    // Create product first without image
     const productData = {
       title,
       description,
       price: parseInt(price),
       stock: parseInt(stock),
       sku,
-      img_url: cloudinaryResult.url,
+      img_url: null, // ✅ CHANGED: Set null initially
       has_variants: has_variants === 'true' || has_variants === true || false
     };
 
-    const { cost_price } = req.body; // Extract cost_price from request
     if (cost_price) {
       const pricingMetrics = calculateProductPricing(cost_price, price);
       productData.cost_price = parseInt(cost_price);
@@ -179,21 +215,42 @@ const createProduct = async (req, res) => {
       productData.category_id = category_id;
     }
 
-    const { data, error } = await supabase
+    const { data: product, error: insertError } = await supabase
       .from('Products')
       .insert([productData])
       .select()
       .single();
 
-    if (error) {
-      await deleteFromCloudinary(cloudinaryResult.public_id);
-      throw error;
+    if (insertError) throw insertError;
+
+    // ✅ NEW: Upload multiple images
+    let uploadedImages = [];
+    if (files.length > 0) {
+      try {
+        uploadedImages = await uploadAndCreateProductImages(product.id, files, 0, true);
+        
+        // Set primary image URL in Products table
+        if (uploadedImages.length > 0) {
+          const primaryImage = uploadedImages.find(img => img.is_primary) || uploadedImages[0];
+          await supabase
+            .from('Products')
+            .update({ img_url: primaryImage.img_url })
+            .eq('id', product.id);
+          
+          product.img_url = primaryImage.img_url;
+        }
+      } catch (imageError) {
+        // Rollback: Delete product if image upload fails
+        await supabase.from('Products').delete().eq('id', product.id);
+        throw imageError;
+      }
     }
 
+    // ✅ CHANGED: Return with images array
     res.status(201).json({
       success: true,
       message: 'Product created successfully',
-      data
+      data: attachImagesToProduct(product, uploadedImages)
     });
   } catch (error) {
     console.error('Create product error:', error);
@@ -229,7 +286,7 @@ const getProductById = async (req, res) => {
       throw error;
     }
 
-    // If product has variants, fetch them
+    // Fetch variants if product has them
     if (product.has_variants) {
       const { data: variants, error: variantsError } = await supabase
         .from('Product_variants')
@@ -246,9 +303,12 @@ const getProductById = async (req, res) => {
       }
     }
 
+    // ✅ NEW: Fetch and attach images
+    const images = await getProductImages(id);
+
     res.status(200).json({ 
       success: true, 
-      data: product 
+      data: attachImagesToProduct(product, images)
     });
   } catch (error) {
     console.error('Get product error:', error);
@@ -264,12 +324,12 @@ const getProductById = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, price, stock, category_id, sku, has_variants } = req.body;
+    const { title, description, price, stock, category_id, sku, has_variants, cost_price } = req.body;
 
-    // Fetch existing product to check current state
+    // Fetch existing product
     const { data: existingProduct, error: fetchError } = await supabase
       .from('Products')
-      .select('img_url, has_variants')
+      .select('img_url, has_variants, cost_price, price')
       .eq('id', id)
       .single();
 
@@ -288,7 +348,7 @@ const updateProduct = async (req, res) => {
     if (stock !== undefined) updateData.stock = parseInt(stock);
     if (sku) updateData.sku = sku;
 
-    const { cost_price } = req.body;
+    // Handle cost_price and margins
     if (cost_price !== undefined) {
       const newCostPrice = parseInt(cost_price) || 0;
       const currentPrice = price ? parseInt(price) : existingProduct.price;
@@ -298,16 +358,14 @@ const updateProduct = async (req, res) => {
       updateData.margin_percent = pricingMetrics.margin_percent;
       updateData.markup_percent = pricingMetrics.markup_percent;
     } else if (price && existingProduct.cost_price) {
-      // Recalculate margins if only price changed
       const pricingMetrics = calculateProductPricing(existingProduct.cost_price, price);
       updateData.margin_percent = pricingMetrics.margin_percent;
       updateData.markup_percent = pricingMetrics.markup_percent;
     }
 
-    // CRITICAL: Handle has_variants change
+    // Handle has_variants change
     const newHasVariants = has_variants === 'true' || has_variants === true;
     
-    // If changing from true to false, delete all variants
     if (existingProduct.has_variants && !newHasVariants) {
       console.log('⚠️ has_variants changed from true to false - deleting all variants');
       
@@ -333,8 +391,55 @@ const updateProduct = async (req, res) => {
       updateData.category_id = null;
     }
 
-    // Handle image upload
-    if (req.file) {
+    // ✅ NEW: Handle multiple images
+    const files = req.files || (req.file ? [req.file] : []);
+    let imagesToDelete = [];
+
+    if (req.body.delete_image_ids) {
+      imagesToDelete = typeof req.body.delete_image_ids === 'string' 
+        ? JSON.parse(req.body.delete_image_ids) 
+        : req.body.delete_image_ids;
+    }
+
+    // ✅ NEW: Delete marked images
+    if (imagesToDelete.length > 0) {
+      for (const imageId of imagesToDelete) {
+        try {
+          const imageRecord = await ProductImageModel.getImageById(imageId);
+          if (imageRecord && imageRecord.product_id === id) {
+            const publicId = extractPublicIdFromUrl(imageRecord.img_url);
+            if (publicId) await deleteFromCloudinary(publicId);
+            await ProductImageModel.deleteImage(imageId, id);
+          }
+        } catch (error) {
+          console.error(`Failed to delete image ${imageId}:`, error);
+        }
+      }
+    }
+
+    // ✅ NEW: Upload new images
+    let uploadedImages = [];
+    if (files.length > 0) {
+      const remainingImages = await getProductImages(id);
+      const maxOrder = remainingImages.length > 0 
+        ? Math.max(...remainingImages.map(img => img.display_order)) 
+        : -1;
+      
+      const hasPrimary = await ProductImageModel.hasPrimaryImage(id);
+      uploadedImages = await uploadAndCreateProductImages(id, files, maxOrder + 1, !hasPrimary);
+    }
+
+    // ✅ NEW: Update img_url to primary image
+    const allImages = await getProductImages(id);
+    if (allImages.length > 0) {
+      const primaryImage = allImages.find(img => img.is_primary) || allImages[0];
+      updateData.img_url = primaryImage.img_url;
+    } else {
+      updateData.img_url = null;
+    }
+
+    // ✅ LEGACY: Handle old single image upload (backward compatibility)
+    if (req.file && !req.files) {
       try {
         const cloudinaryResult = await uploadToCloudinary(req.file.buffer, 'products');
         updateData.img_url = cloudinaryResult.url;
@@ -364,10 +469,13 @@ const updateProduct = async (req, res) => {
 
     if (error) throw error;
 
+    // ✅ NEW: Fetch and attach images
+    const finalImages = await getProductImages(id);
+
     res.status(200).json({
       success: true,
       message: 'Product updated successfully',
-      data,
+      data: attachImagesToProduct(data, finalImages),
       variantsDeleted: existingProduct.has_variants && !newHasVariants
     });
   } catch (error) {
@@ -402,7 +510,7 @@ const deleteProduct = async (req, res) => {
       throw fetchError;
     }
 
-    // If product has variants, delete them first
+    // Delete variants if product has them
     if (product.has_variants) {
       console.log('⚠️ Product has variants - deleting all variants first');
       
@@ -419,7 +527,17 @@ const deleteProduct = async (req, res) => {
       }
     }
 
-    // Delete product from database
+    // ✅ NEW: Delete all product images
+    const images = await getProductImages(id);
+    if (images.length > 0) {
+      const publicIds = images.map(img => extractPublicIdFromUrl(img.img_url)).filter(id => id);
+      if (publicIds.length > 0) {
+        await deleteMultipleFromCloudinary(publicIds);
+      }
+      await ProductImageModel.deleteAllByProductId(id);
+    }
+
+    // Delete product from database (cascade will handle Product_images)
     const { error: deleteError } = await supabase
       .from('Products')
       .delete()
@@ -427,7 +545,7 @@ const deleteProduct = async (req, res) => {
 
     if (deleteError) throw deleteError;
 
-    // Delete product main image from Cloudinary
+    // ✅ LEGACY: Delete old img_url from Cloudinary (if exists)
     if (product.img_url) {
       try {
         const publicId = extractPublicIdFromUrl(product.img_url);
@@ -441,7 +559,7 @@ const deleteProduct = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Product and all associated variants deleted successfully'
+      message: 'Product and all associated data deleted successfully'
     });
   } catch (error) {
     console.error('Delete product error:', error);
@@ -466,19 +584,18 @@ const getAllProducts = async (req, res) => {
       limit = 20,
       in_stock,
       has_variants,
-      stock_level // 'all', 'in_stock', 'low_stock', 'out_of_stock'
+      stock_level
     } = req.query;
 
     let query = supabase
       .from('Products')
       .select('*, Categories(id, name)', { count: 'exact' });
 
-    // Category filter
+    // Apply filters (keeping all existing logic)
     if (category_id) {
       query = query.eq('category_id', category_id);
     }
 
-    // Price range filters
     if (min_price) {
       query = query.gte('price', parseInt(min_price));
     }
@@ -486,12 +603,10 @@ const getAllProducts = async (req, res) => {
       query = query.lte('price', parseInt(max_price));
     }
 
-    // ✅ ENHANCED SEARCH: Search in title, description, and SKU
     if (search) {
       query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,sku.ilike.%${search}%`);
     }
 
-    // ✅ FIX: Stock level filter (comprehensive)
     if (stock_level) {
       switch (stock_level) {
         case 'in_stock':
@@ -503,10 +618,8 @@ const getAllProducts = async (req, res) => {
         case 'out_of_stock':
           query = query.eq('stock', 0);
           break;
-        // 'all' - no filter
       }
     } else if (in_stock !== undefined) {
-      // Legacy support for in_stock parameter
       if (in_stock === 'true') {
         query = query.gt('stock', 0);
       } else if (in_stock === 'false') {
@@ -514,13 +627,12 @@ const getAllProducts = async (req, res) => {
       }
     }
 
-    // ✅ NEW: Has variants filter
     if (has_variants !== undefined) {
       const hasVariantsBool = has_variants === 'true';
       query = query.eq('has_variants', hasVariantsBool);
     }
 
-    // ✅ ENHANCED: Comprehensive sorting options
+    // Apply sorting (keeping all existing logic)
     switch (sort) {
       case 'title_asc':
         query = query.order('title', { ascending: true });
@@ -557,15 +669,23 @@ const getAllProducts = async (req, res) => {
 
     query = query.range(from, to);
 
-    const { data, error, count } = await query;
+    const { data: products, error, count } = await query;
 
     if (error) throw error;
+
+    // ✅ NEW: Fetch images for all products
+    const productsWithImages = await Promise.all(
+      (products || []).map(async (product) => {
+        const images = await getProductImages(product.id);
+        return attachImagesToProduct(product, images);
+      })
+    );
 
     const totalPages = Math.ceil(count / limitNum);
 
     res.status(200).json({
       success: true,
-      data,
+      data: productsWithImages,
       metadata: {
         total: count,
         totalPages,
@@ -583,6 +703,7 @@ const getAllProducts = async (req, res) => {
     });
   }
 };
+
 // ✅ NEW: Get inventory analytics
 const getInventoryAnalytics = async (req, res) => {
   try {
@@ -674,6 +795,160 @@ const getInventoryAnalytics = async (req, res) => {
   }
 };
 
+/**
+ * Add images to existing product
+ */
+const addProductImages = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const files = req.files || [];
+
+    if (files.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No images provided' 
+      });
+    }
+
+    // Verify product exists
+    const { data: product, error } = await supabase
+      .from('Products')
+      .select('id')
+      .eq('id', id)
+      .single();
+
+    if (error || !product) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Product not found' 
+      });
+    }
+
+    // Get current images
+    const currentImages = await getProductImages(id);
+    const maxOrder = currentImages.length > 0 
+      ? Math.max(...currentImages.map(img => img.display_order)) 
+      : -1;
+    
+    const hasPrimary = await ProductImageModel.hasPrimaryImage(id);
+    const uploadedImages = await uploadAndCreateProductImages(id, files, maxOrder + 1, !hasPrimary);
+
+    // Update product img_url if this is the first image
+    if (!hasPrimary && uploadedImages.length > 0) {
+      await supabase
+        .from('Products')
+        .update({ img_url: uploadedImages[0].img_url })
+        .eq('id', id);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Added ${uploadedImages.length} images successfully`,
+      data: uploadedImages
+    });
+  } catch (error) {
+    console.error('Add product images error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to add images', 
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * Delete single product image
+ */
+const deleteProductImage = async (req, res) => {
+  try {
+    const { id, imageId } = req.params;
+
+    // Verify image exists and belongs to this product
+    const imageRecord = await ProductImageModel.getImageById(imageId);
+    if (!imageRecord || imageRecord.product_id !== id) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Image not found' 
+      });
+    }
+
+    const wasPrimary = imageRecord.is_primary;
+
+    // Delete from Cloudinary
+    const publicId = extractPublicIdFromUrl(imageRecord.img_url);
+    if (publicId) await deleteFromCloudinary(publicId);
+
+    // Delete from database
+    await ProductImageModel.deleteImage(imageId, id);
+
+    // If deleted image was primary, set another as primary
+    if (wasPrimary) {
+      const remainingImages = await getProductImages(id);
+      if (remainingImages.length > 0) {
+        await ProductImageModel.setPrimaryImage(id, remainingImages[0].id);
+        await supabase
+          .from('Products')
+          .update({ img_url: remainingImages[0].img_url })
+          .eq('id', id);
+      } else {
+        // No images left
+        await supabase
+          .from('Products')
+          .update({ img_url: null })
+          .eq('id', id);
+      }
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Image deleted successfully' 
+    });
+  } catch (error) {
+    console.error('Delete product image error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to delete image', 
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * Set image as primary
+ */
+const setPrimaryProductImage = async (req, res) => {
+  try {
+    const { id, imageId } = req.params;
+
+    const updatedImage = await ProductImageModel.setPrimaryImage(id, imageId);
+
+    // Update product img_url
+    await supabase
+      .from('Products')
+      .update({ img_url: updatedImage.img_url })
+      .eq('id', id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Primary image updated successfully',
+      data: updatedImage
+    });
+  } catch (error) {
+    if (error.message === 'IMAGE_NOT_FOUND') {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Image not found' 
+      });
+    }
+    console.error('Set primary image error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to set primary image', 
+      error: error.message 
+    });
+  }
+};
+
 // ✅ UPDATE MODULE.EXPORTS
 module.exports = {
   createProduct,
@@ -683,5 +958,8 @@ module.exports = {
   getAllProducts,
   getProductStats,
   getPriceRange,
-  getInventoryAnalytics // ADD THIS
+  getInventoryAnalytics,
+  addProductImages,        // ✅ NEW
+  deleteProductImage,      // ✅ NEW
+  setPrimaryProductImage   // ✅ NEW
 };

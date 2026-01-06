@@ -15,12 +15,15 @@ import {
   Hash,
   FileText,
   Layers,
-  Edit
+  Edit,
+  Star,
+  Image as ImageIcon
 } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../hooks/useToast';
 import { updateProduct, getProductById } from '../../services/adminProductService'; // ✅ ADDED
 import { getCategories, createCategory } from '../../services/adminCategoryService'; // ✅ ADDED
+import adminApi from '../../services/adminApi';
 
 // InputWrapper component - OUTSIDE the main component
 const InputWrapper = ({ label, name, required, icon: Icon, children, hint, error }) => (
@@ -56,9 +59,10 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     sku: '',
     category_id: ''
   });
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [currentImage, setCurrentImage] = useState(null);
+  const [images, setImages] = useState([]); // New images: { file, preview, id, is_primary }
+  const [existingImages, setExistingImages] = useState([]); // From server: { id, img_url, is_primary, display_order }
+  const [imagesToDelete, setImagesToDelete] = useState([]); // Track deletions
+  const [primaryImageChanged, setPrimaryImageChanged] = useState(false);
   const [hasVariants, setHasVariants] = useState(false);
   const [originalHasVariants, setOriginalHasVariants] = useState(false);
   const [variantCount, setVariantCount] = useState(0);
@@ -104,7 +108,20 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         sku: product.sku || '',
         category_id: product.category_id || ''
       });
-      setCurrentImage(product.img_url);
+      
+      // ✅ NEW: Load existing images
+      if (product.images && Array.isArray(product.images)) {
+        setExistingImages(product.images);
+      } else if (product.img_url) {
+        // Fallback for products without Product_images table data
+        setExistingImages([{
+          id: 'legacy',
+          img_url: product.img_url,
+          is_primary: true,
+          display_order: 0
+        }]);
+      }
+      
       setHasVariants(product.has_variants || false);
       setOriginalHasVariants(product.has_variants || false);
       
@@ -207,37 +224,142 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     setErrors(prev => ({ ...prev, [name]: error }));
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Validate file type
+  // ✅ NEW: Handle multiple image selection
+  const handleImageSelect = (e) => {
+    const files = Array.from(e.target.files);
+    
+    // Calculate total images (existing + new)
+    const totalImages = existingImages.length + images.length + files.length;
+    
+    if (totalImages > 8) {
+      toast.error(`Maximum 8 images allowed. You can add ${8 - existingImages.length - images.length} more.`);
+      return;
+    }
+
+    // Validate each file
+    const validFiles = [];
+    for (const file of files) {
       if (!file.type.startsWith('image/')) {
-        setErrors(prev => ({ ...prev, image: 'Please select a valid image file' }));
-        return;
+        toast.error(`${file.name} is not a valid image file`);
+        continue;
       }
       
-      // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        setErrors(prev => ({ ...prev, image: 'Image size must be less than 5MB' }));
-        return;
+        toast.error(`${file.name} exceeds 5MB size limit`);
+        continue;
       }
       
-      setImage(file);
-      setErrors(prev => ({ ...prev, image: '' }));
-      
+      validFiles.push(file);
+    }
+
+    // Create preview URLs
+    validFiles.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result);
+        setImages(prev => [
+          ...prev,
+          {
+            file,
+            preview: reader.result,
+            id: `new-${Date.now()}-${Math.random()}`,
+            is_primary: prev.length === 0 && existingImages.length === 0
+          }
+        ]);
       };
       reader.readAsDataURL(file);
+    });
+
+    setErrors(prev => ({ ...prev, images: '' }));
+  };
+
+  // ✅ NEW: Remove newly added image
+  const handleRemoveNewImage = (imageId) => {
+    setImages(prev => {
+      const updated = prev.filter(img => img.id !== imageId);
+      
+      // If removed image was primary and there are other images, set first as primary
+      const removedWasPrimary = prev.find(img => img.id === imageId)?.is_primary;
+      if (removedWasPrimary && updated.length > 0) {
+        updated[0].is_primary = true;
+      }
+      
+      return updated;
+    });
+  };
+
+  // ✅ NEW: Remove existing image
+  const handleRemoveExistingImage = (imageId) => {
+    const imageToRemove = existingImages.find(img => img.id === imageId);
+    
+    // Check minimum images requirement
+    const totalAfterRemoval = existingImages.length + images.length - 1;
+    if (totalAfterRemoval < 1) {
+      toast.error('Product must have at least 1 image');
+      return;
+    }
+
+    setExistingImages(prev => {
+      const updated = prev.filter(img => img.id !== imageId);
+      
+      // If removed image was primary, set first remaining as primary
+      if (imageToRemove?.is_primary && updated.length > 0) {
+        updated[0].is_primary = true;
+        setPrimaryImageChanged(true);
+      }
+      
+      return updated;
+    });
+    
+    setImagesToDelete(prev => [...prev, imageId]);
+  };
+
+  // ✅ NEW: Set image as primary
+  const handleSetPrimaryImage = (imageId, isExisting) => {
+    // Track that primary image was changed
+    setPrimaryImageChanged(true);
+    
+    if (isExisting) {
+      setExistingImages(prev =>
+        prev.map(img => ({ ...img, is_primary: img.id === imageId }))
+      );
+      // Unset primary for new images
+      setImages(prev =>
+        prev.map(img => ({ ...img, is_primary: false }))
+      );
+    } else {
+      setImages(prev =>
+        prev.map(img => ({ ...img, is_primary: img.id === imageId }))
+      );
+      // Unset primary for existing images
+      setExistingImages(prev =>
+        prev.map(img => ({ ...img, is_primary: false }))
+      );
     }
   };
 
-  const handleRemoveImage = () => {
-    setImage(null);
-    setImagePreview(null);
-    setErrors(prev => ({ ...prev, image: '' }));
+  // ✅ NEW: Get primary image
+  const getPrimaryImage = () => {
+    const existingPrimary = existingImages.find(img => img.is_primary);
+    if (existingPrimary) return { ...existingPrimary, isExisting: true };
+    
+    const newPrimary = images.find(img => img.is_primary);
+    if (newPrimary) return { ...newPrimary, isExisting: false };
+    
+    return null;
   };
+
+  // ✅ NEW: Get secondary images
+  const getSecondaryImages = () => {
+    const existingSecondary = existingImages.filter(img => !img.is_primary);
+    const newSecondary = images.filter(img => !img.is_primary);
+    return [
+      ...existingSecondary.map(img => ({ ...img, isExisting: true })), 
+      ...newSecondary.map(img => ({ ...img, isExisting: false }))
+    ];
+  };
+
+  const totalImages = existingImages.length + images.length;
+  const canAddMore = totalImages < 8;
 
   // Handle has_variants toggle change
   const handleHasVariantsChange = () => {
@@ -300,15 +422,15 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
       
       setTimeout(() => {
         setShowAddCategory(false);
-        
       }, 1500);
 
     } catch (error) {
       console.error('Error creating category:', error);
-      toast.error(error.response?.data?.message || 'Failed to create category');
+      toast.error(error.message || 'Failed to create category');
     }
   };
 
+  // ✅ UPDATED: Validate form with multiple images
   const validateForm = () => {
     const newErrors = {};
     
@@ -318,10 +440,21 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
       if (error) newErrors[key] = error;
     });
     
+    // ✅ NEW: Validate images
+    const finalImageCount = existingImages.length + images.length - imagesToDelete.length;
+    if (finalImageCount === 0) {
+      newErrors.images = 'Product must have at least one image';
+    }
+    
+    if (finalImageCount > 8) {
+      newErrors.images = 'Maximum 8 images allowed';
+    }
+    
     setErrors(newErrors);
     setTouched({
       title: true,
       price: true,
+      cost_price: true,
       stock: true,
       sku: true,
       description: true
@@ -330,6 +463,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     return Object.keys(newErrors).length === 0;
   };
 
+  // ✅ UPDATED: Handle submit with multiple images
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -353,9 +487,9 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     }
     
     setLoading(true);
-    
 
     try {
+      // ✅ CHANGED: Handle multiple images and deletions
       const updateData = {
         title: formData.title?.trim(),
         description: formData.description?.trim(),
@@ -365,13 +499,40 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         sku: formData.sku?.trim(),
         category_id: formData.category_id || '',
         has_variants: hasVariants,
-        image: image // File object
+        images: images.map(img => img.file), // New images
+        delete_image_ids: imagesToDelete // Images to delete
       };
+
+      // ✅ NEW: Handle primary image change for existing images
+      if (primaryImageChanged) {
+        const newPrimaryImage = existingImages.find(img => img.is_primary);
+        if (newPrimaryImage && newPrimaryImage.id !== 'legacy') {
+          console.log('Primary image changed to:', newPrimaryImage.id);
+        }
+      }
 
       const response = await updateProduct(productId, updateData); // ✅ CHANGED
       
       if (!response.success) {
         throw new Error(response.error || 'Failed to update product');
+      }
+
+      // ✅ NEW: If primary image was changed on existing images, call setPrimary endpoint
+      if (primaryImageChanged) {
+        const newPrimaryImage = existingImages.find(img => img.is_primary);
+        if (newPrimaryImage && newPrimaryImage.id !== 'legacy') {
+          try {
+            const primaryResponse = await adminApi.patch(
+              `/api/products/admin/${productId}/images/${newPrimaryImage.id}/primary`
+            );
+            
+            if (primaryResponse.ok) {
+              console.log('✅ Primary image updated');
+            }
+          } catch (err) {
+            console.error('Failed to update primary image:', err);
+          }
+        }
       }
 
       const successMessage = response.data.variantsDeleted
@@ -385,7 +546,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
       }
     } catch (error) {
       console.error('Error updating product:', error);
-      toast.error(error.response?.data?.message || 'Failed to update product');
+      toast.error(error.message || 'Failed to update product');
     } finally {
       setLoading(false);
     }
@@ -413,75 +574,134 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Image Upload Section - Compact */}
-        <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
-          <InputWrapper 
-            label="Product Image" 
-            name="image" 
-            icon={Upload}
-            error={errors.image}
-            hint="Upload new image to replace current one (max 5MB)"
-          >
-            <div className="flex items-start gap-4 mt-3">
-              {/* Current/Preview Image */}
-              <div className="flex-shrink-0">
-                {imagePreview ? (
-                  <div className="relative group">
+        {/* Image Upload Section - MULTI-IMAGE GRID */}
+        <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink transition-all duration-200">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <ImageIcon className="w-4 h-4 text-tppslate/60" />
+              <h3 className="text-sm font-bold text-tppslate">Product Images</h3>
+              <span className="text-xs text-tppslate/60">({totalImages}/8)</span>
+            </div>
+            {canAddMore && (
+              <label className="px-3 py-1.5 bg-tpppink/50 text-tppslate rounded-lg hover:bg-tpppink/80 text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1.5 border-2 border-tpppink/50">
+                <Plus className="w-3.5 h-3.5" />
+                Add Images
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+
+          {errors.images && (
+            <div className="mb-3 p-2 bg-red-50 border-2 border-red-200 text-red-700 rounded-lg text-xs flex items-center gap-2">
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+              {errors.images}
+            </div>
+          )}
+
+          {/* Image Grid */}
+          <div className="grid grid-cols-4 gap-2">
+            {/* Primary Image - Takes 2x2 space */}
+            <div className="col-span-2 row-span-2">
+              {(() => {
+                const primaryImg = getPrimaryImage();
+                return primaryImg ? (
+                  <div className="relative group h-full">
                     <img 
-                      src={imagePreview} 
-                      alt="Product preview" 
-                      className="w-32 h-32 object-cover rounded-lg border-2 border-tpppink/30"
+                      src={primaryImg.isExisting ? primaryImg.img_url : primaryImg.preview}
+                      alt="Primary product image" 
+                      className="w-full h-full object-cover rounded-lg border-2 border-tpppink shadow-sm"
                     />
+                    {/* Primary Badge */}
+                    <div className="absolute top-2 left-2 px-2 py-0.5 bg-tpppink text-white text-[10px] font-bold rounded-full flex items-center gap-1 shadow-md">
+                      <Star className="w-2.5 h-2.5 fill-current" />
+                      PRIMARY
+                    </div>
+                    {/* Remove Button */}
                     <button
                       type="button"
-                      onClick={handleRemoveImage}
-                      className="absolute top-1 right-1 p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100"
+                      onClick={() => primaryImg.isExisting 
+                        ? handleRemoveExistingImage(primaryImg.id)
+                        : handleRemoveNewImage(primaryImg.id)
+                      }
+                      className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100 shadow-md"
                       aria-label="Remove image"
                     >
                       <X className="w-3 h-3" />
                     </button>
-                    <div className="absolute bottom-1 left-1 px-2 py-0.5 bg-black/60 text-white text-[10px] rounded-full backdrop-blur-sm">
-                      New
-                    </div>
-                  </div>
-                ) : currentImage ? (
-                  <div className="relative">
-                    <img 
-                      src={currentImage} 
-                      alt="Current product" 
-                      className="w-32 h-32 object-cover rounded-lg border-2 border-tpppink/30"
-                    />
-                    <div className="absolute bottom-1 left-1 px-2 py-0.5 bg-black/60 text-white text-[10px] rounded-full backdrop-blur-sm">
-                      Current
+                    {/* Status Badge */}
+                    <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/60 text-white text-[9px] rounded-full backdrop-blur-sm">
+                      {primaryImg.isExisting ? 'Current' : 'New'}
                     </div>
                   </div>
                 ) : (
-                  <div className="w-32 h-32 border-2 border-dashed border-tpppink/30 rounded-lg flex items-center justify-center bg-slate-50">
-                    <Upload className="w-8 h-8 text-slate-300" />
+                  <div className="w-full h-full border-2 border-dashed border-tpppink/30 rounded-lg flex flex-col items-center justify-center bg-slate-50 min-h-[180px]">
+                    <ImageIcon className="w-8 h-8 text-slate-300 mb-1" />
+                    <p className="text-xs text-tppslate/60 font-medium">Primary Image</p>
                   </div>
-                )}
-              </div>
-
-              {/* Upload Button */}
-              <label 
-                htmlFor="image" 
-                className="flex-1 flex flex-col items-center justify-center h-32 border-2 border-dashed border-tpppink/30 rounded-lg cursor-pointer bg-tpppeach/10 hover:bg-tpppeach/20 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200 group"
-              >
-                <Upload className="w-8 h-8 text-tppslate/40 mb-2 group-hover:text-tppslate transition-colors" />
-                <p className="text-sm text-tppslate/60">
-                  <span className="font-semibold">Click to upload</span>
-                </p>
-                <p className="text-xs text-tppslate/40 mt-1">PNG, JPG, WEBP up to 5MB</p>
-                <input
-                  id="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-              </label>
+                );
+              })()}
             </div>
-          </InputWrapper>
+
+            {/* Secondary Images - 6 slots */}
+            {[...Array(6)].map((_, idx) => {
+              const secondaryImages = getSecondaryImages();
+              const image = secondaryImages[idx];
+              
+              return (
+                <div key={idx} className="aspect-square">
+                  {image ? (
+                    <div className="relative group h-full">
+                      <img 
+                        src={image.isExisting ? image.img_url : image.preview}
+                        alt={`Product image ${idx + 2}`}
+                        className="w-full h-full object-cover rounded-lg border-2 border-tpppink/30 hover:border-tpppink transition-all"
+                      />
+                      {/* Set Primary Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleSetPrimaryImage(image.id, image.isExisting)}
+                        className="absolute top-1 left-1 p-1 bg-white/90 text-tppslate rounded hover:bg-tpppink hover:text-white transition-all opacity-0 group-hover:opacity-100 shadow-md"
+                        title="Set as primary"
+                      >
+                        <Star className="w-2.5 h-2.5" />
+                      </button>
+                      {/* Remove Button */}
+                      <button
+                        type="button"
+                        onClick={() => image.isExisting 
+                          ? handleRemoveExistingImage(image.id)
+                          : handleRemoveNewImage(image.id)
+                        }
+                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded hover:bg-red-600 transition-all opacity-0 group-hover:opacity-100 shadow-md"
+                        aria-label="Remove image"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                      {/* Status Badge */}
+                      <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/60 text-white text-[8px] rounded-full backdrop-blur-sm">
+                        {image.isExisting ? 'Current' : 'New'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full h-full border-2 border-dashed border-tpppink/20 rounded-lg flex items-center justify-center bg-slate-50">
+                      <ImageIcon className="w-4 h-4 text-slate-300" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-[11px] text-tppslate/60 mt-2 flex items-center gap-1">
+            <Info className="w-3 h-3 flex-shrink-0" />
+            1-8 images. First image is primary. PNG, JPG, WEBP up to 5MB each.
+          </p>
         </div>
 
         {/* Product Details Section */}
@@ -520,7 +740,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
               </InputWrapper>
             </div>
             
-            {/* ✅ COST PRICE FIELD - ADD THIS ENTIRE BLOCK */}
+            {/* Cost Price */}
             <InputWrapper 
               label="Cost Price (Your Purchase Price)" 
               name="cost_price" 
@@ -548,7 +768,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
               />
             </InputWrapper>
 
-            {/* SELLING PRICE with Margin Display */}
+            {/* Selling Price with Margin Display */}
             <InputWrapper 
               label="Selling Price (Customer Price)" 
               name="price" 
@@ -575,7 +795,7 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
                 aria-invalid={errors.price && touched.price ? 'true' : 'false'}
               />
               
-              {/* ✅ REAL-TIME MARGIN DISPLAY - ADD THIS */}
+              {/* Real-Time Margin Display */}
               {formData.cost_price && formData.price && 
               parseFloat(formData.cost_price) > 0 && 
               parseFloat(formData.price) > 0 && 

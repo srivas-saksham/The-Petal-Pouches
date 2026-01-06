@@ -1,11 +1,26 @@
 // frontend/src/components/admin/layout/TopBar.jsx
 
-import { Menu, Bell, User, LogOut, Search, X, Settings, Package, ShoppingCart, Users as UsersIcon, Layers, Circle } from 'lucide-react';
+import { Menu, Bell, User, LogOut, Search, X, Settings, Package, ShoppingCart, Users as UsersIcon, Layers, Circle, Clock, AlertCircle } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../../../context/AdminAuthContext';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+// Helper function to decode JWT without external library
+const decodeToken = (token) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error('Error decoding token:', error);
+    return null;
+  }
+};
 
 export default function TopBar({ onMenuClick }) {
   const { logout, admin } = useAdminAuth();
@@ -19,6 +34,10 @@ export default function TopBar({ onMenuClick }) {
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  
+  // ✅ NEW: Token countdown states
+  const [timeRemaining, setTimeRemaining] = useState(null);
+  const [showExpiryWarning, setShowExpiryWarning] = useState(false);
   
   const notifRef = useRef(null);
   const userMenuRef = useRef(null);
@@ -42,6 +61,89 @@ export default function TopBar({ onMenuClick }) {
     }
     return name.slice(0, 2).toUpperCase();
   };
+
+  // ✅ NEW: Calculate time remaining from JWT token
+  const calculateTimeRemaining = () => {
+    try {
+      const token = sessionStorage.getItem('admin_token');
+      if (!token) {
+        setTimeRemaining(null);
+        return;
+      }
+
+      const decoded = decodeToken(token);
+      if (!decoded || !decoded.exp) {
+        setTimeRemaining(null);
+        return;
+      }
+
+      const expirationTime = decoded.exp * 1000; // Convert to milliseconds
+      const currentTime = Date.now();
+      const remaining = expirationTime - currentTime;
+
+      if (remaining <= 0) {
+        setTimeRemaining(0);
+        // Token expired - trigger logout
+        handleTokenExpiry();
+        return;
+      }
+
+      setTimeRemaining(remaining);
+
+      // Show warning when less than 5 minutes remaining
+      if (remaining < 5 * 60 * 1000 && remaining > 0 && !showExpiryWarning) {
+        setShowExpiryWarning(true);
+      }
+    } catch (error) {
+      console.error('Error calculating time remaining:', error);
+      setTimeRemaining(null);
+    }
+  };
+
+  // ✅ NEW: Handle token expiry
+  const handleTokenExpiry = async () => {
+    console.warn('Token expired - logging out');
+    await logout();
+    navigate('/admin/login', { 
+      state: { message: 'Your session has expired. Please login again.' } 
+    });
+  };
+
+  // ✅ NEW: Format time remaining
+  const formatTimeRemaining = (ms) => {
+    if (!ms || ms <= 0) return '0:00';
+    
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // ✅ NEW: Get warning color based on time remaining
+  const getTimerColor = () => {
+    if (!timeRemaining) return 'text-tppslate';
+    
+    const minutes = Math.floor(timeRemaining / 60000);
+    
+    if (minutes <= 2) return 'text-red-600 animate-pulse';
+    if (minutes <= 5) return 'text-tppslate';
+    if (minutes <= 10) return 'text-tppslate';
+    return 'text-tppslate';
+  };
+
+  // ✅ NEW: Token countdown effect
+  useEffect(() => {
+    // Initial calculation
+    calculateTimeRemaining();
+
+    // Update every second
+    const interval = setInterval(() => {
+      calculateTimeRemaining();
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Handle logout
   const handleLogout = async () => {
@@ -401,6 +503,27 @@ export default function TopBar({ onMenuClick }) {
 
           {/* Right Section */}
           <div className="flex items-center gap-3">
+            {/* ✅ NEW: Session Timer */}
+            {timeRemaining !== null && (
+              <div 
+                className={`hidden sm:flex items-center gap-2 px-3 py-1 rounded-lg border-2 transition-all ml-2 ${
+                  timeRemaining <= 2 * 60 * 1000 
+                    ? 'bg-red-50 border-red-200'
+                    : 'bg-slate-50 border-slate-200'
+                }`}
+                title="Session expires in"
+              >
+                <div className="flex items-center flex-col">
+                  <span className={`font-inter text-lg font-bold tabular-nums ${getTimerColor()}`}>
+                    {formatTimeRemaining(timeRemaining)}
+                  </span>
+                </div>
+                {timeRemaining <= 5 * 60 * 1000 && (
+                  <AlertCircle className="w-4 h-4 text-orange-500" />
+                )}
+              </div>
+            )}
+
             {/* Go to Home Link */}
             <button
               onClick={() => navigate('/')}
@@ -409,7 +532,6 @@ export default function TopBar({ onMenuClick }) {
                 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-tpppink/30"
               title="Go to Home"
             >
-              {/* <Store size={16} /> */}
               <span>Go to Home</span>
             </button>
 
@@ -424,11 +546,10 @@ export default function TopBar({ onMenuClick }) {
                 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-tpppink/30"
               title="Go to Shop"
             >
-              {/* <Store size={16} /> */}
               <span>Go to Shop</span>
             </button>
             
-            {/* Notifications */}
+            {/* Notifications - Commented out but preserved */}
             {/* <div className="relative" ref={notifRef}>
               <button
                 onClick={() => {
@@ -536,6 +657,29 @@ export default function TopBar({ onMenuClick }) {
           </div>
         </div>
       </div>
+
+      {/* ✅ NEW: Session Expiry Warning Banner */}
+      {showExpiryWarning && timeRemaining > 0 && timeRemaining <= 5 * 60 * 1000 && (
+        <div className="bg-orange-50 border-t-2 border-orange-200 px-4 py-2">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-orange-600" />
+              <p className="text-sm text-orange-900">
+                <span className="font-semibold">Session expiring soon!</span> Your session will expire in{' '}
+                <span className="font-bold">{formatTimeRemaining(timeRemaining)}</span>. 
+                Save your work to avoid losing changes.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowExpiryWarning(false)}
+              className="text-orange-600 hover:text-orange-800 transition-colors"
+              aria-label="Dismiss warning"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

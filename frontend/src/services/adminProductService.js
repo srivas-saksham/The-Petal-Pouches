@@ -1,7 +1,7 @@
 // frontend/src/services/adminProductService.js - ADMIN ONLY
 
 import adminApi from './adminApi';
-import { apiRequest, createFormDataRequest } from './api';
+import { apiRequest } from './api';
 
 // ==================== ADMIN PRODUCT METHODS ====================
 
@@ -25,28 +25,87 @@ export const getProductById = async (productId) => {
 
 /**
  * Create new product (ADMIN)
+ * ✅ UPDATED: Handles multiple images
  */
 export const createProduct = async (productData) => {
-  const formData = createFormDataRequest(productData, 'image');
-  
-  return apiRequest(() => 
-    adminApi.post('/api/admin/products', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-  );
+  try {
+    const formData = new FormData();
+    
+    // Append text fields
+    formData.append('title', productData.title);
+    formData.append('description', productData.description);
+    formData.append('price', productData.price);
+    formData.append('cost_price', productData.cost_price);
+    formData.append('stock', productData.stock);
+    formData.append('sku', productData.sku);
+    formData.append('has_variants', productData.has_variants);
+    if (productData.category_id) {
+      formData.append('category_id', productData.category_id);
+    }
+    
+    // ✅ CHANGED: Append multiple images
+    if (productData.images && Array.isArray(productData.images)) {
+      productData.images.forEach(file => {
+        formData.append('images', file);
+      });
+    }
+    
+    const response = await adminApi.post('/api/products/admin', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    
+    return { success: true, data: response.data };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message
+    };
+  }
 };
 
 /**
  * Update existing product (ADMIN)
+ * ✅ UPDATED: Handles multiple images and image deletion
  */
 export const updateProduct = async (productId, productData) => {
-  const formData = createFormDataRequest(productData, 'image');
-  
-  return apiRequest(() => 
-    adminApi.put(`/api/admin/products/${productId}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-  );
+  try {
+    const formData = new FormData();
+    
+    // Append text fields
+    formData.append('title', productData.title);
+    formData.append('description', productData.description);
+    formData.append('price', productData.price);
+    formData.append('cost_price', productData.cost_price);
+    formData.append('stock', productData.stock);
+    formData.append('sku', productData.sku);
+    formData.append('has_variants', productData.has_variants);
+    if (productData.category_id) {
+      formData.append('category_id', productData.category_id);
+    }
+    
+    // ✅ NEW: Handle multiple images for update
+    if (productData.images && Array.isArray(productData.images)) {
+      productData.images.forEach(file => {
+        formData.append('images', file);
+      });
+    }
+    
+    // ✅ NEW: Handle image deletions
+    if (productData.delete_image_ids && Array.isArray(productData.delete_image_ids)) {
+      formData.append('delete_image_ids', JSON.stringify(productData.delete_image_ids));
+    }
+    
+    const response = await adminApi.put(`/api/products/admin/${productId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    
+    return { success: true, data: response.data };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message
+    };
+  }
 };
 
 /**
@@ -54,7 +113,7 @@ export const updateProduct = async (productId, productData) => {
  */
 export const deleteProduct = async (productId) => {
   return apiRequest(() => 
-    adminApi.delete(`/api/admin/products/${productId}`)
+    adminApi.delete(`/api/products/admin/${productId}`)
   );
 };
 
@@ -100,7 +159,7 @@ export const getProductStats = async () => {
  */
 export const bulkUpdateProducts = async (productIds, updateData) => {
   return apiRequest(() => 
-    adminApi.post('/api/admin/products/bulk-update', {
+    adminApi.post('/api/products/admin/bulk-update', {
       product_ids: productIds,
       update_data: updateData,
     })
@@ -112,7 +171,7 @@ export const bulkUpdateProducts = async (productIds, updateData) => {
  */
 export const bulkDeleteProducts = async (productIds) => {
   return apiRequest(() => 
-    adminApi.post('/api/admin/products/bulk-delete', {
+    adminApi.post('/api/products/admin/bulk-delete', {
       product_ids: productIds,
     })
   );
