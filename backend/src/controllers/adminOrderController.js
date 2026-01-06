@@ -223,24 +223,13 @@ const AdminOrderController = {
         });
       }
 
-      // ===== STEP 7: GET ORDER ITEMS (BUNDLES ONLY) =====
+      // ===== STEP 7: GET ORDER ITEMS (BUNDLES + PRODUCTS) - MANUAL JOIN =====
       const orderIdsToFetch = orders.map(o => o.id);
-      
-      const { data: allItems, error: itemsError } = await supabase
+
+      // Fetch order items first
+      const { data: orderItemsRaw, error: itemsError } = await supabase
         .from('Order_items')
-        .select(`
-          order_id,
-          bundle_id,
-          bundle_title,
-          quantity,
-          price,
-          Bundles(
-            id,
-            title,
-            img_url,
-            price
-          )
-        `)
+        .select('*')
         .in('order_id', orderIdsToFetch);
 
       if (itemsError) {
@@ -248,19 +237,55 @@ const AdminOrderController = {
         throw itemsError;
       }
 
-      // ===== STEP 8: GROUP ITEMS BY ORDER =====
+      // Get unique bundle_ids and product_ids
+      const bundleIds = [...new Set(orderItemsRaw.filter(i => i.bundle_id).map(i => i.bundle_id))];
+      const productIds = [...new Set(orderItemsRaw.filter(i => i.product_id).map(i => i.product_id))];
+
+      // Fetch bundles
+      let bundlesData = {};
+      if (bundleIds.length > 0) {
+        const { data: bundles } = await supabase
+          .from('Bundles')
+          .select('id, title, img_url, price')
+          .in('id', bundleIds);
+        
+        (bundles || []).forEach(b => {
+          bundlesData[b.id] = b;
+        });
+      }
+
+      // Fetch products
+      let productsData = {};
+      if (productIds.length > 0) {
+        const { data: products } = await supabase
+          .from('Products')
+          .select('id, title, img_url, price')
+          .in('id', productIds);
+        
+        (products || []).forEach(p => {
+          productsData[p.id] = p;
+        });
+      }
+
+      // ===== STEP 8: GROUP ITEMS BY ORDER WITH MERGED DATA =====
       const itemsByOrder = {};
-      (allItems || []).forEach(item => {
+      orderItemsRaw.forEach(item => {
         if (!itemsByOrder[item.order_id]) {
           itemsByOrder[item.order_id] = [];
         }
+        
+        const bundle = item.bundle_id ? bundlesData[item.bundle_id] : null;
+        const product = item.product_id ? productsData[item.product_id] : null;
+        
         itemsByOrder[item.order_id].push({
-          bundle_id: item.bundle_id,
-          bundle_title: item.bundle_title || item.Bundles?.title,
-          bundle_img: item.Bundles?.img_url,
-          bundle_price: item.Bundles?.price || item.price,
+          bundle_id: item.bundle_id || null,
+          product_id: item.product_id || null,
+          bundle_title: item.bundle_title || product?.title || bundle?.title || 'Unknown Item',
+          bundle_img: product?.img_url || bundle?.img_url || null,
+          bundle_price: product?.price || bundle?.price || item.price,
           quantity: item.quantity,
-          price: item.price
+          price: item.price,
+          bundle_origin: item.bundle_origin || (product ? 'product' : 'brand-bundle')
         });
       });
 

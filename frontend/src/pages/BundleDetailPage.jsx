@@ -1,34 +1,55 @@
-// frontend/src/pages/BundleDetailPage.jsx - WITH ENHANCED BUNDLE HEADER
+// frontend/src/pages/BundleDetailPage.jsx - UNIFIED FOR PRODUCTS & BUNDLES
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Check, AlertCircle, Package, Star } from 'lucide-react';
 import useBundleDetail from '../hooks/useBundleDetail';
 import BundleImageGallery from '../components/bundle-detail/BundleImageGallery';
 import BundleKeyDetails from '../components/bundle-detail/BundleKeyDetails';
 import FloatingSidebar from '../components/bundle-detail/FloatingSidebar/FloatingSidebar';
-import BundleHeader from '../components/bundle-detail/BundleHeader'; // ✅ UPDATED IMPORT
+import BundleHeader from '../components/bundle-detail/BundleHeader';
 import { addBundleToCart, updateCartItem, removeFromCart } from '../services/cartService';
 import { useCart } from '../hooks/useCart';
 import { getDisplayRating, formatRating, formatTimeAgo } from '../utils/reviewHelpers';
+import shopService from '../services/shopService';
 
 /**
- * BundleDetailPage - WITH ENHANCED BUNDLE HEADER
- * 
- * ✅ Uses BundleHeader component with:
- *    - Brand name + Search + Auth/Cart buttons
- *    - Breadcrumb navigation on second row
- *    - Share & Wishlist buttons
+ * BundleDetailPage - UNIFIED for Products AND Bundles
+ * Detects item type from URL path and fetches accordingly
  */
 const BundleDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   
-  const { bundle, loading, error, stockStatus } = useBundleDetail(id);
+  // Detect if viewing product or bundle from URL
+  const isProductView = location.pathname.includes('/shop/products/');
+  const itemType = isProductView ? 'product' : 'bundle';
+  
+  // State for product fetching
+  const [item, setItem] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Use bundle hook only for bundles
+  const bundleHook = useBundleDetail(isProductView ? null : id);
+  
   const [showShareModal, setShowShareModal] = useState(false);
   
-  const { refreshCart, getBundleQuantityInCart, getCartItemByBundleId } = useCart();
-  const cartItem = getCartItemByBundleId(id);
-  const quantityInCart = getBundleQuantityInCart(id);
+  const { 
+    refreshCart, 
+    getBundleQuantityInCart, 
+    getCartItemByBundleId,
+    getProductQuantityInCart,
+    getCartItemByProductId 
+  } = useCart();
+  
+  const cartItem = isProductView 
+    ? getCartItemByProductId(id)
+    : getCartItemByBundleId(id);
+    
+  const quantityInCart = isProductView
+    ? getProductQuantityInCart(id)
+    : getBundleQuantityInCart(id);
   
   const [localQuantity, setLocalQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
@@ -37,17 +58,49 @@ const BundleDetailPage = () => {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const debounceTimerRef = useRef(null);
   
-  // Track current bundle weight with debouncing
   const [currentBundleWeight, setCurrentBundleWeight] = useState(1000);
   const [pendingWeight, setPendingWeight] = useState(null);
   const deliveryDebounceTimerRef = useRef(null);
 
-  const stockLimit = bundle?.stock_limit;
+  // Fetch product data if viewing product
+  useEffect(() => {
+    if (isProductView) {
+      const fetchProduct = async () => {
+        setLoading(true);
+        setError(null);
+        
+        try {
+          const result = await shopService.getProductById(id);
+          
+          if (result.success && result.data) {
+            setItem(result.data);
+          } else {
+            setError('Product not found');
+          }
+        } catch (err) {
+          console.error('Failed to fetch product:', err);
+          setError('Failed to load product details');
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      fetchProduct();
+    } else {
+      // Use bundle hook data
+      setItem(bundleHook.bundle);
+      setLoading(bundleHook.loading);
+      setError(bundleHook.error);
+    }
+  }, [id, isProductView, bundleHook.bundle, bundleHook.loading, bundleHook.error]);
+
+  const stockLimit = item?.stock_limit || item?.stock;
   const isLowStock = stockLimit && stockLimit > 0 && stockLimit < 5;
   const isOutOfStock = stockLimit === 0 || stockLimit === null;
-  const items = bundle?.items || [];
-  const reviews = bundle?.reviews || [];
-  const ratingInfo = bundle ? getDisplayRating(bundle.reviews, bundle.average_rating) : { rating: 0, count: 0 };
+  const items = item?.items || [];
+  const reviews = item?.reviews || [];
+  const ratingInfo = item ? getDisplayRating(item.reviews, item.average_rating) : { rating: 0, count: 0 };
+  const stockStatus = isProductView ? { available: !isOutOfStock } : bundleHook.stockStatus;
 
   useEffect(() => {
     if (cartItem) {
@@ -104,13 +157,21 @@ const BundleDetailPage = () => {
 
   const handleAddToCart = async () => {
     if (!stockStatus?.available) {
-      alert('This bundle is currently out of stock');
+      alert(`This ${itemType} is currently out of stock`);
       return;
     }
 
     setAdding(true);
     try {
-      const result = await addBundleToCart(id, localQuantity, stockLimit, quantityInCart);
+      let result;
+      
+      if (isProductView) {
+        const cartService = (await import('../services/cartService')).default;
+        result = await cartService.addProductToCart(id, localQuantity);
+      } else {
+        result = await addBundleToCart(id, localQuantity, stockLimit, quantityInCart);
+      }
+      
       if (result.success) {
         refreshCart();
       } else {
@@ -125,7 +186,7 @@ const BundleDetailPage = () => {
 
   const handleIncrement = () => {
     if (stockLimit && localQuantity >= stockLimit) {
-      alert(`Maximum ${stockLimit} units allowed per bundle`);
+      alert(`Maximum ${stockLimit} units allowed`);
       return;
     }
     setLocalQuantity(prev => prev + 1);
@@ -138,7 +199,7 @@ const BundleDetailPage = () => {
   const handleCartIncrement = () => {
     const newQuantity = localQuantity + 1;
     if (stockLimit && newQuantity > stockLimit) {
-      alert(`Maximum ${stockLimit} units allowed per bundle`);
+      alert(`Maximum ${stockLimit} units allowed`);
       return;
     }
     setLocalQuantity(newQuantity);
@@ -180,9 +241,8 @@ const BundleDetailPage = () => {
     setShowRemoveConfirm(false);
   };
 
-  // Debounced weight update for delivery recalculation
   const handleQuantityChangeForDelivery = useCallback((quantity, weight) => {
-    console.log(`📦 [BundleDetail] Quantity changed: ${quantity} units (${weight}g) - debouncing...`);
+    console.log(`📦 Quantity changed: ${quantity} units (${weight}g) - debouncing...`);
     
     setPendingWeight(weight);
     
@@ -191,13 +251,12 @@ const BundleDetailPage = () => {
     }
     
     deliveryDebounceTimerRef.current = setTimeout(() => {
-      console.log(`✅ [BundleDetail] Delivery weight synced: ${weight}g`);
+      console.log(`✅ Delivery weight synced: ${weight}g`);
       setCurrentBundleWeight(weight);
       setPendingWeight(null);
     }, 800);
   }, []);
 
-  // Cleanup debounce timer on unmount
   useEffect(() => {
     return () => {
       if (deliveryDebounceTimerRef.current) {
@@ -206,10 +265,8 @@ const BundleDetailPage = () => {
     };
   }, []);
 
-  // Handle search from BundleHeader
   const handleSearch = (searchTerm) => {
     if (searchTerm) {
-      // Navigate to shop with search query
       navigate(`/shop?search=${encodeURIComponent(searchTerm)}`);
     }
   };
@@ -218,8 +275,8 @@ const BundleDetailPage = () => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: bundle.title,
-          text: bundle.description,
+          title: item.title,
+          text: item.description,
           url: window.location.href
         });
       } catch (err) {
@@ -236,7 +293,6 @@ const BundleDetailPage = () => {
     alert('Wishlist feature coming soon!');
   };
 
-  // Mock rating distribution
   const distribution = reviews.length > 0 ? {
     5: Math.floor(reviews.length * 0.6),
     4: Math.floor(reviews.length * 0.25),
@@ -250,7 +306,7 @@ const BundleDetailPage = () => {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-3 border-tpppink border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-tppslate text-sm font-medium">Loading bundle details...</p>
+          <p className="text-tppslate text-sm font-medium">Loading details...</p>
         </div>
       </div>
     );
@@ -261,7 +317,7 @@ const BundleDetailPage = () => {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="text-center max-w-md bg-white rounded-xl p-6 shadow-xl border border-red-200">
           <AlertCircle size={48} className="mx-auto mb-3 text-red-500" />
-          <h2 className="text-xl font-bold text-tppslate mb-2">Failed to Load Bundle</h2>
+          <h2 className="text-xl font-bold text-tppslate mb-2">Failed to Load {itemType === 'product' ? 'Product' : 'Bundle'}</h2>
           <p className="text-sm text-slate-600 mb-4">{error}</p>
           <button
             onClick={() => navigate('/shop')}
@@ -274,7 +330,7 @@ const BundleDetailPage = () => {
     );
   }
 
-  if (!bundle) return null;
+  if (!item) return null;
 
   return (
     <div className="min-h-screen"
@@ -284,15 +340,13 @@ const BundleDetailPage = () => {
         backgroundSize: 'auto',
       }}
     >
-      {/* ✅ ENHANCED BUNDLE HEADER - Replaces old sticky header */}
       <BundleHeader
-        bundle={bundle}
+        bundle={item}
         onShare={handleShare}
         onWishlist={handleWishlist}
         onSearchChange={handleSearch}
       />
 
-      {/* Share Success Toast */}
       {showShareModal && (
         <div className="fixed top-24 right-4 z-50 bg-green-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm animate-in slide-in-from-top-4 duration-200">
           <Check size={14} />
@@ -300,20 +354,17 @@ const BundleDetailPage = () => {
         </div>
       )}
 
-      {/* UNIFIED SINGLE DOCUMENT LAYOUT */}
       <div className="max-w-9xl mx-auto px-6 py-6">
         <div className="grid lg:grid-cols-[1fr_320px] gap-12">
           
-          {/* LEFT 70% - SINGLE FLOWING CONTAINER */}
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
             
-            {/* Top Section: Image + Key Details */}
             <div className="grid lg:grid-cols-[45%_55%]">
-              <BundleImageGallery bundle={bundle} isOutOfStock={isOutOfStock} />
+              <BundleImageGallery bundle={item} isOutOfStock={isOutOfStock} />
               
               <div className="p-6 border-l border-slate-200">
                 <BundleKeyDetails
-                  bundle={bundle}
+                  bundle={item}
                   items={items}
                   stockLimit={stockLimit}
                   isOutOfStock={isOutOfStock}
@@ -336,31 +387,28 @@ const BundleDetailPage = () => {
               </div>
             </div>
 
-            {/* Divider */}
             <div className="border-t border-slate-200"></div>
 
-            {/* Description Section */}
-            {bundle.description && (
+            {item.description && (
               <>
                 <div className="border-t border-slate-200"></div>
                 
                 <div className="p-6">
-                  <h2 className="text-lg font-bold text-tppslate mb-3">About This Bundle</h2>
+                  <h2 className="text-lg font-bold text-tppslate mb-3">
+                    About This {itemType === 'product' ? 'Product' : 'Bundle'}
+                  </h2>
                   <p className="text-sm text-slate-700 leading-relaxed">
-                    {bundle.description}
+                    {item.description}
                   </p>
                 </div>
               </>
             )}
 
-            {/* Divider */}
             <div className="border-t border-slate-200"></div>
 
-            {/* Reviews Section */}
             <div className="p-6">
               <h2 className="text-lg font-bold text-tppslate mb-4">Customer Reviews</h2>
               
-              {/* Rating Summary */}
               <div className="flex items-center gap-6 mb-6 pb-6 border-b border-slate-100">
                 <div className="text-center">
                   <p className="text-4xl font-bold text-tppslate mb-1">
@@ -405,7 +453,6 @@ const BundleDetailPage = () => {
                 </div>
               </div>
 
-              {/* Review List */}
               {reviews.length > 0 ? (
                 <div className="space-y-4">
                   {reviews.slice(0, 3).map((review, index) => (
@@ -452,10 +499,9 @@ const BundleDetailPage = () => {
 
           </div>
 
-          {/* RIGHT 30% - Floating Sidebar */}
           <div className="lg:relative lg:self-start">
             <FloatingSidebar
-              bundle={bundle}
+              bundle={item}
               stockLimit={stockLimit}
               isOutOfStock={isOutOfStock}
               isLowStock={isLowStock}

@@ -378,13 +378,30 @@ const PaymentController = {
         delivery_metadata: order_data.delivery_metadata || {}
       };
 
-      const orderItems = cartData.items.map(item => ({
-        bundle_id: item.bundle_id,
-        bundle_title: item.title,
-        bundle_quantity: item.quantity,
-        price: item.price,
-        bundle_origin: 'brand-bundle'
-      }));
+      const orderItems = cartData.items.map(item => {
+      // Bundle item
+      if (item.bundle_id) {
+        return {
+          bundle_id: item.bundle_id,
+          product_id: null,
+          bundle_title: item.bundle_title,
+          quantity: item.quantity,
+          price: item.price,
+          bundle_origin: item.bundle_origin || 'brand-bundle'
+        };
+      }
+      // Product item
+      else if (item.product_id) {
+        return {
+          bundle_id: null,
+          product_id: item.product_id,
+          bundle_title: item.bundle_title,
+          quantity: item.quantity,
+          price: item.price,
+          bundle_origin: 'product'
+        };
+      }
+    }).filter(Boolean);
 
       const order = await OrderModel.create(orderDataToCreate, orderItems);
       console.log(`✅ Order created after payment: ${order.id}`);
@@ -451,13 +468,27 @@ const PaymentController = {
       // ===== STEP 10: DEDUCT STOCK =====
       try {
         const StockService = require('../services/stockService');
-        const stockDeductionItems = orderItems.map(item => ({
-          bundle_id: item.bundle_id,
-          quantity: item.bundle_quantity
-        }));
-
-        await StockService.deductBundleStock(stockDeductionItems);
-        console.log('✅ Stock deducted');
+        
+        // ⭐ Separate bundles and products
+        const bundleItems = orderItems.filter(item => item.bundle_id);
+        const productItems = orderItems.filter(item => !item.bundle_id && item.product_id);
+        
+        // Deduct bundle stock
+        if (bundleItems.length > 0) {
+          const stockDeductionItems = bundleItems.map(item => ({
+            bundle_id: item.bundle_id,
+            quantity: item.bundle_quantity
+          }));
+          await StockService.deductBundleStock(stockDeductionItems);
+          console.log(`✅ Bundle stock deducted: ${bundleItems.length} bundles`);
+        }
+        
+        // ⭐ Deduct product stock
+        if (productItems.length > 0) {
+          await StockService.deductProductStock(productItems);
+          console.log(`✅ Product stock deducted: ${productItems.length} products`);
+        }
+        
       } catch (stockError) {
         console.error('⚠️ Stock deduction error:', stockError);
       }

@@ -1,15 +1,15 @@
 // frontend/src/components/shop/ShopFiltersBar.jsx
 import React, { useState } from 'react';
-import { LayoutGrid, Grid3x2, Grid3x3, ChevronDown, ChevronUp } from 'lucide-react';
+import { LayoutGrid, Grid3x2, Grid3x3, ChevronDown, ChevronUp, Package, Box } from 'lucide-react';
 
 /**
- * ShopFiltersBar Component - Tags and Layout Controls
+ * ShopFiltersBar Component - Type Toggle, Tags, and Layout Controls
  * 
  * FEATURES:
+ * - Item type filter (All | Products | Bundles)
  * - Tag filtering with counts
  * - Show All / Show Less toggle for tags
  * - Layout switcher (4, 5, 6 columns)
- * - Matches ShopHeader.jsx UI exactly
  */
 const ShopFiltersBar = ({
   availableTags = [],
@@ -18,16 +18,57 @@ const ShopFiltersBar = ({
   loading = false,
   layoutMode = '4',
   onLayoutChange,
+  itemType = 'all', // NEW: 'all' | 'products' | 'bundles'
+  onTypeChange, // NEW: Callback for type filter
 }) => {
   const [showAllTags, setShowAllTags] = useState(false);
 
-  // Determine which tags to show
   const visibleTags = showAllTags ? availableTags : availableTags.slice(0, 3);
   const hasMoreTags = availableTags.length > 3;
 
   return (
     <div className="sticky top-16 z-20 px-6 py-3 bg-transparent backdrop-blur-sm">
       <div className="flex items-center gap-3">
+        
+        {/* ⭐ NEW: Item Type Toggle */}
+        {onTypeChange && (
+          <div className="flex items-center gap-1 bg-white/90 backdrop-blur-md rounded-lg p-1 border-2 border-slate-200 shadow-md flex-shrink-0">
+            <button
+              onClick={() => onTypeChange('all')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                itemType === 'all'
+                  ? 'bg-tpppink text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Box size={14} />
+              All
+            </button>
+            <button
+              onClick={() => onTypeChange('products')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                itemType === 'products'
+                  ? 'bg-tpppink text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Package size={14} />
+              Products
+            </button>
+            <button
+              onClick={() => onTypeChange('bundles')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                itemType === 'bundles'
+                  ? 'bg-tpppink text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Package size={14} />
+              Bundles
+            </button>
+          </div>
+        )}
+
         {/* Tags Pills */}
         <div className="flex-1 overflow-x-auto scrollbar-hide">
           {!loading && availableTags.length > 0 ? (
@@ -61,7 +102,6 @@ const ShopFiltersBar = ({
                 );
               })}
               
-              {/* Show All / Show Less Toggle */}
               {hasMoreTags && (
                 <button
                   onClick={() => setShowAllTags(!showAllTags)}
@@ -74,7 +114,6 @@ const ShopFiltersBar = ({
                 </button>
               )}
               
-              {/* Clear Tags Button */}
               {selectedTags.length > 0 && (
                 <button
                   onClick={() => onTagClick(null)}
@@ -139,7 +178,6 @@ const ShopFiltersBar = ({
         </div>
       </div>
 
-      {/* Custom Scrollbar Hide Styles */}
       <style jsx>{`
         .scrollbar-hide::-webkit-scrollbar {
           display: none;

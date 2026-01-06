@@ -54,6 +54,7 @@ function App() {
                   {/* Shop Pages */}
                   <Route path="/shop" element={<Shop />} />
                   <Route path="/shop/bundles/:id" element={<BundleDetailPage />} />
+                  <Route path="/shop/products/:id" element={<BundleDetailPage />} />
                   
                   {/* ==================== USER/CUSTOMER AUTH ROUTES ==================== */}
                   

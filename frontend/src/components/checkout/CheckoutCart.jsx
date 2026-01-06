@@ -1,22 +1,16 @@
 // frontend/src/components/checkout/CheckoutCart.jsx
+// UNIFIED: Supports BOTH bundles AND products
 
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Plus, Minus, Package, AlertTriangle, Loader, Check, X, Eye } from 'lucide-react';
+import { Trash2, Plus, Minus, Package, AlertTriangle, Loader, Check, X, Eye, ShoppingBag } from 'lucide-react';
 import { formatBundlePrice } from '../../utils/bundleHelpers';
 import { updateCartItem, removeFromCart, validateStockLimit } from '../../services/cartService';
 import BundleQuickView from '../shop/BundleQuickView';
 
 /**
- * CheckoutCart Component
- * Displays all cart items (bundles) with ability to modify quantity/remove
- * Only shows bundle details, NOT individual product prices
- * ⭐ Includes stock limit validation
- * ⭐ Includes debounced quantity updates (800ms)
- * ⭐ Inline delete confirmation (like CartItem)
- * ✅ Silent refresh - only updates cart summary, not full page
- * ⭐ Clickable bundles redirect to bundle detail page
- * ⭐ Eye icon opens Bundle Quick View modal
+ * CheckoutCart Component - UNIFIED for Products & Bundles
+ * ⭐ Handles both individual products and bundles
  */
 const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
   const navigate = useNavigate();
@@ -28,18 +22,21 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
   const [pendingQuantities, setPendingQuantities] = useState({});
   const debounceTimersRef = useRef({});
   
-  // ⭐ Quick View State
   const [quickViewBundle, setQuickViewBundle] = useState(null);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
 
-  // ⭐ Handle bundle click
-  const handleBundleClick = (bundleId) => {
-    navigate(`/shop/bundles/${bundleId}`);
+  // ⭐ Handle item click (bundle or product)
+  const handleItemClick = (item) => {
+    if (item.type === 'bundle') {
+      navigate(`/shop/bundles/${item.bundle_id}`);
+    } else if (item.type === 'product') {
+      navigate(`/shop/products/${item.product_id}`);
+    }
   };
 
-  // ⭐ Handle Quick View
+  // ⭐ Handle Quick View (bundles only)
   const handleQuickView = (e, bundle) => {
-    e.stopPropagation(); // Prevent navigation
+    e.stopPropagation();
     setQuickViewBundle(bundle);
     setIsQuickViewOpen(true);
   };
@@ -49,15 +46,12 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
     setQuickViewBundle(null);
   };
 
-  // ⭐ DEBOUNCED QUANTITY UPDATE WITH SILENT REFRESH
-  const handleUpdateQuantity = (cartItemId, bundleId, newQuantity) => {
+  // ⭐ DEBOUNCED QUANTITY UPDATE
+  const handleUpdateQuantity = (cartItemId, itemKey, newQuantity, stockLimit) => {
     if (newQuantity < 1) return;
 
-    const bundle = bundles[bundleId];
-    const stockLimit = bundle?.stock_limit;
-
-    // ⭐ VALIDATE STOCK LIMIT (Frontend)
-    const validation = validateStockLimit(bundleId, newQuantity, 0, stockLimit);
+    // Validate stock limit
+    const validation = validateStockLimit(itemKey, newQuantity, 0, stockLimit);
     
     if (!validation.valid) {
       setErrors({
@@ -65,7 +59,6 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
         [cartItemId]: validation.message
       });
       
-      // Clear error after 3 seconds
       setTimeout(() => {
         setErrors(prev => {
           const newErrors = { ...prev };
@@ -77,48 +70,37 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
       return;
     }
 
-    // Clear error if validation passed
     setErrors(prev => {
       const newErrors = { ...prev };
       delete newErrors[cartItemId];
       return newErrors;
     });
 
-    // ⭐ UPDATE LOCAL QUANTITY IMMEDIATELY FOR UI
     setLocalQuantities(prev => ({
       ...prev,
       [cartItemId]: newQuantity
     }));
 
-    // ⭐ MARK AS PENDING
     setPendingQuantities(prev => ({
       ...prev,
       [cartItemId]: true
     }));
 
-    // ⭐ CLEAR EXISTING DEBOUNCE TIMER
     if (debounceTimersRef.current[cartItemId]) {
       clearTimeout(debounceTimersRef.current[cartItemId]);
     }
 
-    // ⭐ SET NEW DEBOUNCE TIMER (800ms)
     debounceTimersRef.current[cartItemId] = setTimeout(async () => {
-      console.log(`🔄 Syncing quantity to server: ${newQuantity}`);
       setUpdating(cartItemId);
 
       try {
-        // ⭐ Pass stock limit to updateCartItem for backend validation
         const result = await updateCartItem(cartItemId, newQuantity, stockLimit);
         
         if (result.success) {
-          console.log('✅ Cart item updated');
-          // ✅ SILENT REFRESH - Pass true flag to only refresh summary
           if (onItemUpdate) {
-            onItemUpdate(true); // true = silent refresh
+            onItemUpdate(true);
           }
         } else {
-          console.error('❌ Failed to update:', result.error);
-          // Revert to previous quantity on error
           const currentItem = cartItems.find(item => item.id === cartItemId);
           setLocalQuantities(prev => ({
             ...prev,
@@ -130,7 +112,6 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
             [cartItemId]: result.error || 'Failed to update quantity'
           });
 
-          // Clear error after 3 seconds
           setTimeout(() => {
             setErrors(prev => {
               const newErrors = { ...prev };
@@ -140,8 +121,6 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
           }, 3000);
         }
       } catch (error) {
-        console.error('❌ Update error:', error);
-        // Revert to previous quantity on error
         const currentItem = cartItems.find(item => item.id === cartItemId);
         setLocalQuantities(prev => ({
           ...prev,
@@ -153,7 +132,6 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
           [cartItemId]: 'Failed to update quantity'
         });
 
-        // Clear error after 3 seconds
         setTimeout(() => {
           setErrors(prev => {
             const newErrors = { ...prev };
@@ -163,16 +141,14 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
         }, 3000);
       } finally {
         setUpdating(null);
-        // ⭐ CLEAR PENDING INDICATOR
         setPendingQuantities(prev => {
           const newPending = { ...prev };
           delete newPending[cartItemId];
           return newPending;
         });
-        // ⭐ CLEAR TIMER REFERENCE
         delete debounceTimersRef.current[cartItemId];
       }
-    }, 800); // ⭐ 800ms DEBOUNCE DELAY
+    }, 800);
   };
 
   const handleRemoveClick = (cartItemId) => {
@@ -182,22 +158,19 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
     });
   };
 
-  const handleConfirmRemove = async (cartItemId, bundleTitle) => {
+  const handleConfirmRemove = async (cartItemId) => {
     setRemoving(cartItemId);
     try {
       const result = await removeFromCart(cartItemId);
       
       if (result.success) {
-        console.log('✅ Item removed from cart');
-        // Full refresh when item is removed
         if (onItemUpdate) {
-          onItemUpdate(false); // false = full refresh
+          onItemUpdate(false);
         }
       } else {
         alert(result.error || 'Failed to remove item');
       }
     } catch (error) {
-      console.error('❌ Remove error:', error);
       alert('Failed to remove item');
     } finally {
       setRemoving(null);
@@ -240,15 +213,39 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
           {/* Cart Items */}
           <div className="divide-y divide-slate-100">
             {cartItems.map((cartItem) => {
-              const bundle = bundles[cartItem.bundle_id];
-              const bundleItems = bundle?.items || bundle?.Bundle_items || [];
+              // ⭐ Get item details based on type
+              const isProduct = cartItem.type === 'product';
+              const isBundle = cartItem.type === 'bundle';
               
-              // ⭐ Extract stock limit
-              const stockLimit = bundle?.stock_limit;
+              // ⭐ For bundles: look up in bundles map
+              // ⭐ For products: use cartItem data directly
+              const itemData = isBundle 
+                ? bundles[cartItem.bundle_id]
+                : isProduct
+                ? {
+                    id: cartItem.product_id,
+                    title: cartItem.title,
+                    description: cartItem.description,
+                    img_url: cartItem.image_url,
+                    price: cartItem.price,
+                    stock_limit: cartItem.stock_limit,
+                    items: [] // Products don't have sub-items
+                  }
+                : null;
+
+              if (!itemData) {
+                return null; // Skip invalid items
+              }
+
+              const bundleItems = itemData.items || itemData.Bundle_items || [];
+              const stockLimit = itemData.stock_limit;
               const isLowStock = stockLimit && stockLimit < 5;
               const isMaxed = (localQuantities[cartItem.id] ?? cartItem.quantity) >= stockLimit;
               const hasError = errors[cartItem.id];
               const isConfirming = showConfirm[cartItem.id];
+
+              // ⭐ Item key for stock validation
+              const itemKey = isBundle ? cartItem.bundle_id : cartItem.product_id;
 
               return (
                 <div key={cartItem.id} className="p-6">
@@ -260,62 +257,73 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
                     </div>
                   )}
 
-                  {/* Main Bundle Info */}
+                  {/* Main Item Info */}
                   <div className="flex gap-6">
-                    {/* ⭐ CLICKABLE Bundle Image with Quick View Button */}
+                    {/* Image with Quick View */}
                     <div className="flex-shrink-0 flex flex-col gap-2">
                       <div 
-                        className="w-24 h-24 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 hover:border-tpppink transition-colors cursor-pointer"
-                        onClick={() => handleBundleClick(cartItem.bundle_id)}
+                        className="w-24 h-24 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 hover:border-tpppink transition-colors cursor-pointer relative"
+                        onClick={() => handleItemClick(cartItem)}
                       >
-                        {bundle?.img_url ? (
+                        {itemData.img_url ? (
                           <img
-                            src={bundle.img_url}
-                            alt={bundle.title}
+                            src={itemData.img_url}
+                            alt={itemData.title}
                             className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
                             onError={(e) => {
-                              e.target.src = '/placeholder-bundle.png';
+                              e.target.src = isProduct ? '/placeholder-product.png' : '/placeholder-bundle.png';
                             }}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-slate-200">
-                            <Package size={32} className="text-slate-400" />
+                            {isProduct ? <ShoppingBag size={32} className="text-slate-400" /> : <Package size={32} className="text-slate-400" />}
+                          </div>
+                        )}
+
+                        {/* Product Badge */}
+                        {isProduct && (
+                          <div className="absolute bottom-1 left-1 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+                            PRODUCT
                           </div>
                         )}
                       </div>
 
-                      {/* ⭐ Quick View Button */}
-                      <button
-                        onClick={(e) => handleQuickView(e, bundle)}
-                        className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-tpppink hover:text-white bg-white hover:bg-tpppink border border-tpppink rounded-md transition-all active:scale-95"
-                        title="Quick View"
-                      >
-                        <Eye size={12} />
-                        <span>Quick View</span>
-                      </button>
+                      {/* Quick View Button (bundles only) */}
+                      {isBundle && (
+                        <button
+                          onClick={(e) => handleQuickView(e, itemData)}
+                          className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-tpppink hover:text-white bg-white hover:bg-tpppink border border-tpppink rounded-md transition-all active:scale-95"
+                          title="Quick View"
+                        >
+                          <Eye size={12} />
+                          <span>Quick View</span>
+                        </button>
+                      )}
                     </div>
 
-                    {/* ⭐ CLICKABLE Bundle Details */}
+                    {/* Item Details */}
                     <div className="flex-1">
                       <h3 
                         className="text-lg font-semibold text-slate-900 mb-1 cursor-pointer hover:text-tpppink transition-colors"
-                        onClick={() => handleBundleClick(cartItem.bundle_id)}
+                        onClick={() => handleItemClick(cartItem)}
                       >
-                        {bundle?.title || 'Bundle'}
+                        {itemData.title}
                       </h3>
                       
-                      {bundle?.description && (
+                      {itemData.description && (
                         <p className="text-sm text-slate-600 mb-3 line-clamp-2">
-                          {bundle.description}
+                          {itemData.description}
                         </p>
                       )}
 
-                      {/* Bundle Badge */}
-                      <div className="inline-block bg-tpppink/10 text-tpppink px-3 py-1 rounded-full text-xs font-semibold mb-3">
-                        Bundle • {bundleItems.length} items
+                      {/* Type Badge */}
+                      <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 ${
+                        isBundle ? 'bg-tpppink/10 text-tpppink' : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {isBundle ? `Bundle • ${bundleItems.length} items` : 'Product'}
                       </div>
 
-                      {/* ⭐ LOW STOCK WARNING */}
+                      {/* Low Stock Warning */}
                       {isLowStock && (
                         <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 px-2 py-1.5 rounded-md w-fit">
                           <AlertTriangle size={14} className="flex-shrink-0" />
@@ -327,37 +335,34 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
                     {/* Price & Controls */}
                     <div className="flex-shrink-0 text-right">
                       <div className="text-2xl font-bold text-tpppink mb-4">
-                        {formatBundlePrice(bundle?.price || cartItem.price)}
+                        {formatBundlePrice(itemData.price)}
                       </div>
 
                       {/* Quantity Controls + Delete */}
                       <div className="flex items-center gap-3 mb-2">
                         {/* Quantity Controls */}
                         <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1 w-fit relative">
-                          {/* Syncing Indicator */}
                           {updating === cartItem.id && (
                             <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10 shadow-lg">
                               Syncing...
                             </div>
                           )}
 
-                          {/* Decrease Button */}
                           <button
                             onClick={() =>
                               handleUpdateQuantity(
                                 cartItem.id,
-                                cartItem.bundle_id,
-                                (localQuantities[cartItem.id] ?? cartItem.quantity) - 1
+                                itemKey,
+                                (localQuantities[cartItem.id] ?? cartItem.quantity) - 1,
+                                stockLimit
                               )
                             }
                             disabled={(localQuantities[cartItem.id] ?? cartItem.quantity) <= 1 || updating === cartItem.id}
                             className="w-7 h-7 flex items-center justify-center rounded hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Decrease quantity"
                           >
                             <Minus size={14} className="text-slate-600" />
                           </button>
 
-                          {/* Quantity Display - ⭐ USE LOCAL STATE */}
                           <div className="relative min-w-[32px] text-center">
                             <span className="text-sm font-semibold text-slate-900">
                               {updating === cartItem.id ? (
@@ -367,37 +372,33 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
                               )}
                             </span>
 
-                            {/* ⭐ PENDING INDICATOR DOT */}
                             {pendingQuantities[cartItem.id] && !updating && (
-                              <div className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full animate-pulse" title="Syncing..." />
+                              <div className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
                             )}
                           </div>
 
-                          {/* Increase Button - ⭐ DISABLED AT STOCK LIMIT */}
                           <button
                             onClick={() =>
                               handleUpdateQuantity(
                                 cartItem.id,
-                                cartItem.bundle_id,
-                                (localQuantities[cartItem.id] ?? cartItem.quantity) + 1
+                                itemKey,
+                                (localQuantities[cartItem.id] ?? cartItem.quantity) + 1,
+                                stockLimit
                               )
                             }
                             disabled={updating === cartItem.id || isMaxed}
-                            className="w-7 h-7 flex items-center justify-center rounded hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-100"
-                            title={isMaxed ? `Maximum ${stockLimit} units allowed` : 'Increase quantity'}
+                            className="w-7 h-7 flex items-center justify-center rounded hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <Plus size={14} className="text-slate-600" />
                           </button>
                         </div>
 
-                        {/* Remove Button / Confirm Button */}
+                        {/* Remove Button */}
                         {!isConfirming ? (
                           <button
                             onClick={() => handleRemoveClick(cartItem.id)}
                             disabled={removing === cartItem.id || updating === cartItem.id}
-                            className="text-tpppink hover:text-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                            aria-label="Remove item"
-                            title="Remove from cart"
+                            className="text-tpppink hover:text-red-600 transition-colors disabled:opacity-40"
                           >
                             {removing === cartItem.id ? (
                               <Loader size={16} className="animate-spin" />
@@ -410,18 +411,14 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
                             <button
                               onClick={() => handleCancelRemove(cartItem.id)}
                               disabled={removing === cartItem.id}
-                              className="w-7 h-7 flex items-center justify-center rounded bg-slate-200 hover:bg-slate-300 text-slate-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                              aria-label="Cancel removal"
-                              title="Cancel"
+                              className="w-7 h-7 flex items-center justify-center rounded bg-slate-200 hover:bg-slate-300 text-slate-700 transition-colors"
                             >
                               <X size={16} />
                             </button>
                             <button
-                              onClick={() => handleConfirmRemove(cartItem.id, bundle?.title)}
+                              onClick={() => handleConfirmRemove(cartItem.id)}
                               disabled={removing === cartItem.id}
-                              className="w-7 h-7 flex items-center justify-center rounded bg-tpppink hover:bg-tpppink/90 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                              aria-label="Confirm removal"
-                              title="Confirm removal"
+                              className="w-7 h-7 flex items-center justify-center rounded bg-tpppink hover:bg-tpppink/90 text-white transition-colors"
                             >
                               {removing === cartItem.id ? (
                                 <Loader size={14} className="animate-spin" />
@@ -433,13 +430,13 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
                         )}
                       </div>
 
-                      {/* ⭐ STOCK LIMIT INFO */}
+                      {/* Stock Info */}
                       {stockLimit && (
                         <p className="text-xs text-yellow-700 mt-1">
                           {isMaxed ? (
-                            `Only ${stockLimit} item${stockLimit === 1 ? '' : 's'} in stock`
+                            `Only ${stockLimit} in stock`
                           ) : (
-                            stockLimit <= 5 ? `Hurry! Only ${stockLimit} left in stock.` : ``
+                            stockLimit <= 5 ? `Only ${stockLimit} left!` : ``
                           )}
                         </p>
                       )}
@@ -452,7 +449,6 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
         </div>
       </div>
 
-      {/* ⭐ Bundle Quick View Modal */}
       <BundleQuickView
         bundle={quickViewBundle}
         isOpen={isQuickViewOpen}

@@ -98,53 +98,63 @@ const CartController = {
    * ⭐ UPDATED: Now includes stock_limit for each bundle
    */
   getCart: async (req, res) => {
-    try {
-      const userId = req.user?.id || req.get('x-user-id');
-      const sessionId = req.get('x-session-id');
+  try {
+    const userId = req.user?.id || req.get('x-user-id');
+    const sessionId = req.get('x-session-id');
 
-      console.log('📍 GET /api/cart - userId:', userId, 'sessionId:', sessionId);
+    console.log('📍 GET /api/cart - userId:', userId, 'sessionId:', sessionId);
 
-      if (!userId && !sessionId) {
-        return res.status(400).json({
-          success: false,
-          message: 'User ID or session ID required'
-        });
-      }
+    if (!userId && !sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID or session ID required'
+      });
+    }
 
-      const cart = await CartController.getOrCreateCart(userId, sessionId);
-      const cartId = cart.id;
+    const cart = await CartController.getOrCreateCart(userId, sessionId);
+    const cartId = cart.id;
 
-      // ⭐ UPDATED: Include stock_limit in the select query
-      const { data: items, error: itemsError } = await supabase
-        .from(TABLES.CART_ITEMS)
-        .select(`
+    // ⭐ Fetch ALL cart items with LEFT JOIN to both Bundles and Products
+    const { data: items, error: itemsError } = await supabase
+      .from(TABLES.CART_ITEMS)
+      .select(`
+        id,
+        quantity,
+        bundle_id,
+        product_id,
+        item_type,
+        user_id,
+        created_at,
+        Bundles (
           id,
-          quantity,
-          bundle_id,
-          user_id,
-          created_at,
-          Bundles (
-            id,
-            title,
-            description,
-            img_url,
-            price,
-            is_active,
-            stock_limit
-          )
-        `)
-        .eq('cart_id', cartId)
-        .order('created_at', { ascending: false });
+          title,
+          description,
+          img_url,
+          price,
+          is_active,
+          stock_limit
+        ),
+        Products (
+          id,
+          title,
+          description,
+          img_url,
+          price,
+          stock
+        )
+      `)
+      .eq('cart_id', cartId)
+      .order('created_at', { ascending: false });
 
-      if (itemsError) throw itemsError;
+    if (itemsError) throw itemsError;
 
-      // Transform items to flat structure with stock_limit
-      const transformedItems = (items || []).map(item => {
-        if (!item.Bundles) {
-          console.warn('⚠️ Cart item has no bundle:', item.id);
-          return null;
-        }
+    console.log(`📦 Found ${items?.length || 0} raw cart items`);
 
+    // ⭐ Transform items - handles BOTH bundles and products
+    const transformedItems = (items || []).map(item => {
+      
+      // BUNDLE ITEM
+      if (item.bundle_id && item.Bundles) {
         return {
           id: item.id,
           bundle_id: item.Bundles.id,
@@ -155,42 +165,72 @@ const CartController = {
           quantity: item.quantity,
           item_total: parseFloat(item.Bundles.price) * item.quantity,
           is_active: item.Bundles.is_active,
-          stock_limit: item.Bundles.stock_limit, // ⭐ NOW INCLUDED
+          stock_limit: item.Bundles.stock_limit,
           type: 'bundle'
         };
-      }).filter(Boolean);
+      }
+      
+      // PRODUCT ITEM
+      if (item.product_id && item.Products) {
+        return {
+          id: item.id,
+          product_id: item.Products.id,
+          title: item.Products.title,
+          description: item.Products.description,
+          image_url: item.Products.img_url,
+          price: parseFloat(item.Products.price),
+          quantity: item.quantity,
+          item_total: parseFloat(item.Products.price) * item.quantity,
+          stock_limit: item.Products.stock, // Product stock
+          type: 'product'
+        };
+      }
 
-      // Calculate totals
-      const subtotal = transformedItems.reduce((sum, item) => sum + item.item_total, 0);
-      const tax = 0;  // No tax applied
-      const shipping = 0;  // Free delivery always
-      const total = subtotal;  // Total equals subtotal
+      // Invalid/orphaned item
+      console.warn('⚠️ Invalid cart item (no bundle or product):', {
+        id: item.id,
+        bundle_id: item.bundle_id,
+        product_id: item.product_id,
+        has_bundle: !!item.Bundles,
+        has_product: !!item.Products
+      });
+      return null;
+      
+    }).filter(Boolean); // Remove nulls
 
-      res.json({
-        success: true,
-        data: {
-          cart_id: cartId,
-          items: transformedItems,
-          totals: {
-            subtotal: parseFloat(subtotal.toFixed(2)),
-            tax: 0,
-            shipping: 0,
-            total: parseFloat(subtotal.toFixed(2)),  // Same as subtotal
-            item_count: transformedItems.length,
-            total_quantity: transformedItems.reduce((sum, item) => sum + item.quantity, 0)
-          }
+    console.log(`✅ Transformed ${transformedItems.length} valid items (bundles + products)`);
+
+    // Calculate totals
+    const subtotal = transformedItems.reduce((sum, item) => sum + item.item_total, 0);
+    const tax = 0;
+    const shipping = 0;
+    const total = subtotal;
+
+    res.json({
+      success: true,
+      data: {
+        cart_id: cartId,
+        items: transformedItems,
+        totals: {
+          subtotal: parseFloat(subtotal.toFixed(2)),
+          tax: 0,
+          shipping: 0,
+          total: parseFloat(total.toFixed(2)),
+          item_count: transformedItems.length,
+          total_quantity: transformedItems.reduce((sum, item) => sum + item.quantity, 0)
         }
-      });
+      }
+    });
 
-    } catch (error) {
-      console.error('❌ Get cart error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch cart',
-        error: error.message
-      });
-    }
-  },
+  } catch (error) {
+    console.error('❌ Get cart error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch cart',
+      error: error.message
+    });
+  }
+},
 
   // ==================== ADD TO CART ====================
 
@@ -544,6 +584,112 @@ const CartController = {
       res.status(500).json({
         success: false,
         message: 'Failed to clear cart',
+        error: error.message
+      });
+    }
+  },
+
+  /**
+   * Add PRODUCT to cart (NEW)
+   * POST /api/cart/products
+   */
+  addProductToCart: async (req, res) => {
+    try {
+      const userId = req.user?.id || req.get('x-user-id');
+      const sessionId = req.get('x-session-id');
+      const { product_id, quantity = 1 } = req.body;
+
+      if (!product_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Product ID is required'
+        });
+      }
+
+      const cart = await CartController.getOrCreateCart(userId, sessionId);
+
+      // Verify product exists
+      const { data: product, error: productError } = await supabase
+        .from('Products')
+        .select('id, title, price, stock')
+        .eq('id', product_id)
+        .single();
+
+      if (productError || !product) {
+        return res.status(404).json({
+          success: false,
+          message: 'Product not found'
+        });
+      }
+
+      if (product.stock === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Product is out of stock'
+        });
+      }
+
+      // Check if product already in cart
+      const { data: existingItem } = await supabase
+        .from('Cart_items')
+        .select('id, quantity')
+        .eq('cart_id', cart.id)
+        .eq('product_id', product_id)
+        .eq('item_type', 'product')
+        .single();
+
+      if (existingItem) {
+        const newQuantity = existingItem.quantity + quantity;
+        
+        if (newQuantity > product.stock) {
+          return res.status(400).json({
+            success: false,
+            message: `Only ${product.stock} units available`
+          });
+        }
+
+        const { data: updated } = await supabase
+          .from('Cart_items')
+          .update({ quantity: newQuantity })
+          .eq('id', existingItem.id)
+          .select()
+          .single();
+
+        return res.json({
+          success: true,
+          message: 'Product quantity updated',
+          data: updated
+        });
+      }
+
+      // Insert new product item
+      const { data: newItem, error: insertError } = await supabase
+        .from('Cart_items')
+        .insert([{
+          cart_id: cart.id,
+          user_id: userId || null,
+          product_id: product_id,
+          bundle_id: null,           // ⭐ ADD THIS
+          item_type: 'product',
+          quantity: quantity,
+          created_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      res.json({
+        success: true,
+        message: 'Product added to cart',
+        data: newItem
+      });
+
+    } catch (error) {
+      console.error('❌ Add product to cart error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to add product to cart',
         error: error.message
       });
     }

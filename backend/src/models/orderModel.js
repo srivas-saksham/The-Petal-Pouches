@@ -92,17 +92,35 @@ const OrderModel = {
 
       console.log(`✅ Order created: ${order.id}`);
 
-      // ===== ⭐ UPDATED: Store ONLY bundle details (not individual items) =====
-      // Each row in Order_items = 1 bundle (with bundle_quantity)
-      const orderItemsData = items.map(item => ({
-        order_id: order.id,
-        bundle_id: item.bundle_id,                    // ⭐ Bundle reference
-        quantity: item.bundle_quantity || 1,          // ⭐ How many of this bundle
-        price: item.price,                            // Bundle unit price
-        bundle_origin: item.bundle_origin || 'brand-bundle', // Keep for tracking
-        bundle_title: item.bundle_title || null,      // Store bundle title
-        created_at: new Date().toISOString()
-      }));
+      // ===== ⭐ Store BOTH bundles AND products =====
+      const orderItemsData = items.map(item => {
+        // For bundles
+        if (item.bundle_id) {
+          return {
+            order_id: order.id,
+            bundle_id: item.bundle_id,
+            product_id: null,
+            quantity: item.bundle_quantity || item.quantity || 1,
+            price: item.price,
+            bundle_origin: item.bundle_origin || 'brand-bundle',
+            bundle_title: item.bundle_title || null,
+            created_at: new Date().toISOString()
+          };
+        }
+        // For products
+        else if (item.product_id) {
+          return {
+            order_id: order.id,
+            bundle_id: null,
+            product_id: item.product_id,
+            quantity: item.quantity || 1, // ⭐ Products use 'quantity'
+            price: item.price,
+            bundle_origin: 'product',
+            bundle_title: item.bundle_title || null,
+            created_at: new Date().toISOString()
+          };
+        }
+      }).filter(Boolean);
 
       console.log(`📝 Inserting ${orderItemsData.length} order items (bundles only)`);
 
@@ -137,241 +155,297 @@ const OrderModel = {
    * @returns {Promise<Object|null>} Order with bundle items
    */
   async findById(orderId, userId = null) {
-  try {
-    let orderQuery = supabase
-      .from('Orders')
-      .select('*')
-      .eq('id', orderId);
+    try {
+      let orderQuery = supabase
+        .from('Orders')
+        .select('*')
+        .eq('id', orderId);
 
-    if (userId) {
-      orderQuery = orderQuery.eq('user_id', userId);
-    }
-
-    const { data: order, error: orderError } = await orderQuery.single();
-
-    if (orderError) {
-      if (orderError.code === 'PGRST116') return null;
-      throw orderError;
-    }
-
-    // ✅ GET SHIPMENT DATA (with all fields)
-    const { data: shipment, error: shipmentError } = await supabase
-      .from('Shipments')
-      .select(`
-        id,
-        awb, 
-        status, 
-        tracking_url, 
-        courier, 
-        estimated_delivery, 
-        shipping_mode,
-        label_url,
-        invoice_url,
-        manifest_url,
-        tracking_history,
-        weight_grams,
-        dimensions_cm,
-        destination_city,
-        destination_state,
-        destination_pincode,
-        estimated_cost,
-        actual_cost,
-        placed_at,
-        created_at,
-        updated_at
-      `)
-      .eq('order_id', orderId)
-      .single();
-
-    if (shipmentError && shipmentError.code !== 'PGRST116') {
-      console.warn('⚠️ Shipment fetch failed:', shipmentError);
-    }
-
-    // ✅ Get order items with BUNDLE details
-    const { data: orderItems, error: itemsError } = await supabase
-      .from('Order_items')
-      .select(`
-        *,
-        Bundles!inner(
-          id,
-          title,
-          description,
-          img_url,
-          price
-        )
-      `)
-      .eq('order_id', orderId);
-
-    if (itemsError) throw itemsError;
-
-    const items = (orderItems || []).map(item => ({
-      id: item.id,
-      bundle_id: item.bundle_id,
-      quantity: item.quantity,
-      price: item.price,
-      bundle_origin: item.bundle_origin,
-      bundle_title: item.Bundles.title,
-      bundle_description: item.Bundles.description,
-      bundle_img: item.Bundles.img_url,
-      bundle_price: item.Bundles.price
-    }));
-
-    return {
-      ...order,
-      items,
-      shipment: shipment || null // ✅ NULL if no shipment yet
-    };
-    
-  } catch (error) {
-    console.error('[OrderModel] Error finding order by ID:', error);
-    throw error;
-  }
-},
-
-  /**
-   * Get all orders for a user with pagination
-   * ✅ ENHANCED: Now returns COMPLETE order data including shipping_address and delivery_metadata
-   * @param {string} userId - User UUID
-   * @param {Object} options - Query options
-   * @param {number} [options.limit=20] - Results per page
-   * @param {number} [options.offset=0] - Pagination offset
-   * @param {string} [options.status] - Filter by status
-   * @param {string} [options.sortBy='created_at'] - Sort field
-   * @param {string} [options.sortOrder='DESC'] - Sort direction
-   * @returns {Promise<Array>} Array of orders with bundle items
-   */
-  async findByUser(userId, options = {}) {
-  try {
-    const {
-      limit = 20,
-      offset = 0,
-      status = null,
-      sortBy = 'created_at',
-      sortOrder = 'DESC'
-    } = options;
-
-    const validSortFields = ['created_at', 'placed_at', 'final_total', 'status'];
-    const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
-    const ascending = sortOrder.toUpperCase() === 'ASC';
-
-    // ✅ Fetch orders
-    let ordersQuery = supabase
-      .from('Orders')
-      .select(`
-        id, 
-        status, 
-        subtotal, 
-        express_charge, 
-        discount,
-        final_total, 
-        payment_status, 
-        payment_method,
-        created_at, 
-        placed_at, 
-        delivered_at,
-        bundle_type,
-        shipping_address,
-        delivery_metadata,
-        gift_wrap,
-        gift_message,
-        notes
-      `)
-      .eq('user_id', userId);
-
-    if (status) {
-      ordersQuery = ordersQuery.eq('status', status);
-    }
-
-    ordersQuery = ordersQuery
-      .order(sortField, { ascending })
-      .range(offset, offset + limit - 1);
-
-    const { data: orders, error: ordersError } = await ordersQuery;
-
-    if (ordersError) throw ordersError;
-
-    if (!orders || orders.length === 0) {
-      return [];
-    }
-
-    const orderIds = orders.map(o => o.id);
-
-    // ✅ GET SHIPMENTS DATA (with all fields)
-    const { data: shipments, error: shipmentsError } = await supabase
-      .from('Shipments')
-      .select(`
-        order_id, 
-        awb, 
-        status, 
-        tracking_url, 
-        courier, 
-        estimated_delivery,
-        shipping_mode,
-        label_url,
-        invoice_url,
-        tracking_history
-      `)
-      .in('order_id', orderIds);
-
-    if (shipmentsError) {
-      console.warn('⚠️ Failed to fetch shipments:', shipmentsError);
-    }
-
-    // Map shipments by order_id
-    const shipmentsByOrder = {};
-    (shipments || []).forEach(shipment => {
-      shipmentsByOrder[shipment.order_id] = shipment;
-    });
-
-    // ✅ Get order items with BUNDLE details
-    const { data: allItems, error: itemsError } = await supabase
-      .from('Order_items')
-      .select(`
-        order_id,
-        quantity,
-        bundle_id,
-        bundle_title,
-        Bundles!inner(
-          id,
-          title,
-          img_url,
-          price
-        )
-      `)
-      .in('order_id', orderIds);
-
-    if (itemsError) throw itemsError;
-
-    // Group items by order_id
-    const itemsByOrder = {};
-    (allItems || []).forEach(item => {
-      if (!itemsByOrder[item.order_id]) {
-        itemsByOrder[item.order_id] = [];
+      if (userId) {
+        orderQuery = orderQuery.eq('user_id', userId);
       }
-      itemsByOrder[item.order_id].push({
-        bundle_id: item.bundle_id,
-        bundle_title: item.bundle_title || item.Bundles.title,
-        bundle_img: item.Bundles.img_url,
-        bundle_price: item.Bundles.price,
-        quantity: item.quantity
-      });
-    });
 
-    // ✅ Combine orders with items AND shipments
-    return orders.map(order => ({
-      ...order,
-      item_count: itemsByOrder[order.id] ? itemsByOrder[order.id].length : 0,
-      items_preview: itemsByOrder[order.id] || [],
-      shipment: shipmentsByOrder[order.id] || null, // ✅ NULL if no shipment yet
-      shipping_address: order.shipping_address,
-      delivery_metadata: order.delivery_metadata || {}
-    }));
-    
-  } catch (error) {
-    console.error('[OrderModel] Error finding orders by user:', error);
-    throw error;
-  }
-},
+      const { data: order, error: orderError } = await orderQuery.single();
+
+      if (orderError) {
+        if (orderError.code === 'PGRST116') return null;
+        throw orderError;
+      }
+
+      // ✅ GET SHIPMENT DATA
+      const { data: shipment, error: shipmentError } = await supabase
+        .from('Shipments')
+        .select(`
+          id,
+          awb, 
+          status, 
+          tracking_url, 
+          courier, 
+          estimated_delivery, 
+          shipping_mode,
+          label_url,
+          invoice_url,
+          manifest_url,
+          tracking_history,
+          weight_grams,
+          dimensions_cm,
+          destination_city,
+          destination_state,
+          destination_pincode,
+          estimated_cost,
+          actual_cost,
+          placed_at,
+          created_at,
+          updated_at
+        `)
+        .eq('order_id', orderId)
+        .single();
+
+      if (shipmentError && shipmentError.code !== 'PGRST116') {
+        console.warn('⚠️ Shipment fetch failed:', shipmentError);
+      }
+
+      // ✅ Get order items - MANUAL LEFT JOIN
+      const { data: orderItemsRaw, error: itemsError } = await supabase
+        .from('Order_items')
+        .select('*')
+        .eq('order_id', orderId);
+
+      if (itemsError) throw itemsError;
+
+      // Get unique bundle_ids and product_ids
+      const bundleIds = [...new Set(orderItemsRaw.filter(i => i.bundle_id).map(i => i.bundle_id))];
+      const productIds = [...new Set(orderItemsRaw.filter(i => i.product_id).map(i => i.product_id))];
+
+      // Fetch bundles
+      let bundlesData = {};
+      if (bundleIds.length > 0) {
+        const { data: bundles } = await supabase
+          .from('Bundles')
+          .select('id, title, description, img_url, price')
+          .in('id', bundleIds);
+        
+        (bundles || []).forEach(b => {
+          bundlesData[b.id] = b;
+        });
+      }
+
+      // Fetch products
+      let productsData = {};
+      if (productIds.length > 0) {
+        const { data: products } = await supabase
+          .from('Products')
+          .select('id, title, description, img_url, price')
+          .in('id', productIds);
+        
+        (products || []).forEach(p => {
+          productsData[p.id] = p;
+        });
+      }
+
+      // Merge items with their bundle/product data
+      const items = orderItemsRaw.map(item => {
+        const bundle = item.bundle_id ? bundlesData[item.bundle_id] : null;
+        const product = item.product_id ? productsData[item.product_id] : null;
+        
+        return {
+          id: item.id,
+          bundle_id: item.bundle_id || null,
+          product_id: item.product_id || null,
+          quantity: item.quantity || 1,
+          price: item.price || 0,
+          bundle_origin: item.bundle_origin,
+          bundle_title: item.bundle_title || product?.title || bundle?.title || 'Unknown Item',
+          bundle_description: product?.description || bundle?.description || null,
+          bundle_img: product?.img_url || bundle?.img_url || null,
+          bundle_price: product?.price || bundle?.price || 0
+        };
+      });
+
+      return {
+        ...order,
+        items,
+        shipment: shipment || null
+      };
+      
+    } catch (error) {
+      console.error('[OrderModel] Error finding order by ID:', error);
+      throw error;
+    }
+  },
+
+  // ==================== FIXED FUNCTION #1: findByUser() ====================
+// Replace the ENTIRE findByUser function (starting around line ~310) with this:
+
+/**
+ * Get all orders for a user with pagination
+ * ✅ ENHANCED: Returns COMPLETE order data including shipping_address, delivery_metadata, AND supports BOTH bundles + products
+ * @param {string} userId - User UUID
+ * @param {Object} options - Query options
+ * @param {number} [options.limit=20] - Results per page
+ * @param {number} [options.offset=0] - Pagination offset
+ * @param {string} [options.status] - Filter by status
+ * @param {string} [options.sortBy='created_at'] - Sort field
+ * @param {string} [options.sortOrder='DESC'] - Sort direction
+ * @returns {Promise<Array>} Array of orders with bundle AND product items
+ */
+  async findByUser(userId, options = {}) {
+    try {
+      const {
+        limit = 20,
+        offset = 0,
+        status = null,
+        sortBy = 'created_at',
+        sortOrder = 'DESC'
+      } = options;
+
+      const validSortFields = ['created_at', 'placed_at', 'final_total', 'status'];
+      const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
+      const ascending = sortOrder.toUpperCase() === 'ASC';
+
+      // ✅ Fetch orders
+      let ordersQuery = supabase
+        .from('Orders')
+        .select(`
+          id, 
+          status, 
+          subtotal, 
+          express_charge, 
+          discount,
+          final_total, 
+          payment_status, 
+          payment_method,
+          created_at, 
+          placed_at, 
+          delivered_at,
+          bundle_type,
+          shipping_address,
+          delivery_metadata,
+          gift_wrap,
+          gift_message,
+          notes
+        `)
+        .eq('user_id', userId);
+
+      if (status) {
+        ordersQuery = ordersQuery.eq('status', status);
+      }
+
+      ordersQuery = ordersQuery
+        .order(sortField, { ascending })
+        .range(offset, offset + limit - 1);
+
+      const { data: orders, error: ordersError } = await ordersQuery;
+
+      if (ordersError) throw ordersError;
+
+      if (!orders || orders.length === 0) {
+        return [];
+      }
+
+      const orderIds = orders.map(o => o.id);
+
+      // ✅ GET SHIPMENTS DATA
+      const { data: shipments, error: shipmentsError } = await supabase
+        .from('Shipments')
+        .select(`
+          order_id, 
+          awb, 
+          status, 
+          tracking_url, 
+          courier, 
+          estimated_delivery,
+          shipping_mode,
+          label_url,
+          invoice_url,
+          tracking_history
+        `)
+        .in('order_id', orderIds);
+
+      if (shipmentsError) {
+        console.warn('⚠️ Failed to fetch shipments:', shipmentsError);
+      }
+
+      const shipmentsByOrder = {};
+      (shipments || []).forEach(shipment => {
+        shipmentsByOrder[shipment.order_id] = shipment;
+      });
+
+      // ✅ Get order items - MANUAL LEFT JOIN (fetch separately then merge)
+      const { data: orderItemsRaw, error: itemsError } = await supabase
+        .from('Order_items')
+        .select('*')
+        .in('order_id', orderIds);
+
+      if (itemsError) throw itemsError;
+
+      // Get unique bundle_ids and product_ids
+      const bundleIds = [...new Set(orderItemsRaw.filter(i => i.bundle_id).map(i => i.bundle_id))];
+      const productIds = [...new Set(orderItemsRaw.filter(i => i.product_id).map(i => i.product_id))];
+
+      // Fetch bundles
+      let bundlesData = {};
+      if (bundleIds.length > 0) {
+        const { data: bundles } = await supabase
+          .from('Bundles')
+          .select('id, title, img_url, price')
+          .in('id', bundleIds);
+        
+        (bundles || []).forEach(b => {
+          bundlesData[b.id] = b;
+        });
+      }
+
+      // Fetch products
+      let productsData = {};
+      if (productIds.length > 0) {
+        const { data: products } = await supabase
+          .from('Products')
+          .select('id, title, img_url, price')
+          .in('id', productIds);
+        
+        (products || []).forEach(p => {
+          productsData[p.id] = p;
+        });
+      }
+
+      // Group items by order_id with merged data
+      const itemsByOrder = {};
+      orderItemsRaw.forEach(item => {
+        if (!itemsByOrder[item.order_id]) {
+          itemsByOrder[item.order_id] = [];
+        }
+        
+        const bundle = item.bundle_id ? bundlesData[item.bundle_id] : null;
+        const product = item.product_id ? productsData[item.product_id] : null;
+        
+        itemsByOrder[item.order_id].push({
+          bundle_id: item.bundle_id || null,
+          product_id: item.product_id || null,
+          bundle_title: item.bundle_title || product?.title || bundle?.title || 'Unknown Item',
+          bundle_img: product?.img_url || bundle?.img_url || null,
+          price: item.price || product?.price || bundle?.price || 0,
+          quantity: item.quantity || 1,
+          bundle_origin: item.bundle_origin || (product ? 'product' : 'brand-bundle')
+        });
+      });
+
+      // ✅ Combine orders with items AND shipments
+      return orders.map(order => ({
+        ...order,
+        item_count: itemsByOrder[order.id] ? itemsByOrder[order.id].length : 0,
+        items_preview: itemsByOrder[order.id] || [],
+        shipment: shipmentsByOrder[order.id] || null,
+        shipping_address: order.shipping_address,
+        delivery_metadata: order.delivery_metadata || {}
+      }));
+      
+    } catch (error) {
+      console.error('[OrderModel] Error finding orders by user:', error);
+      throw error;
+    }
+  },
+
 
   /**
    * Get order count for a user

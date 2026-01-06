@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import BundleGrid from '../components/shop/BundleGrid';
+import MixedShopGrid from '../components/shop/MixedShopGrid';
 import BundleEmpty from '../components/shop/BundleEmpty';
 import SidebarFilters from '../components/shop/SidebarFilters';
 import CommonHeader from '../components/common/CommonHeader';
@@ -10,6 +10,7 @@ import ShopFiltersBar from '../components/shop/ShopFiltersBar';
 // import ShopLoadingPage from '../components/shop/ShopLoadingPage'; // ✅ NEW IMPORT
 import useBundleFilters from '../hooks/useBundleFilters';
 import bundleService from '../services/bundleService';
+import shopService from '../services/shopService';
 import api from '../services/api';
 import { useCart } from '../hooks/useCart';
 
@@ -33,7 +34,8 @@ const BundleShop = () => {
   const [metadata, setMetadata] = useState(null);
   const [availableTags, setAvailableTags] = useState([]);
   const [tagsLoading, setTagsLoading] = useState(false);
-  
+  const [itemType, setItemType] = useState('all'); // 'all' | 'products' | 'bundles'
+
   // Layout state - load from localStorage or default to '4'
   const [layoutMode, setLayoutMode] = useState(() => {
     return localStorage.getItem('bundleLayoutMode') || '4';
@@ -130,9 +132,10 @@ const BundleShop = () => {
 
       try {
         const apiParams = getApiParams();
+        apiParams.type = itemType;
         console.log('📤 Fetching bundles with params:', apiParams);
         
-        const response = await bundleService.getAllBundles(apiParams);
+        const response = await shopService.getAllItems(apiParams);
         
         console.log('📥 Received response:', response);
         
@@ -154,11 +157,16 @@ const BundleShop = () => {
     };
 
     fetchBundles();
-  }, [filters, getApiParams]);
+  }, [filters, getApiParams, itemType]);
 
   // Handle layout change
   const handleLayoutChange = (mode) => {
     setLayoutMode(mode);
+  };
+
+  const handleTypeChange = (type) => {
+    console.log(`🔧 Type filter change: ${type}`);
+    setItemType(type);
   };
 
   // Handle filter changes
@@ -260,14 +268,16 @@ const BundleShop = () => {
           loading={tagsLoading}
           layoutMode={layoutMode}
           onLayoutChange={handleLayoutChange}
+          itemType={itemType} // ⭐ NEW
+          onTypeChange={handleTypeChange} 
         />
 
         {/* CONTENT AREA */}
         <div className="flex">
           {/* LEFT SECTION - Bundles */}
           <div className="flex-1 px-6 py-6">
-            <BundleGrid 
-              bundles={bundles} 
+            <MixedShopGrid 
+              items={bundles} 
               loading={loading} 
               error={error}
               cartItems={cartItems}
@@ -379,6 +389,8 @@ const BundleShop = () => {
               availableTags={availableTags}
               tagsLoading={tagsLoading}
               metadata={metadata}
+              itemType={itemType} // ⭐ ADD
+              onTypeChange={handleTypeChange}
             />
           </div>
         </div>

@@ -62,6 +62,46 @@ const StockService = {
   },
 
   /**
+   * Deduct stock for standalone products
+   * @param {Array} productItems - [{product_id, quantity}]
+   */
+  async deductProductStock(productItems) {
+    try {
+      for (const item of productItems) {
+        const { product_id, quantity } = item;
+        
+        // Get current stock
+        const { data: product, error: fetchError } = await supabase
+          .from('Products')
+          .select('stock, title')
+          .eq('id', product_id)
+          .single();
+        
+        if (fetchError) throw fetchError;
+        
+        const newStock = product.stock - quantity;
+        
+        if (newStock < 0) {
+          console.warn(`⚠️ Product ${product.title} stock went negative: ${newStock}`);
+        }
+        
+        // Update stock
+        const { error: updateError } = await supabase
+          .from('Products')
+          .update({ stock: Math.max(0, newStock) })
+          .eq('id', product_id);
+        
+        if (updateError) throw updateError;
+        
+        console.log(`📦 Product stock deducted: ${product.title} (${quantity} units, new stock: ${newStock})`);
+      }
+    } catch (error) {
+      console.error('❌ Product stock deduction error:', error);
+      throw error;
+    }
+  },
+
+  /**
    * ⭐ ENHANCED: Deduct stock for single bundle AND its products
    * @param {string} bundleId - Bundle UUID
    * @param {number} bundleQuantity - How many bundles ordered

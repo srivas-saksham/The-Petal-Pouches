@@ -125,7 +125,6 @@ const CartModel = {
         .single();
 
       if (cartError && cartError.code === 'PGRST116') {
-        // Create cart if doesn't exist
         const newCart = await this.getOrCreateCart(userId);
         return {
           ...newCart,
@@ -137,17 +136,27 @@ const CartModel = {
 
       if (cartError) throw cartError;
 
-      // Get cart items with bundle details
+      // ⭐ Get cart items with BOTH bundles AND products (LEFT JOIN)
       const { data: cartItems, error: cartItemsError } = await supabase
         .from('Cart_items')
         .select(`
           *,
-          Bundles!inner(
+          Bundles(
             id,
             title,
             price,
             img_url,
-            description
+            description,
+            stock_limit
+          ),
+          Products(
+            id,
+            title,
+            price,
+            img_url,
+            description,
+            stock,
+            sku
           )
         `)
         .eq('user_id', userId)
@@ -167,88 +176,124 @@ const CartModel = {
         };
       }
 
-      // Get bundle items for all bundles in cart
-      const bundleIds = cartItems.map(item => item.bundle_id);
-      const { data: bundleItems, error: bundleItemsError } = await supabase
-        .from('Bundle_items')
-        .select(`
-          *,
-          Products!inner(
-            id,
-            title,
-            description,
-            img_url,
-            price,
-            stock,
-            sku
-          )
-        `)
-        .in('bundle_id', bundleIds);
+      // ⭐ Separate bundles and products
+      const bundleItems = cartItems.filter(item => item.bundle_id && item.Bundles);
+      const productItems = cartItems.filter(item => item.product_id && item.Products);
 
-      if (bundleItemsError) throw bundleItemsError;
+      // ===== PROCESS BUNDLES (existing logic) =====
+      let formattedBundles = [];
+      if (bundleItems.length > 0) {
+        const bundleIds = bundleItems.map(item => item.bundle_id);
+        const { data: bundleContents, error: bundleItemsError } = await supabase
+          .from('Bundle_items')
+          .select(`
+            *,
+            Products!inner(
+              id,
+              title,
+              description,
+              img_url,
+              price,
+              stock,
+              sku
+            )
+          `)
+          .in('bundle_id', bundleIds);
 
-      // Group bundle items by bundle_id
-      const itemsByBundle = {};
-      (bundleItems || []).forEach(item => {
-        if (!itemsByBundle[item.bundle_id]) {
-          itemsByBundle[item.bundle_id] = [];
-        }
-        itemsByBundle[item.bundle_id].push(item);
-      });
+        if (bundleItemsError) throw bundleItemsError;
 
-      // Format cart items with product details
-      const formattedItems = cartItems.map(cartItem => {
-        const bundle = cartItem.Bundles;
-        const bundleProducts = itemsByBundle[cartItem.bundle_id] || [];
-        
-        // Get first product for primary display
-        const primaryProduct = bundleProducts[0]?.Products;
+        const itemsByBundle = {};
+        (bundleContents || []).forEach(item => {
+          if (!itemsByBundle[item.bundle_id]) {
+            itemsByBundle[item.bundle_id] = [];
+          }
+          itemsByBundle[item.bundle_id].push(item);
+        });
+
+        formattedBundles = bundleItems.map(cartItem => {
+          const bundle = cartItem.Bundles;
+          const bundleProducts = itemsByBundle[cartItem.bundle_id] || [];
+          const primaryProduct = bundleProducts[0]?.Products;
+
+          return {
+            id: cartItem.id,
+            cart_id: cartItem.cart_id,
+            user_id: cartItem.user_id,
+            bundle_id: cartItem.bundle_id,
+            quantity: cartItem.quantity,
+            created_at: cartItem.created_at,
+            updated_at: cartItem.updated_at,
+            
+            bundle_title: bundle.title,
+            bundle_description: bundle.description,
+            bundle_img: bundle.img_url,
+            price: bundle.price,
+            
+            product_id: primaryProduct?.id || null,
+            product_title: primaryProduct?.title || bundle.title,
+            product_img: bundle.img_url || primaryProduct?.img_url,
+            
+            product_variant_id: null,
+            variant_sku: primaryProduct?.sku || null,
+            variant_attributes: {},
+            stock: bundle.stock_limit || primaryProduct?.stock || 0,
+            weight: 0,
+            
+            item_total: bundle.price * cartItem.quantity,
+            
+            bundle_items: bundleProducts.map(bItem => ({
+              product_id: bItem.Products.id,
+              product_title: bItem.Products.title,
+              product_variant_id: null,
+              quantity: bItem.quantity,
+              variant_sku: bItem.Products.sku,
+              variant_attributes: {}
+            })),
+            
+            bundle_origin: 'brand-bundle'
+          };
+        });
+      }
+
+      // ===== PROCESS PRODUCTS (new logic) =====
+      const formattedProducts = productItems.map(cartItem => {
+        const product = cartItem.Products;
 
         return {
           id: cartItem.id,
           cart_id: cartItem.cart_id,
           user_id: cartItem.user_id,
-          bundle_id: cartItem.bundle_id,
+          product_id: cartItem.product_id,
+          bundle_id: null, // ⭐ No bundle for standalone products
           quantity: cartItem.quantity,
           created_at: cartItem.created_at,
           updated_at: cartItem.updated_at,
           
-          // Bundle info
-          bundle_title: bundle.title,
-          bundle_description: bundle.description,
-          bundle_img: bundle.img_url,
-          price: bundle.price, // Bundle price
+          bundle_title: product.title, // ⚠️ Keep for compatibility
+          bundle_description: product.description,
+          bundle_img: product.img_url,
+          price: product.price,
           
-          // Primary product info (for display)
-          product_id: primaryProduct?.id || null,
-          product_title: primaryProduct?.title || bundle.title,
-          product_img: bundle.img_url || primaryProduct?.img_url,
+          product_title: product.title,
+          product_img: product.img_url,
           
-          // For order creation - use product_id (no variants)
-          product_variant_id: null, // No variants in this system
-          variant_sku: primaryProduct?.sku || null,
+          product_variant_id: null,
+          variant_sku: product.sku || null,
           variant_attributes: {},
-          stock: primaryProduct?.stock || 0,
+          stock: product.stock || 0,
           weight: 0,
           
-          // Calculated
-          item_total: bundle.price * cartItem.quantity,
+          item_total: product.price * cartItem.quantity,
           
-          // Bundle contents (all products in the bundle)
-          bundle_items: bundleProducts.map(bItem => ({
-            product_id: bItem.Products.id,
-            product_title: bItem.Products.title,
-            product_variant_id: null, // No variants
-            quantity: bItem.quantity,
-            variant_sku: bItem.Products.sku,
-            variant_attributes: {}
-          })),
+          bundle_items: [], // ⭐ Empty for products
           
-          // Legacy fields for compatibility
-          bundle_origin: 'brand-bundle'
+          bundle_origin: 'product',
+          product_id: product.id,
         };
       });
 
+      // ⭐ Combine bundles + products
+      const formattedItems = [...formattedBundles, ...formattedProducts];
       const subtotal = formattedItems.reduce((sum, item) => sum + item.item_total, 0);
 
       return {

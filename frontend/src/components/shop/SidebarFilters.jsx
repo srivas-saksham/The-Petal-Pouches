@@ -1,19 +1,8 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, X, Package, Box } from 'lucide-react';
 
 /**
- * SidebarFilters Component - Enhanced UI
- * 
- * FEATURES:
- * - Clean, compact professional design
- * - Clear All button in top right corner
- * - TPP Pink headings with collapsible sections (closed by default)
- * - TPP Pink horizontal rules for categorization
- * - Tag filtering support with counts
- * - Active filter indicators
- * - Smooth animations
- * - Sticky positioning
- * - Dynamic height container
+ * SidebarFilters Component - WITH TYPE FILTER
  */
 const SidebarFilters = ({
   filters = {},
@@ -21,16 +10,18 @@ const SidebarFilters = ({
   onResetFilters,
   availableTags = [],
   tagsLoading = false,
-  metadata = {}
+  metadata = {},
+  itemType = 'all', // ⭐ NEW
+  onTypeChange, // ⭐ NEW
 }) => {
   const [expandedSections, setExpandedSections] = useState({
+    type: false, // ⭐ NEW
     sort: false,
     price: false,
     stock: false,
     tags: false
   });
 
-  // Get selected tags - Parse from comma-separated string
   const selectedTags = filters.tags
     ? filters.tags.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0)
     : [];
@@ -40,10 +31,10 @@ const SidebarFilters = ({
     filters.max_price ||
     filters.in_stock ||
     filters.tags ||
-    (filters.sort && filters.sort !== 'created_at')
+    (filters.sort && filters.sort !== 'created_at') ||
+    (itemType && itemType !== 'all') // ⭐ NEW
   );
 
-  // Toggle section expansion
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
       ...prev,
@@ -51,7 +42,6 @@ const SidebarFilters = ({
     }));
   };
 
-  // Handle tag checkbox change
   const handleTagChange = (tagName) => {
     const normalizedTagName = tagName.toLowerCase().trim();
     const isSelected = selectedTags.includes(normalizedTagName);
@@ -62,28 +52,18 @@ const SidebarFilters = ({
     
     const tagsString = newSelectedTags.join(',');
     
-    console.log('🏷️ Tag toggled:', {
-      tagName: normalizedTagName,
-      wasSelected: isSelected,
-      newTags: newSelectedTags,
-      tagsString
-    });
-    
     onFilterChange('tags', tagsString);
   };
 
-  // Handle sort change
   const handleSortChange = (e) => {
     onFilterChange('sort', e.target.value);
   };
 
-  // Handle stock change
   const handleStockChange = (e) => {
     const value = e.target.checked ? 'true' : '';
     onFilterChange('in_stock', value);
   };
 
-  // Handle price change
   const handleMinPriceChange = (e) => {
     onFilterChange('min_price', e.target.value);
   };
@@ -111,7 +91,7 @@ const SidebarFilters = ({
 
   return (
     <div className="w-80 bg-white border-l border-slate-200 shadow-lg overflow-hidden sticky top-40 max-h-screen flex flex-col">
-      {/* Header with Clear All Button */}
+      {/* Header */}
       <div className="bg-gradient-to-r from-tpppeach to-white border-b-2 border-tpppink/20 px-6 py-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div>
@@ -123,7 +103,6 @@ const SidebarFilters = ({
             )}
           </div>
           
-          {/* Clear All Button - Top Right */}
           {hasActiveFilters && (
             <button
               onClick={onResetFilters}
@@ -141,6 +120,73 @@ const SidebarFilters = ({
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 scrollbar-thin">
+        
+        {/* ⭐ NEW: ITEM TYPE */}
+        {onTypeChange && (
+          <>
+            <div className="space-y-2">
+              <SectionHeader title="Item Type" section="type" />
+              
+              {expandedSections.type && (
+                <div className="space-y-2 animate-fade-in">
+                  <label className="flex items-center gap-3 px-4 py-3 rounded-lg border-2 border-slate-200
+                    hover:border-tpppink hover:bg-tpppeach/30 transition-all cursor-pointer group
+                    has-[:checked]:border-tpppink has-[:checked]:bg-tpppeach/50 has-[:checked]:shadow-sm">
+                    <input
+                      type="radio"
+                      name="itemType"
+                      value="all"
+                      checked={itemType === 'all'}
+                      onChange={() => onTypeChange('all')}
+                      className="w-4 h-4 cursor-pointer accent-tpppink"
+                    />
+                    <Box size={16} className="text-tpppink" />
+                    <span className="text-sm font-semibold text-slate-700 group-hover:text-tpppink transition-colors">
+                      All Items
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-3 px-4 py-3 rounded-lg border-2 border-slate-200
+                    hover:border-tpppink hover:bg-tpppeach/30 transition-all cursor-pointer group
+                    has-[:checked]:border-tpppink has-[:checked]:bg-tpppeach/50 has-[:checked]:shadow-sm">
+                    <input
+                      type="radio"
+                      name="itemType"
+                      value="products"
+                      checked={itemType === 'products'}
+                      onChange={() => onTypeChange('products')}
+                      className="w-4 h-4 cursor-pointer accent-tpppink"
+                    />
+                    <Package size={16} className="text-tpppink" />
+                    <span className="text-sm font-semibold text-slate-700 group-hover:text-tpppink transition-colors">
+                      Products Only
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-3 px-4 py-3 rounded-lg border-2 border-slate-200
+                    hover:border-tpppink hover:bg-tpppeach/30 transition-all cursor-pointer group
+                    has-[:checked]:border-tpppink has-[:checked]:bg-tpppeach/50 has-[:checked]:shadow-sm">
+                    <input
+                      type="radio"
+                      name="itemType"
+                      value="bundles"
+                      checked={itemType === 'bundles'}
+                      onChange={() => onTypeChange('bundles')}
+                      className="w-4 h-4 cursor-pointer accent-tpppink"
+                    />
+                    <Package size={16} className="text-tpppink" />
+                    <span className="text-sm font-semibold text-slate-700 group-hover:text-tpppink transition-colors">
+                      Bundles Only
+                    </span>
+                  </label>
+                </div>
+              )}
+            </div>
+
+            <div className="h-px bg-gradient-to-r from-transparent via-tpppink/40 to-transparent" />
+          </>
+        )}
+
         {/* SORT BY */}
         <div className="space-y-2">
           <SectionHeader title="Sort By" section="sort" />
@@ -167,7 +213,6 @@ const SidebarFilters = ({
           )}
         </div>
 
-        {/* Divider */}
         <div className="h-px bg-gradient-to-r from-transparent via-tpppink/40 to-transparent" />
 
         {/* PRICE RANGE */}
@@ -221,7 +266,6 @@ const SidebarFilters = ({
           )}
         </div>
 
-        {/* Divider */}
         <div className="h-px bg-gradient-to-r from-transparent via-tpppink/40 to-transparent" />
 
         {/* AVAILABILITY */}
@@ -251,7 +295,6 @@ const SidebarFilters = ({
         {/* TAGS */}
         {availableTags && availableTags.length > 0 && (
           <>
-            {/* Divider */}
             <div className="h-px bg-gradient-to-r from-transparent via-tpppink/40 to-transparent" />
             
             <div className="space-y-2">
@@ -302,7 +345,7 @@ const SidebarFilters = ({
           </>
         )}
 
-        {/* Active Filters Summary (bottom of scrollable area) */}
+        {/* Active Filters Summary */}
         {hasActiveFilters && (
           <>
             <div className="h-px bg-gradient-to-r from-transparent via-tpppink/40 to-transparent" />
@@ -313,6 +356,11 @@ const SidebarFilters = ({
                 Active Filters
               </p>
               <div className="flex flex-wrap gap-2 text-xs">
+                {itemType && itemType !== 'all' && (
+                  <span className="px-2 py-1 bg-white/70 text-slate-700 rounded border border-tpppink/20 font-medium">
+                    {itemType === 'products' ? 'Products' : 'Bundles'}
+                  </span>
+                )}
                 {filters.sort && filters.sort !== 'created_at' && (
                   <span className="px-2 py-1 bg-white/70 text-slate-700 rounded border border-tpppink/20 font-medium">
                     Sorted

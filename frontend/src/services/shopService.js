@@ -540,7 +540,63 @@ const shopService = {
         error: error.response?.data?.message || 'Failed to check availability'
       };
     }
-  }
+  },
+  /**
+   * Get all shop items (products + bundles mixed)
+   */
+  getAllItems: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      
+      if (params.page) queryParams.append('page', params.page);
+      if (params.limit) queryParams.append('limit', params.limit);
+      if (params.type) queryParams.append('type', params.type);
+      if (params.sort) queryParams.append('sort', params.sort);
+      if (params.order) queryParams.append('order', params.order);
+      if (params.search) queryParams.append('search', params.search);
+      if (params.min_price) queryParams.append('min_price', params.min_price);
+      if (params.max_price) queryParams.append('max_price', params.max_price);
+      if (params.in_stock) queryParams.append('in_stock', params.in_stock);
+      if (params.tags) queryParams.append('tags', params.tags);
+
+      const response = await shopAPI.get(`/shop/items?${queryParams.toString()}`);
+      
+      return {
+        success: true,
+        data: response.data.data || [],
+        metadata: response.data.metadata || {}
+      };
+    } catch (error) {
+      console.error('❌ Get shop items error:', error);
+      return {
+        success: false,
+        data: [],
+        metadata: {},
+        error: error.response?.data?.message || 'Failed to fetch items'
+      };
+    }
+  },
+
+  /**
+   * Get single item by type and ID
+   */
+  getItemById: async (type, id) => {
+    try {
+      const response = await shopAPI.get(`/shop/${type}/${id}`);
+      
+      return {
+        success: true,
+        data: response.data.data || null
+      };
+    } catch (error) {
+      console.error(`❌ Get ${type} error:`, error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch item'
+      };
+    }
+  },
 };
 
 export default shopService;

@@ -149,9 +149,9 @@ const Checkout = () => {
     loadStoredDeliveryData();
   }, []);
 
-  // Fetch bundle details for all cart items
+  // Fetch details for all cart items (bundles + products)
   useEffect(() => {
-    const fetchBundleDetails = async () => {
+    const fetchItemDetails = async () => {
       if (!cartItems || cartItems.length === 0) {
         setLoading(false);
         setPageInitialized(true);
@@ -163,22 +163,45 @@ const Checkout = () => {
       setError(null);
 
       try {
-        const bundlePromises = cartItems
-          .filter(item => item.bundle_id)
-          .map(item => bundleService.getBundleDetails(item.bundle_id));
+        // ⭐ Fetch BOTH bundles and products
+        const itemPromises = cartItems.map(async (item) => {
+          if (item.type === 'bundle' && item.bundle_id) {
+            const response = await bundleService.getBundleDetails(item.bundle_id);
+            return { id: item.bundle_id, type: 'bundle', data: response.data };
+          } else if (item.type === 'product' && item.product_id) {
+            // Product details already in cart item, just return it
+            return { 
+              id: item.product_id, 
+              type: 'product', 
+              data: {
+                id: item.product_id,
+                title: item.title,
+                description: item.description,
+                img_url: item.image_url,
+                price: item.price,
+                stock: item.stock_limit,
+                items: [] // Products don't have sub-items
+              }
+            };
+          }
+          return null;
+        });
 
-        const responses = await Promise.all(bundlePromises);
+        const responses = await Promise.all(itemPromises);
         
-        const bundlesMap = {};
-        cartItems.forEach((item, index) => {
-          if (item.bundle_id && responses[index]) {
-            bundlesMap[item.bundle_id] = responses[index].data;
+        // Build unified items map
+        const itemsMap = {};
+        responses.forEach(response => {
+          if (response) {
+            const key = response.type === 'bundle' ? response.id : `product_${response.id}`;
+            itemsMap[key] = response.data;
           }
         });
 
-        setBundles(bundlesMap);
-        console.log('✅ Bundle details fetched:', bundlesMap);
+        setBundles(itemsMap); // Reusing 'bundles' state for both types
+        console.log('✅ Item details fetched:', itemsMap);
         
+        // Calculate total weight
         const totalWeight = cartItems.reduce((sum, item) => {
           return sum + (item.quantity * 1000);
         }, 0);
@@ -186,15 +209,15 @@ const Checkout = () => {
         console.log(`📦 [Checkout] Total cart weight calculated: ${totalWeight}g (${totalWeight/1000}kg)`);
         
       } catch (err) {
-        console.error('❌ Error fetching bundles:', err);
-        setError('Failed to load bundle details');
+        console.error('❌ Error fetching item details:', err);
+        setError('Failed to load item details');
       } finally {
         setLoading(false);
         setPageInitialized(true);
       }
     };
 
-    fetchBundleDetails();
+    fetchItemDetails();
   }, [cartItems]);
 
   // Trigger delivery refresh when weight updates

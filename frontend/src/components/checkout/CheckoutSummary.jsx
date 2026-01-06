@@ -1,4 +1,4 @@
-// frontend/src/components/checkout/CheckoutSummary.jsx - CLEAN & PROFESSIONAL
+// frontend/src/components/checkout/CheckoutSummary.jsx - UNIFIED FOR PRODUCTS & BUNDLES
 
 import React, { useMemo } from 'react';
 import { Lock, Truck, Gift, Loader, CreditCard, ShieldCheck } from 'lucide-react';
@@ -44,7 +44,7 @@ const PaymentMethodIcons = () => {
 };
 
 /**
- * CheckoutSummary Component - CLEAN, COMPACT, PROFESSIONAL
+ * CheckoutSummary Component - UNIFIED FOR PRODUCTS & BUNDLES
  */
 const CheckoutSummary = ({
   cartItems = [],
@@ -64,11 +64,21 @@ const CheckoutSummary = ({
 }) => {
   const { refreshingTotals } = useCart();
 
-  // Calculate subtotal
+  // ⭐ Calculate subtotal - SUPPORTS BOTH PRODUCTS AND BUNDLES
   const subtotal = useMemo(() => {
     return cartItems.reduce((total, item) => {
-      const bundle = bundles[item.bundle_id];
-      return total + (bundle?.price || 0) * item.quantity;
+      // ⭐ For bundles: look up in bundles map
+      if (item.type === 'bundle' && item.bundle_id) {
+        const bundle = bundles[item.bundle_id];
+        return total + (bundle?.price || 0) * item.quantity;
+      }
+      
+      // ⭐ For products: price is already in cartItem
+      if (item.type === 'product') {
+        return total + (item.price || 0) * item.quantity;
+      }
+
+      return total;
     }, 0);
   }, [cartItems, bundles]);
 

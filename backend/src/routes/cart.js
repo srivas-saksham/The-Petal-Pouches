@@ -86,6 +86,20 @@ router.post('/items', (req, res, next) => {
 });
 
 /**
+ * @route   POST /api/cart/products
+ * @desc    Add PRODUCT to cart (not bundle)
+ */
+router.post('/products', (req, res, next) => {
+  if (!CartController) {
+    return res.status(500).json({
+      success: false,
+      message: 'CartController not loaded'
+    });
+  }
+  CartController.addProductToCart(req, res, next);
+});
+
+/**
  * @route   PATCH /api/cart/items/:id
  */
 router.patch('/items/:id', (req, res, next) => {

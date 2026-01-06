@@ -5,14 +5,29 @@
  * Matches customer order card design with admin-specific information
  */
 
+import React from 'react';
 import { 
   Eye, User, Package, MapPin, Calendar, CreditCard, Truck, ChevronRight,
   Clock, CheckCircle, XCircle, Phone, Tag, Gift, FileText, DollarSign,
-  AlertCircle, TrendingUp, Hash, Mail
+  AlertCircle, TrendingUp, Hash, Mail, Box
 } from 'lucide-react';
 
+/**
+ * Enhanced Admin Order Card with Complete Details
+ * ⭐ UNIFIED: Supports BOTH bundles AND products
+ * Layout: 30% Image | 40% Details | 30% Actions & Summary
+ */
 export default function AdminOrderCard({ order, onViewOrder, onStatusUpdate }) {
   
+  // 🔍 TEMPORARY DEBUG - Remove after fixing
+  console.log('🔍 ORDER DEBUG:', {
+    orderId: order.id?.substring(0, 8),
+    itemsPreview: order.items_preview,
+    firstItem: order.items_preview?.[0],
+    firstItemKeys: order.items_preview?.[0] ? Object.keys(order.items_preview[0]) : [],
+    hasImage: !!order.items_preview?.[0]?.bundle_img
+  });
+
   // ==================== UTILITY FUNCTIONS ====================
   
   const formatCurrency = (amount) => `₹${parseFloat(amount || 0).toLocaleString('en-IN')}`;
@@ -152,19 +167,16 @@ export default function AdminOrderCard({ order, onViewOrder, onStatusUpdate }) {
   };
 
   const getPriorityIndicator = () => {
-    // 🔴 HIGH PRIORITY: Express + Unpaid + Recent
     if (order.delivery_metadata?.mode === 'express' && 
         order.payment_status === 'unpaid' && 
         order.status === 'pending') {
       return { color: 'bg-red-500', label: 'High Priority', show: true };
     }
     
-    // 🟡 MEDIUM: High value + Unpaid
     if (order.final_total > 5000 && order.payment_status === 'unpaid') {
       return { color: 'bg-orange-500', label: 'High Value', show: true };
     }
     
-    // 🟢 NORMAL
     return { color: 'bg-green-500', label: 'Normal', show: false };
   };
 
@@ -197,6 +209,15 @@ export default function AdminOrderCard({ order, onViewOrder, onStatusUpdate }) {
     return 'TBD';
   };
 
+  // ⭐ NEW: Detect if item is bundle or product
+  const getItemType = (item) => {
+    if (item.bundle_id) return 'bundle';
+    if (item.product_id) return 'product';
+    // Fallback: check bundle_origin
+    if (item.bundle_origin === 'product') return 'product';
+    return 'bundle';
+  };
+
   // ==================== COMPONENT DATA ====================
   
   const statusConfig = getStatusConfig(order.status);
@@ -208,20 +229,14 @@ export default function AdminOrderCard({ order, onViewOrder, onStatusUpdate }) {
   const deliveryMode = order.delivery_metadata?.mode || 'surface';
   const priority = getPriorityIndicator();
 
-  // Format address for display
-  const getFullAddress = () => {
-    if (!shippingAddress) return 'Address not available';
-    const parts = [
-      shippingAddress.line1,
-      shippingAddress.line2,
-      shippingAddress.landmark ? `Near: ${shippingAddress.landmark}` : null,
-      `${shippingAddress.city}, ${shippingAddress.state} - ${shippingAddress.zip_code}`
-    ].filter(Boolean);
-    return parts.join(', ');
-  };
+  // ⭐ Check if first item is product or bundle
+  const firstItemType = firstItem ? getItemType(firstItem) : 'bundle';
 
-  // Special handling flags
   const hasSpecialHandling = order.gift_wrap || order.gift_message || order.notes || deliveryMode === 'express';
+
+  // ⭐ Count bundles vs products
+  const bundleCount = order.items_preview?.filter(item => getItemType(item) === 'bundle').length || 0;
+  const productCount = order.items_preview?.filter(item => getItemType(item) === 'product').length || 0;
 
   // ==================== RENDER ====================
 
@@ -247,7 +262,22 @@ export default function AdminOrderCard({ order, onViewOrder, onStatusUpdate }) {
                   {statusConfig.label}
                 </span>
 
-                {/* Priority Indicator (Below Status if needed) */}
+                {/* ⭐ Item Type Badge (Product/Bundle) */}
+                <div className={`absolute top-11 right-2 ${firstItemType === 'product' ? 'bg-tpppink' : 'bg-tppslate'} text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide shadow-lg flex items-center gap-1`}>
+                  {firstItemType === 'product' ? (
+                    <>
+                      <Box className="w-3 h-3" />
+                      PRODUCT
+                    </>
+                  ) : (
+                    <>
+                      <Package className="w-3 h-3" />
+                      BUNDLE
+                    </>
+                  )}
+                </div>
+
+                {/* Priority Indicator */}
                 {priority.show && !['cancelled', 'delivered'].includes(order.status) && (
                   <div className={`absolute top-11 left-2 ${priority.color} text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide shadow-lg flex items-center gap-1`}>
                     <AlertCircle className="w-3 h-3" />
@@ -271,7 +301,7 @@ export default function AdminOrderCard({ order, onViewOrder, onStatusUpdate }) {
               </>
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <Package className="w-12 h-12 text-tppslate/20" />
+                <Package className="w-12 h-12 text-gray-300" />
               </div>
             )}
           </div>
@@ -394,26 +424,41 @@ export default function AdminOrderCard({ order, onViewOrder, onStatusUpdate }) {
               </div>
             </div>
 
-            {/* Order Items Preview */}
+            {/* ⭐ Order Items Preview (Shows Bundle/Product) */}
             <div className="mb-3">
               <div className="text-[10px] text-tppslate/80 uppercase tracking-wide mb-1 font-semibold flex items-center gap-1">
                 <Package className="w-3 h-3" />
                 Order Contents ({itemCount} {itemCount === 1 ? 'item' : 'items'})
+                {bundleCount > 0 && productCount > 0 && (
+                  <span className="text-tppslate/60 normal-case">
+                    • {bundleCount}B + {productCount}P
+                  </span>
+                )}
               </div>
               <div className="space-y-1">
-                {order.items_preview?.slice(0, 3).map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-xs bg-white border border-tppslate/10 rounded px-2 py-1">
-                    <span className="text-tppslate font-medium flex-1 min-w-0 mr-2 break-words line-clamp-2">
-                      {item.bundle_title || 'Bundle Item'}
-                    </span>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-tppslate/80 text-[11px]">×{item.quantity}</span>
-                      <span className="text-tppslate/80 font-semibold">
-                        {formatCurrency(item.price * item.quantity)}
-                      </span>
+                {order.items_preview?.slice(0, 3).map((item, idx) => {
+                  const itemType = getItemType(item);
+                  return (
+                    <div key={idx} className="flex items-center justify-between text-xs bg-white border border-tppslate/10 rounded px-2 py-1">
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-2">
+                        {itemType === 'product' ? (
+                          <Box className="w-3 h-3 text-tpppink flex-shrink-0" />
+                        ) : (
+                          <Package className="w-3 h-3 text-tppslate flex-shrink-0" />
+                        )}
+                        <span className="text-tppslate font-medium break-words line-clamp-2">
+                          {item.bundle_title || 'Item'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-tppslate/80 text-[11px]">×{item.quantity}</span>
+                        <span className="text-tppslate/80 font-semibold">
+                          {formatCurrency(item.price * item.quantity)}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {itemCount > 3 && (
                   <div className="text-xs text-tppslate/80 text-center py-1">
                     +{itemCount - 3} more items
@@ -578,7 +623,7 @@ export default function AdminOrderCard({ order, onViewOrder, onStatusUpdate }) {
                 onChange={(e) => {
                   if (e.target.value) {
                     onStatusUpdate(order.id, e.target.value);
-                    e.target.value = ''; // Reset
+                    e.target.value = '';
                   }
                 }}
                 value=""
@@ -593,7 +638,6 @@ export default function AdminOrderCard({ order, onViewOrder, onStatusUpdate }) {
               </select>
             )}
 
-            {/* Print Invoice (placeholder) */}
             <button
               onClick={() => console.log('Print invoice:', order.id)}
               className="w-full px-3 py-2 bg-white border border-tppslate/20 text-tppslate text-xs rounded-lg hover:bg-gray-50 font-semibold transition-all flex items-center justify-center gap-1.5"

@@ -149,6 +149,37 @@ export function CartProvider({ children }) {
     }
   }, [isAuthenticated, fetchCart, clearCartState]);
 
+  /**
+   * Get product quantity in cart
+   */
+  const getProductQuantityInCart = useCallback((productId) => {
+    if (!cartItems || cartItems.length === 0) return 0;
+    
+    const item = cartItems.find(
+      item => item.type === 'product' && item.product_id === productId  // ✅ Changed to 'type'
+    );
+    
+    return item?.quantity || 0;
+  }, [cartItems]);
+
+  /**
+   * Get cart item by product ID
+   */
+  const getCartItemByProductId = useCallback((productId) => {
+    if (!cartItems || cartItems.length === 0) return null;
+    
+    return cartItems.find(
+      item => item.type === 'product' && item.product_id === productId  // ✅ Changed to 'type'
+    ) || null;
+  }, [cartItems]);
+
+  /**
+   * Check if product is in cart
+   */
+  const isProductInCart = useCallback((productId) => {
+    return getProductQuantityInCart(productId) > 0;
+  }, [getProductQuantityInCart]);
+
   const value = {
     // State
     cartItems,
@@ -163,6 +194,9 @@ export function CartProvider({ children }) {
     isBundleInCart,
     getCartItemByBundleId,
     clearCartState,
+    getProductQuantityInCart,
+    getCartItemByProductId,
+    isProductInCart,
   };
 
   return (

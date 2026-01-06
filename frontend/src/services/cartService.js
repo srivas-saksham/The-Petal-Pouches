@@ -168,6 +168,44 @@ export const addBundleToCart = async (bundleId, quantity = 1, stockLimit = null,
 };
 
 /**
+ * Add product to cart
+ * @param {string} productId - Product UUID
+ * @param {number} quantity - Quantity (default: 1)
+ * @returns {Promise<Object>} Result
+ */
+export const addProductToCart = async (productId, quantity = 1) => {
+  try {
+    console.log(`🛒 Adding product ${productId} to cart (qty: ${quantity})`);
+
+    const response = await axios.post(
+      `${API_URL}/api/cart/products`,
+      {
+        product_id: productId,
+        quantity: quantity
+      },
+      {
+        headers: getCartHeaders()
+      }
+    );
+
+    console.log('✅ Product added to cart:', response.data);
+
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message || 'Product added to cart'
+    };
+  } catch (error) {
+    console.error('❌ Add product to cart error:', error);
+    
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to add product to cart'
+    };
+  }
+};
+
+/**
  * ⭐ UPDATED: Update cart item quantity with stock validation
  * PATCH /api/cart/items/:id
  */
@@ -319,6 +357,7 @@ export const getCartItemCount = async () => {
 export default {
   getCart,
   addBundleToCart,
+  addProductToCart,
   updateCartItem,
   removeFromCart,
   clearCart,

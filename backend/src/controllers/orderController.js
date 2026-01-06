@@ -1,4 +1,4 @@
-// backend/src/controllers/orderController.js - ENHANCED VERSION
+// backend/src/controllers/orderController.js - ENHANCED VERSION - UNIFIED FOR BUNDLES + PRODUCTS
 
 const OrderModel = require('../models/orderModel');
 const CartModel = require('../models/cartModel');
@@ -9,20 +9,21 @@ const StockService = require('../services/stockService');
 /**
  * Order Controller - ENHANCED
  * Handles customer order operations with shipment auto-generation
+ * ⭐ UPDATED: Now supports BOTH bundles AND products
  */
 const OrderController = {
 
   // ==================== CREATE ORDER (ENHANCED) ====================
 
   /**
-   * Create a new order from cart - ENHANCED with Stock Deduction
+   * Create a new order from cart - ENHANCED with Stock Deduction for BOTH bundles & products
    * POST /api/orders
    * 
    * Flow:
    * 1. Validate cart & address
    * 2. Check stock availability
-   * 3. Create order with items (BUNDLE-ONLY storage)
-   * 4. Deduct bundle stock
+   * 3. Create order with items (BUNDLES + PRODUCTS)
+   * 4. Deduct stock (bundles + products)
    * 5. Auto-create pending shipment
    * 6. Clear cart
    * 7. Return order details
@@ -79,7 +80,7 @@ const OrderController = {
         });
       }
 
-      console.log(`📋 Cart has ${cartData.items.length} bundles`);
+      console.log(`📋 Cart has ${cartData.items.length} items (bundles + products)`);
 
       // ===== STEP 3: VALIDATE STOCK =====
       const stockCheck = await CartModel.checkStock(userId);
@@ -139,49 +140,77 @@ const OrderController = {
         }
       };
 
-      // ===== STEP 6: ⭐ PREPARE ORDER ITEMS (ONLY BUNDLES) =====
+      // ===== STEP 6: PREPARE ORDER ITEMS (BUNDLES + PRODUCTS) =====
       const orderItems = [];
-      
+
       for (const item of cartData.items) {
-        // ⭐ STORE ONLY BUNDLE INFO (not individual bundle items)
-        orderItems.push({
-          bundle_id: item.bundle_id,
-          bundle_title: item.title,
-          bundle_quantity: item.quantity, // How many of THIS bundle
-          price: item.price, // Bundle price per unit
-          bundle_origin: 'brand-bundle'
-        });
+        // Check by bundle_id presence OR bundle_origin
+        if (item.bundle_id || item.bundle_origin === 'brand-bundle') {
+          orderItems.push({
+            bundle_id: item.bundle_id,
+            product_id: null,
+            bundle_title: item.bundle_title || item.product_title,
+            quantity: item.quantity,
+            price: item.price,
+            bundle_origin: 'brand-bundle'
+          });
+        } 
+        // Check by product_id presence OR bundle_origin
+        else if (item.product_id || item.bundle_origin === 'product') {
+          orderItems.push({
+            bundle_id: null,
+            product_id: item.product_id,
+            bundle_title: item.bundle_title || item.product_title,
+            quantity: item.quantity,
+            price: item.price,
+            bundle_origin: 'product'
+          });
+        }
       }
 
-      if (orderItems.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'No valid items found in cart'
-        });
-      }
-
-      console.log('📝 Order items prepared:', orderItems.length, 'bundles');
+      console.log(`📝 Order items prepared: ${orderItems.length} items (bundles + products)`);
 
       // ===== STEP 7: CREATE ORDER =====
       const order = await OrderModel.create(orderData, orderItems);
       console.log(`✅ Order created: ${order.id}`);
 
-      // ===== STEP 8: ⭐ DEDUCT BUNDLE STOCK =====
-      // This is the KEY addition - deduct stock AFTER order is created
+      // ===== STEP 8: ⭐ DEDUCT STOCK (BUNDLES + PRODUCTS) =====
       try {
-        const stockDeductionItems = cartData.items.map(item => ({
-          bundle_id: item.bundle_id,
-          quantity: item.quantity
-        }));
-
-        const stockDeduction = await StockService.deductBundleStock(stockDeductionItems);
+        const StockService = require('../services/stockService');
         
-        if (!stockDeduction.success) {
-          console.warn('⚠️ Some stock deductions failed:', stockDeduction.failed);
-          // Don't fail the order - log the failures and continue
-        } else {
-          console.log(`✅ Stock deducted for ${stockDeduction.deducted.length} bundles`);
+        // ⭐ Separate bundles and products from cart items
+        const bundleItems = cartData.items.filter(item => 
+          item.bundle_id || item.bundle_origin === 'brand-bundle'
+        );
+        const productItems = cartData.items.filter(item => 
+          item.product_id || item.bundle_origin === 'product'
+        );
+        
+        console.log(`📊 Stock deduction: ${bundleItems.length} bundles, ${productItems.length} products`);
+        
+        // Deduct bundle stock
+        if (bundleItems.length > 0) {
+          const stockDeductionItems = bundleItems.map(item => ({
+            bundle_id: item.bundle_id,
+            quantity: item.quantity
+          }));
+          
+          const stockDeduction = await StockService.deductBundleStock(stockDeductionItems);
+          
+          if (!stockDeduction.success) {
+            console.warn('⚠️ Some bundle stock deductions failed:', stockDeduction.failed);
+            // Don't fail the order - log the failures and continue
+          } else {
+            console.log(`✅ Bundle stock deducted: ${stockDeduction.deducted.length} bundles`);
+          }
         }
+        
+        // ⭐ Deduct product stock
+        if (productItems.length > 0) {
+          await StockService.deductProductStock(productItems);
+          console.log(`✅ Product stock deducted: ${productItems.length} products`);
+        }
+        
       } catch (stockError) {
         console.error('⚠️ Stock deduction error:', stockError);
         // Don't fail order creation if stock deduction fails

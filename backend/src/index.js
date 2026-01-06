@@ -127,6 +127,7 @@ app.use('/api/products', require('./routes/products'));     // ✅ Browse produc
 app.use('/api/variants', require('./routes/variants'));     // ✅ Product variants
 app.use('/api/reviews', require('./routes/reviews'));       // ✅ Product reviews
 app.use('/api/coupons', require('./routes/coupons'));       // ✅ Validate coupons
+app.use('/api/shop', require('./routes/shop'));               // ✅ Unified shop routes (products + bundles)
 
 // 6. PAYMENT & SHIPPING (MIXED - auth handled inside routes)
 // --------------------------------------------

@@ -175,6 +175,13 @@ const CartItem = ({ item }) => {
           <h4 className="text-sm font-semibold text-slate-900 mb-1 line-clamp-2">
             {item.title}
           </h4>
+          
+          {/* Item Type Badge - OPTIONAL */}
+          {item.item_type === 'product' && (
+            <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded mb-1">
+              Individual Product
+            </span>
+          )}
 
           {/* Price */}
           <p className="text-sm font-bold text-tpppink mb-2">
