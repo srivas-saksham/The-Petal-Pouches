@@ -60,6 +60,8 @@ const CreateProductForm = ({ onSuccess }) => {
   const [images, setImages] = useState([]); // Array of { file, preview, id, is_primary }
   const [imageError, setImageError] = useState('');
   const [hasVariants, setHasVariants] = useState(false);
+  const [tags, setTags] = useState([]); // 🆕 NEW: Tags array
+  const [tagsInput, setTagsInput] = useState(''); // 🆕 NEW: Current input
   const [loading, setLoading] = useState(false);
   const toast = useToast();
   
@@ -305,6 +307,38 @@ const CreateProductForm = ({ onSuccess }) => {
     }
   };
 
+  // 🆕 NEW: Handle tags input (Enter key)
+  const handleTagsKeyDown = (e) => {
+    if (e.key === 'Enter' && tagsInput.trim()) {
+      e.preventDefault();
+      const newTag = tagsInput.trim().toLowerCase();
+      
+      // Validation
+      if (newTag.length < 2) {
+        toast.error('Tag must be at least 2 characters');
+        return;
+      }
+      
+      if (tags.includes(newTag)) {
+        toast.error('Tag already added');
+        return;
+      }
+      
+      if (tags.length >= 10) {
+        toast.error('Maximum 10 tags allowed');
+        return;
+      }
+      
+      setTags(prev => [...prev, newTag]);
+      setTagsInput('');
+    }
+  };
+
+  // 🆕 NEW: Remove tag
+  const handleRemoveTag = (tagToRemove) => {
+    setTags(prev => prev.filter(tag => tag !== tagToRemove));
+  };
+
   const validateForm = () => {
     const newErrors = {};
     
@@ -359,7 +393,8 @@ const CreateProductForm = ({ onSuccess }) => {
         sku: formData.sku.trim(),
         has_variants: hasVariants,
         category_id: formData.category_id || '',
-        images: images.map(img => img.file) // ✅ CHANGED: Send array of files
+        images: images.map(img => img.file),
+        tags: tags
       };
 
       const response = await createProduct(productData); // ✅ CHANGED
@@ -382,6 +417,8 @@ const CreateProductForm = ({ onSuccess }) => {
       });
       setImages([]); // ✅ CHANGED
       setHasVariants(false);
+      setTags([]); // 🆕 NEW: Reset tags
+      setTagsInput(''); // 🆕 NEW: Reset input
       setErrors({});
       setTouched({});
 
@@ -825,6 +862,76 @@ const CreateProductForm = ({ onSuccess }) => {
           </div>
         )}
 
+        {/* 🆕 NEW: Tags Section */}
+        <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
+          <h3 className="text-base font-bold text-tppslate mb-4 flex items-center gap-2">
+            <Tag className="w-5 h-5" />
+            Product Tags
+          </h3>
+          
+          <div className="space-y-3">
+            {/* Tags Input */}
+            <InputWrapper 
+              label="Add Tags" 
+              name="tags" 
+              icon={Tag}
+              hint="Press Enter to add tags (e.g., 'gift', 'birthday', 'romantic')"
+            >
+              <input
+                type="text"
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                onKeyDown={handleTagsKeyDown}
+                placeholder="Type tag and press Enter..."
+                className="w-full px-4 py-2.5 border-2 border-tpppink/30 rounded-lg text-sm hover:border-tpppink hover:bg-tpppeach/10 focus:border-tpppink focus:outline-none focus:ring-2 focus:ring-tppslate/20 transition-all duration-200 bg-white"
+              />
+            </InputWrapper>
+
+            {/* Tags Display */}
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag, index) => (
+                  <div
+                    key={tag}
+                    className="group flex items-center gap-1.5 px-3 py-1.5 bg-tpppeach/40 text-tpppink rounded-full text-xs font-semibold border-2 border-tpppink/20 hover:border-tpppink transition-all"
+                  >
+                    {index === 0 && (
+                      <Star size={12} className="text-tpppink" fill="currentColor" />
+                    )}
+                    <span>{tag}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTag(tag)}
+                      className="ml-1 text-tpppink/60 hover:text-tpppink transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Primary Tag Indicator */}
+            {tags.length > 0 && (
+              <p className="text-xs text-tppslate/60 flex items-center gap-1">
+                <Star size={12} className="text-tpppink" fill="currentColor" />
+                <span className="font-semibold text-tpppink">{tags[0]}</span> 
+                will be the primary tag
+              </p>
+            )}
+
+            {/* Tags Helper Text */}
+            <div className="p-3 bg-blue-50 border-2 border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-800 flex items-start gap-2">
+                <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>
+                  Tags help customers discover your product. Add relevant keywords like occasion, category, or style. First tag is the primary tag.
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+        
         {/* Description Section */}
         <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
           <InputWrapper 

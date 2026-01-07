@@ -1,4 +1,4 @@
-// frontend/src/services/tagsService.js - SIMPLIFIED FOR SHOP FILTERING
+// frontend/src/services/tagsService.js - SIMPLIFIED FOR SHOP FILTERING WITH PRODUCT SUPPORT
 
 import api, { apiRequest } from './api';
 
@@ -25,10 +25,17 @@ export const getAllTags = async () => {
 };
 
 /**
- * Get tags with bundle counts for filter UI - CONTEXT-AWARE
+ * Get tags with counts for filter UI - CONTEXT-AWARE & TYPE-FILTERED
  * Returns tags with counts based on current filter context
  * 
- * @param {Object} filterContext - Current filters { tags, search, min_price, max_price, in_stock }
+ * @param {Object} filterContext - Current filters
+ * @param {string} filterContext.tags - Selected tags (comma-separated)
+ * @param {string} filterContext.search - Search term
+ * @param {string} filterContext.min_price - Min price
+ * @param {string} filterContext.max_price - Max price
+ * @param {string} filterContext.in_stock - Stock filter ('true' | '')
+ * @param {string} filterContext.type - 🆕 NEW: Item type ('all' | 'products' | 'bundles')
+ * 
  * @returns {Promise<Object>} { success, data: [tags with counts], error }
  */
 export const getTagsWithCounts = async (filterContext = {}) => {
@@ -36,12 +43,13 @@ export const getTagsWithCounts = async (filterContext = {}) => {
   
   const params = new URLSearchParams();
   
-  // Add filter context to get dynamic counts
+  // Add all filter context
   if (filterContext.tags) params.append('tags', filterContext.tags);
   if (filterContext.search) params.append('search', filterContext.search);
   if (filterContext.min_price) params.append('min_price', filterContext.min_price);
   if (filterContext.max_price) params.append('max_price', filterContext.max_price);
   if (filterContext.in_stock) params.append('in_stock', filterContext.in_stock);
+  if (filterContext.type) params.append('type', filterContext.type); // 🆕 NEW: Add type filter
   
   return apiRequest(() =>
     api.get(`/api/tags/with-counts${params.toString() ? `?${params}` : ''}`)

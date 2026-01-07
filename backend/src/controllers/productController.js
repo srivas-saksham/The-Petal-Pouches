@@ -181,7 +181,17 @@ const getProductStats = async (req, res) => {
 // CREATE PRODUCT
 const createProduct = async (req, res) => {
   try {
-    const { title, description, price, category_id, stock, sku, has_variants, cost_price } = req.body;
+    const { 
+      title, 
+      description, 
+      price, 
+      category_id, 
+      stock, 
+      sku, 
+      has_variants, 
+      cost_price,
+      tags // 🆕 NEW: Accept tags from request
+    } = req.body;
 
     // ✅ CHANGED: Support both 'images' array and 'image' single file
     const files = req.files || (req.file ? [req.file] : []);
@@ -193,6 +203,24 @@ const createProduct = async (req, res) => {
       });
     }
 
+    // 🆕 NEW: Parse tags from JSON string
+    let parsedTags = [];
+    let primaryTag = null;
+
+    if (tags) {
+      try {
+        parsedTags = JSON.parse(tags);
+        if (Array.isArray(parsedTags) && parsedTags.length > 0) {
+          // Convert all tags to lowercase
+          parsedTags = parsedTags.map(t => t.toLowerCase().trim());
+          primaryTag = parsedTags[0]; // First tag is primary
+        }
+      } catch (parseError) {
+        console.error('Tags parse error:', parseError);
+        parsedTags = [];
+      }
+    }
+
     // Create product first without image
     const productData = {
       title,
@@ -200,8 +228,10 @@ const createProduct = async (req, res) => {
       price: parseInt(price),
       stock: parseInt(stock),
       sku,
-      img_url: null, // ✅ CHANGED: Set null initially
-      has_variants: has_variants === 'true' || has_variants === true || false
+      img_url: null,
+      has_variants: has_variants === 'true' || has_variants === true || false,
+      tags: parsedTags, // 🆕 NEW
+      primary_tag: primaryTag // 🆕 NEW
     };
 
     if (cost_price) {
@@ -246,6 +276,7 @@ const createProduct = async (req, res) => {
       }
     }
 
+    console.log(`✅ Product created with ${parsedTags.length} tags:`, parsedTags);
     // ✅ CHANGED: Return with images array
     res.status(201).json({
       success: true,
@@ -324,7 +355,17 @@ const getProductById = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, price, stock, category_id, sku, has_variants, cost_price } = req.body;
+    const { 
+      title, 
+      description, 
+      price, 
+      stock, 
+      category_id, 
+      sku, 
+      has_variants, 
+      cost_price,
+      tags // 🆕 NEW
+    } = req.body;
 
     // Fetch existing product
     const { data: existingProduct, error: fetchError } = await supabase
@@ -348,7 +389,22 @@ const updateProduct = async (req, res) => {
     if (stock !== undefined) updateData.stock = parseInt(stock);
     if (sku) updateData.sku = sku;
 
-    // Handle cost_price and margins
+    // 🆕 NEW: Handle tags update
+    if (tags !== undefined) {
+      try {
+        const parsedTags = JSON.parse(tags);
+        if (Array.isArray(parsedTags)) {
+          const normalizedTags = parsedTags.map(t => t.toLowerCase().trim());
+          updateData.tags = normalizedTags;
+          updateData.primary_tag = normalizedTags.length > 0 ? normalizedTags[0] : null;
+          console.log(`🏷️ Updating product tags:`, normalizedTags);
+        }
+      } catch (parseError) {
+        console.error('Tags parse error:', parseError);
+      }
+}
+
+// Handle cost_price and margins
     if (cost_price !== undefined) {
       const newCostPrice = parseInt(cost_price) || 0;
       const currentPrice = price ? parseInt(price) : existingProduct.price;
@@ -584,7 +640,8 @@ const getAllProducts = async (req, res) => {
       limit = 20,
       in_stock,
       has_variants,
-      stock_level
+      stock_level,
+      tags
     } = req.query;
 
     let query = supabase
@@ -605,6 +662,21 @@ const getAllProducts = async (req, res) => {
 
     if (search) {
       query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,sku.ilike.%${search}%`);
+    }
+
+    // 🆕 NEW: Tags filter (AND logic - product must have ALL selected tags)
+    if (tags && tags.trim()) {
+      const selectedTags = tags
+        .split(',')
+        .map(t => t.trim().toLowerCase())
+        .filter(t => t.length > 0);
+
+      console.log('🏷️ Filtering products by tags:', selectedTags);
+
+      selectedTags.forEach(tag => {
+        const jsonArrayString = `["${tag}"]`;
+        query = query.filter('tags', 'cs', jsonArrayString);
+      });
     }
 
     if (stock_level) {

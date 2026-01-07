@@ -58,6 +58,16 @@ const ShopController = {
           productQuery = productQuery.gt('stock', 0);
         }
 
+        // 🆕 NEW: Add tag filtering for products
+        if (tags && tags.trim()) {
+          const tagArray = tags.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+          console.log(`🏷️ Filtering products by tags:`, tagArray);
+          
+          tagArray.forEach(tag => {
+            productQuery = productQuery.filter('tags', 'cs', `["${tag}"]`);
+          });
+        }
+
         // Sorting
         const ascending = order === 'asc';
         productQuery = productQuery.order(sort, { ascending });

@@ -1,4 +1,4 @@
-// frontend/src/pages/ShopNew.jsx - WITH LOADING PAGE
+// frontend/src/pages/ShopNew.jsx - WITH LOADING PAGE & PRODUCT TAGS SUPPORT
 
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -11,17 +11,20 @@ import ShopFiltersBar from '../components/shop/ShopFiltersBar';
 import useBundleFilters from '../hooks/useBundleFilters';
 import bundleService from '../services/bundleService';
 import shopService from '../services/shopService';
+import { getTagsWithCounts } from '../services/tagsService'; // 🆕 NEW: Import tags service
 import api from '../services/api';
 import { useCart } from '../hooks/useCart';
 
 /**
- * BundleShop Component - WITH LOADING PAGE
+ * BundleShop Component - WITH LOADING PAGE & PRODUCT TAGS SUPPORT
  * 
  * FEATURES:
  * - Shows animated loading page for first 5 seconds
  * - Zebra bars animation with brand name
  * - Smooth fade out transition
  * - Then shows normal shop content
+ * - 🆕 NEW: Supports filtering products AND bundles by tags
+ * - 🆕 NEW: Type filter (All | Products | Bundles)
  */
 const BundleShop = () => {
   // ✅ NEW: Loading page state
@@ -84,31 +87,31 @@ const BundleShop = () => {
     setIsInitialLoad(false);
   };
 
-  // Fetch tags from backend
+  // 🆕 UPDATED: Fetch tags with type filter support
   useEffect(() => {
     const fetchTags = async () => {
       setTagsLoading(true);
       try {
         console.log('🏷️ Fetching tags with dynamic counts based on current filters...');
         
-        const params = new URLSearchParams();
+        // 🆕 NEW: Build filter context with type
+        const filterContext = {
+          tags: filters.tags || '',
+          search: filters.search || '',
+          min_price: filters.min_price || '',
+          max_price: filters.max_price || '',
+          in_stock: filters.in_stock || '',
+          type: itemType || 'all' // 🆕 NEW: Pass item type to get correct counts
+        };
+
+        console.log('📤 Fetching tags with context:', filterContext);
         
-        if (filters.search) params.append('search', filters.search);
-        if (filters.min_price) params.append('min_price', filters.min_price);
-        if (filters.max_price) params.append('max_price', filters.max_price);
-        if (filters.in_stock) params.append('in_stock', filters.in_stock);
-        if (filters.tags) params.append('tags', filters.tags);
+        // 🆕 NEW: Use tagsService instead of direct API call
+        const response = await getTagsWithCounts(filterContext);
         
-        const queryString = params.toString();
-        const endpoint = `/api/tags/with-counts${queryString ? `?${queryString}` : ''}`;
-        
-        console.log('📤 Fetching tags from:', endpoint);
-        
-        const response = await api.get(endpoint);
-        
-        if (response.data.success && response.data.data) {
-          console.log('✅ Received dynamic tag counts:', response.data.data);
-          setAvailableTags(response.data.data);
+        if (response.success && response.data) {
+          console.log('✅ Received dynamic tag counts:', response.data);
+          setAvailableTags(response.data);
         } else {
           console.warn('⚠️ No tags returned from backend');
           setAvailableTags([]);
@@ -122,7 +125,7 @@ const BundleShop = () => {
     };
 
     fetchTags();
-  }, [filters.search, filters.min_price, filters.max_price, filters.in_stock, filters.tags]);
+  }, [filters.search, filters.min_price, filters.max_price, filters.in_stock, filters.tags, itemType]); // 🆕 NEW: Add itemType to dependencies
 
   // Fetch bundles
   useEffect(() => {
@@ -164,6 +167,7 @@ const BundleShop = () => {
     setLayoutMode(mode);
   };
 
+  // 🆕 NEW: Handle type change
   const handleTypeChange = (type) => {
     console.log(`🔧 Type filter change: ${type}`);
     setItemType(type);
@@ -268,8 +272,8 @@ const BundleShop = () => {
           loading={tagsLoading}
           layoutMode={layoutMode}
           onLayoutChange={handleLayoutChange}
-          itemType={itemType} // ⭐ NEW
-          onTypeChange={handleTypeChange} 
+          itemType={itemType} // 🆕 NEW: Pass itemType
+          onTypeChange={handleTypeChange} // 🆕 NEW: Pass type change handler
         />
 
         {/* CONTENT AREA */}
@@ -389,8 +393,8 @@ const BundleShop = () => {
               availableTags={availableTags}
               tagsLoading={tagsLoading}
               metadata={metadata}
-              itemType={itemType} // ⭐ ADD
-              onTypeChange={handleTypeChange}
+              itemType={itemType} // 🆕 NEW: Pass itemType to sidebar
+              onTypeChange={handleTypeChange} // 🆕 NEW: Pass type change handler
             />
           </div>
         </div>

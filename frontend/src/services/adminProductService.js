@@ -25,13 +25,13 @@ export const getProductById = async (productId) => {
 
 /**
  * Create new product (ADMIN)
- * ✅ UPDATED: Handles multiple images
+ * ✅ UPDATED: Handles multiple images + tags
  */
 export const createProduct = async (productData) => {
   try {
     const formData = new FormData();
     
-    // Append text fields
+    // Append basic fields
     formData.append('title', productData.title);
     formData.append('description', productData.description);
     formData.append('price', productData.price);
@@ -39,71 +39,92 @@ export const createProduct = async (productData) => {
     formData.append('stock', productData.stock);
     formData.append('sku', productData.sku);
     formData.append('has_variants', productData.has_variants);
+    
     if (productData.category_id) {
       formData.append('category_id', productData.category_id);
     }
     
-    // ✅ CHANGED: Append multiple images
-    if (productData.images && Array.isArray(productData.images)) {
-      productData.images.forEach(file => {
-        formData.append('images', file);
+    // 🆕 NEW: Append tags as JSON string
+    if (productData.tags && productData.tags.length > 0) {
+      formData.append('tags', JSON.stringify(productData.tags));
+    }
+    
+    // Append images
+    if (productData.images && productData.images.length > 0) {
+      productData.images.forEach((image) => {
+        formData.append('images', image);
       });
     }
     
     const response = await adminApi.post('/api/products/admin', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
     
-    return { success: true, data: response.data };
+    return {
+      success: true,
+      data: response.data
+    };
   } catch (error) {
+    console.error('Create product error:', error);
     return {
       success: false,
-      error: error.response?.data?.message || error.message
+      error: error.response?.data?.message || error.message || 'Failed to create product'
     };
   }
 };
 
 /**
  * Update existing product (ADMIN)
- * ✅ UPDATED: Handles multiple images and image deletion
+ * ✅ UPDATED: Handles multiple images, image deletion + tags
  */
 export const updateProduct = async (productId, productData) => {
   try {
     const formData = new FormData();
     
-    // Append text fields
-    formData.append('title', productData.title);
-    formData.append('description', productData.description);
-    formData.append('price', productData.price);
-    formData.append('cost_price', productData.cost_price);
-    formData.append('stock', productData.stock);
-    formData.append('sku', productData.sku);
-    formData.append('has_variants', productData.has_variants);
-    if (productData.category_id) {
-      formData.append('category_id', productData.category_id);
+    // Append basic fields
+    if (productData.title) formData.append('title', productData.title);
+    if (productData.description !== undefined) formData.append('description', productData.description);
+    if (productData.price) formData.append('price', productData.price);
+    if (productData.cost_price !== undefined) formData.append('cost_price', productData.cost_price);
+    if (productData.stock !== undefined) formData.append('stock', productData.stock);
+    if (productData.sku) formData.append('sku', productData.sku);
+    if (productData.has_variants !== undefined) formData.append('has_variants', productData.has_variants);
+    if (productData.category_id !== undefined) formData.append('category_id', productData.category_id);
+    
+    // 🆕 NEW: Append tags as JSON string
+    if (productData.tags !== undefined) {
+      formData.append('tags', JSON.stringify(productData.tags));
     }
     
-    // ✅ NEW: Handle multiple images for update
-    if (productData.images && Array.isArray(productData.images)) {
-      productData.images.forEach(file => {
-        formData.append('images', file);
+    // Append images
+    if (productData.images && productData.images.length > 0) {
+      productData.images.forEach((image) => {
+        formData.append('images', image);
       });
     }
     
-    // ✅ NEW: Handle image deletions
-    if (productData.delete_image_ids && Array.isArray(productData.delete_image_ids)) {
+    // Append image IDs to delete
+    if (productData.delete_image_ids && productData.delete_image_ids.length > 0) {
       formData.append('delete_image_ids', JSON.stringify(productData.delete_image_ids));
     }
     
     const response = await adminApi.put(`/api/products/admin/${productId}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
     
-    return { success: true, data: response.data };
+    return {
+      success: true,
+      data: response.data
+    };
   } catch (error) {
+    console.error('Update product error:', error);
     return {
       success: false,
-      error: error.response?.data?.message || error.message
+      error: error.response?.data?.message || error.message || 'Failed to update product'
     };
   }
 };

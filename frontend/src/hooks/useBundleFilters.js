@@ -1,4 +1,4 @@
-// frontend/src/hooks/useBundleFilters.js - FIXED TAGS SUPPORT
+// frontend/src/hooks/useBundleFilters.js - FIXED TAGS SUPPORT WITH ITEM TYPE
 
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -14,9 +14,15 @@ import { useSearchParams } from 'react-router-dom';
  * 4. ✅ Proper URL sync
  * 5. ✅ All existing filter functionality preserved
  * 6. ✅ Flexible setTags() that handles both string and array input
+ * 7. 🆕 NEW: Item type filter (all | products | bundles)
  */
 const useBundleFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // 🆕 NEW: Item type state
+  const [itemType, setItemTypeState] = useState(
+    searchParams.get('type') || 'all'
+  );
 
   // Initialize state from URL params
   const [filters, setFilters] = useState({
@@ -43,9 +49,10 @@ const useBundleFilters = () => {
     if (filters.in_stock) params.set('in_stock', filters.in_stock);
     if (filters.tags) params.set('tags', filters.tags);
     if (filters.page > 1) params.set('page', filters.page);
+    if (itemType && itemType !== 'all') params.set('type', itemType); // 🆕 NEW: Add type to URL
     
     setSearchParams(params, { replace: true });
-  }, [filters, setSearchParams]);
+  }, [filters, itemType, setSearchParams]); // 🆕 NEW: Add itemType to dependencies
 
   /**
    * Update search query
@@ -141,6 +148,19 @@ const useBundleFilters = () => {
   }, []);
 
   /**
+   * 🆕 NEW: Update item type filter
+   * @param {string} type - 'all' | 'products' | 'bundles'
+   */
+  const setItemType = useCallback((type) => {
+    console.log('🔄 Item type changed:', type);
+    setItemTypeState(type);
+    setFilters(prev => ({
+      ...prev,
+      page: 1 // Reset to first page when type changes
+    }));
+  }, []);
+
+  /**
    * Get tags as array (for UI checkboxes/selections)
    * @returns {Array<string>} Array of selected tag names (lowercase)
    * 
@@ -206,7 +226,7 @@ const useBundleFilters = () => {
   }, []);
 
   /**
-   * Reset all filters
+   * 🆕 UPDATED: Reset all filters (including item type)
    */
   const resetFilters = useCallback(() => {
     console.log('🔄 Resetting all filters');
@@ -220,6 +240,7 @@ const useBundleFilters = () => {
       page: 1,
       limit: 16
     });
+    setItemTypeState('all'); // 🆕 NEW: Reset item type
   }, []);
 
   /**
@@ -232,12 +253,13 @@ const useBundleFilters = () => {
       filters.max_price ||
       filters.in_stock ||
       (filters.sort && filters.sort !== 'created_at') ||
-      filters.tags
+      filters.tags ||
+      (itemType && itemType !== 'all') // 🆕 NEW: Include item type
     );
-  }, [filters]);
+  }, [filters, itemType]); // 🆕 NEW: Add itemType to dependencies
 
   /**
-   * Get query params object for API call
+   * 🆕 UPDATED: Get query params object for API call
    * Converts all filter values to proper format for backend
    */
   const getApiParams = useCallback(() => {
@@ -252,10 +274,11 @@ const useBundleFilters = () => {
     if (filters.max_price) params.max_price = filters.max_price;
     if (filters.in_stock) params.in_stock = filters.in_stock;
     if (filters.tags) params.tags = filters.tags; // Send as comma-separated string
+    if (itemType) params.type = itemType; // 🆕 NEW: Add item type
 
     console.log('📤 API Params:', params);
     return params;
-  }, [filters]);
+  }, [filters, itemType]); // 🆕 NEW: Add itemType to dependencies
 
   /**
    * Clear only tag filters (keep other filters)
@@ -279,11 +302,13 @@ const useBundleFilters = () => {
       in_stock: '',
       page: 1
     }));
+    setItemTypeState('all'); // 🆕 NEW: Reset item type too
   }, []);
 
   return {
     // ==================== STATE ====================
     filters,
+    itemType, // 🆕 NEW: Export item type
     
     // ==================== SETTERS ====================
     setSearch,
@@ -292,6 +317,7 @@ const useBundleFilters = () => {
     setInStock,
     setTags,        // FIXED: Now accepts both string and array
     setPage,
+    setItemType,    // 🆕 NEW: Item type setter
     resetFilters,
     
     // ==================== TAG UTILITIES ====================

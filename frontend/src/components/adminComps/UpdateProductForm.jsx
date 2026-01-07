@@ -70,6 +70,8 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(true);
   const toast = useToast();
+  const [tags, setTags] = useState([]); // 🆕 NEW: Tags array
+  const [tagsInput, setTagsInput] = useState(''); // 🆕 NEW: Current input
   
   // Field-level validation errors
   const [errors, setErrors] = useState({});
@@ -130,6 +132,11 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         setVariantCount(product.variants.length);
       }
       
+      // 🆕 NEW: Load existing tags
+      if (product.tags && Array.isArray(product.tags)) {
+        setTags(product.tags.map(t => t.toLowerCase().trim()));
+      }
+
       setLoadingProduct(false);
     } catch (error) {
       console.error('Error fetching product:', error);
@@ -382,6 +389,38 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     });
   };
   
+  // 🆕 NEW: Handle tags input (Enter key)
+  const handleTagsKeyDown = (e) => {
+    if (e.key === 'Enter' && tagsInput.trim()) {
+      e.preventDefault();
+      const newTag = tagsInput.trim().toLowerCase();
+      
+      // Validation
+      if (newTag.length < 2) {
+        toast.error('Tag must be at least 2 characters');
+        return;
+      }
+      
+      if (tags.includes(newTag)) {
+        toast.error('Tag already added');
+        return;
+      }
+      
+      if (tags.length >= 10) {
+        toast.error('Maximum 10 tags allowed');
+        return;
+      }
+      
+      setTags(prev => [...prev, newTag]);
+      setTagsInput('');
+    }
+  };
+
+  // 🆕 NEW: Remove tag
+  const handleRemoveTag = (tagToRemove) => {
+    setTags(prev => prev.filter(tag => tag !== tagToRemove));
+  };
+
   const calculateMargins = (costPrice, sellingPrice) => {
     const cost = parseFloat(costPrice) || 0;
     const price = parseFloat(sellingPrice) || 0;
@@ -500,7 +539,8 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         category_id: formData.category_id || '',
         has_variants: hasVariants,
         images: images.map(img => img.file), // New images
-        delete_image_ids: imagesToDelete // Images to delete
+        delete_image_ids: imagesToDelete, // Images to delete
+        tags: tags // 🆕 NEW: Include tags
       };
 
       // ✅ NEW: Handle primary image change for existing images
@@ -998,6 +1038,76 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
           </div>
         )}
 
+        {/* 🆕 NEW: Tags Section */}
+        <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
+          <h3 className="text-base font-bold text-tppslate mb-4 flex items-center gap-2">
+            <Tag className="w-5 h-5" />
+            Product Tags
+          </h3>
+          
+          <div className="space-y-3">
+            {/* Tags Input */}
+            <InputWrapper 
+              label="Add Tags" 
+              name="tags" 
+              icon={Tag}
+              hint="Press Enter to add tags (e.g., 'gift', 'birthday', 'romantic')"
+            >
+              <input
+                type="text"
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                onKeyDown={handleTagsKeyDown}
+                placeholder="Type tag and press Enter..."
+                className="w-full px-4 py-2.5 border-2 border-tpppink/30 rounded-lg text-sm hover:border-tpppink hover:bg-tpppeach/10 focus:border-tpppink focus:outline-none focus:ring-2 focus:ring-tppslate/20 transition-all duration-200 bg-white"
+              />
+            </InputWrapper>
+
+            {/* Tags Display */}
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag, index) => (
+                  <div
+                    key={tag}
+                    className="group flex items-center gap-1.5 px-3 py-1.5 bg-tpppeach/40 text-tpppink rounded-full text-xs font-semibold border-2 border-tpppink/20 hover:border-tpppink transition-all"
+                  >
+                    {index === 0 && (
+                      <Star size={12} className="text-tpppink" fill="currentColor" />
+                    )}
+                    <span>{tag}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTag(tag)}
+                      className="ml-1 text-tpppink/60 hover:text-tpppink transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Primary Tag Indicator */}
+            {tags.length > 0 && (
+              <p className="text-xs text-tppslate/60 flex items-center gap-1">
+                <Star size={12} className="text-tpppink" fill="currentColor" />
+                <span className="font-semibold text-tpppink">{tags[0]}</span> 
+                is the primary tag
+              </p>
+            )}
+
+            {/* Tags Helper Text */}
+            <div className="p-3 bg-blue-50 border-2 border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-800 flex items-start gap-2">
+                <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>
+                  Tags help customers discover your product. Add relevant keywords like occasion, category, or style. First tag is the primary tag.
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+        
         {/* Description Section */}
         <div className="bg-white rounded-lg p-6 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
           <InputWrapper 

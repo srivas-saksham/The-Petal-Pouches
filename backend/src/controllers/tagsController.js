@@ -84,87 +84,115 @@ const getTagsWithCounts = async (req, res) => {
       search = '',
       min_price = '',
       max_price = '',
-      in_stock = ''
+      in_stock = '',
+      type = 'all'
     } = req.query;
 
     console.log('📊 Get tags with counts - CONTEXT-AWARE');
-    console.log('   Current filters:', { tags, search, min_price, max_price, in_stock });
+    console.log('   Current filters:', { tags, search, min_price, max_price, in_stock, type });
 
-    // Start with base query for active bundles
-    let query = supabase
-      .from('Bundles')
-      .select('tags')
-      .eq('is_active', true)
-      .not('tags', 'is', null);
+    const tagCounts = {};
+    let totalItems = 0;
 
     // ==========================================
-    // APPLY CURRENT FILTERS TO GET BASE SET
+    // FETCH FROM BUNDLES (if type is 'all' or 'bundles')
     // ==========================================
+    if (type === 'all' || type === 'bundles') {
+      let bundleQuery = supabase
+        .from('Bundles')
+        .select('tags')
+        .eq('is_active', true)
+        .not('tags', 'is', null);
 
-    // If tags are already selected, filter by them (AND logic)
-    if (tags && tags.trim()) {
-      const selectedTags = tags
-        .split(',')
-        .map(t => t.trim().toLowerCase())
-        .filter(t => t.length > 0);
+      // Apply filters to bundles
+      if (tags && tags.trim()) {
+        const selectedTags = tags.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+        selectedTags.forEach(tag => {
+          bundleQuery = bundleQuery.filter('tags', 'cs', `["${tag}"]`);
+        });
+      }
 
-      console.log('🏷️ Filtering base set by selected tags:', selectedTags);
+      if (search && search.trim()) {
+        bundleQuery = bundleQuery.ilike('title', `%${search.trim()}%`);
+      }
 
-      // Apply AND logic - bundles must have ALL selected tags
-      selectedTags.forEach(tag => {
-        const jsonArrayString = `["${tag}"]`;
-        query = query.filter('tags', 'cs', jsonArrayString);
+      if (min_price) bundleQuery = bundleQuery.gte('price', parseInt(min_price));
+      if (max_price) bundleQuery = bundleQuery.lte('price', parseInt(max_price));
+
+      if (in_stock === 'true') {
+        bundleQuery = bundleQuery.not('stock_limit', 'is', null);
+        bundleQuery = bundleQuery.gt('stock_limit', 0);
+      }
+
+      const { data: bundles, error: bundleError } = await bundleQuery;
+      if (bundleError) throw bundleError;
+
+      console.log(`📦 Found ${bundles?.length || 0} bundles`);
+      totalItems += bundles?.length || 0;
+
+      // Count tags from bundles
+      (bundles || []).forEach(bundle => {
+        if (Array.isArray(bundle.tags)) {
+          bundle.tags.forEach(tag => {
+            if (tag && tag.trim()) {
+              const normalizedTag = tag.toLowerCase().trim();
+              tagCounts[normalizedTag] = (tagCounts[normalizedTag] || 0) + 1;
+            }
+          });
+        }
       });
     }
 
-    // Apply search filter
-    if (search && search.trim()) {
-      query = query.ilike('title', `%${search.trim()}%`);
-      console.log('🔍 Applying search filter:', search);
-    }
-
-    // Apply price filters
-    if (min_price) {
-      query = query.gte('price', parseInt(min_price));
-      console.log('💰 Applying min price:', min_price);
-    }
-    if (max_price) {
-      query = query.lte('price', parseInt(max_price));
-      console.log('💰 Applying max price:', max_price);
-    }
-
-    // Apply stock filter
-    if (in_stock === 'true') {
-      query = query.not('stock_limit', 'is', null);
-      query = query.gt('stock_limit', 0);
-      console.log('📦 Applying stock filter');
-    }
-
-    // Execute query to get filtered bundles
-    const { data: bundles, error } = await query;
-
-    if (error) throw error;
-
-    console.log(`📦 Found ${bundles?.length || 0} bundles matching current filters`);
-
     // ==========================================
-    // COUNT TAG OCCURRENCES IN FILTERED SET
+    // 🆕 NEW: FETCH FROM PRODUCTS (if type is 'all' or 'products')
     // ==========================================
+    if (type === 'all' || type === 'products') {
+      let productQuery = supabase
+        .from('Products')
+        .select('tags')
+        .not('tags', 'is', null);
 
-    const tagCounts = {};
-    
-    (bundles || []).forEach(bundle => {
-      if (Array.isArray(bundle.tags)) {
-        bundle.tags.forEach(tag => {
-          if (tag && tag.trim()) {
-            const normalizedTag = tag.toLowerCase().trim();
-            tagCounts[normalizedTag] = (tagCounts[normalizedTag] || 0) + 1;
-          }
+      // Apply filters to products
+      if (tags && tags.trim()) {
+        const selectedTags = tags.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+        selectedTags.forEach(tag => {
+          productQuery = productQuery.filter('tags', 'cs', `["${tag}"]`);
         });
       }
-    });
 
-    // Convert to array format and sort by count (descending)
+      if (search && search.trim()) {
+        productQuery = productQuery.or(`title.ilike.%${search.trim()}%,description.ilike.%${search.trim()}%`);
+      }
+
+      if (min_price) productQuery = productQuery.gte('price', parseInt(min_price));
+      if (max_price) productQuery = productQuery.lte('price', parseInt(max_price));
+
+      if (in_stock === 'true') {
+        productQuery = productQuery.gt('stock', 0);
+      }
+
+      const { data: products, error: productError } = await productQuery;
+      if (productError) throw productError;
+
+      console.log(`📦 Found ${products?.length || 0} products`);
+      totalItems += products?.length || 0;
+
+      // Count tags from products
+      (products || []).forEach(product => {
+        if (Array.isArray(product.tags)) {
+          product.tags.forEach(tag => {
+            if (tag && tag.trim()) {
+              const normalizedTag = tag.toLowerCase().trim();
+              tagCounts[normalizedTag] = (tagCounts[normalizedTag] || 0) + 1;
+            }
+          });
+        }
+      });
+    }
+
+    // ==========================================
+    // FORMAT AND SORT RESULTS
+    // ==========================================
     const tagsWithCounts = Object.entries(tagCounts)
       .map(([name, count]) => ({
         name,
@@ -173,15 +201,15 @@ const getTagsWithCounts = async (req, res) => {
       }))
       .sort((a, b) => b.count - a.count);
 
-    console.log(`✅ Returning ${tagsWithCounts.length} tags with dynamic counts`);
-    console.log('📊 Top 5 tags:', tagsWithCounts.slice(0, 5).map(t => `${t.name}(${t.count})`).join(', '));
+    console.log(`✅ Returning ${tagsWithCounts.length} tags`);
+    console.log('📊 Top 5:', tagsWithCounts.slice(0, 5).map(t => `${t.name}(${t.count})`).join(', '));
 
     res.status(200).json({
       success: true,
       data: tagsWithCounts,
       context: {
-        appliedFilters: { tags, search, min_price, max_price, in_stock },
-        bundlesInContext: bundles?.length || 0
+        appliedFilters: { tags, search, min_price, max_price, in_stock, type },
+        totalItems
       }
     });
 
