@@ -262,21 +262,6 @@ export default function AdminOrderCard({ order, onViewOrder, onStatusUpdate }) {
                   {statusConfig.label}
                 </span>
 
-                {/* ⭐ Item Type Badge (Product/Bundle) */}
-                <div className={`absolute top-11 right-2 ${firstItemType === 'product' ? 'bg-tpppink' : 'bg-tppslate'} text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide shadow-lg flex items-center gap-1`}>
-                  {firstItemType === 'product' ? (
-                    <>
-                      <Box className="w-3 h-3" />
-                      PRODUCT
-                    </>
-                  ) : (
-                    <>
-                      <Package className="w-3 h-3" />
-                      BUNDLE
-                    </>
-                  )}
-                </div>
-
                 {/* Priority Indicator */}
                 {priority.show && !['cancelled', 'delivered'].includes(order.status) && (
                   <div className={`absolute top-11 left-2 ${priority.color} text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide shadow-lg flex items-center gap-1`}>

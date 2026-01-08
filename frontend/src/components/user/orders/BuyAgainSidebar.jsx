@@ -4,26 +4,34 @@ import { useState, useEffect, useRef } from 'react';
 import { RotateCcw, ShoppingCart, Package, Loader, Plus, Minus, Check, Trash2 } from 'lucide-react';
 import { getOrders } from '../../../services/orderService';
 import { getBundleById } from '../../../services/bundleService';
-import { addBundleToCart, updateCartItem, removeFromCart } from '../../../services/cartService';
+import { getProductById } from '../../../services/productService';
+import { addBundleToCart, addProductToCart, updateCartItem, removeFromCart } from '../../../services/cartService';
 import { useCart } from '../../../hooks/useCart';
 
 /**
- * Buy Again sidebar - Shows unique bundles from all orders (except cancelled) for quick reordering
- * ✅ WITH IN-CART CONTROLS: Same debounced update functionality as BundleKeyDetails
+ * Buy Again sidebar - Shows unique bundles AND products from all orders (except cancelled)
+ * ✅ UNIFIED: Handles both bundles and products with in-cart controls
+ * ✅ Same debounced update logic as BundleKeyDetails and ProductCard
  */
 const BuyAgainSidebar = ({ onReorder }) => {
-  const [bundles, setBundles] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [addingBundleId, setAddingBundleId] = useState(null);
+  const [addingItemId, setAddingItemId] = useState(null);
   
-  // Track individual bundle states
-  const [bundleStates, setBundleStates] = useState({});
+  // Track individual item states (works for both bundles and products)
+  const [itemStates, setItemStates] = useState({});
   const debounceTimersRef = useRef({});
 
-  const { refreshCart, getBundleQuantityInCart, getCartItemByBundleId } = useCart();
+  const { 
+    refreshCart, 
+    getBundleQuantityInCart, 
+    getProductQuantityInCart,
+    getCartItemByBundleId,
+    getCartItemByProductId 
+  } = useCart();
 
   useEffect(() => {
-    loadPendingBundles();
+    loadPurchasedItems();
   }, []);
 
   // Cleanup debounce timers on unmount
@@ -35,11 +43,11 @@ const BuyAgainSidebar = ({ onReorder }) => {
     };
   }, []);
 
-  const loadPendingBundles = async () => {
+  const loadPurchasedItems = async () => {
     try {
       setLoading(true);
       
-      // Fetch all orders (we'll filter out cancelled ones)
+      // Fetch all orders (filter out cancelled ones)
       const response = await getOrders({
         limit: 100,
         page: 1
@@ -54,14 +62,17 @@ const BuyAgainSidebar = ({ onReorder }) => {
         );
         
         const bundleMap = new Map();
+        const productMap = new Map();
         
         activeOrders.forEach(order => {
           const orderItems = order.order_items || order.items_preview || [];
           
           orderItems.forEach(item => {
+            const itemCreatedAt = item.created_at || order.created_at;
+            
+            // Handle BUNDLES
             if (item.bundle_id) {
               const bundleId = item.bundle_id;
-              const itemCreatedAt = item.created_at || order.created_at;
               
               if (bundleMap.has(bundleId)) {
                 const existing = bundleMap.get(bundleId);
@@ -79,8 +90,40 @@ const BuyAgainSidebar = ({ onReorder }) => {
               } else {
                 bundleMap.set(bundleId, {
                   id: bundleId,
+                  type: 'bundle',
                   title: item.bundle_title || 'Bundle',
                   img_url: item.bundle_img || item.img_url,
+                  price: item.price || 0,
+                  lastOrderDate: itemCreatedAt,
+                  orderId: order.id,
+                  orderItemId: item.id
+                });
+              }
+            }
+            
+            // Handle PRODUCTS
+            if (item.product_id) {
+              const productId = item.product_id;
+              
+              if (productMap.has(productId)) {
+                const existing = productMap.get(productId);
+                const existingDate = new Date(existing.lastOrderDate);
+                const currentDate = new Date(itemCreatedAt);
+                
+                if (currentDate > existingDate) {
+                  productMap.set(productId, {
+                    ...existing,
+                    lastOrderDate: itemCreatedAt,
+                    orderId: order.id,
+                    orderItemId: item.id
+                  });
+                }
+              } else {
+                productMap.set(productId, {
+                  id: productId,
+                  type: 'product',
+                  title: item.product_title || item.title || 'Product',
+                  img_url: item.product_img || item.img_url,
                   price: item.price || 0,
                   lastOrderDate: itemCreatedAt,
                   orderId: order.id,
@@ -91,121 +134,149 @@ const BuyAgainSidebar = ({ onReorder }) => {
           });
         });
 
-        const uniqueBundles = Array.from(bundleMap.values())
+        // Combine bundles and products, sort by most recent, take top 5
+        const allItems = [
+          ...Array.from(bundleMap.values()),
+          ...Array.from(productMap.values())
+        ]
           .sort((a, b) => new Date(b.lastOrderDate) - new Date(a.lastOrderDate))
           .slice(0, 5);
 
-        const bundlesWithDetails = await Promise.all(
-          uniqueBundles.map(async (bundle) => {
+        // Fetch full details for each item
+        const itemsWithDetails = await Promise.all(
+          allItems.map(async (item) => {
             try {
-              const detailsResponse = await getBundleById(bundle.id);
-              if (detailsResponse.success) {
-                return {
-                  ...bundle,
-                  title: detailsResponse.data.title || bundle.title,
-                  img_url: detailsResponse.data.img_url || bundle.img_url,
-                  price: detailsResponse.data.price || bundle.price,
-                  is_active: detailsResponse.data.is_active,
-                  discount_percent: detailsResponse.data.discount_percent,
-                  original_price: detailsResponse.data.original_price,
-                  stock_limit: detailsResponse.data.stock_limit,
-                  lastOrderDate: bundle.lastOrderDate,
-                  orderId: bundle.orderId,
-                  orderItemId: bundle.orderItemId
-                };
+              if (item.type === 'bundle') {
+                const detailsResponse = await getBundleById(item.id);
+                if (detailsResponse.success) {
+                  return {
+                    ...item,
+                    title: detailsResponse.data.title || item.title,
+                    img_url: detailsResponse.data.img_url || item.img_url,
+                    price: detailsResponse.data.price || item.price,
+                    is_active: detailsResponse.data.is_active,
+                    discount_percent: detailsResponse.data.discount_percent,
+                    original_price: detailsResponse.data.original_price,
+                    stock_limit: detailsResponse.data.stock_limit
+                  };
+                }
+              } else if (item.type === 'product') {
+                const detailsResponse = await getProductById(item.id);
+                if (detailsResponse.success) {
+                  return {
+                    ...item,
+                    title: detailsResponse.data.title || item.title,
+                    img_url: detailsResponse.data.img_url || item.img_url,
+                    price: detailsResponse.data.price || item.price,
+                    is_active: true, // Products don't have is_active in your schema
+                    stock_limit: detailsResponse.data.stock
+                  };
+                }
               }
-              return bundle;
+              return item;
             } catch (error) {
-              console.error(`Failed to fetch bundle ${bundle.id}:`, error);
-              return bundle;
+              console.error(`Failed to fetch ${item.type} ${item.id}:`, error);
+              return item;
             }
           })
         );
 
-        setBundles(bundlesWithDetails);
+        setItems(itemsWithDetails);
         
-        // Initialize bundle states
+        // Initialize item states
         const initialStates = {};
-        bundlesWithDetails.forEach(bundle => {
-          const cartItem = getCartItemByBundleId(bundle.id);
-          initialStates[bundle.id] = {
+        itemsWithDetails.forEach(item => {
+          const cartItem = item.type === 'bundle' 
+            ? getCartItemByBundleId(item.id)
+            : getCartItemByProductId(item.id);
+            
+          initialStates[item.id] = {
             localQuantity: cartItem ? cartItem.quantity : 1,
             updating: false,
             pendingQuantity: null,
             showRemoveConfirm: false
           };
         });
-        setBundleStates(initialStates);
+        setItemStates(initialStates);
       }
     } catch (error) {
-      console.error('Error loading pending bundles:', error);
+      console.error('Error loading purchased items:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Update bundle state
-  const updateBundleState = (bundleId, updates) => {
-    setBundleStates(prev => ({
+  // Update item state
+  const updateItemState = (itemId, updates) => {
+    setItemStates(prev => ({
       ...prev,
-      [bundleId]: { ...prev[bundleId], ...updates }
+      [itemId]: { ...prev[itemId], ...updates }
     }));
   };
 
-  // Debounced cart update effect for each bundle
+  // Get cart item helper
+  const getCartItem = (item) => {
+    return item.type === 'bundle'
+      ? getCartItemByBundleId(item.id)
+      : getCartItemByProductId(item.id);
+  };
+
+  // Debounced cart update effect for each item
   useEffect(() => {
-    Object.entries(bundleStates).forEach(([bundleId, state]) => {
+    Object.entries(itemStates).forEach(([itemId, state]) => {
       if (state.pendingQuantity === null) return;
 
-      const cartItem = getCartItemByBundleId(bundleId);
+      const item = items.find(i => i.id === itemId);
+      if (!item) return;
+
+      const cartItem = getCartItem(item);
       if (!cartItem) return;
 
-      // Clear existing timer for this bundle
-      if (debounceTimersRef.current[bundleId]) {
-        clearTimeout(debounceTimersRef.current[bundleId]);
+      // Clear existing timer for this item
+      if (debounceTimersRef.current[itemId]) {
+        clearTimeout(debounceTimersRef.current[itemId]);
       }
 
       // Set new timer
-      debounceTimersRef.current[bundleId] = setTimeout(async () => {
-        updateBundleState(bundleId, { updating: true });
+      debounceTimersRef.current[itemId] = setTimeout(async () => {
+        updateItemState(itemId, { updating: true });
 
         try {
           if (state.pendingQuantity === 0) {
             const result = await removeFromCart(cartItem.id);
             if (result.success) {
               refreshCart();
-              updateBundleState(bundleId, { 
+              updateItemState(itemId, { 
                 localQuantity: 1, 
                 showRemoveConfirm: false 
               });
             } else {
               alert(result.error || 'Failed to remove item');
-              updateBundleState(bundleId, { localQuantity: cartItem.quantity });
+              updateItemState(itemId, { localQuantity: cartItem.quantity });
             }
           } else {
-            const bundle = bundles.find(b => b.id === bundleId);
-            const stockLimit = bundle?.stock_limit;
+            const stockLimit = item.stock_limit;
             const result = await updateCartItem(cartItem.id, state.pendingQuantity, stockLimit);
             if (result.success) {
               refreshCart();
             } else {
               alert(result.error || 'Failed to update quantity');
-              updateBundleState(bundleId, { localQuantity: cartItem.quantity });
+              updateItemState(itemId, { localQuantity: cartItem.quantity });
             }
           }
         } catch (error) {
           console.error('Update error:', error);
           alert('Failed to update quantity');
-          updateBundleState(bundleId, { localQuantity: cartItem.quantity });
+          updateItemState(itemId, { localQuantity: cartItem.quantity });
         } finally {
-          updateBundleState(bundleId, { 
+          updateItemState(itemId, { 
             updating: false, 
             pendingQuantity: null 
           });
         }
       }, 800);
     });
-  }, [bundleStates, bundles, getCartItemByBundleId, refreshCart]);
+  }, [itemStates, items, refreshCart]);
 
   const formatCurrency = (amount) => {
     const num = parseFloat(amount) || 0;
@@ -229,90 +300,95 @@ const BuyAgainSidebar = ({ onReorder }) => {
     return `${Math.floor(diffDays / 30)} months ago`;
   };
 
-  const handleAddToCart = async (bundle) => {
-    if (!bundle.is_active) {
+  const handleAddToCart = async (item) => {
+    // Check availability
+    if (item.type === 'bundle' && !item.is_active) {
       alert('This bundle is no longer available');
       return;
     }
 
-    const stockLimit = bundle.stock_limit;
+    const stockLimit = item.stock_limit;
     const isOutOfStock = stockLimit === 0 || stockLimit === null;
     
     if (isOutOfStock) {
-      alert('This bundle is currently out of stock');
+      alert(`This ${item.type} is currently out of stock`);
       return;
     }
 
-    setAddingBundleId(bundle.id);
+    setAddingItemId(item.id);
     
     try {
-      const quantityInCart = getBundleQuantityInCart(bundle.id);
-      const result = await addBundleToCart(bundle.id, 1, stockLimit, quantityInCart);
+      let result;
+      
+      if (item.type === 'bundle') {
+        const quantityInCart = getBundleQuantityInCart(item.id);
+        result = await addBundleToCart(item.id, 1, stockLimit, quantityInCart);
+      } else {
+        result = await addProductToCart(item.id, 1);
+      }
       
       if (result.success) {
         refreshCart();
-        
-        // Update local state to show in-cart controls
-        updateBundleState(bundle.id, { localQuantity: 1 });
+        updateItemState(item.id, { localQuantity: 1 });
         
         if (onReorder) {
-          onReorder(bundle.id);
+          onReorder(item.id, item.type);
         }
       } else {
-        alert(result.error || 'Failed to add bundle to cart');
+        alert(result.error || `Failed to add ${item.type} to cart`);
       }
     } catch (error) {
-      console.error('Error adding bundle to cart:', error);
-      alert('Failed to add bundle to cart');
+      console.error(`Error adding ${item.type} to cart:`, error);
+      alert(`Failed to add ${item.type} to cart`);
     } finally {
-      setAddingBundleId(null);
+      setAddingItemId(null);
     }
   };
 
-  const handleIncrement = (bundle) => {
-    const state = bundleStates[bundle.id] || {};
+  const handleIncrement = (item) => {
+    const state = itemStates[item.id] || {};
     const currentQuantity = state.localQuantity || 1;
     const newQuantity = currentQuantity + 1;
 
-    if (bundle.stock_limit && newQuantity > bundle.stock_limit) {
-      alert(`Maximum ${bundle.stock_limit} units allowed`);
+    if (item.stock_limit && newQuantity > item.stock_limit) {
+      alert(`Maximum ${item.stock_limit} units allowed`);
       return;
     }
 
-    updateBundleState(bundle.id, {
+    updateItemState(item.id, {
       localQuantity: newQuantity,
       pendingQuantity: newQuantity
     });
   };
 
-  const handleDecrement = (bundle) => {
-    const state = bundleStates[bundle.id] || {};
+  const handleDecrement = (item) => {
+    const state = itemStates[item.id] || {};
     const currentQuantity = state.localQuantity || 1;
     
     if (currentQuantity <= 1) return;
     
     const newQuantity = currentQuantity - 1;
-    updateBundleState(bundle.id, {
+    updateItemState(item.id, {
       localQuantity: newQuantity,
       pendingQuantity: newQuantity
     });
   };
 
-  const handleRemoveClick = (bundleId) => {
-    updateBundleState(bundleId, { showRemoveConfirm: true });
+  const handleRemoveClick = (itemId) => {
+    updateItemState(itemId, { showRemoveConfirm: true });
   };
 
-  const handleConfirmRemove = async (bundleId) => {
-    const cartItem = getCartItemByBundleId(bundleId);
+  const handleConfirmRemove = async (item) => {
+    const cartItem = getCartItem(item);
     if (!cartItem) return;
 
-    updateBundleState(bundleId, { updating: true });
+    updateItemState(item.id, { updating: true });
     
     try {
       const result = await removeFromCart(cartItem.id);
       if (result.success) {
         refreshCart();
-        updateBundleState(bundleId, {
+        updateItemState(item.id, {
           localQuantity: 1,
           showRemoveConfirm: false
         });
@@ -322,12 +398,12 @@ const BuyAgainSidebar = ({ onReorder }) => {
     } catch (error) {
       alert('Failed to remove item');
     } finally {
-      updateBundleState(bundleId, { updating: false });
+      updateItemState(item.id, { updating: false });
     }
   };
 
-  const handleCancelRemove = (bundleId) => {
-    updateBundleState(bundleId, { showRemoveConfirm: false });
+  const handleCancelRemove = (itemId) => {
+    updateItemState(itemId, { showRemoveConfirm: false });
   };
 
   if (loading) {
@@ -355,7 +431,7 @@ const BuyAgainSidebar = ({ onReorder }) => {
     );
   }
 
-  if (!bundles || bundles.length === 0) {
+  if (!items || items.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-tppslate/10 p-4 relative">
         <h3 className="text-lg font-bold text-tppslate mb-4 flex items-center gap-2">
@@ -368,7 +444,7 @@ const BuyAgainSidebar = ({ onReorder }) => {
             No orders yet
           </p>
           <p className="text-xs text-tppslate/80 mt-1">
-            Your ordered bundles will appear here
+            Your ordered items will appear here
           </p>
         </div>
       </div>
@@ -383,15 +459,15 @@ const BuyAgainSidebar = ({ onReorder }) => {
       </h3>
       
       <div className="space-y-3">
-        {bundles.map((bundle) => {
-          const hasDiscount = bundle.discount_percent && bundle.discount_percent > 0;
-          const isAdding = addingBundleId === bundle.id;
-          const isOutOfStock = bundle.stock_limit === 0 || bundle.stock_limit === null;
-          const isUnavailable = !bundle.is_active || isOutOfStock;
-          const cartItem = getCartItemByBundleId(bundle.id);
+        {items.map((item) => {
+          const hasDiscount = item.discount_percent && item.discount_percent > 0;
+          const isAdding = addingItemId === item.id;
+          const isOutOfStock = item.stock_limit === 0 || item.stock_limit === null;
+          const isUnavailable = (item.type === 'bundle' && !item.is_active) || isOutOfStock;
+          const cartItem = getCartItem(item);
           const isInCart = !!cartItem;
           
-          const state = bundleStates[bundle.id] || {
+          const state = itemStates[item.id] || {
             localQuantity: 1,
             updating: false,
             pendingQuantity: null,
@@ -400,15 +476,15 @@ const BuyAgainSidebar = ({ onReorder }) => {
           
           return (
             <div
-              key={bundle.id}
+              key={`${item.type}-${item.id}`}
               className="border border-tppslate/10 rounded-lg p-3 hover:border-tpppink/30 hover:shadow-sm transition-all group"
             >
               <div className="flex gap-3 mb-3">
-                {/* Bundle Image */}
+                {/* Item Image */}
                 <div className="w-16 h-16 flex-shrink-0 rounded-lg border border-tppslate/10 overflow-hidden bg-gray-50 relative">
                   <img
-                    src={bundle.img_url || '/placeholder.png'}
-                    alt={bundle.title}
+                    src={item.img_url || '/placeholder.png'}
+                    alt={item.title}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       e.target.src = '/placeholder.png';
@@ -416,7 +492,7 @@ const BuyAgainSidebar = ({ onReorder }) => {
                   />
                   {hasDiscount && (
                     <div className="absolute top-1 right-1 bg-tpppink text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                      {bundle.discount_percent}%
+                      {item.discount_percent}%
                     </div>
                   )}
                   {isOutOfStock && (
@@ -426,23 +502,23 @@ const BuyAgainSidebar = ({ onReorder }) => {
                   )}
                 </div>
 
-                {/* Bundle Info */}
+                {/* Item Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-tppslate mb-1 truncate" title={bundle.title}>
-                    {bundle.title}
+                  <p className="text-sm font-bold text-tppslate mb-1 truncate" title={item.title}>
+                    {item.title}
                   </p>
                   <div className="flex items-center gap-2 mb-1">
                     <p className="text-xs font-semibold text-tppslate">
-                      {formatCurrency(bundle.price)}
+                      {formatCurrency(item.price)}
                     </p>
-                    {hasDiscount && bundle.original_price && (
+                    {hasDiscount && item.original_price && (
                       <p className="text-xs text-tppslate/80 line-through">
-                        {formatCurrency(bundle.original_price)}
+                        {formatCurrency(item.original_price)}
                       </p>
                     )}
                   </div>
                   <p className="text-xs text-tppslate/80">
-                    Ordered: {formatDate(bundle.lastOrderDate)}
+                    Ordered: {formatDate(item.lastOrderDate)}
                   </p>
                 </div>
               </div>
@@ -451,7 +527,7 @@ const BuyAgainSidebar = ({ onReorder }) => {
               {!isInCart ? (
                 // Add to Cart Button
                 <button
-                  onClick={() => handleAddToCart(bundle)}
+                  onClick={() => handleAddToCart(item)}
                   disabled={isAdding || isUnavailable}
                   className={`w-full px-3 py-2 text-sm rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
                     isUnavailable
@@ -468,7 +544,7 @@ const BuyAgainSidebar = ({ onReorder }) => {
                     </>
                   ) : isOutOfStock ? (
                     'Out of Stock'
-                  ) : !bundle.is_active ? (
+                  ) : isUnavailable ? (
                     'Unavailable'
                   ) : (
                     <>
@@ -496,7 +572,7 @@ const BuyAgainSidebar = ({ onReorder }) => {
 
                     <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => handleDecrement(bundle)}
+                        onClick={() => handleDecrement(item)}
                         disabled={state.updating || state.localQuantity <= 1}
                         className="w-7 h-7 border border-green-600 text-green-600 rounded hover:bg-green-50 transition-all disabled:opacity-40 flex items-center justify-center font-bold text-sm"
                       >
@@ -511,8 +587,8 @@ const BuyAgainSidebar = ({ onReorder }) => {
                       </div>
 
                       <button
-                        onClick={() => handleIncrement(bundle)}
-                        disabled={state.updating || (bundle.stock_limit && state.localQuantity >= bundle.stock_limit)}
+                        onClick={() => handleIncrement(item)}
+                        disabled={state.updating || (item.stock_limit && state.localQuantity >= item.stock_limit)}
                         className="w-7 h-7 border border-green-600 text-green-600 rounded hover:bg-green-50 transition-all disabled:opacity-40 flex items-center justify-center font-bold text-sm"
                       >
                         <Plus size={12} />
@@ -523,7 +599,7 @@ const BuyAgainSidebar = ({ onReorder }) => {
                   {/* Remove Button */}
                   {!state.showRemoveConfirm ? (
                     <button
-                      onClick={() => handleRemoveClick(bundle.id)}
+                      onClick={() => handleRemoveClick(item.id)}
                       disabled={state.updating}
                       className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 border border-red-500 text-red-600 rounded text-[11px] font-bold hover:bg-red-50 transition-all disabled:opacity-50"
                     >
@@ -533,14 +609,14 @@ const BuyAgainSidebar = ({ onReorder }) => {
                   ) : (
                     <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => handleConfirmRemove(bundle.id)}
+                        onClick={() => handleConfirmRemove(item)}
                         disabled={state.updating}
                         className="flex-1 bg-red-500 hover:bg-red-600 text-white text-[11px] font-bold px-2 py-1.5 rounded transition-all disabled:opacity-40"
                       >
                         {state.updating ? <Loader size={11} className="animate-spin mx-auto" /> : 'Confirm'}
                       </button>
                       <button
-                        onClick={() => handleCancelRemove(bundle.id)}
+                        onClick={() => handleCancelRemove(item.id)}
                         disabled={state.updating}
                         className="px-2 py-1.5 text-slate-500 hover:text-slate-700 text-[11px] font-medium disabled:opacity-40"
                       >
@@ -556,7 +632,7 @@ const BuyAgainSidebar = ({ onReorder }) => {
       </div>
 
       {/* View All Link */}
-      {bundles.length >= 5 && (
+      {items.length >= 5 && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           className="w-full mt-3 text-sm text-tpppink hover:text-tpppink/80 font-semibold transition-colors"

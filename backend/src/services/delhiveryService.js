@@ -1011,8 +1011,13 @@ async getTrackingInfo(awb) {
     return null; // Return null on error
   }
 }
+// backend/src/services/delhiveryService.js
+// ⚠️ ONLY THE schedulePickup METHOD - ADD THIS TO YOUR EXISTING FILE
+
 /**
- * Schedule pickup request with Delhivery
+ * Schedule or reschedule pickup request with Delhivery
+ * ✅ FIXED: Now handles both NEW pickups and RESCHEDULING
+ * ✅ Cancels existing pickup before creating new one (prevents duplicates)
  * @param {Object} pickupData - Pickup details
  * @returns {Promise<Object>} Pickup confirmation
  */
@@ -1022,15 +1027,42 @@ async schedulePickup(pickupData) {
       awbs = [],              // Array of AWB numbers
       pickupDate = null,      // YYYY-MM-DD
       pickupTime = '10:00:00',
-      packageCount = 1
+      packageCount = 1,
+      existingPickupId = null // ✅ NEW: Check if pickup already exists
     } = pickupData;
 
     // Default to tomorrow
     const pickup = pickupDate || this._getTomorrowDate();
 
-    console.log(`📅 [Delhivery] Scheduling pickup for ${pickup} at ${pickupTime}`);
+    console.log(`📅 [Delhivery] ${existingPickupId ? 'Rescheduling' : 'Scheduling'} pickup for ${pickup} at ${pickupTime}`);
     console.log(`   AWBs: ${awbs.join(', ')}`);
 
+    // ===== STEP 1: Cancel existing pickup if rescheduling =====
+    if (existingPickupId) {
+      console.log(`🔄 Cancelling existing pickup: ${existingPickupId}`);
+      
+      try {
+        // Cancel existing pickup
+        const cancelUrl = `${this.baseURL}/fm/request/cancel/`;
+        
+        await axios.post(cancelUrl, {
+          pickup_id: existingPickupId
+        }, {
+          headers: {
+            'Authorization': `Token ${this.apiToken}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 15000
+        });
+        
+        console.log(`✅ Old pickup cancelled: ${existingPickupId}`);
+      } catch (cancelError) {
+        console.warn(`⚠️ Failed to cancel old pickup (may not exist): ${cancelError.message}`);
+        // Continue anyway - we'll create a new pickup
+      }
+    }
+
+    // ===== STEP 2: Create new pickup request =====
     const url = `${this.baseURL}/fm/request/new/`;
 
     const response = await axios.post(url, {
@@ -1050,14 +1082,16 @@ async schedulePickup(pickupData) {
       throw new Error(`Pickup API error: ${response.status}`);
     }
 
-    console.log(`✅ Pickup scheduled: ${response.data.pickup_id || 'Confirmed'}`);
+    const newPickupId = response.data.pickup_id || null;
+    console.log(`✅ Pickup ${existingPickupId ? 'rescheduled' : 'scheduled'}: ${newPickupId || 'Confirmed'}`);
 
     return {
       success: true,
-      pickup_id: response.data.pickup_id || null,
+      pickup_id: newPickupId,
       pickup_date: pickup,
       pickup_time: pickupTime,
-      message: response.data.message || 'Pickup scheduled successfully'
+      message: response.data.message || `Pickup ${existingPickupId ? 'rescheduled' : 'scheduled'} successfully`,
+      previous_pickup_id: existingPickupId // ✅ Return old ID for reference
     };
 
   } catch (error) {

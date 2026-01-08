@@ -101,9 +101,9 @@ export default function TopBar({ onMenuClick }) {
   };
 
   // ✅ NEW: Handle token expiry
-  const handleTokenExpiry = () => {
-    console.warn('Token expired - redirecting to login');
-    // Only redirect, don't call logout to preserve any unsaved state
+  const handleTokenExpiry = async () => {
+    console.warn('Token expired - logging out');
+    await logout();
     navigate('/admin/login', { 
       state: { message: 'Your session has expired. Please login again.' } 
     });
