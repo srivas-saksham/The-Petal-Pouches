@@ -465,7 +465,7 @@ const PaymentController = {
         console.log('ℹ️ [Payment] No coupon to record (coupon data or discount is zero)');
       }
 
-      // ===== STEP 10: DEDUCT STOCK =====
+      // ===== STEP 10: DEDUCT STOCK ===== (Replace lines ~510-535)
       try {
         const StockService = require('../services/stockService');
         
@@ -473,24 +473,40 @@ const PaymentController = {
         const bundleItems = orderItems.filter(item => item.bundle_id);
         const productItems = orderItems.filter(item => !item.bundle_id && item.product_id);
         
-        // Deduct bundle stock
+        console.log('📊 [Payment] Stock deduction data:', {
+          totalItems: orderItems.length,
+          bundleItems: bundleItems.length,
+          productItems: productItems.length,
+          bundleDetails: bundleItems.map(b => ({ 
+            bundle_id: b.bundle_id, 
+            quantity: b.quantity  // ⭐ This is the actual field name!
+          }))
+        });
+        
+        // ⭐ FIX: Deduct bundle stock using the CORRECT field name
         if (bundleItems.length > 0) {
           const stockDeductionItems = bundleItems.map(item => ({
             bundle_id: item.bundle_id,
-            quantity: item.bundle_quantity
+            quantity: item.quantity  // ✅ Use 'quantity' not 'bundle_quantity'
           }));
+          
+          console.log('📦 [Payment] Deducting stock for bundles:', stockDeductionItems);
+          
           await StockService.deductBundleStock(stockDeductionItems);
           console.log(`✅ Bundle stock deducted: ${bundleItems.length} bundles`);
         }
         
         // ⭐ Deduct product stock
         if (productItems.length > 0) {
+          console.log('📦 [Payment] Deducting stock for products:', productItems);
+          
           await StockService.deductProductStock(productItems);
           console.log(`✅ Product stock deducted: ${productItems.length} products`);
         }
         
       } catch (stockError) {
         console.error('⚠️ Stock deduction error:', stockError);
+        // Don't fail the order, but log for manual review
       }
 
       // ===== STEP 11: CLEAR CART =====

@@ -169,7 +169,9 @@ const shipmentService = {
    */
   cancelShipment: async (shipmentId, reason) => {
     try {
-      const response = await adminApi.post(`/api/admin/shipments/${shipmentId}/cancel`, { reason });
+      const response = await adminApi.post(`/api/admin/shipments/${shipmentId}/cancel`, { 
+        reason 
+      });
       return {
         success: true,
         data: response.data.data,
@@ -178,7 +180,8 @@ const shipmentService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to cancel shipment'
+        error: error.response?.data?.message || 'Failed to cancel shipment',
+        code: error.response?.data?.code
       };
     }
   },
