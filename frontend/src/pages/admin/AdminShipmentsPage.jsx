@@ -12,6 +12,8 @@ import { ShipmentsLoadingState } from '../../components/admin/shipments/Shipment
 import { ShipmentsErrorState } from '../../components/admin/shipments/ShipmentsErrorState';
 import PageHeader from '../../components/admin/ui/PageHeader';
 import EditShipmentModal from '../../components/admin/shipments/EditShipmentModal';
+import BulkPickupModal from '../../components/admin/shipments/BulkPickupModal';
+import Button from '../../components/admin/ui/Button';
 
 const AdminShipmentsPage = () => {
   const [shipments, setShipments] = useState([]);
@@ -23,12 +25,11 @@ const AdminShipmentsPage = () => {
   
   // Modal states
   const [approveModal, setApproveModal] = useState(null);
-  const [pickupModal, setPickupModal] = useState(null);
-  const [editPickupModal, setEditPickupModal] = useState(null);
   const [bulkApproveModal, setBulkApproveModal] = useState(false);
   const [notification, setNotification] = useState(null);
   const [editModal, setEditModal] = useState(null); // Stores shipment to edit
   const [editingShipment, setEditingShipment] = useState(null); // Full shipment data
+  const [bulkPickupModal, setBulkPickupModal] = useState(false);
 
   const [filters, setFilters] = useState({
     status: 'pending_review',
@@ -94,36 +95,6 @@ const AdminShipmentsPage = () => {
     
     if (result.success) {
       showNotification('✅ Shipment approved and placed successfully!', 'success');
-      loadShipments();
-      loadStats();
-    } else {
-      showNotification(`❌ Failed: ${result.error}`, 'error');
-    }
-  };
-
-  const handleSchedulePickupConfirm = async () => {
-    const shipmentId = pickupModal;
-    setPickupModal(null);
-    
-    const result = await shipmentService.schedulePickup(shipmentId);
-    
-    if (result.success) {
-      showNotification('✅ Pickup scheduled for tomorrow', 'success');
-      loadShipments();
-      loadStats();
-    } else {
-      showNotification(`❌ Failed: ${result.error}`, 'error');
-    }
-  };
-
-  const handleEditPickupConfirm = async (newDate) => {
-    const shipmentId = editPickupModal;
-    setEditPickupModal(null);
-    
-    const result = await shipmentService.schedulePickup(shipmentId, newDate);
-    
-    if (result.success) {
-      showNotification(`✅ Pickup rescheduled to ${newDate}`, 'success');
       loadShipments();
       loadStats();
     } else {
@@ -263,28 +234,6 @@ const AdminShipmentsPage = () => {
         />
       )}
 
-      {/* Pickup Modal */}
-      {pickupModal && (
-        <ConfirmModal
-          title="Schedule Pickup"
-          message="Schedule pickup for tomorrow at 10:00 AM?"
-          icon={Package}
-          iconColor="text-purple-600"
-          confirmText="Schedule Pickup"
-          confirmClass="bg-purple-600 hover:bg-purple-700"
-          onConfirm={handleSchedulePickupConfirm}
-          onCancel={() => setPickupModal(null)}
-        />
-      )}
-
-      {/* Edit Pickup Modal */}
-      {editPickupModal && (
-        <EditPickupModal
-          onConfirm={handleEditPickupConfirm}
-          onCancel={() => setEditPickupModal(null)}
-        />
-      )}
-
       {/* Bulk Approve Modal */}
       {bulkApproveModal && (
         <ConfirmModal
@@ -300,10 +249,20 @@ const AdminShipmentsPage = () => {
       )}
       
       {/* Header */}
-      <PageHeader
-        title="Shipment Management"
-        description="Review, edit, and approve shipments for delivery"
-      />
+      <div className='flex items-center justify-between gap-2'>
+        <PageHeader
+          title="Shipment Management"
+          description="Review, edit, and approve shipments for delivery"
+        />
+
+        <Button
+          onClick={() => setBulkPickupModal(true)}
+          className="px-4 py-2 flex items-center gap-2 font-semibold"
+        >
+          <Package className="w-4 h-4" />
+          Schedule Bulk Pickup
+        </Button>
+      </div>
 
       {/* Stats Cards - Compact Single Line */}
       {stats && (
@@ -500,6 +459,22 @@ const AdminShipmentsPage = () => {
           onSuccess={handleEditSuccess}
         />
       )}
+
+
+      {/* Bulk Pickup Modal */}
+      <BulkPickupModal
+        isOpen={bulkPickupModal}
+        onClose={() => setBulkPickupModal(false)}
+        onSuccess={(result) => {
+          showNotification(
+            `✅ Pickup scheduled for ${result.data.shipment_count} shipments`,
+            'success'
+          );
+          loadShipments();
+          loadStats();
+        }}
+      />
+
     </div>
   );
 };

@@ -472,7 +472,7 @@ const ShipmentModel = {
       throw error;
     }
   },
-
+  
   /**
    * Approve and place shipment with Delhivery
    * ✅ Updates order status to 'confirmed'
@@ -553,6 +553,73 @@ const ShipmentModel = {
         finalEstimatedDelivery = estimatedDate.toISOString().split('T')[0];
       }
 
+      // ===== STEP 4.5: Check if pickup already scheduled for today =====
+      // ✅ IMPORTANT: We only create ONE pickup per warehouse per day
+
+      const today = new Date().toISOString().split('T')[0];
+
+      // Check if pickup already exists for this location today
+      const { data: existingPickup, error: pickupCheckError } = await supabase
+        .from('DailyPickups') // You'll need to create this table
+        .select('*')
+        .eq('pickup_location', process.env.DELHIVERY_PICKUP_LOCATION)
+        .eq('pickup_date', pickupScheduledDate)
+        .eq('status', 'active')
+        .single();
+
+      let pickupRequestId = null;
+
+      if (existingPickup) {
+        // ✅ Pickup already scheduled - just increment count
+        console.log(`✅ Using existing pickup request: ${existingPickup.delhivery_pickup_id}`);
+        pickupRequestId = existingPickup.delhivery_pickup_id;
+        
+        // Update package count
+        await supabase
+          .from('DailyPickups')
+          .update({
+            expected_package_count: existingPickup.expected_package_count + 1,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingPickup.id);
+          
+      } else {
+        // ✅ Create new pickup request
+        try {
+          console.log('📅 Creating new pickup request for location');
+          
+          const pickupResult = await delhiveryService.schedulePickup({
+            pickupDate: pickupScheduledDate,
+            pickupTime: '10:00:00',
+            packageCount: 1, // Start with 1, will increment as more shipments are added
+            pickupLocation: process.env.DELHIVERY_PICKUP_LOCATION
+          });
+
+          if (pickupResult.success) {
+            console.log('✅ Pickup request created:', pickupResult.pickup_id);
+            pickupRequestId = pickupResult.pickup_id;
+            
+            // Store in DailyPickups table
+            await supabase.from('DailyPickups').insert({
+              pickup_location: process.env.DELHIVERY_PICKUP_LOCATION,
+              pickup_date: pickupScheduledDate,
+              pickup_time: '10:00:00',
+              delhivery_pickup_id: pickupResult.pickup_id,
+              expected_package_count: 1,
+              status: 'active',
+              created_at: new Date().toISOString()
+            });
+          } else {
+            console.error('⚠️ Pickup scheduling failed:', pickupResult.error);
+            // Don't fail shipment creation if pickup fails
+          }
+          
+        } catch (pickupError) {
+          console.error('⚠️ Pickup scheduling error:', pickupError.message);
+          // Continue without pickup - admin can schedule manually
+        }
+      }
+
       // ===== STEP 5: Update with ALL details =====
       const { data: updated, error: updateError } = await supabase
         .from('Shipments')
@@ -572,6 +639,7 @@ const ShipmentModel = {
           
           // ✅ Dates - NOW PROPERLY SET
           estimated_delivery: finalEstimatedDelivery,
+          delhivery_pickup_id: pickupRequestId,
           pickup_scheduled_date: pickupScheduledDate, // ✅ NOW SET
           placed_at: placedAt, // ✅ NOW SET
           
@@ -634,106 +702,6 @@ const ShipmentModel = {
         console.error('❌ Rollback failed:', rollbackError);
       }
       
-      throw error;
-    }
-  },
-
-  /**
-   * Schedule or reschedule pickup for placed shipment
-   * ✅ FIXED: Now properly handles rescheduling by canceling old pickup
-   * ✅ PRESERVED: All existing functionality (status checks, date handling, error handling)
-   * @param {string} shipmentId - Shipment UUID
-   * @param {string|null} pickupDate - Pickup date (YYYY-MM-DD) or null for tomorrow
-   * @param {string} adminId - Admin user ID
-   * @returns {Promise<Object>} Updated shipment
-   */
-  async schedulePickup(shipmentId, pickupDate = null, adminId) {
-    try {
-      // ===== STEP 1: Fetch shipment with pickup details =====
-      const { data: shipment, error } = await supabase
-        .from('Shipments')
-        .select('awb, status, pickup_scheduled_date, delhivery_pickup_id')
-        .eq('id', shipmentId)
-        .single();
-
-      if (error) throw error;
-      
-      // ===== STEP 2: Validation checks (PRESERVED FROM ORIGINAL) =====
-      
-      // ✅ Check if AWB exists (must be placed with Delhivery first)
-      if (!shipment.awb) {
-        throw new Error('Shipment must be placed with Delhivery first to get AWB');
-      }
-      
-      // ✅ PRESERVED: Block terminal statuses
-      const terminalStatuses = ['delivered', 'cancelled', 'rto_delivered'];
-      if (terminalStatuses.includes(shipment.status)) {
-        throw new Error(`Cannot schedule pickup for ${shipment.status} shipment`);
-      }
-
-      // ===== STEP 3: Determine if this is a reschedule (NEW LOGIC) =====
-      const isReschedule = !!shipment.pickup_scheduled_date;
-      
-      if (isReschedule) {
-        console.log(`🔄 Rescheduling pickup from ${shipment.pickup_scheduled_date} to ${pickupDate || 'tomorrow'}`);
-      } else {
-        console.log(`📅 Scheduling new pickup for ${pickupDate || 'tomorrow'}`);
-      }
-
-      // ✅ PRESERVED: Use existing date if no new date provided
-      if (shipment.pickup_scheduled_date && !pickupDate) {
-        console.log(`📅 Re-scheduling existing pickup: ${shipment.pickup_scheduled_date}`);
-        pickupDate = shipment.pickup_scheduled_date;
-      }
-
-      // ===== STEP 4: Call Delhivery API (ENHANCED WITH RESCHEDULE SUPPORT) =====
-      const pickupResult = await delhiveryService.schedulePickup({
-        awbs: [shipment.awb],
-        pickupDate: pickupDate,
-        pickupTime: '10:00:00',
-        packageCount: 1,
-        existingPickupId: shipment.delhivery_pickup_id // ✅ NEW: Pass existing pickup ID
-      });
-
-      console.log(`✅ Pickup ${isReschedule ? 'rescheduled' : 'scheduled'} with Delhivery: ${pickupResult.pickup_id || 'Confirmed'}`);
-      
-      // ✅ NEW: Log reschedule details
-      if (pickupResult.previous_pickup_id) {
-        console.log(`   Old pickup ID: ${pickupResult.previous_pickup_id} (cancelled)`);
-        console.log(`   New pickup ID: ${pickupResult.pickup_id}`);
-      }
-
-      // ===== STEP 5: Update shipment (ENHANCED WITH RESCHEDULE TRACKING) =====
-      const updateData = {
-        status: 'pending_pickup',
-        pickup_scheduled_date: pickupResult.pickup_date,
-        pickup_confirmed_with_courier: true,
-        delhivery_pickup_id: pickupResult.pickup_id, // ✅ Store NEW pickup ID
-        updated_at: new Date().toISOString()
-      };
-
-      // ✅ NEW: Track reschedule metadata (optional, won't break if columns don't exist)
-      if (isReschedule) {
-        updateData.pickup_rescheduled_at = new Date().toISOString();
-        // Only increment if column exists (won't fail if missing)
-        updateData.pickup_reschedule_count = (shipment.pickup_reschedule_count || 0) + 1;
-      }
-
-      const { data: updated, error: updateError } = await supabase
-        .from('Shipments')
-        .update(updateData)
-        .eq('id', shipmentId)
-        .select()
-        .single();
-
-      if (updateError) throw updateError;
-      
-      console.log(`✅ Shipment updated: ${shipment.awb} -> pending_pickup (${pickupResult.pickup_date})`);
-      
-      return updated;
-
-    } catch (error) {
-      console.error('❌ Schedule pickup error:', error);
       throw error;
     }
   },

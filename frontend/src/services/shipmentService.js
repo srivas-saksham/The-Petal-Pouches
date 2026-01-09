@@ -121,15 +121,32 @@ const shipmentService = {
       };
     }
   },
+  
+  /**
+   * Get shipments eligible for pickup
+   */
+  getEligibleForPickup: async () => {
+    try {
+      const response = await adminApi.get('/api/admin/shipments/eligible-for-pickup');
+      return {
+        success: true,
+        data: response.data.data,
+        count: response.data.count
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch eligible shipments'
+      };
+    }
+  },
 
   /**
-   * Schedule pickup for shipment
+   * Create bulk pickup request
    */
-  schedulePickup: async (shipmentId, pickupDate = null) => {
+  createBulkPickup: async (pickupData) => {
     try {
-      const response = await adminApi.post(`/api/admin/shipments/${shipmentId}/schedule-pickup`, { 
-        pickup_date: pickupDate 
-      });
+      const response = await adminApi.post('/api/admin/shipments/bulk-pickup', pickupData);
       return {
         success: true,
         data: response.data.data,
@@ -138,7 +155,7 @@ const shipmentService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.message || 'Failed to schedule pickup'
+        error: error.response?.data?.message || 'Failed to create bulk pickup'
       };
     }
   },

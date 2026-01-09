@@ -787,7 +787,14 @@ async createShipment(shipmentData) {
       throw new Error('Delhivery API token not configured');
     }
 
+    // ✅ VALIDATE pickup_location exists
+    const pickupLocation = process.env.DELHIVERY_PICKUP_LOCATION;
+    if (!pickupLocation) {
+      throw new Error('DELHIVERY_PICKUP_LOCATION not configured in .env');
+    }
+
     console.log(`📦 [Delhivery] Creating shipment for order: ${shipmentData.order_id}`);
+    console.log(`📍 [Delhivery] Using pickup location: ${pickupLocation}`);
 
     const url = `${this.baseURL}/api/cmu/create.json`;
 
@@ -801,8 +808,10 @@ async createShipment(shipmentData) {
       address.zip_code
     ].filter(Boolean).join(', ');
 
+    // ✅ FIXED PAYLOAD
     const shipmentPayload = {
       shipments: [{
+        // Customer details
         name: shipmentData.customer_name,
         add: fullAddress,
         pin: shipmentData.destination_pincode,
@@ -810,40 +819,53 @@ async createShipment(shipmentData) {
         state: shipmentData.destination_state,
         country: 'India',
         phone: shipmentData.customer_phone,
-        order: shipmentData.shipment_id,
+        address_type: address.address_type || 'home',
+        
+        // Order details
+        order: shipmentData.order_id, // ✅ Use order_id, not shipment_id
         payment_mode: shipmentData.payment_mode,
-        pickup_location: process.env.DELHIVERY_PICKUP_LOCATION || process.env.WAREHOUSE_PINCODE || '110059',
-        return_pin: process.env.WAREHOUSE_PINCODE || '110059',
-        return_city: process.env.WAREHOUSE_CITY || 'Delhi',
-        return_phone: process.env.WAREHOUSE_PHONE || '9999999999',
-        return_add: process.env.WAREHOUSE_ADDRESS || 'Your Warehouse Address',
-        products_desc: 'Gift Bundle',
-        hsn_code: '',
         cod_amount: shipmentData.payment_mode === 'COD' ? shipmentData.order_total : 0,
-        order_date: new Date().toISOString(),
         total_amount: shipmentData.order_total || 0,
-        seller_add: process.env.WAREHOUSE_ADDRESS || 'Your Warehouse Address',
+        order_date: new Date().toISOString(),
+        
+        // Pickup location (CRITICAL)
+        pickup_location: pickupLocation, // ✅ Must match registered warehouse name
+        
+        // Return address (COMPLETE)
+        return_name: process.env.WAREHOUSE_NAME || 'The Petal Pouches',
+        return_add: process.env.WAREHOUSE_ADDRESS,
+        return_city: process.env.WAREHOUSE_CITY,
+        return_state: process.env.WAREHOUSE_STATE,
+        return_country: 'India',
+        return_pin: process.env.WAREHOUSE_PINCODE,
+        return_phone: process.env.WAREHOUSE_PHONE,
+        
+        // Seller details
         seller_name: 'The Petal Pouches',
-        seller_inv: shipmentData.order_id,
-        quantity: 1,
-        waybill: '',
+        seller_add: process.env.WAREHOUSE_ADDRESS,
+        seller_gst_tin: process.env.SELLER_GST || '',
+        seller_inv: `INV-${shipmentData.order_id.substring(0, 8).toUpperCase()}`, // ✅ Invoice number
+        
+        // Product details
+        products_desc: shipmentData.products_desc || 'Gift Bundle',
+        quantity: shipmentData.quantity || 1,
+        
+        // Package details
+        weight: shipmentData.weight_grams,
         shipment_width: shipmentData.dimensions_cm.width || 25,
         shipment_height: shipmentData.dimensions_cm.height || 10,
-        weight: shipmentData.weight_grams,
-        seller_gst_tin: process.env.SELLER_GST || '',
+        shipment_length: shipmentData.dimensions_cm.length || 30,
         shipping_mode: shipmentData.shipping_mode === 'Express' ? 'Express' : 'Surface',
-        address_type: 'home'
+        
+        // Optional fields
+        hsn_code: '',
+        waybill: '', // Let Delhivery generate
+        fragile_shipment: false,
+        dangerous_good: false
       }]
     };
     
-     // ✅ DEBUG: Log full request details
-    console.log('📤 [Delhivery] Request Details:');
-    console.log('   URL:', url);
-    console.log('   Payload:', JSON.stringify(shipmentPayload, null, 2));
-    console.log('   Headers:', {
-      'Authorization': `Token ${this.apiToken.substring(0, 15)}...`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    });
+    console.log('📤 [Delhivery] Request Payload:', JSON.stringify(shipmentPayload, null, 2));
 
     const response = await axios.post(url, 
       `format=json&data=${JSON.stringify(shipmentPayload)}`,
@@ -858,46 +880,25 @@ async createShipment(shipmentData) {
       }
     );
 
-    // ✅ DEBUG: Log full response
-    console.log('📥 [Delhivery] Response Details:');
-    console.log('   Status:', response.status);
-    console.log('   Headers:', response.headers);
-    console.log('   Data:', JSON.stringify(response.data, null, 2));
+    console.log('📥 [Delhivery] Response:', JSON.stringify(response.data, null, 2));
 
     if (response.status !== 200) {
-      console.error(`❌ Delhivery API HTTP ${response.status}:`, response.data);
       throw new Error(`Delhivery API error: ${response.status}`);
     }
 
     const result = response.data;
-    console.log('📥 Delhivery Response:', JSON.stringify(result, null, 2));
-
     const shipmentResult = result.packages?.[0] || result.shipments?.[0] || result;
 
     if (!shipmentResult.waybill && !shipmentResult.awb) {
-      console.error('❌ No AWB in response:', result);
       throw new Error('Delhivery did not return AWB');
     }
 
     const awb = shipmentResult.waybill || shipmentResult.awb;
-
-    // ✅ FIXED: Generate proper Delhivery URLs
     const trackingUrl = `https://www.delhivery.com/track/package/${awb}`;
-    
-    // ✅ Correct label URL format (requires authentication token)
     const labelUrl = `${this.baseURL}/api/p/packing_slip?wbns=${awb}&pdf=true`;
-    
-    // ✅ Invoice URL (if provided by Delhivery, else generate)
-    const invoiceUrl = shipmentResult.invoice_url || 
-                      `${this.baseURL}/api/p/invoice?wbns=${awb}&pdf=true`;
-    
-    // ✅ Manifest URL (typically not available immediately)
-    const manifestUrl = shipmentResult.manifest_url || null;
+    const invoiceUrl = `${this.baseURL}/api/p/invoice?wbns=${awb}&pdf=true`;
 
-    console.log(`✅ Shipment created successfully`);
-    console.log(`   AWB: ${awb}`);
-    console.log(`   Label URL: ${labelUrl}`);
-    console.log(`   Invoice URL: ${invoiceUrl}`);
+    console.log(`✅ Shipment created: AWB ${awb}`);
 
     return {
       success: true,
@@ -907,26 +908,17 @@ async createShipment(shipmentData) {
       tracking_url: trackingUrl,
       label_url: labelUrl,
       invoice_url: invoiceUrl,
-      manifest_url: manifestUrl,
+      manifest_url: null,
       cost: shipmentResult.charges || null,
       raw_response: result
     };
 
   } catch (error) {
     console.error('❌ [Delhivery] Create shipment failed:', error);
-
-    if (error.response?.status === 401) {
-      throw new Error('Delhivery authentication failed. Check API token.');
-    }
-
-    if (error.response?.status === 400) {
-      const errorMsg = error.response.data?.error || error.response.data?.message || 'Invalid request';
-      throw new Error(`Delhivery validation error: ${errorMsg}`);
-    }
-
-    throw new Error(`Failed to create Delhivery shipment: ${error.message}`);
+    throw error;
   }
 }
+
   /**
  * Get tracking information from Delhivery
  * @param {string} awb - Air Waybill number
@@ -1015,88 +1007,98 @@ async getTrackingInfo(awb) {
 // ⚠️ ONLY THE schedulePickup METHOD - ADD THIS TO YOUR EXISTING FILE
 
 /**
- * Schedule or reschedule pickup request with Delhivery
- * ✅ FIXED: Now handles both NEW pickups and RESCHEDULING
- * ✅ Cancels existing pickup before creating new one (prevents duplicates)
+ * Schedule pickup request with Delhivery
+ * ✅ CORRECTED: Pickup is per LOCATION, not per AWB
+ * 
  * @param {Object} pickupData - Pickup details
  * @returns {Promise<Object>} Pickup confirmation
  */
 async schedulePickup(pickupData) {
   try {
     const {
-      awbs = [],              // Array of AWB numbers
-      pickupDate = null,      // YYYY-MM-DD
+      pickupDate = null,
       pickupTime = '10:00:00',
       packageCount = 1,
-      existingPickupId = null // ✅ NEW: Check if pickup already exists
+      pickupLocation = process.env.DELHIVERY_PICKUP_LOCATION
     } = pickupData;
 
-    // Default to tomorrow
+    // ✅ Validate pickup location
+    if (!pickupLocation) {
+      throw new Error('pickup_location is required and must match registered warehouse name');
+    }
+
     const pickup = pickupDate || this._getTomorrowDate();
 
-    console.log(`📅 [Delhivery] ${existingPickupId ? 'Rescheduling' : 'Scheduling'} pickup for ${pickup} at ${pickupTime}`);
-    console.log(`   AWBs: ${awbs.join(', ')}`);
+    console.log(`📅 [Delhivery] Creating pickup request`);
+    console.log(`   Location: ${pickupLocation}`);
+    console.log(`   Date: ${pickup} at ${pickupTime}`);
+    console.log(`   Expected packages: ${packageCount}`);
 
-    // ===== STEP 1: Cancel existing pickup if rescheduling =====
-    if (existingPickupId) {
-      console.log(`🔄 Cancelling existing pickup: ${existingPickupId}`);
-      
-      try {
-        // Cancel existing pickup
-        const cancelUrl = `${this.baseURL}/fm/request/cancel/`;
-        
-        await axios.post(cancelUrl, {
-          pickup_id: existingPickupId
-        }, {
-          headers: {
-            'Authorization': `Token ${this.apiToken}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 15000
-        });
-        
-        console.log(`✅ Old pickup cancelled: ${existingPickupId}`);
-      } catch (cancelError) {
-        console.warn(`⚠️ Failed to cancel old pickup (may not exist): ${cancelError.message}`);
-        // Continue anyway - we'll create a new pickup
-      }
-    }
-
-    // ===== STEP 2: Create new pickup request =====
     const url = `${this.baseURL}/fm/request/new/`;
 
-    const response = await axios.post(url, {
+    // ✅ CORRECT PAYLOAD - No AWBs needed
+    const payload = {
       pickup_time: pickupTime,
       pickup_date: pickup,
-      pickup_location: process.env.WAREHOUSE_NAME || 'DEFAULT_WAREHOUSE',
+      pickup_location: pickupLocation,
       expected_package_count: packageCount
-    }, {
+    };
+
+    console.log('📤 [Delhivery] Pickup Request Payload:', JSON.stringify(payload, null, 2));
+
+    const response = await axios.post(url, payload, {
       headers: {
         'Authorization': `Token ${this.apiToken}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
-      timeout: 15000
+      timeout: 15000,
+      validateStatus: (status) => status < 500
     });
 
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(`Pickup API error: ${response.status}`);
+    console.log('📥 [Delhivery] Pickup Response:', JSON.stringify(response.data, null, 2));
+
+    if (response.status !== 200 && response.status !== 201) {
+      // Handle specific error cases
+      if (response.data?.error?.includes('already exists')) {
+        console.warn('⚠️ [Delhivery] Pickup already scheduled for today');
+        return {
+          success: true,
+          pickup_id: response.data.pickup_id || null,
+          pickup_date: pickup,
+          pickup_time: pickupTime,
+          message: 'Pickup already scheduled for this location today',
+          already_exists: true
+        };
+      }
+      
+      throw new Error(`Pickup API error: ${response.status} - ${response.data?.error || 'Unknown error'}`);
     }
 
-    const newPickupId = response.data.pickup_id || null;
-    console.log(`✅ Pickup ${existingPickupId ? 'rescheduled' : 'scheduled'}: ${newPickupId || 'Confirmed'}`);
+    const pickupId = response.data.pickup_id || response.data.request_id || null;
+    
+    console.log(`✅ Pickup request created: ${pickupId}`);
 
     return {
       success: true,
-      pickup_id: newPickupId,
+      pickup_id: pickupId,
       pickup_date: pickup,
       pickup_time: pickupTime,
-      message: response.data.message || `Pickup ${existingPickupId ? 'rescheduled' : 'scheduled'} successfully`,
-      previous_pickup_id: existingPickupId // ✅ Return old ID for reference
+      expected_package_count: packageCount,
+      message: response.data.message || 'Pickup request created successfully',
+      already_exists: false
     };
 
   } catch (error) {
-    console.error('❌ [Delhivery] Schedule pickup failed:', error);
-    throw new Error(`Failed to schedule pickup: ${error.message}`);
+    console.error('❌ [Delhivery] Pickup request failed:', error.message);
+    
+    // Don't throw - return error info
+    return {
+      success: false,
+      error: error.message,
+      pickup_date: pickupData.pickupDate,
+      pickup_location: pickupData.pickupLocation
+    };
   }
 }
 

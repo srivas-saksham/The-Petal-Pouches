@@ -18,8 +18,6 @@ export default function AdminShipmentCard({
   selected, 
   onToggleSelect, 
   onApprove,
-  onSchedulePickup,
-  onEditPickup,
   onEdit,
   onViewDetails 
 }) {
@@ -683,28 +681,6 @@ export default function AdminShipmentCard({
               >
                 <CheckCircle className="w-3.5 h-3.5" />
                 Approve & Place
-              </button>
-            )}
-
-            {/* Schedule Pickup (if placed) */}
-            {shipment.status === 'placed' && (
-              <button
-                onClick={() => onSchedulePickup && onSchedulePickup(shipment.id)}
-                className="w-full px-3 py-2 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 font-bold flex items-center justify-center gap-1.5"
-              >
-                <Package className="w-3.5 h-3.5" />
-                Schedule Pickup - Tomorrow
-              </button>
-            )}
-
-            {/* Edit Pickup Date (if pending_pickup) */}
-            {shipment.status === 'pending_pickup' && shipment.pickup_scheduled_date && (
-              <button
-                onClick={() => onEditPickup && onEditPickup(shipment.id)}
-                className="w-full px-3 py-2 bg-amber-600 text-white text-xs rounded-lg hover:bg-amber-700 font-bold flex items-center justify-center gap-1.5"
-              >
-                <Edit className="w-3.5 h-3.5" />
-                Edit Pickup: {formatDateShort(shipment.pickup_scheduled_date)}
               </button>
             )}
 
