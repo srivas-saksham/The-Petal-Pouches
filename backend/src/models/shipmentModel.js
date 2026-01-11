@@ -474,237 +474,175 @@ const ShipmentModel = {
   },
   
   /**
-   * Approve and place shipment with Delhivery
-   * ✅ Updates order status to 'confirmed'
-   * ✅ Populates all NULL fields with Delhivery response
-   * ✅ Recalculates estimated_delivery if Delhivery provides it
-   */
-  async approveAndPlace(shipmentId, adminId) {
+ * Approve and place shipment with Delhivery
+ * ✅ Updates order status to 'confirmed'
+ * ✅ Populates all NULL fields with Delhivery response
+ * ✅ Recalculates estimated_delivery if Delhivery provides it
+ * ✅ Saves seller_invoice_number to database
+ */
+async approveAndPlace(shipmentId, adminId) {
+  try {
+    const supabase = require('../config/supabaseClient');
+    const delhiveryService = require('../services/delhiveryService');
+
+    const { data: shipment, error: fetchError } = await supabase
+      .from('Shipments')
+      .select('*, Orders!inner(*, Users!inner(*))')
+      .eq('id', shipmentId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    if (shipment.status !== 'pending_review') {
+      throw new Error('Shipment must be in pending_review status');
+    }
+
+    console.log(`📦 Approving and placing shipment: ${shipmentId}`);
+
+    const invoiceNumber = `INV-${shipment.order_id.substring(0, 8).toUpperCase()}`;
+    console.log(`📄 Generated invoice number: ${invoiceNumber}`);
+
+    const approvedAt = new Date().toISOString();
+    const placedAt = new Date().toISOString();
+
+    // STEP 1: Update to approved
+    await supabase
+      .from('Shipments')
+      .update({
+        status: 'approved',
+        approved_by: adminId,
+        approved_at: approvedAt,
+        updated_at: approvedAt
+      })
+      .eq('id', shipmentId);
+
+    console.log('✅ Shipment approved at:', approvedAt);
+
+    // STEP 2: Calculate pickup date
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const pickupScheduledDate = tomorrow.toISOString().split('T')[0];
+
+    console.log('📅 Pickup scheduled for:', pickupScheduledDate);
+
+    // STEP 3: Call Delhivery API
+    const delhiveryResponse = await delhiveryService.createShipment({
+      shipment_id: shipmentId,
+      order_id: shipment.order_id,
+      destination_pincode: shipment.destination_pincode,
+      destination_city: shipment.destination_city,
+      destination_state: shipment.destination_state,
+      customer_name: shipment.Orders.Users.name,
+      customer_phone: shipment.Orders.Users.phone || shipment.Orders.shipping_address.phone,
+      customer_address: shipment.Orders.shipping_address,
+      weight_grams: shipment.weight_grams,
+      dimensions_cm: shipment.dimensions_cm,
+      payment_mode: shipment.Orders.payment_method === 'cod' ? 'COD' : 'Prepaid',
+      cod_amount: shipment.Orders.payment_method === 'cod' ? shipment.Orders.final_total : 0,
+      shipping_mode: shipment.shipping_mode,
+      order_total: shipment.Orders.final_total
+    });
+
+    console.log('✅ Delhivery shipment created:', delhiveryResponse.awb);
+
+    // STEP 4: Calculate estimated delivery
+    let finalEstimatedDelivery = shipment.estimated_delivery;
+    
+    if (!finalEstimatedDelivery) {
+      const deliveryMetadata = shipment.Orders.delivery_metadata || {};
+      const estimatedDays = deliveryMetadata.estimated_days || 5;
+      const estimatedDate = new Date();
+      estimatedDate.setDate(estimatedDate.getDate() + estimatedDays);
+      finalEstimatedDelivery = estimatedDate.toISOString().split('T')[0];
+    }
+
+    // STEP 5: Update with ALL details
+    const { data: updated, error: updateError } = await supabase
+      .from('Shipments')
+      .update({
+        status: 'placed',
+        
+        // Courier/Tracking
+        awb: delhiveryResponse.awb,
+        courier: delhiveryResponse.courier || 'Delhivery',
+        tracking_url: delhiveryResponse.tracking_url,
+        delhivery_order_id: delhiveryResponse.order_id || null,
+        
+        // Invoice number
+        seller_invoice_number: invoiceNumber,
+        
+        // Document URLs
+        label_url: delhiveryResponse.label_url,
+        invoice_url: delhiveryResponse.invoice_url,
+        manifest_url: delhiveryResponse.manifest_url,
+        
+        // Dates
+        estimated_delivery: finalEstimatedDelivery,
+        pickup_scheduled_date: pickupScheduledDate,
+        placed_at: placedAt,
+        
+        // Cost
+        actual_cost: delhiveryResponse.cost || shipment.estimated_cost,
+        
+        // Timestamps
+        updated_at: placedAt,
+        
+        // Lock editing
+        editable: false
+      })
+      .eq('id', shipmentId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    console.log('✅ Shipment updated with all details:');
+    console.log('   AWB:', updated.awb);
+    console.log('   Invoice Number:', updated.seller_invoice_number);
+    console.log('   Label URL:', updated.label_url);
+    console.log('   Approved At:', updated.approved_at);
+    console.log('   Pickup Scheduled:', updated.pickup_scheduled_date);
+    console.log('   Placed At:', updated.placed_at);
+
+    // STEP 6: Update order status
+    const { error: orderUpdateError } = await supabase
+      .from('Orders')
+      .update({
+        status: 'confirmed',
+        updated_at: placedAt
+      })
+      .eq('id', shipment.order_id);
+
+    if (orderUpdateError) {
+      console.error('⚠️ Failed to update order status:', orderUpdateError);
+    } else {
+      console.log(`✅ Order ${shipment.order_id} confirmed`);
+    }
+
+    return updated;
+  } catch (error) {
+    console.error('❌ Approve and place error:', error);
+    
+    // Rollback
     try {
-      const supabase = require('../config/supabaseClient');
-      const delhiveryService = require('../services/delhiveryService');
-
-      const { data: shipment, error: fetchError } = await supabase
-        .from('Shipments')
-        .select('*, Orders!inner(*, Users!inner(*))')
-        .eq('id', shipmentId)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      if (shipment.status !== 'pending_review') {
-        throw new Error('Shipment must be in pending_review status');
-      }
-
-      console.log(`📦 Approving and placing shipment: ${shipmentId}`);
-
-      // ✅ FIXED: Set approved_at timestamp
-      const approvedAt = new Date().toISOString();
-      const placedAt = new Date().toISOString();
-
-      // ===== STEP 1: Update to approved =====
       await supabase
         .from('Shipments')
         .update({
-          status: 'approved',
-          approved_by: adminId,
-          approved_at: approvedAt, // ✅ NOW BEING SET
-          updated_at: approvedAt
+          status: 'pending_review',
+          failed_reason: error.message,
+          retry_count: shipment.retry_count + 1,
+          updated_at: new Date().toISOString()
         })
         .eq('id', shipmentId);
-
-      console.log('✅ Shipment approved at:', approvedAt);
-
-      // ===== STEP 2: Calculate pickup_scheduled_date =====
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const pickupScheduledDate = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD
-
-      console.log('📅 Pickup scheduled for:', pickupScheduledDate);
-
-      // ===== STEP 3: Call Delhivery API =====
-      const delhiveryResponse = await delhiveryService.createShipment({
-        shipment_id: shipmentId,
-        order_id: shipment.order_id,
-        destination_pincode: shipment.destination_pincode,
-        destination_city: shipment.destination_city,
-        destination_state: shipment.destination_state,
-        customer_name: shipment.Orders.Users.name,
-        customer_phone: shipment.Orders.Users.phone || shipment.Orders.shipping_address.phone,
-        customer_address: shipment.Orders.shipping_address,
-        weight_grams: shipment.weight_grams,
-        dimensions_cm: shipment.dimensions_cm,
-        payment_mode: shipment.Orders.payment_method === 'cod' ? 'COD' : 'Prepaid',
-        cod_amount: shipment.Orders.payment_method === 'cod' ? shipment.Orders.final_total : 0,
-        shipping_mode: shipment.shipping_mode,
-        order_total: shipment.Orders.final_total
-      });
-
-      console.log('✅ Delhivery shipment created:', delhiveryResponse.awb);
-
-      // ===== STEP 4: Calculate estimated delivery =====
-      let finalEstimatedDelivery = shipment.estimated_delivery;
       
-      if (!finalEstimatedDelivery) {
-        const deliveryMetadata = shipment.Orders.delivery_metadata || {};
-        const estimatedDays = deliveryMetadata.estimated_days || 5;
-        const estimatedDate = new Date();
-        estimatedDate.setDate(estimatedDate.getDate() + estimatedDays);
-        finalEstimatedDelivery = estimatedDate.toISOString().split('T')[0];
-      }
-
-      // ===== STEP 4.5: Check if pickup already scheduled for today =====
-      // ✅ IMPORTANT: We only create ONE pickup per warehouse per day
-
-      const today = new Date().toISOString().split('T')[0];
-
-      // Check if pickup already exists for this location today
-      const { data: existingPickup, error: pickupCheckError } = await supabase
-        .from('DailyPickups') // You'll need to create this table
-        .select('*')
-        .eq('pickup_location', process.env.DELHIVERY_PICKUP_LOCATION)
-        .eq('pickup_date', pickupScheduledDate)
-        .eq('status', 'active')
-        .single();
-
-      let pickupRequestId = null;
-
-      if (existingPickup) {
-        // ✅ Pickup already scheduled - just increment count
-        console.log(`✅ Using existing pickup request: ${existingPickup.delhivery_pickup_id}`);
-        pickupRequestId = existingPickup.delhivery_pickup_id;
-        
-        // Update package count
-        await supabase
-          .from('DailyPickups')
-          .update({
-            expected_package_count: existingPickup.expected_package_count + 1,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingPickup.id);
-          
-      } else {
-        // ✅ Create new pickup request
-        try {
-          console.log('📅 Creating new pickup request for location');
-          
-          const pickupResult = await delhiveryService.schedulePickup({
-            pickupDate: pickupScheduledDate,
-            pickupTime: '10:00:00',
-            packageCount: 1, // Start with 1, will increment as more shipments are added
-            pickupLocation: process.env.DELHIVERY_PICKUP_LOCATION
-          });
-
-          if (pickupResult.success) {
-            console.log('✅ Pickup request created:', pickupResult.pickup_id);
-            pickupRequestId = pickupResult.pickup_id;
-            
-            // Store in DailyPickups table
-            await supabase.from('DailyPickups').insert({
-              pickup_location: process.env.DELHIVERY_PICKUP_LOCATION,
-              pickup_date: pickupScheduledDate,
-              pickup_time: '10:00:00',
-              delhivery_pickup_id: pickupResult.pickup_id,
-              expected_package_count: 1,
-              status: 'active',
-              created_at: new Date().toISOString()
-            });
-          } else {
-            console.error('⚠️ Pickup scheduling failed:', pickupResult.error);
-            // Don't fail shipment creation if pickup fails
-          }
-          
-        } catch (pickupError) {
-          console.error('⚠️ Pickup scheduling error:', pickupError.message);
-          // Continue without pickup - admin can schedule manually
-        }
-      }
-
-      // ===== STEP 5: Update with ALL details =====
-      const { data: updated, error: updateError } = await supabase
-        .from('Shipments')
-        .update({
-          status: 'placed',
-          
-          // ✅ Courier/Tracking
-          awb: delhiveryResponse.awb,
-          courier: delhiveryResponse.courier || 'Delhivery',
-          tracking_url: delhiveryResponse.tracking_url,
-          delhivery_order_id: delhiveryResponse.order_id || null,
-          
-          // ✅ Document URLs - NOW PROPERLY SET
-          label_url: delhiveryResponse.label_url,
-          invoice_url: delhiveryResponse.invoice_url,
-          manifest_url: delhiveryResponse.manifest_url,
-          
-          // ✅ Dates - NOW PROPERLY SET
-          estimated_delivery: finalEstimatedDelivery,
-          delhivery_pickup_id: pickupRequestId,
-          pickup_scheduled_date: pickupScheduledDate, // ✅ NOW SET
-          placed_at: placedAt, // ✅ NOW SET
-          
-          // Cost
-          actual_cost: delhiveryResponse.cost || shipment.estimated_cost,
-          
-          // Timestamps
-          updated_at: placedAt,
-          
-          // Lock editing
-          editable: false
-        })
-        .eq('id', shipmentId)
-        .select()
-        .single();
-
-      if (updateError) throw updateError;
-
-      console.log('✅ Shipment updated with all details:');
-      console.log('   AWB:', updated.awb);
-      console.log('   Label URL:', updated.label_url);
-      console.log('   Invoice URL:', updated.invoice_url);
-      console.log('   Approved At:', updated.approved_at);
-      console.log('   Pickup Scheduled:', updated.pickup_scheduled_date);
-      console.log('   Placed At:', updated.placed_at);
-
-      // ===== STEP 6: Update order status =====
-      const { error: orderUpdateError } = await supabase
-        .from('Orders')
-        .update({
-          status: 'confirmed',
-          updated_at: placedAt
-        })
-        .eq('id', shipment.order_id);
-
-      if (orderUpdateError) {
-        console.error('⚠️ Failed to update order status:', orderUpdateError);
-      } else {
-        console.log(`✅ Order ${shipment.order_id} confirmed`);
-      }
-
-      return updated;
-    } catch (error) {
-      console.error('❌ Approve and place error:', error);
-      
-      // Rollback
-      try {
-        await supabase
-          .from('Shipments')
-          .update({
-            status: 'pending_review',
-            failed_reason: error.message,
-            retry_count: shipment.retry_count + 1,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', shipmentId);
-        
-        console.log('⚠️ Shipment rolled back to pending_review');
-      } catch (rollbackError) {
-        console.error('❌ Rollback failed:', rollbackError);
-      }
-      
-      throw error;
+      console.log('⚠️ Shipment rolled back to pending_review');
+    } catch (rollbackError) {
+      console.error('❌ Rollback failed:', rollbackError);
     }
-  },
+    
+    throw error;
+  }
+},
 
   /**
    * ✅ UPDATED: Enhanced tracking status update with order synchronization
