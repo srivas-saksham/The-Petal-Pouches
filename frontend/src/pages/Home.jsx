@@ -5,6 +5,7 @@ import HomeLayout from '../components/home/HomeLayout';
 import HeroParallax from '../components/home/HeroParallax';
 import ExperienceGallery from '../components/home/ExperienceGallery';
 import GiftQuizModule from '../components/home/GiftQuizModule';
+import HomeFooter from '../components/home/HomeFooter';
 import '../styles/home.css';
 
 /**
@@ -33,7 +34,7 @@ const Home = () => {
 
   // Set page title
   useEffect(() => {
-    document.title = 'Rizara - Gifts That Say More Than Words';
+    document.title = 'Rizara Luxe';
   }, []);
 
   return (
@@ -47,6 +48,8 @@ const Home = () => {
 
       {/* 3. Gift Quiz - Two Column Layout */}
       <GiftQuizModule />
+
+      <HomeFooter />
 
     </HomeLayout>
   );
