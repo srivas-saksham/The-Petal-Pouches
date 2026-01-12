@@ -12,7 +12,13 @@ import BundleQuickView from '../shop/BundleQuickView';
  * CheckoutCart Component - UNIFIED for Products & Bundles
  * ⭐ Handles both individual products and bundles
  */
-const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
+const CheckoutCart = ({ 
+  cartItems = [], 
+  bundles = {}, 
+  onItemUpdate,
+  onQuantityChangeStart,  // ⭐ NEW PROP
+  onQuantityChangeComplete  // ⭐ NEW PROP
+}) => {
   const navigate = useNavigate();
   const [updating, setUpdating] = useState(null);
   const [removing, setRemoving] = useState(null);
@@ -50,6 +56,11 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
   const handleUpdateQuantity = (cartItemId, itemKey, newQuantity, stockLimit) => {
     if (newQuantity < 1) return;
 
+    // ⭐ IMMEDIATELY notify parent that quantity change started
+    if (onQuantityChangeStart) {
+      onQuantityChangeStart();
+    }
+
     // Validate stock limit
     const validation = validateStockLimit(itemKey, newQuantity, 0, stockLimit);
     
@@ -66,6 +77,11 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
           return newErrors;
         });
       }, 3000);
+      
+      // ⭐ Notify parent that change is complete (failed)
+      if (onQuantityChangeComplete) {
+        onQuantityChangeComplete();
+      }
       
       return;
     }
@@ -100,6 +116,11 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
           if (onItemUpdate) {
             onItemUpdate(true);
           }
+          
+          // ⭐ Notify parent that update is complete
+          if (onQuantityChangeComplete) {
+            onQuantityChangeComplete();
+          }
         } else {
           const currentItem = cartItems.find(item => item.id === cartItemId);
           setLocalQuantities(prev => ({
@@ -119,6 +140,11 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
               return newErrors;
             });
           }, 3000);
+          
+          // ⭐ Notify parent even on error
+          if (onQuantityChangeComplete) {
+            onQuantityChangeComplete();
+          }
         }
       } catch (error) {
         const currentItem = cartItems.find(item => item.id === cartItemId);
@@ -139,6 +165,11 @@ const CheckoutCart = ({ cartItems = [], bundles = {}, onItemUpdate }) => {
             return newErrors;
           });
         }, 3000);
+        
+        // ⭐ Notify parent even on error
+        if (onQuantityChangeComplete) {
+          onQuantityChangeComplete();
+        }
       } finally {
         setUpdating(null);
         setPendingQuantities(prev => {

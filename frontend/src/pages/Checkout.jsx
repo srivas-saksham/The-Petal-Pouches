@@ -51,6 +51,7 @@ const Checkout = () => {
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [lastCartTotals, setLastCartTotals] = useState(null);
   const [isDeliveryCalculating, setIsDeliveryCalculating] = useState(false);
+  const [hasPendingQuantityChanges, setHasPendingQuantityChanges] = useState(false);
 
   // Initialize Razorpay on component mount
   useEffect(() => {
@@ -309,7 +310,19 @@ const Checkout = () => {
     return () => clearTimeout(failsafe);
   }, [cartTotals, lastCartTotals, isRecalculating]);
 
-  // ... all your existing handler functions ...
+  const handleQuantityChangeStart = useCallback(() => {
+    console.log('⏸️ [Checkout] Quantity change started - disabling payment');
+    setHasPendingQuantityChanges(true);
+  }, []);
+
+  const handleQuantityChangeComplete = useCallback(() => {
+    console.log('▶️ [Checkout] Quantity change complete - enabling payment');
+    
+    // Add a small delay to ensure all state updates propagate
+    setTimeout(() => {
+      setHasPendingQuantityChanges(false);
+    }, 300);
+  }, []);
 
   const handleGoBack = () => {
     navigate('/shop');
@@ -498,6 +511,12 @@ const Checkout = () => {
   const handleProceedToPayment = async () => {
     // ===== EXISTING VALIDATIONS - 100% UNCHANGED =====
     
+    if (hasPendingQuantityChanges) {
+      toast.warning('Please wait, quantity is being updated...');
+      console.log('⚠️ [Checkout] Payment blocked - quantity changes pending');
+      return;
+    }
+
     // ⭐ NEW: Block payment if delivery is calculating
     if (isDeliveryCalculating) {
       toast.warning('Please wait, delivery charges are being calculated...');
@@ -730,6 +749,9 @@ const Checkout = () => {
               cartItems={cartItems}
               bundles={bundles}
               onItemUpdate={handleCartUpdate}
+              onQuantityChangeStart={handleQuantityChangeStart}  // ⭐ NEW
+              onQuantityChangeComplete={handleQuantityChangeComplete}  // ⭐ NEW
+              hasPendingChanges={hasPendingQuantityChanges}
             />
             
             <DeliveryDetailsCard 

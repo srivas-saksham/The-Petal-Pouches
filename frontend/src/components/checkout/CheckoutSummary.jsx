@@ -62,6 +62,7 @@ const CheckoutSummary = ({
   onCouponApply = null,
   onCouponRemove = null,
   isDeliveryCalculating = false,
+  hasPendingChanges = false,
 }) => {
   const { refreshingTotals } = useCart();
 
@@ -163,14 +164,14 @@ const CheckoutSummary = ({
         {/* Payment Section */}
         <div className="px-6 pb-6 space-y-3">
           {/* Payment Button */}
-          <button
+         <button
             onClick={onPlaceOrder}
-            disabled={placingOrder || !selectedAddress}
+            disabled={placingOrder || !selectedAddress || hasPendingChanges}  // ⭐ UPDATED
             className={`
               w-full px-6 py-3.5 rounded-lg font-semibold text-white
               transition-all duration-200
               flex items-center justify-center gap-2
-              ${placingOrder || !selectedAddress
+              ${placingOrder || !selectedAddress || hasPendingChanges  // ⭐ UPDATED
                 ? 'bg-slate-300 cursor-not-allowed'
                 : 'bg-tpppink hover:bg-tpppink/90 shadow-md hover:shadow-lg active:scale-[0.98]'
               }
@@ -181,6 +182,11 @@ const CheckoutSummary = ({
                 <Loader size={18} className="animate-spin" />
                 <span>Processing...</span>
               </>
+            ) : hasPendingChanges ? (  // ⭐ NEW
+              <>
+                <Loader size={18} className="animate-spin" />
+                <span>Updating...</span>
+              </>
             ) : (
               <>
                 <CreditCard size={18} />
@@ -189,10 +195,17 @@ const CheckoutSummary = ({
             )}
           </button>
 
-          {/* Address Warning */}
-          {!selectedAddress && (
+          {/* Update the warning message */}
+          {!selectedAddress && !hasPendingChanges && (
             <p className="text-xs text-amber-600 text-center">
               Please select a delivery address
+            </p>
+          )}
+          
+          {/* ⭐ NEW: Show updating message */}
+          {hasPendingChanges && (
+            <p className="text-xs text-blue-600 text-center">
+              Updating cart totals...
             </p>
           )}
 
