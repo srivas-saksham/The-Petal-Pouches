@@ -61,6 +61,7 @@ const CheckoutSummary = ({
   appliedCoupon = null,
   onCouponApply = null,
   onCouponRemove = null,
+  isDeliveryCalculating = false,
 }) => {
   const { refreshingTotals } = useCart();
 
@@ -118,7 +119,10 @@ const CheckoutSummary = ({
                 {deliveryMode === 'express' ? "Express" : "Standard"} Delivery
               </span>
             </div>
-            {expressCharge > 0 ? (
+            {/* ⭐ UPDATED: Show loading when EITHER cart OR delivery is calculating */}
+            {refreshingTotals || isDeliveryCalculating ? (
+              <Loader size={14} className="animate-spin text-tpppink" />
+            ) : expressCharge > 0 ? (
               <span className="font-semibold text-slate-900">
                 {formatBundlePrice(expressCharge)}
               </span>

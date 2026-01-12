@@ -106,7 +106,7 @@ export const getAddressById = async (addressId) => {
  * @param {string} addressData.country - Country (required)
  * @param {string} addressData.zip_code - Postal code (required)
  * @param {string} addressData.landmark - Landmark (optional)
- * @param {string} addressData.phone - Contact phone (optional)
+ * @param {string} addressData.phone - Contact phone (required)
  * @param {number} addressData.latitude - Latitude (optional)
  * @param {number} addressData.longitude - Longitude (optional)
  * @param {boolean} addressData.is_default - Set as default (optional)
@@ -122,7 +122,7 @@ export const createAddress = async (addressData) => {
     }
 
     // Validate required fields
-    const requiredFields = ['line1', 'city', 'state', 'country', 'zip_code'];
+    const requiredFields = ['line1', 'city', 'state', 'country', 'zip_code', 'phone'];
     for (const field of requiredFields) {
       if (!addressData[field] || !addressData[field].trim()) {
         return {
@@ -178,7 +178,7 @@ export const updateAddress = async (addressId, addressData) => {
     }
 
     // Validate required fields
-    const requiredFields = ['line1', 'city', 'state', 'country', 'zip_code'];
+    const requiredFields = ['line1', 'city', 'state', 'country', 'zip_code', 'phone'];
     for (const field of requiredFields) {
       if (!addressData[field] || !addressData[field].trim()) {
         return {
@@ -340,8 +340,10 @@ export const validateAddress = (address) => {
     errors.push('Invalid postal code format (6 digits required)');
   }
 
-  // Validate phone if provided
-  if (address.phone && !/^\d{10}$/.test(address.phone.replace(/\D/g, ''))) {
+  // UPDATED: Make phone required
+  if (!address.phone || !address.phone.trim()) {
+    errors.push('Phone number is required');
+  } else if (!/^\d{10}$/.test(address.phone.replace(/\D/g, ''))) {
     errors.push('Invalid phone number format (10 digits required)');
   }
 

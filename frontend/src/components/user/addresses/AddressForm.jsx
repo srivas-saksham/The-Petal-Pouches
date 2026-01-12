@@ -299,7 +299,7 @@ const AddressForm = ({ address = null, onSubmit, onCancel }) => {
         {/* Phone Number */}
         <div>
           <label htmlFor="phone" className="block text-sm font-medium text-tppslate mb-1">
-            Phone Number
+            Phone Number <span className="text-red-500">*</span>
           </label>
           <input
             type="tel"

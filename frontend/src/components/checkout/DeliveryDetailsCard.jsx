@@ -36,7 +36,6 @@ const DeliveryDetailsCard = ({
   const [verified, setVerified] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [verificationError, setVerificationError] = useState(null);
-  const [lastCheckedWeight, setLastCheckedWeight] = useState(null);
 
   // Address dropdown state
   const [showAddressList, setShowAddressList] = useState(false);
@@ -46,21 +45,39 @@ const DeliveryDetailsCard = ({
   const [selectedMode, setSelectedMode] = useState('surface'); // 'surface' or 'express'
   const [isChangingMode, setIsChangingMode] = useState(false);
 
-  // Load delivery data from localStorage on mount
+  // Load delivery data from localStorage - React to address and weight changes
   useEffect(() => {
-    const storedCheck = getStoredDeliveryCheck();
-    if (storedCheck) {
-      console.log('📦 [DeliveryDetailsCard] Loaded stored delivery data:', storedCheck);
-      setDeliveryData(storedCheck);
+    const storedData = getDeliveryData();
+    
+    if (!storedData) {
+      console.log('📭 [DeliveryDetailsCard] No stored delivery data');
+      
+      if (selectedAddress?.zip_code && cartWeight) {
+        console.log('🔄 [DeliveryDetailsCard] No cached data, triggering fresh calculation');
+        verifyDeliveryInBackground(selectedAddress.zip_code, null);
+      }
+      return;
     }
 
-    // ✅ Load saved delivery mode
-    const storedData = getDeliveryData();
-    if (storedData?.selectedDeliveryMode) {
+    console.log('📦 [DeliveryDetailsCard] Found stored delivery data:', storedData);
+
+    if (storedData.deliveryCheck) {
+      setDeliveryData(storedData.deliveryCheck);
+    } else {
+      if (selectedAddress?.zip_code && cartWeight) {
+        console.log('🔄 [DeliveryDetailsCard] Delivery data cleared, triggering recalculation');
+        verifyDeliveryInBackground(selectedAddress.zip_code, null);
+      }
+    }
+
+    // ⭐ REMOVED: setDeliveryModeData and setExpressCharge (not in this component)
+
+    // Load saved delivery mode
+    if (storedData.selectedDeliveryMode) {
       setSelectedMode(storedData.selectedDeliveryMode);
       console.log('✅ [DeliveryDetailsCard] Restored delivery mode:', storedData.selectedDeliveryMode);
     }
-  }, []);
+  }, [selectedAddress?.zip_code, cartWeight]);
 
   // Background verification when address is selected and changes
   useEffect(() => {
@@ -77,32 +94,6 @@ const DeliveryDetailsCard = ({
     }
   }, [selectedAddress?.id, selectedAddress?.zip_code, cartWeight]);
 
-  // ✅ FIX: Always recalculate when weight changes after initial load
-  useEffect(() => {
-    // Skip if no address or delivery data yet
-    if (!selectedAddress?.zip_code || !deliveryData) {
-      return;
-    }
-
-    // Initialize lastCheckedWeight on first load
-    if (lastCheckedWeight === null) {
-      console.log(`📦 [DeliveryDetailsCard] Initializing weight tracking: ${cartWeight}g`);
-      setLastCheckedWeight(cartWeight);
-      return;
-    }
-
-    // Recalculate if weight changed
-    if (cartWeight !== lastCheckedWeight) {
-      console.log(`🔄 [DeliveryDetailsCard] Cart weight changed: ${lastCheckedWeight}g → ${cartWeight}g`);
-      console.log(`   Rechecking delivery costs for PIN ${selectedAddress.zip_code}...`);
-      
-      // Update last checked weight BEFORE API call to prevent duplicate calls
-      setLastCheckedWeight(cartWeight);
-      
-      // Re-run delivery check with new weight
-      verifyDeliveryInBackground(selectedAddress.zip_code, deliveryData);
-    }
-  }, [cartWeight, deliveryData, selectedAddress?.zip_code, lastCheckedWeight]);
 
   // ✅ NEW: Notify parent when mode changes
   useEffect(() => {
@@ -134,6 +125,11 @@ const DeliveryDetailsCard = ({
 
     setVerifying(true);
     setVerificationError(null);
+
+    // ⭐ NEW: Notify parent that delivery is being calculated
+    if (onDeliveryUpdate) {
+      onDeliveryUpdate({ isCalculating: true });
+    }
 
     try {
       console.log('🔄 [DeliveryDetailsCard] Verifying delivery for PIN:', pinCode);
@@ -200,8 +196,14 @@ const DeliveryDetailsCard = ({
       // Don't clear existing data on error - show cached data
     } finally {
       setVerifying(false);
+      
+      // ⭐ NEW: Notify parent that calculation is complete
+      if (onDeliveryUpdate) {
+        onDeliveryUpdate({ isCalculating: false });
+      }
     }
   };
+
 
   // Handle address selection
   const handleAddressSelect = (address) => {

@@ -117,11 +117,17 @@ const AddressCard = ({
                   <span className="font-semibold">Landmark:</span> {address.landmark}
                 </p>
               )}
+
+              {address.zip_code && (
+                <p className="text-xs text-tppslate/80">
+                  <span className="font-semibold">Zip Code:</span> {address.zip_code}
+                </p>
+              )}
             </div>
           </div>
 
           {/* RIGHT: Action Buttons Column - Stacked Vertically */}
-          <div className="flex flex-col gap-2 pt-1 border-l-2 border-tppslate/30 border-dashed pl-3">
+          <div className="flex flex-col gap-2 pt-1 border-l-2 border-tppslate/30 border-dashed pl-3 justify-between">
             {!address.is_default && (
               <button
                 onClick={() => onSetDefault(address.id)}
@@ -214,11 +220,17 @@ const AddressCard = ({
                 <span className="font-semibold">Landmark:</span> {address.landmark}
               </p>
             )}
+
+            {address.zip_code && (
+              <p className="text-xs text-tppslate/80">
+                <span className="font-semibold">Zip Code:</span> {address.zip_code}
+              </p>
+            )}
           </div>
         </div>
 
         {/* RIGHT: Icon-Only Action Buttons Column - Stacked Vertically */}
-        <div className="flex flex-col gap-1.5 pt-1 border-l-2 border-tppslate/30 border-dashed pl-3">
+        <div className="flex flex-col gap-1.5 pt-1 border-l-2 border-tppslate/30 border-dashed pl-3 justify-between">
           {!address.is_default && (
             <button
               onClick={() => onSetDefault(address.id)}
