@@ -865,7 +865,7 @@ const UserAuthController = {
         
         return res.json({
           success: true,
-          requiresPasswordSetup: true, // ✅ Flag for frontend
+          requiresPasswordSetup: true,
           tempUserData: {
             email: user.email,
             name: user.user_metadata.full_name || user.email.split('@')[0],
@@ -876,6 +876,12 @@ const UserAuthController = {
 
       // ✅ EXISTING USER - Login normally
       console.log(`[Google OAuth] Existing user logged in: ${user.email}`);
+
+      // ✅ FIX: Update last_login timestamp for Google OAuth login
+      await supabase
+        .from('Users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', existingUser.id);
 
       // Generate JWT token
       const token = jwt.sign(
@@ -963,7 +969,8 @@ const UserAuthController = {
       const saltRounds = 10;
       const passwordHash = await bcrypt.hash(password, saltRounds);
 
-      // Create user account
+      // ✅ FIX: Create user account with last_login timestamp
+      const currentTime = new Date().toISOString();
       const { data: newUser, error } = await supabase
         .from('Users')
         .insert([{
@@ -972,7 +979,8 @@ const UserAuthController = {
           password_hash: passwordHash,
           phone: null,
           is_active: true,
-          email_verified: true // Google emails are pre-verified
+          email_verified: true, // Google emails are pre-verified
+          last_login: currentTime // ✅ Set initial last_login on signup
         }])
         .select('id, name, email, phone, created_at')
         .single();
