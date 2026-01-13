@@ -334,157 +334,391 @@ const ShipmentController = {
       });
     }
   },
-  /**
-     * Download shipment label (server-side proxy)
-     * GET /api/admin/shipments/:id/label
-     */
-    async downloadLabel(req, res) {
-    try {
-        const { id } = req.params;
-        
-        const shipment = await ShipmentModel.getShipmentById(id);
-        
-        if (!shipment) {
-        return res.status(404).json({
-            success: false,
-            message: 'Shipment not found'
-        });
-        }
-        
-        if (!shipment.awb) {
-        return res.status(400).json({
-            success: false,
-            message: 'Shipment does not have AWB yet. Label not available.'
-        });
-        }
-        
-        console.log(`📄 Downloading label for AWB: ${shipment.awb}`);
-        
-        // Fetch label from Delhivery with authentication
-        const delhiveryService = require('../services/delhiveryService');
-        const labelUrl = `${delhiveryService.baseURL}/api/p/packing_slip?wbns=${shipment.awb}&pdf=true`;
-        
-        const axios = require('axios');
-        const response = await axios.get(labelUrl, {
-        headers: {
-            'Authorization': `Token ${delhiveryService.apiToken}`,
-            'Accept': 'application/pdf'
-        },
-        responseType: 'stream',
-        timeout: 30000
-        });
-        
-        // Set response headers for PDF download
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="label-${shipment.awb}.pdf"`);
-        
-        // Pipe the PDF stream to response
-        response.data.pipe(res);
-        
-        console.log(`✅ Label downloaded: ${shipment.awb}`);
-        
-    } catch (error) {
-        console.error('❌ Download label error:', error.response?.data || error.message);
-        
-        if (error.response?.status === 401) {
-        return res.status(502).json({
-            success: false,
-            message: 'Delhivery authentication failed',
-            code: 'DELHIVERY_AUTH_ERROR'
-        });
-        }
-        
-        if (error.response?.status === 404) {
-        return res.status(404).json({
-            success: false,
-            message: 'Label not found. It may not be generated yet.',
-            code: 'LABEL_NOT_FOUND'
-        });
-        }
-        
-        res.status(500).json({
-        success: false,
-        message: 'Failed to download label',
-        error: error.message
-        });
-    }
-    },
 
-    /**
-     * Download shipment invoice (server-side proxy)
-     * GET /api/admin/shipments/:id/invoice
-     */
-    async downloadInvoice(req, res) {
+  /**
+   * Generate and download invoice
+   * GET /api/admin/shipments/:id/invoice
+   */
+  async downloadInvoice(req, res) {
     try {
-        const { id } = req.params;
-        
-        const shipment = await ShipmentModel.getShipmentById(id);
-        
-        if (!shipment) {
+      const { id } = req.params;
+
+      console.log(`📄 Generating invoice for shipment: ${id}`);
+
+      // Get shipment details
+      const supabase = require('../config/supabaseClient');
+      const { data: shipment, error } = await supabase
+        .from('Shipments')
+        .select('awb, id')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.error('❌ Database error:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Database error: ' + error.message
+        });
+      }
+
+      if (!shipment) {
         return res.status(404).json({
-            success: false,
-            message: 'Shipment not found'
+          success: false,
+          message: 'Shipment not found'
         });
-        }
-        
-        if (!shipment.awb) {
+      }
+
+      if (!shipment.awb) {
         return res.status(400).json({
-            success: false,
-            message: 'Shipment does not have AWB yet. Invoice not available.'
+          success: false,
+          message: 'Shipment does not have AWB yet. Cannot generate invoice.'
         });
-        }
-        
-        console.log(`📄 Downloading invoice for AWB: ${shipment.awb}`);
-        
-        // Fetch invoice from Delhivery with authentication
-        const delhiveryService = require('../services/delhiveryService');
-        const invoiceUrl = `${delhiveryService.baseURL}/api/p/invoice?wbns=${shipment.awb}&pdf=true`;
-        
-        const axios = require('axios');
-        const response = await axios.get(invoiceUrl, {
+      }
+
+      console.log(`📦 AWB: ${shipment.awb}`);
+
+      // Generate invoice using Delhivery service
+      const delhiveryService = require('../services/delhiveryService');
+      const invoiceResult = await delhiveryService.generateInvoice(shipment.awb);
+
+      if (!invoiceResult.success) {
+        console.error('❌ Invoice generation failed:', invoiceResult.error);
+        return res.status(500).json({
+          success: false,
+          message: invoiceResult.error || 'Failed to generate invoice'
+        });
+      }
+
+      console.log(`✅ Invoice URL generated: ${invoiceResult.invoice_url.substring(0, 100)}...`);
+
+      // ✅ FIX: Fetch the PDF from the SIGNED URL (no auth header needed!)
+      const axios = require('axios');
+      const pdfResponse = await axios.get(invoiceResult.invoice_url, {
+        // ❌ DON'T ADD Authorization header - AWS signed URLs don't need it!
         headers: {
-            'Authorization': `Token ${delhiveryService.apiToken}`,
-            'Accept': 'application/pdf'
+          'Accept': 'application/pdf'
         },
         responseType: 'stream',
-        timeout: 30000
-        });
-        
-        // Set response headers for PDF download
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="invoice-${shipment.awb}.pdf"`);
-        
-        // Pipe the PDF stream to response
-        response.data.pipe(res);
-        
-        console.log(`✅ Invoice downloaded: ${shipment.awb}`);
-        
-    } catch (error) {
-        console.error('❌ Download invoice error:', error.response?.data || error.message);
-        
-        if (error.response?.status === 401) {
+        timeout: 30000,
+        validateStatus: (status) => status < 500
+      });
+
+      if (pdfResponse.status !== 200) {
+        console.error(`❌ PDF fetch failed: HTTP ${pdfResponse.status}`);
         return res.status(502).json({
-            success: false,
-            message: 'Delhivery authentication failed',
-            code: 'DELHIVERY_AUTH_ERROR'
+          success: false,
+          message: `Failed to fetch PDF from Delhivery: HTTP ${pdfResponse.status}`,
+          code: 'DELHIVERY_FETCH_ERROR'
         });
-        }
-        
-        if (error.response?.status === 404) {
+      }
+
+      // Set response headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="invoice-${shipment.awb}.pdf"`);
+
+      // Pipe the PDF stream to response
+      pdfResponse.data.pipe(res);
+
+      console.log(`✅ Invoice streaming to client: ${shipment.awb}`);
+
+    } catch (error) {
+      console.error('❌ Download invoice error:', error);
+      
+      // Check if headers already sent (streaming started)
+      if (res.headersSent) {
+        console.error('❌ Error occurred during streaming, connection terminated');
+        return res.end();
+      }
+
+      if (error.code === 'ECONNREFUSED') {
+        return res.status(502).json({
+          success: false,
+          message: 'Cannot connect to Delhivery API',
+          code: 'DELHIVERY_CONNECTION_ERROR'
+        });
+      }
+
+      if (error.response?.status === 401) {
+        return res.status(502).json({
+          success: false,
+          message: 'Delhivery authentication failed',
+          code: 'DELHIVERY_AUTH_ERROR'
+        });
+      }
+
+      if (error.response?.status === 404) {
         return res.status(404).json({
-            success: false,
-            message: 'Invoice not found. It may not be generated yet.',
-            code: 'INVOICE_NOT_FOUND'
+          success: false,
+          message: 'Invoice not found at Delhivery. It may not be generated yet.',
+          code: 'INVOICE_NOT_FOUND'
         });
-        }
-        
-        res.status(500).json({
+      }
+
+      return res.status(500).json({
         success: false,
         message: 'Failed to download invoice',
-        error: error.message
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  },
+
+  /**
+   * Generate and download shipping label
+   * GET /api/admin/shipments/:id/label
+   */
+  async downloadLabel(req, res) {
+    try {
+      const { id } = req.params;
+      const { pdf_size = 'A4' } = req.query;
+
+      console.log(`📄 Generating label for shipment: ${id}`);
+
+      // Get shipment details
+      const supabase = require('../config/supabaseClient');
+      const { data: shipment, error } = await supabase
+        .from('Shipments')
+        .select('awb, id')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.error('❌ Database error:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Database error: ' + error.message
         });
+      }
+
+      if (!shipment) {
+        return res.status(404).json({
+          success: false,
+          message: 'Shipment not found'
+        });
+      }
+
+      if (!shipment.awb) {
+        return res.status(400).json({
+          success: false,
+          message: 'Shipment does not have AWB yet. Cannot generate label.'
+        });
+      }
+
+      console.log(`📦 AWB: ${shipment.awb}, Size: ${pdf_size}`);
+
+      // Generate label using Delhivery service
+      const delhiveryService = require('../services/delhiveryService');
+      const labelResult = await delhiveryService.generateLabel(shipment.awb, { 
+        pdf: true, 
+        pdf_size 
+      });
+
+      if (!labelResult.success) {
+        console.error('❌ Label generation failed:', labelResult.error);
+        return res.status(500).json({
+          success: false,
+          message: labelResult.error || 'Failed to generate label'
+        });
+      }
+
+      console.log(`✅ Label URL generated: ${labelResult.label_url.substring(0, 100)}...`);
+
+      // ✅ FIX: Fetch the PDF from the SIGNED URL (no auth header needed!)
+      const axios = require('axios');
+      const pdfResponse = await axios.get(labelResult.label_url, {
+        // ❌ DON'T ADD Authorization header - AWS signed URLs don't need it!
+        headers: {
+          'Accept': 'application/pdf'
+        },
+        responseType: 'stream',
+        timeout: 30000,
+        validateStatus: (status) => status < 500
+      });
+
+      if (pdfResponse.status !== 200) {
+        console.error(`❌ PDF fetch failed: HTTP ${pdfResponse.status}`);
+        return res.status(502).json({
+          success: false,
+          message: `Failed to fetch PDF from Delhivery: HTTP ${pdfResponse.status}`,
+          code: 'DELHIVERY_FETCH_ERROR'
+        });
+      }
+
+      // Set response headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="label-${shipment.awb}.pdf"`);
+
+      // Pipe the PDF stream to response
+      pdfResponse.data.pipe(res);
+
+      console.log(`✅ Label streaming to client: ${shipment.awb}`);
+
+    } catch (error) {
+      console.error('❌ Download label error:', error);
+      
+      // Check if headers already sent (streaming started)
+      if (res.headersSent) {
+        console.error('❌ Error occurred during streaming, connection terminated');
+        return res.end();
+      }
+
+      if (error.code === 'ECONNREFUSED') {
+        return res.status(502).json({
+          success: false,
+          message: 'Cannot connect to Delhivery API',
+          code: 'DELHIVERY_CONNECTION_ERROR'
+        });
+      }
+
+      if (error.response?.status === 401) {
+        return res.status(502).json({
+          success: false,
+          message: 'Delhivery authentication failed',
+          code: 'DELHIVERY_AUTH_ERROR'
+        });
+      }
+
+      if (error.response?.status === 404) {
+        return res.status(404).json({
+          success: false,
+          message: 'Label not found at Delhivery. It may not be generated yet.',
+          code: 'LABEL_NOT_FOUND'
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to download label',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
     }
+  },
+
+  /**
+   * Generate and download invoice
+   * GET /api/admin/shipments/:id/invoice
+   */
+  async downloadInvoice(req, res) {
+    try {
+      const { id } = req.params;
+
+      console.log(`📄 Generating invoice for shipment: ${id}`);
+
+      // Get shipment details
+      const supabase = require('../config/supabaseClient');
+      const { data: shipment, error } = await supabase
+        .from('Shipments')
+        .select('awb, id')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.error('❌ Database error:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Database error: ' + error.message
+        });
+      }
+
+      if (!shipment) {
+        return res.status(404).json({
+          success: false,
+          message: 'Shipment not found'
+        });
+      }
+
+      if (!shipment.awb) {
+        return res.status(400).json({
+          success: false,
+          message: 'Shipment does not have AWB yet. Cannot generate invoice.'
+        });
+      }
+
+      console.log(`📦 AWB: ${shipment.awb}`);
+
+      // Generate invoice using Delhivery service
+      const delhiveryService = require('../services/delhiveryService');
+      const invoiceResult = await delhiveryService.generateInvoice(shipment.awb);
+
+      if (!invoiceResult.success) {
+        console.error('❌ Invoice generation failed:', invoiceResult.error);
+        return res.status(500).json({
+          success: false,
+          message: invoiceResult.error || 'Failed to generate invoice'
+        });
+      }
+
+      console.log(`✅ Invoice URL generated: ${invoiceResult.invoice_url}`);
+
+      // Fetch the PDF from Delhivery
+      const axios = require('axios');
+      const pdfResponse = await axios.get(invoiceResult.invoice_url, {
+        headers: {
+          'Authorization': `Token ${delhiveryService.apiToken}`,
+          'Accept': 'application/pdf'
+        },
+        responseType: 'stream',
+        timeout: 30000,
+        validateStatus: (status) => status < 500
+      });
+
+      if (pdfResponse.status !== 200) {
+        console.error(`❌ PDF fetch failed: HTTP ${pdfResponse.status}`);
+        return res.status(502).json({
+          success: false,
+          message: `Failed to fetch PDF from Delhivery: HTTP ${pdfResponse.status}`,
+          code: 'DELHIVERY_FETCH_ERROR'
+        });
+      }
+
+      // Set response headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="invoice-${shipment.awb}.pdf"`);
+
+      // Pipe the PDF stream to response
+      pdfResponse.data.pipe(res);
+
+      console.log(`✅ Invoice streaming to client: ${shipment.awb}`);
+
+    } catch (error) {
+      console.error('❌ Download invoice error:', error);
+      
+      // Check if headers already sent (streaming started)
+      if (res.headersSent) {
+        console.error('❌ Error occurred during streaming, connection terminated');
+        return res.end();
+      }
+
+      if (error.code === 'ECONNREFUSED') {
+        return res.status(502).json({
+          success: false,
+          message: 'Cannot connect to Delhivery API',
+          code: 'DELHIVERY_CONNECTION_ERROR'
+        });
+      }
+
+      if (error.response?.status === 401) {
+        return res.status(502).json({
+          success: false,
+          message: 'Delhivery authentication failed',
+          code: 'DELHIVERY_AUTH_ERROR'
+        });
+      }
+
+      if (error.response?.status === 404) {
+        return res.status(404).json({
+          success: false,
+          message: 'Invoice not found at Delhivery. It may not be generated yet.',
+          code: 'INVOICE_NOT_FOUND'
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to download invoice',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
     }
+  }
 };
 
 module.exports = ShipmentController;

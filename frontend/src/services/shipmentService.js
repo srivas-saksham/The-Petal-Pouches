@@ -221,6 +221,113 @@ const shipmentService = {
     }
   },
 
+  // ==================== 📄 LABEL & INVOICE DOWNLOAD ====================
+
+  /**
+   * Generate and download shipping label
+   * Downloads PDF directly from backend proxy
+   */
+  generateLabel: async (shipmentId, pdfSize = 'A4') => {
+    try {
+      const response = await adminApi.get(`/api/admin/shipments/${shipmentId}/label`, {
+        params: { pdf_size: pdfSize },
+        responseType: 'blob' // ✅ Important: tells axios to expect binary data
+      });
+
+      // Create a blob URL and trigger download
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `shipment-label-${shipmentId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      return {
+        success: true,
+        message: 'Label downloaded successfully'
+      };
+    } catch (error) {
+      console.error('Generate label error:', error);
+      
+      // ✅ Handle blob error responses
+      if (error.response && error.response.data instanceof Blob) {
+        try {
+          const text = await error.response.data.text();
+          const errorData = JSON.parse(text);
+          return {
+            success: false,
+            error: errorData.message || 'Failed to generate label'
+          };
+        } catch {
+          return {
+            success: false,
+            error: 'Failed to generate label'
+          };
+        }
+      }
+      
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message || 'Failed to generate label'
+      };
+    }
+  },
+
+  /**
+   * Generate and download invoice
+   * Downloads PDF directly from backend proxy
+   */
+  generateInvoice: async (shipmentId) => {
+    try {
+      const response = await adminApi.get(`/api/admin/shipments/${shipmentId}/invoice`, {
+        responseType: 'blob' // ✅ Important: tells axios to expect binary data
+      });
+
+      // Create a blob URL and trigger download
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `shipment-invoice-${shipmentId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      return {
+        success: true,
+        message: 'Invoice downloaded successfully'
+      };
+    } catch (error) {
+      console.error('Generate invoice error:', error);
+      
+      // ✅ Handle blob error responses
+      if (error.response && error.response.data instanceof Blob) {
+        try {
+          const text = await error.response.data.text();
+          const errorData = JSON.parse(text);
+          return {
+            success: false,
+            error: errorData.message || 'Failed to generate invoice'
+          };
+        } catch {
+          return {
+            success: false,
+            error: 'Failed to generate invoice'
+          };
+        }
+      }
+      
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message || 'Failed to generate invoice'
+      };
+    }
+  },
+
   // ==================== 🆕 EDIT METHODS ====================
 
   /**

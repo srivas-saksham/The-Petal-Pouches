@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { Link } from 'react-router-dom';
+import shipmentService from '../../../services/shipmentService';
 
 export default function AdminShipmentCard({ 
   shipment, 
@@ -718,28 +719,46 @@ export default function AdminShipmentCard({
 
             {/* Download Label (if available) */}
             {shipment.awb && (
-              <a
-                href={`/api/admin/shipments/${shipment.id}/label`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={async () => {
+                  const result = await shipmentService.generateLabel(shipment.id, 'A4'); // 4x6 size
+                  if (!result.success) {
+                    console.error('Failed to generate label:', result.error);
+                    // Optional: Add toast notification
+                    // toast.error(`Failed to generate label: ${result.error}`);
+                  } else {
+                    console.log('✅ Label downloaded successfully');
+                    // Optional: Add toast notification
+                    // toast.success('Label downloaded successfully');
+                  }
+                }}
                 className="w-full px-3 py-2 bg-white border border-tppslate/20 text-tppslate text-xs rounded-lg hover:bg-gray-50 font-semibold transition-all flex items-center justify-center gap-1.5"
               >
                 <Download className="w-3.5 h-3.5" />
-                Label
-              </a>
+                Label (4x6)
+              </button>
             )}
 
             {/* Download Invoice (if available) */}
             {shipment.awb && (
-              <a
-                href={`/api/admin/shipments/${shipment.id}/invoice`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={async () => {
+                  const result = await shipmentService.generateInvoice(shipment.id);
+                  if (!result.success) {
+                    console.error('Failed to generate invoice:', result.error);
+                    // Optional: Add toast notification
+                    // toast.error(`Failed to generate invoice: ${result.error}`);
+                  } else {
+                    console.log('✅ Invoice downloaded successfully');
+                    // Optional: Add toast notification
+                    // toast.success('Invoice downloaded successfully');
+                  }
+                }}
                 className="w-full px-3 py-2 bg-white border border-gray-300 text-gray-700 text-xs rounded-lg hover:bg-gray-50 font-semibold transition-all flex items-center justify-center gap-1.5"
               >
                 <FileText className="w-3.5 h-3.5" />
                 Invoice
-              </a>
+              </button>
             )}
           </div>
         </div>

@@ -14,6 +14,7 @@ import PageHeader from '../../components/admin/ui/PageHeader';
 import EditShipmentModal from '../../components/admin/shipments/EditShipmentModal';
 import BulkPickupModal from '../../components/admin/shipments/BulkPickupModal';
 import Button from '../../components/admin/ui/Button';
+import { useToast } from '../../hooks/useToast';
 
 const AdminShipmentsPage = () => {
   const [shipments, setShipments] = useState([]);
@@ -26,7 +27,6 @@ const AdminShipmentsPage = () => {
   // Modal states
   const [approveModal, setApproveModal] = useState(null);
   const [bulkApproveModal, setBulkApproveModal] = useState(false);
-  const [notification, setNotification] = useState(null);
   const [editModal, setEditModal] = useState(null); // Stores shipment to edit
   const [editingShipment, setEditingShipment] = useState(null); // Full shipment data
   const [bulkPickupModal, setBulkPickupModal] = useState(false);
@@ -43,15 +43,7 @@ const AdminShipmentsPage = () => {
     loadStats();
   }, [filters.status, filters.page, filters.search]);
 
-  // Auto-dismiss notifications after 5 seconds
-  useEffect(() => {
-    if (notification) {
-      const timer = setTimeout(() => {
-        setNotification(null);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
+  const toast = useToast();
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
@@ -94,11 +86,11 @@ const AdminShipmentsPage = () => {
     const result = await shipmentService.approveAndPlace(shipmentId);
     
     if (result.success) {
-      showNotification('✅ Shipment approved and placed successfully!', 'success');
+      toast.success('Shipment approved and placed successfully!');
       loadShipments();
       loadStats();
     } else {
-      showNotification(`❌ Failed: ${result.error}`, 'error');
+      toast.error(`❌ Failed: ${result.error}`);
     }
   };
 
@@ -114,16 +106,17 @@ const AdminShipmentsPage = () => {
       const successCount = result.data.success?.length || 0;
       const failedCount = result.data.failed?.length || 0;
       
-      showNotification(
-        `✅ Bulk Approval Complete! Success: ${successCount}, Failed: ${failedCount}`,
-        successCount > 0 ? 'success' : 'error'
-      );
+      if (successCount > 0) {
+        toast.success(`Bulk Approval Complete! Success: ${successCount}, Failed: ${failedCount}`);
+      } else {
+        toast.error(`❌ Bulk Approval Complete! Success: ${successCount}, Failed: ${failedCount}`);
+      }
       
       setSelectedShipments([]);
       loadShipments();
       loadStats();
     } else {
-      showNotification(`❌ Bulk approval failed: ${result.error}`, 'error');
+      toast.error(`❌ Bulk approval failed: ${result.error}`);
     }
   };
 
@@ -157,10 +150,10 @@ const AdminShipmentsPage = () => {
         setEditingShipment(result.data);
         setEditModal(shipmentId);
       } else {
-        showNotification(`❌ Failed to load shipment: ${result.error}`, 'error');
+        toast.error(`❌ Failed to load shipment: ${result.error}`);
       }
     } catch (error) {
-      showNotification(`❌ Error: ${error.message}`, 'error');
+      toast.error(`❌ Error: ${error.message}`);
     }
   };
 
@@ -169,10 +162,7 @@ const AdminShipmentsPage = () => {
    * Reloads shipments and shows success message
    */
   const handleEditSuccess = (result) => {
-    showNotification(
-      `✅ Shipment updated successfully!\nFields changed: ${result.changes?.fields_changed?.join(', ')}`,
-      'success'
-    );
+    toast.success(`Shipment updated successfully! Fields: ${result.changes?.fields_changed?.join(', ')}`);
     
     // Reload shipments
     loadShipments();
@@ -193,32 +183,6 @@ const AdminShipmentsPage = () => {
 
   return (
     <div className="min-h-screen">
-      
-      {/* Notification Toast */}
-      {notification && (
-        <div className="fixed top-4 right-4 z-50 animate-slide-in-right">
-          <div className={`flex items-start gap-3 p-4 rounded-lg shadow-lg border-2 min-w-[320px] max-w-md ${
-            notification.type === 'success' 
-              ? 'bg-green-50 border-green-500 text-green-900' 
-              : 'bg-red-50 border-red-500 text-red-900'
-          }`}>
-            {notification.type === 'success' ? (
-              <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-            ) : (
-              <XCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-            )}
-            <div className="flex-1">
-              <p className="text-sm font-semibold whitespace-pre-line">{notification.message}</p>
-            </div>
-            <button
-              onClick={() => setNotification(null)}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Approve Modal */}
       {approveModal && (
@@ -466,10 +430,7 @@ const AdminShipmentsPage = () => {
         isOpen={bulkPickupModal}
         onClose={() => setBulkPickupModal(false)}
         onSuccess={(result) => {
-          showNotification(
-            `✅ Pickup scheduled for ${result.data.shipment_count} shipments`,
-            'success'
-          );
+          toast.success(`Pickup scheduled for ${result.data.shipment_count} shipments`);
           loadShipments();
           loadStats();
         }}
