@@ -310,13 +310,6 @@ const CheckoutCart = ({
                             {isProduct ? <ShoppingBag size={32} className="text-slate-400" /> : <Package size={32} className="text-slate-400" />}
                           </div>
                         )}
-
-                        {/* Product Badge */}
-                        {isProduct && (
-                          <div className="absolute bottom-1 left-1 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
-                            PRODUCT
-                          </div>
-                        )}
                       </div>
 
                       {/* Quick View Button (bundles only) */}
@@ -346,13 +339,6 @@ const CheckoutCart = ({
                           {itemData.description}
                         </p>
                       )}
-
-                      {/* Type Badge */}
-                      <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 ${
-                        isBundle ? 'bg-tpppink/10 text-tpppink' : 'bg-blue-100 text-blue-700'
-                      }`}>
-                        {isBundle ? `Bundle • ${bundleItems.length} items` : 'Product'}
-                      </div>
 
                       {/* Low Stock Warning */}
                       {isLowStock && (

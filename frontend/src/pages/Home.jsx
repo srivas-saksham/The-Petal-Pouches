@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import HomeLayout from '../components/home/HomeLayout';
 import HeroParallax from '../components/home/HeroParallax';
 import ExperienceGallery from '../components/home/ExperienceGallery';
+import WhatsTheOccasion from '../components/home/WhatsTheOccasion';
 import GiftQuizModule from '../components/home/GiftQuizModule';
 import HomeFooter from '../components/home/HomeFooter';
 import '../styles/home.css';
@@ -45,6 +46,7 @@ const Home = () => {
 
       {/* 2. Experience Gallery - 3 Featured Bundles */}
       <ExperienceGallery />
+      <WhatsTheOccasion />
 
       {/* 3. Gift Quiz - Two Column Layout */}
       <GiftQuizModule />
