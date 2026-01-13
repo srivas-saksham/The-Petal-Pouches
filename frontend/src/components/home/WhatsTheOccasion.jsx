@@ -1,5 +1,8 @@
+// frontend/src/components/home/WhatsTheOccasion.jsx
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Heart, Eye, Package } from 'lucide-react';
+import Circular3DCarousel from './Circular3DCarousel';
 
 // Interactive Grid Background Component
 const GridBackground = ({ gridSize = 40, opacity = 0.05, mousePos }) => {
@@ -92,15 +95,9 @@ const WhatsTheOccasion = ({ onQuickView }) => {
     // This will be replaced with actual navigate from useNavigate
     window.location.href = path;
   };
-  const scrollContainerRef = useRef(null);
   const [bundles, setBundles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
   const [mousePos, setMousePos] = useState(null);
-  const [isDown, setIsDown] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [scrollPosition, setScrollPosition] = useState(0);
 
   // ===========================
   // FETCH VALENTINE'S BUNDLES AND PRODUCTS
@@ -156,66 +153,6 @@ const WhatsTheOccasion = ({ onQuickView }) => {
     fetchValentineItems();
   }, []);
 
-  // ===========================
-  // SCROLL CONTROL
-  // ===========================
-  const checkScroll = () => {
-    if (scrollContainerRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
-      setCanScrollLeft(scrollLeft > 0);
-      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
-    }
-  };
-
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (container) {
-      checkScroll();
-      container.addEventListener('scroll', checkScroll);
-      return () => container.removeEventListener('scroll', checkScroll);
-    }
-  }, [bundles]);
-
-  const scrollLeftBtn = () => {
-    scrollContainerRef.current?.scrollBy({ left: -400, behavior: 'smooth' });
-  };
-
-  const scrollRightBtn = () => {
-    scrollContainerRef.current?.scrollBy({ left: 400, behavior: 'smooth' });
-  };
-
-  const handleMouseMove = (e) => {
-    setMousePos({ x: e.clientX, y: e.clientY });
-  };
-
-  // ===========================
-  // DRAG TO SCROLL FUNCTIONALITY - FIXED (Circular Gallery Method)
-  // ===========================
-  const onTouchDown = (e) => {
-    if (!scrollContainerRef.current) return;
-    setIsDown(true);
-    setScrollPosition(scrollContainerRef.current.scrollLeft);
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    setStartX(clientX);
-    scrollContainerRef.current.style.cursor = 'grabbing';
-    scrollContainerRef.current.style.userSelect = 'none';
-  };
-
-  const onTouchMove = (e) => {
-    if (!isDown || !scrollContainerRef.current) return;
-    e.preventDefault();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const distance = startX - clientX;
-    scrollContainerRef.current.scrollLeft = scrollPosition + distance;
-  };
-
-  const onTouchUp = () => {
-    setIsDown(false);
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.style.cursor = 'grab';
-      scrollContainerRef.current.style.userSelect = '';
-    }
-  };
 
   // ===========================
   // LOADING STATE
@@ -248,8 +185,6 @@ const WhatsTheOccasion = ({ onQuickView }) => {
   return (
     <section 
       className="relative py-16 bg-gradient-to-b from-white via-pink-50/30 to-white overflow-hidden"
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => setMousePos(null)}
     >
       {/* Interactive Grid Background */}
       <GridBackground gridSize={45} opacity={0.12} mousePos={mousePos} />
@@ -271,65 +206,34 @@ const WhatsTheOccasion = ({ onQuickView }) => {
         </div>
       </div>
 
-      {/* Carousel Container */}
-      <div className="relative z-10 max-w-8xl mx-auto group">
-        
-        {/* Left Arrow */}
-        {canScrollLeft && (
-          <button
-            onClick={scrollLeftBtn}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center text-tppslate hover:bg-tpppink hover:text-white transition-all opacity-0 group-hover:opacity-100"
-            aria-label="Scroll left"
-          >
-            <ChevronLeft size={24} />
-          </button>
+      {/* Carousel Container - 3D Circular */}
+      <Circular3DCarousel
+        items={bundles}
+        isInfinity={true}
+        autoplay={false}
+        delay={5}
+        itemWidth={320}
+        itemMargin={24}
+        visibleAmount={4}
+        onItemClick={(bundle) => {
+          const isProduct = bundle.stock !== undefined && bundle.stock_limit === undefined;
+          if (isProduct) {
+            navigate(`/shop/products/${bundle.id}`);
+          } else {
+            navigate(`/shop/bundles/${bundle.id}`);
+          }
+        }}
+        renderItem={(bundle, index, isDown) => (
+          <BundleCardWithGallery
+            bundle={bundle}
+            index={index}
+            onQuickView={onQuickView}
+            navigate={navigate}
+            isDown={isDown}
+          />
         )}
-
-        {/* Right Arrow */}
-        {canScrollRight && (
-          <button
-            onClick={scrollRightBtn}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center text-tppslate hover:bg-tpppink hover:text-white transition-all opacity-0 group-hover:opacity-100"
-            aria-label="Scroll right"
-          >
-            <ChevronRight size={24} />
-          </button>
-        )}
-
-        {/* Edge Fade Overlays */}
-        <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-white via-pink-50/60 to-transparent z-20 pointer-events-none" />
-        <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-white via-pink-50/60 to-transparent z-20 pointer-events-none" />
-
-        {/* Scrollable Cards Container with Drag-to-Scroll */}
-        <div
-          ref={scrollContainerRef}
-          onMouseDown={onTouchDown}
-          onMouseMove={onTouchMove}
-          onMouseUp={onTouchUp}
-          onMouseLeave={onTouchUp}
-          onTouchStart={onTouchDown}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchUp}
-          className="flex gap-6 overflow-x-auto scrollbar-hide pb-4 scroll-smooth select-none"
-          style={{
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-            WebkitOverflowScrolling: 'touch',
-            cursor: isDown ? 'grabbing' : 'grab'
-          }}
-        >
-          {bundles.map((bundle, index) => (
-            <BundleCardWithGallery
-              key={bundle.id}
-              bundle={bundle}
-              index={index}
-              onQuickView={onQuickView}
-              navigate={navigate}
-              isDown={isDown}
-            />
-          ))}
-        </div>
-      </div>
+        className="z-10 max-w-8xl mx-auto group"
+      />
 
       {/* View All Link */}
       <div className="relative z-10 max-w-7xl mx-auto px-6 mt-10 text-center">
