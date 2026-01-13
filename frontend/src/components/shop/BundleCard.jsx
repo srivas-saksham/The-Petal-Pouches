@@ -32,9 +32,12 @@ const BundleCard = ({ bundle, onQuickView }) => {
   
   // Process images: use new images array or fallback to legacy img_url
   const images = useMemo(() => {
-    if (bundle?.images && Array.isArray(bundle.images) && bundle.images.length > 0) {
+    // Check for Bundle_images (matches database table name)
+    const imageArray = bundle?.Bundle_images || bundle?.images;
+    
+    if (imageArray && Array.isArray(imageArray) && imageArray.length > 0) {
       // Sort by display_order and prioritize primary image
-      return [...bundle.images].sort((a, b) => {
+      return [...imageArray].sort((a, b) => {
         if (a.is_primary) return -1;
         if (b.is_primary) return 1;
         return a.display_order - b.display_order;

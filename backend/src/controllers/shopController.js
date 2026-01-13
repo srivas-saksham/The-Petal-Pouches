@@ -144,15 +144,31 @@ const ShopController = {
 
         if (bundleError) throw bundleError;
 
-        allItems = allItems.concat(
-          (bundles || []).map(b => ({
-            ...b,
-            item_type: 'bundle',
-            product_count: b.Bundle_items?.length || 0,
-            savings: b.original_price ? b.original_price - b.price : 0
-          }))
+        // 🆕 NEW: Fetch Bundle_images for each bundle
+        const bundlesWithImages = await Promise.all(
+          (bundles || []).map(async (bundle) => {
+            // Fetch images for this bundle
+            const { data: images } = await supabase
+              .from('Bundle_images')
+              .select('*')
+              .eq('bundle_id', bundle.id)
+              .order('display_order', { ascending: true });
+
+            // Find primary image for backward compatibility
+            const primaryImage = images?.find(img => img.is_primary);
+
+            return {
+              ...bundle,
+              Bundle_images: images || [], // Add images array
+              img_url: primaryImage ? primaryImage.img_url : bundle.img_url, // Keep backward compatibility
+              item_type: 'bundle',
+              product_count: bundle.Bundle_items?.length || 0,
+              savings: bundle.original_price ? bundle.original_price - bundle.price : 0
+            };
+          })
         );
 
+        allItems = allItems.concat(bundlesWithImages);
         totalCount += bundleCount || 0;
       }
 

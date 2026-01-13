@@ -335,31 +335,28 @@ const BundleCardWithGallery = ({ bundle, index, onQuickView, navigate }) => {
   const hasMultipleImages = images.length > 1;
   const currentImage = images[currentImageIndex] || null;
 
-  // ✅ FIX: Reset image state when bundle changes or component remounts
+  // ✅ FIX: Reset image state when bundle changes
   useEffect(() => {
     setCurrentImageIndex(0);
     setImageLoaded(false);
   }, [bundle.id]);
 
-  // ✅ FIX: Force image reload when navigating back to home page
+  // ✅ FIX: Check if current image is already loaded/cached
   useEffect(() => {
-    const forceReload = () => {
-      setImageLoaded(false);
-      // Trigger a re-render after a brief delay
-      setTimeout(() => {
-        setImageLoaded(false);
-      }, 10);
-    };
-
-    // Listen for route changes or visibility changes
-    window.addEventListener('popstate', forceReload);
-    document.addEventListener('visibilitychange', forceReload);
-
-    return () => {
-      window.removeEventListener('popstate', forceReload);
-      document.removeEventListener('visibilitychange', forceReload);
-    };
-  }, []);
+    setImageLoaded(false);
+    
+    if (currentImage?.img_url) {
+      const img = new Image();
+      img.onload = () => setImageLoaded(true);
+      img.onerror = () => setImageLoaded(true);
+      img.src = currentImage.img_url;
+      
+      // If image is already complete (cached), set loaded immediately
+      if (img.complete) {
+        setImageLoaded(true);
+      }
+    }
+  }, [currentImage?.img_url]);
 
   // ===========================
   // IMAGE NAVIGATION HANDLERS
