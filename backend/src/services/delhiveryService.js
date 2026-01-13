@@ -1259,133 +1259,189 @@ _mapDelhiveryStatus(delhiveryStatus) {
     }
   }
 
-  /**
-   * Generate shipping label
-   * @param {string} awb - Air Waybill number
-   * @param {Object} options - Label options
-   * @returns {Promise<Object>} Label URL
-   */
-  async generateLabel(awb, options = {}) {
-    try {
-      if (!this.apiToken) {
-        throw new Error('Delhivery API token not configured');
-      }
+  // backend/src/services/delhiveryService.js
+// ✅ Extract pdf_encoding from Delhivery response
 
-      if (!awb) {
-        throw new Error('AWB number is required');
-      }
-
-      const { pdf = true, pdf_size = 'A4' } = options;
-
-      console.log(`📄 [Delhivery] Generating label for AWB: ${awb}`);
-      console.log(`   Format: ${pdf ? 'PDF' : 'JSON'}, Size: ${pdf_size}`);
-
-      const url = `${this.baseURL}/api/p/packing_slip`;
-
-      const response = await axios.get(url, {
-        params: {
-          wbns: awb,
-          pdf: pdf,
-          pdf_size: pdf_size
-        },
-        headers: {
-          'Authorization': `Token ${this.apiToken}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 30000,
-        validateStatus: (status) => status < 500
-      });
-
-      if (response.status !== 200) {
-        console.error(`❌ [Delhivery] Label API HTTP ${response.status}:`, response.data);
-        throw new Error(`Label generation failed: ${response.status}`);
-      }
-
-      console.log('✅ [Delhivery] Label generated successfully');
-
-      // If PDF mode, Delhivery returns a direct link
-      if (pdf) {
-        return {
-          success: true,
-          label_url: response.data?.packages?.[0]?.pdf_download_link || 
-                    `${this.baseURL}/api/p/packing_slip?wbns=${awb}&pdf=true&pdf_size=${pdf_size}`,
-          awb: awb,
-          format: 'pdf',
-          size: pdf_size
-        };
-      } else {
-        // JSON mode - return data for custom rendering
-        return {
-          success: true,
-          label_data: response.data,
-          awb: awb,
-          format: 'json'
-        };
-      }
-
-    } catch (error) {
-      console.error('❌ [Delhivery] Generate label failed:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+/**
+ * Generate shipping label
+ * ✅ FIXED: Returns pdf_encoding (base64) from API response
+ */
+async generateLabel(awb, options = {}) {
+  try {
+    if (!this.apiToken) {
+      throw new Error('Delhivery API token not configured');
     }
-  }
 
-  /**
-   * Generate invoice
-   * @param {string} awb - Air Waybill number
-   * @returns {Promise<Object>} Invoice URL
-   */
-  async generateInvoice(awb) {
-    try {
-      if (!this.apiToken) {
-        throw new Error('Delhivery API token not configured');
+    if (!awb) {
+      throw new Error('AWB number is required');
+    }
+
+    const { pdf = true, pdf_size = '4R' } = options;
+
+    console.log(`📄 [Delhivery] Generating label for AWB: ${awb}`);
+    console.log(`   Format: ${pdf ? 'PDF' : 'JSON'}, Size: ${pdf_size}`);
+
+    const url = `${this.baseURL}/api/p/packing_slip`;
+
+    const response = await axios.get(url, {
+      params: {
+        wbns: awb,
+        pdf: pdf,
+        pdf_size: pdf_size
+      },
+      headers: {
+        'Authorization': `Token ${this.apiToken}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      timeout: 30000,
+      validateStatus: (status) => status < 500
+    });
+
+    if (response.status !== 200) {
+      console.error(`❌ [Delhivery] Label API HTTP ${response.status}:`, response.data);
+      throw new Error(`Label generation failed: ${response.status}`);
+    }
+
+    console.log('✅ [Delhivery] Label API Response:', JSON.stringify(response.data, null, 2));
+
+    const data = response.data;
+    
+    if (pdf) {
+      let labelUrl = null;
+      let pdfEncoding = null;
+      
+      // ✅ Extract pdf_encoding (base64) if available
+      if (data.packages && Array.isArray(data.packages) && data.packages.length > 0) {
+        const packageData = data.packages[0];
+        pdfEncoding = packageData.pdf_encoding;
+        labelUrl = packageData.pdf_download_link || packageData.label_url;
+      } else if (data.pdf_encoding) {
+        pdfEncoding = data.pdf_encoding;
+        labelUrl = data.pdf_download_link || data.label_url;
       }
-
-      if (!awb) {
-        throw new Error('AWB number is required');
+      
+      // Fallback URL if needed
+      if (!labelUrl) {
+        console.warn('⚠️ [Delhivery] No S3 URL in response, using direct API URL');
+        labelUrl = `${this.baseURL}/api/p/packing_slip?wbns=${awb}&pdf=true&pdf_size=${pdf_size}`;
       }
-
-      console.log(`📄 [Delhivery] Generating invoice for AWB: ${awb}`);
-
-      const url = `${this.baseURL}/api/p/invoice`;
-
-      const response = await axios.get(url, {
-        params: {
-          wbns: awb,
-          pdf: true
-        },
-        headers: {
-          'Authorization': `Token ${this.apiToken}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 30000,
-        validateStatus: (status) => status < 500
-      });
-
-      if (response.status !== 200) {
-        console.error(`❌ [Delhivery] Invoice API HTTP ${response.status}:`, response.data);
-        throw new Error(`Invoice generation failed: ${response.status}`);
+      
+      console.log(`📥 [Delhivery] Extracted label URL: ${labelUrl.substring(0, 100)}...`);
+      
+      if (pdfEncoding) {
+        console.log(`✅ [Delhivery] Found pdf_encoding (${pdfEncoding.length} chars)`);
       }
-
-      console.log('✅ [Delhivery] Invoice generated successfully');
 
       return {
         success: true,
-        invoice_url: response.data?.packages?.[0]?.pdf_download_link || 
-                    `${this.baseURL}/api/p/invoice?wbns=${awb}&pdf=true`,
-        awb: awb
+        label_url: labelUrl,
+        pdf_encoding: pdfEncoding, // ✅ Include base64 PDF data
+        awb: awb,
+        format: 'pdf',
+        size: pdf_size,
+        expires_soon: labelUrl.includes('s3.amazonaws.com') || labelUrl.includes('X-Amz-Expires')
       };
-
-    } catch (error) {
-      console.error('❌ [Delhivery] Generate invoice failed:', error);
+    } else {
+      // JSON mode
       return {
-        success: false,
-        error: error.message
+        success: true,
+        label_data: data,
+        awb: awb,
+        format: 'json'
       };
     }
+
+  } catch (error) {
+    console.error('❌ [Delhivery] Generate label failed:', error);
+    return {
+      success: false,
+      error: error.message
+    };
   }
+}
+
+/**
+ * Generate invoice
+ * ✅ FIXED: Returns pdf_encoding (base64) from API response
+ */
+async generateInvoice(awb) {
+  try {
+    if (!this.apiToken) {
+      throw new Error('Delhivery API token not configured');
+    }
+
+    if (!awb) {
+      throw new Error('AWB number is required');
+    }
+
+    console.log(`📄 [Delhivery] Generating invoice for AWB: ${awb}`);
+
+    const url = `${this.baseURL}/api/p/invoice`;
+
+    const response = await axios.get(url, {
+      params: {
+        wbns: awb,
+        pdf: true
+      },
+      headers: {
+        'Authorization': `Token ${this.apiToken}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      timeout: 30000,
+      validateStatus: (status) => status < 500
+    });
+
+    if (response.status !== 200) {
+      console.error(`❌ [Delhivery] Invoice API HTTP ${response.status}:`, response.data);
+      throw new Error(`Invoice generation failed: ${response.status}`);
+    }
+
+    console.log('✅ [Delhivery] Invoice API Response:', JSON.stringify(response.data, null, 2));
+
+    const data = response.data;
+    let invoiceUrl = null;
+    let pdfEncoding = null;
+    
+    // ✅ Extract pdf_encoding (base64) if available
+    if (data.packages && Array.isArray(data.packages) && data.packages.length > 0) {
+      const packageData = data.packages[0];
+      pdfEncoding = packageData.pdf_encoding;
+      invoiceUrl = packageData.pdf_download_link || packageData.invoice_url;
+    } else if (data.pdf_encoding) {
+      pdfEncoding = data.pdf_encoding;
+      invoiceUrl = data.pdf_download_link || data.invoice_url;
+    }
+    
+    // Fallback URL if needed
+    if (!invoiceUrl) {
+      console.warn('⚠️ [Delhivery] No S3 URL in response, using direct API URL');
+      invoiceUrl = `${this.baseURL}/api/p/invoice?wbns=${awb}&pdf=true`;
+    }
+    
+    console.log(`📥 [Delhivery] Extracted invoice URL: ${invoiceUrl.substring(0, 100)}...`);
+    
+    if (pdfEncoding) {
+      console.log(`✅ [Delhivery] Found pdf_encoding (${pdfEncoding.length} chars)`);
+    }
+
+    return {
+      success: true,
+      invoice_url: invoiceUrl,
+      pdf_encoding: pdfEncoding, // ✅ Include base64 PDF data
+      awb: awb,
+      expires_soon: invoiceUrl.includes('s3.amazonaws.com') || invoiceUrl.includes('X-Amz-Expires')
+    };
+
+  } catch (error) {
+    console.error('❌ [Delhivery] Generate invoice failed:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
 
   // ==================== HELPER METHODS ====================
 
