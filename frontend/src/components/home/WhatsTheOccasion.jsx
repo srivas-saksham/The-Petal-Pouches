@@ -1,9 +1,5 @@
-// frontend/src/components/home/WhatsTheOccasion.jsx - COMPLETE FIXED VERSION
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Heart, Eye, Package } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 // Interactive Grid Background Component
 const GridBackground = ({ gridSize = 40, opacity = 0.05, mousePos }) => {
@@ -74,7 +70,7 @@ const GridBackground = ({ gridSize = 40, opacity = 0.05, mousePos }) => {
 };
 
 /**
- * WhatsTheOccasion Component - COMPLETE FIXED VERSION
+ * WhatsTheOccasion Component - COMPLETE PROFESSIONAL VERSION
  * 
  * Features:
  * ✅ Interactive grid background
@@ -83,58 +79,81 @@ const GridBackground = ({ gridSize = 40, opacity = 0.05, mousePos }) => {
  * ✅ Smooth animations and transitions
  * ✅ Fixed arrow button clickability (pointer-events-none on images)
  * ✅ Force image reload on navigation
+ * ✅ Hides component if no Valentine items found
+ * ✅ Centered professional heading
+ * ✅ Equal card heights with evenly distributed content
+ * ✅ Transparent card backgrounds with realistic shadows
+ * ✅ View All redirects to /shop?tags=valentine
+ * ✅ Drag-to-scroll carousel (Fixed - accurate mouse tracking)
+ * ✅ Edge fade effects
  */
 const WhatsTheOccasion = ({ onQuickView }) => {
-  const navigate = useNavigate();
+  const navigate = (path) => {
+    // This will be replaced with actual navigate from useNavigate
+    window.location.href = path;
+  };
   const scrollContainerRef = useRef(null);
   const [bundles, setBundles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [mousePos, setMousePos] = useState(null);
+  const [isDown, setIsDown] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollPosition, setScrollPosition] = useState(0);
 
   // ===========================
-  // FETCH VALENTINE'S BUNDLES
+  // FETCH VALENTINE'S BUNDLES AND PRODUCTS
   // ===========================
   useEffect(() => {
-    const fetchValentineBundles = async () => {
+    const fetchValentineItems = async () => {
       try {
         const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-        const response = await fetch(`${API_URL}/api/bundles?primary_tag=valentine`);
         
-        if (!response.ok) throw new Error('Failed to fetch bundles');
+        // Fetch both bundles and products in parallel
+        const [bundlesResponse, productsResponse] = await Promise.all([
+          fetch(`${API_URL}/api/bundles?primary_tag=valentine`),
+          fetch(`${API_URL}/api/products?primary_tag=valentine`)
+        ]);
         
-        const data = await response.json();
+        if (!bundlesResponse.ok || !productsResponse.ok) {
+          throw new Error('Failed to fetch Valentine items');
+        }
         
-        const valentineBundles = data.data?.filter(bundle => 
+        const bundlesData = await bundlesResponse.json();
+        const productsData = await productsResponse.json();
+        
+        // Filter Valentine bundles
+        const valentineBundles = bundlesData.data?.filter(bundle => 
           bundle.primary_tag === 'valentine' || 
           (bundle.tags && bundle.tags.includes('valentine'))
         ) || [];
         
-        console.log('💝 Valentine bundles loaded:', valentineBundles.length);
-        setBundles(valentineBundles);
+        // Filter Valentine products
+        const valentineProducts = productsData.data?.filter(product => 
+          product.primary_tag === 'valentine' || 
+          (product.tags && product.tags.includes('valentine'))
+        ) || [];
+        
+        // Combine bundles and products
+        const combinedItems = [...valentineBundles, ...valentineProducts];
+        
+        console.log('💝 Valentine items loaded:', {
+          bundles: valentineBundles.length,
+          products: valentineProducts.length,
+          total: combinedItems.length
+        });
+        
+        setBundles(combinedItems);
       } catch (error) {
-        console.error('❌ Error fetching Valentine bundles:', error);
-        setBundles([
-          {
-            id: 'valentine-fallback',
-            title: 'Valentine Romance Bundle',
-            description: 'Express your love with this romantic collection.',
-            price: 1299,
-            original_price: 1599,
-            img_url: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=600&h=400&fit=crop',
-            stock_limit: 15,
-            tags: ['gift', 'celebration'],
-            primary_tag: 'valentine',
-            images: []
-          }
-        ]);
+        console.error('❌ Error fetching Valentine items:', error);
+        setBundles([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchValentineBundles();
+    fetchValentineItems();
   }, []);
 
   // ===========================
@@ -157,16 +176,45 @@ const WhatsTheOccasion = ({ onQuickView }) => {
     }
   }, [bundles]);
 
-  const scrollLeft = () => {
+  const scrollLeftBtn = () => {
     scrollContainerRef.current?.scrollBy({ left: -400, behavior: 'smooth' });
   };
 
-  const scrollRight = () => {
+  const scrollRightBtn = () => {
     scrollContainerRef.current?.scrollBy({ left: 400, behavior: 'smooth' });
   };
 
   const handleMouseMove = (e) => {
     setMousePos({ x: e.clientX, y: e.clientY });
+  };
+
+  // ===========================
+  // DRAG TO SCROLL FUNCTIONALITY - FIXED (Circular Gallery Method)
+  // ===========================
+  const onTouchDown = (e) => {
+    if (!scrollContainerRef.current) return;
+    setIsDown(true);
+    setScrollPosition(scrollContainerRef.current.scrollLeft);
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    setStartX(clientX);
+    scrollContainerRef.current.style.cursor = 'grabbing';
+    scrollContainerRef.current.style.userSelect = 'none';
+  };
+
+  const onTouchMove = (e) => {
+    if (!isDown || !scrollContainerRef.current) return;
+    e.preventDefault();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const distance = startX - clientX;
+    scrollContainerRef.current.scrollLeft = scrollPosition + distance;
+  };
+
+  const onTouchUp = () => {
+    setIsDown(false);
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.style.cursor = 'grab';
+      scrollContainerRef.current.style.userSelect = '';
+    }
   };
 
   // ===========================
@@ -177,12 +225,12 @@ const WhatsTheOccasion = ({ onQuickView }) => {
       <section className="relative py-16 bg-gradient-to-b from-white via-pink-50/30 to-white overflow-hidden">
         <div className="max-w-7xl mx-auto px-6">
           <div className="animate-pulse">
-            <div className="h-8 bg-slate-200 rounded w-64 mb-3"></div>
-            <div className="h-4 bg-slate-200 rounded w-96 mb-8"></div>
-            <div className="flex gap-6 overflow-hidden">
+            <div className="h-8 bg-slate-200 rounded w-64 mb-3 mx-auto"></div>
+            <div className="h-4 bg-slate-200 rounded w-96 mb-8 mx-auto"></div>
+            <div className="flex gap-6 overflow-hidden justify-center">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="flex-shrink-0 w-80">
-                  <div className="bg-slate-200 rounded-2xl h-96"></div>
+                  <div className="bg-slate-200 rounded-2xl h-[480px]"></div>
                 </div>
               ))}
             </div>
@@ -192,6 +240,7 @@ const WhatsTheOccasion = ({ onQuickView }) => {
     );
   }
 
+  // ✅ NEW: Hide component if no Valentine items found
   if (bundles.length === 0) {
     return null;
   }
@@ -205,65 +254,68 @@ const WhatsTheOccasion = ({ onQuickView }) => {
       {/* Interactive Grid Background */}
       <GridBackground gridSize={45} opacity={0.12} mousePos={mousePos} />
       
-      {/* Section Header */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 mb-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <h2 className="text-3xl md:text-4xl font-bold text-tppslate mb-2 uppercase tracking-tight">
+      {/* Section Header - Centered */}
+      <div className="relative z-10 max-w-7xl mx-auto px-6 mb-12">
+        <div className="text-center">
+          <h2 className="text-base text-tppslate/80 font-light max-w-2xl mx-auto">
+            Special Occasions
+          </h2>
+
+          <h2 className="text-2xl md:text-3xl font-bold text-tppslate mb-3 uppercase tracking-tight">
             What's the Occasion?
           </h2>
-          
-          <p className="text-base text-tppslate/60 font-light max-w-2xl">
-            Celebrate love with our curated Valentine's Day collection. Thoughtfully designed gift bundles to make hearts flutter.
-          </p>
-        </motion.div>
+
+          <h2 className="font-italianno text-6xl md:text-8xl text-tpppink">
+            Valentine's
+          </h2>
+        </div>
       </div>
 
       {/* Carousel Container */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 group">
+      <div className="relative z-10 max-w-8xl mx-auto group">
         
         {/* Left Arrow */}
         {canScrollLeft && (
-          <motion.button
-            initial={{ opacity: 0 }}
-            whileHover={{ scale: 1.1 }}
-            animate={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            onClick={scrollLeft}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center text-tppslate hover:bg-tpppink hover:text-white transition-all opacity-0 group-hover:opacity-100"
+          <button
+            onClick={scrollLeftBtn}
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center text-tppslate hover:bg-tpppink hover:text-white transition-all opacity-0 group-hover:opacity-100"
             aria-label="Scroll left"
           >
             <ChevronLeft size={24} />
-          </motion.button>
+          </button>
         )}
 
         {/* Right Arrow */}
         {canScrollRight && (
-          <motion.button
-            initial={{ opacity: 0 }}
-            whileHover={{ scale: 1.1 }}
-            animate={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            onClick={scrollRight}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center text-tppslate hover:bg-tpppink hover:text-white transition-all opacity-0 group-hover:opacity-100"
+          <button
+            onClick={scrollRightBtn}
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center text-tppslate hover:bg-tpppink hover:text-white transition-all opacity-0 group-hover:opacity-100"
             aria-label="Scroll right"
           >
             <ChevronRight size={24} />
-          </motion.button>
+          </button>
         )}
 
-        {/* Scrollable Cards Container */}
+        {/* Edge Fade Overlays */}
+        <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-white via-pink-50/60 to-transparent z-20 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-white via-pink-50/60 to-transparent z-20 pointer-events-none" />
+
+        {/* Scrollable Cards Container with Drag-to-Scroll */}
         <div
           ref={scrollContainerRef}
-          className="flex gap-6 overflow-x-auto scrollbar-hide pb-4 scroll-smooth"
+          onMouseDown={onTouchDown}
+          onMouseMove={onTouchMove}
+          onMouseUp={onTouchUp}
+          onMouseLeave={onTouchUp}
+          onTouchStart={onTouchDown}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchUp}
+          className="flex gap-6 overflow-x-auto scrollbar-hide pb-4 scroll-smooth select-none"
           style={{
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
-            WebkitOverflowScrolling: 'touch'
+            WebkitOverflowScrolling: 'touch',
+            cursor: isDown ? 'grabbing' : 'grab'
           }}
         >
           {bundles.map((bundle, index) => (
@@ -273,22 +325,21 @@ const WhatsTheOccasion = ({ onQuickView }) => {
               index={index}
               onQuickView={onQuickView}
               navigate={navigate}
+              isDown={isDown}
             />
           ))}
         </div>
       </div>
 
       {/* View All Link */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 mt-8 text-center">
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => navigate('/shop?occasion=valentine')}
+      <div className="relative z-10 max-w-7xl mx-auto px-6 mt-10 text-center">
+        <button
+          onClick={() => navigate('/shop?tags=valentine')}
           className="inline-flex items-center gap-2 px-6 py-3 text-tppslate hover:text-tpppink font-semibold transition-colors group"
         >
           <span>View All Valentine's Gifts</span>
           <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
-        </motion.button>
+        </button>
       </div>
 
       {/* CSS for hiding scrollbar */}
@@ -302,9 +353,9 @@ const WhatsTheOccasion = ({ onQuickView }) => {
 };
 
 // ===========================
-// BUNDLE CARD WITH IMAGE GALLERY
+// BUNDLE CARD WITH IMAGE GALLERY - PROFESSIONAL VERSION
 // ===========================
-const BundleCardWithGallery = ({ bundle, index, onQuickView, navigate }) => {
+const BundleCardWithGallery = ({ bundle, index, onQuickView, navigate, isDown }) => {
   
   // Process images
   const images = useMemo(() => {
@@ -387,7 +438,18 @@ const BundleCardWithGallery = ({ bundle, index, onQuickView, navigate }) => {
   };
 
   const handleCardClick = () => {
-    navigate(`/shop/bundles/${bundle.id}`);
+    // Prevent navigation if user was dragging
+    if (isDown) return;
+    
+    // Check if it's a product or bundle based on presence of 'stock' field
+    // Products have 'stock', bundles have 'stock_limit'
+    const isProduct = bundle.stock !== undefined && bundle.stock_limit === undefined;
+    
+    if (isProduct) {
+      navigate(`/shop/products/${bundle.id}`);
+    } else {
+      navigate(`/shop/bundles/${bundle.id}`);
+    }
   };
 
   // ✅ FIX: Proper Quick View handler
@@ -404,28 +466,22 @@ const BundleCardWithGallery = ({ bundle, index, onQuickView, navigate }) => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 50 }}
-      whileInView={{ opacity: 1, x: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.5, delay: index * 0.1 }}
-      className="flex-shrink-0 w-80"
-    >
-      {/* Card */}
+    <div className="flex-shrink-0 w-80">
+      {/* Card - Fixed Height with Transparent Background and Realistic Shadow */}
       <div
         onClick={handleCardClick}
-        className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer group/card"
+        className="h-[480px] flex flex-col rounded-2xl overflow-hidden shadow-[0_4px_20px_-2px_rgba(0,0,0,0.12),0_2px_8px_-2px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_40px_-4px_rgba(0,0,0,0.18),0_8px_16px_-4px_rgba(0,0,0,0.12)] transition-all duration-300 cursor-pointer group/card bg-transparent"
       >
-        {/* Image Container with Gallery */}
+        {/* Image Container with Gallery - 60% of card height */}
         <div 
-          className="relative aspect-[4/3] overflow-hidden bg-tpppeach/20"
+          className="relative flex-shrink-0 h-[288px] overflow-hidden bg-gradient-to-br from-pink-50/80 to-tpppeach/40 backdrop-blur-sm"
           onMouseEnter={() => setIsHovering(true)}
           onMouseLeave={() => setIsHovering(false)}
         >
           
           {/* Valentine's Badge */}
           <div className="absolute top-3 left-3 z-10">
-            <div className="px-3 py-1.5 bg-tpppink text-white text-xs font-bold uppercase tracking-wider rounded-full shadow-md flex items-center gap-1.5">
+            <div className="px-3 py-1.5 bg-tpppink/95 backdrop-blur-sm text-white text-xs font-bold uppercase tracking-wider rounded-full shadow-lg flex items-center gap-1.5">
               <Heart size={12} fill="currentColor" />
               <span>Valentine's</span>
             </div>
@@ -498,21 +554,21 @@ const BundleCardWithGallery = ({ bundle, index, onQuickView, navigate }) => {
           )}
         </div>
 
-        {/* Card Content */}
-        <div className="p-5">
+        {/* Card Content - 40% of card height with white background */}
+        <div className="flex-1 flex flex-col p-5 bg-white">
           
-          {/* Title */}
-          <h3 className="text-lg font-bold text-tppslate mb-2 line-clamp-1 group-hover/card:text-tpppink transition-colors">
+          {/* Title - Fixed height */}
+          <h3 className="text-lg font-bold text-tppslate mb-2 line-clamp-1 group-hover/card:text-tpppink transition-colors h-7">
             {bundle.title}
           </h3>
 
-          {/* Description */}
-          <p className="text-sm text-tppslate/60 mb-4 line-clamp-2 font-light leading-relaxed">
-            {bundle.description}
+          {/* Description - Fixed height with line clamp */}
+          <p className="text-sm text-tppslate/60 mb-4 line-clamp-2 font-light leading-relaxed h-10">
+            {bundle.description || 'A perfect gift for your loved ones this Valentine\'s Day.'}
           </p>
 
-          {/* Price Section */}
-          <div className="flex items-center justify-between">
+          {/* Price Section - Push to bottom */}
+          <div className="flex items-center justify-between mt-auto">
             <div className="flex items-center gap-2">
               {bundle.original_price && bundle.original_price > bundle.price && (
                 <span className="text-sm text-tppslate/40 line-through font-medium">
@@ -525,19 +581,23 @@ const BundleCardWithGallery = ({ bundle, index, onQuickView, navigate }) => {
               </span>
             </div>
 
-            {bundle.stock_limit !== undefined && (
+            {/* Stock Display - handles both products and bundles */}
+            {(bundle.stock !== undefined || bundle.stock_limit !== undefined) && (
               <div className="text-xs text-tppslate/60 font-medium">
-                {bundle.stock_limit > 0 ? (
-                  <span className="text-tppmint">● In Stock</span>
-                ) : (
-                  <span className="text-red-500">● Out of Stock</span>
-                )}
+                {(() => {
+                  const stockValue = bundle.stock !== undefined ? bundle.stock : bundle.stock_limit;
+                  return stockValue > 0 ? (
+                    <span className="text-tppmint">● In Stock</span>
+                  ) : (
+                    <span className="text-red-500">● Out of Stock</span>
+                  );
+                })()}
               </div>
             )}
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 

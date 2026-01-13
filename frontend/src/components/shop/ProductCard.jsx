@@ -1,22 +1,64 @@
 // frontend/src/components/shop/ProductCard.jsx
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Eye, Check, Plus, Minus, Trash2, AlertTriangle, XCircle, Loader, ArrowBigRightDash } from 'lucide-react';
+import { ShoppingCart, Eye, Check, Plus, Minus, Trash2, AlertTriangle, XCircle, Loader, ArrowBigRightDash, ChevronLeft, ChevronRight, Package } from 'lucide-react';
 import { useCart } from '../../hooks/useCart';
 import { useUserAuth } from '../../context/UserAuthContext';
 
 /**
- * ProductCard Component - Individual Product Display
- * Same logic as BundleCard but for products
+ * ProductCard Component - Individual Product Display with Multi-Image Gallery
+ * Features:
+ * - Multi-image gallery with hover navigation
+ * - Left/Right arrow navigation
+ * - Dot indicators showing current image
+ * - Complete cart integration
+ * - Stock management
+ * - Debounced quantity updates
  */
 const ProductCard = ({ product, onQuickView }) => {
+  
+  // ===========================
+  // IMAGE GALLERY STATE
+  // ===========================
+  
+  // Process images: use new images array or fallback to legacy img_url
+  const images = useMemo(() => {
+    // Check for Product_images array (similar to Bundle_images)
+    const imageArray = product?.Product_images || product?.images;
+    
+    if (imageArray && Array.isArray(imageArray) && imageArray.length > 0) {
+      // Sort by display_order and prioritize primary image
+      return [...imageArray].sort((a, b) => {
+        if (a.is_primary) return -1;
+        if (b.is_primary) return 1;
+        return a.display_order - b.display_order;
+      });
+    }
+    
+    // Fallback to legacy single image
+    if (product?.img_url) {
+      return [{ 
+        id: 'legacy', 
+        img_url: product.img_url, 
+        is_primary: true,
+        display_order: 0 
+      }];
+    }
+    
+    return [];
+  }, [product]);
+
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+  const hasMultipleImages = images.length > 1;
+  const currentImage = images[currentImageIndex] || null;
   
   // ===========================
   // STATE & CONTEXT
   // ===========================
   
-  const [imageLoaded, setImageLoaded] = useState(false);
   const [adding, setAdding] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
@@ -36,6 +78,48 @@ const ProductCard = ({ product, onQuickView }) => {
   const isOutOfStock = stockLimit === 0;
   const isLowStock = !isOutOfStock && stockLimit && stockLimit < 5;
   const isInCart = localQuantity > 0;
+
+  // ===========================
+  // IMAGE NAVIGATION HANDLERS
+  // ===========================
+
+  const handlePreviousImage = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const newIndex = currentImageIndex === 0 ? images.length - 1 : currentImageIndex - 1;
+    setCurrentImageIndex(newIndex);
+    setImageLoaded(false);
+  };
+
+  const handleNextImage = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const newIndex = currentImageIndex === images.length - 1 ? 0 : currentImageIndex + 1;
+    setCurrentImageIndex(newIndex);
+    setImageLoaded(false);
+  };
+
+  const handleDotClick = (e, index) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (index !== currentImageIndex) {
+      setCurrentImageIndex(index);
+      setImageLoaded(false);
+    }
+  };
+
+  // Reset image index when product changes
+  useEffect(() => {
+    setCurrentImageIndex(0);
+    setImageLoaded(false);
+    // Force immediate load check for primary image
+    if (images.length > 0 && images[0]?.img_url) {
+      const img = new Image();
+      img.src = images[0].img_url;
+      img.onload = () => setImageLoaded(true);
+      img.onerror = () => setImageLoaded(true);
+    }
+  }, [product.id, images]);
 
   // ===========================
   // CART SYNC EFFECTS
@@ -210,27 +294,82 @@ const ProductCard = ({ product, onQuickView }) => {
   return (
     <div className={`bg-white rounded-lg border border-tppgrey shadow-sm hover:shadow-md hover:border-tppslate/60 transition-all duration-200 overflow-hidden group ${isInCart ? 'border-2 border-tpppink' : ''}`}>
       
-      {/* IMAGE SECTION */}
+      {/* ===========================
+          IMAGE SECTION WITH GALLERY
+          =========================== */}
       <Link 
         to={`/shop/products/${product.id}`} 
         className="block relative aspect-square overflow-hidden bg-tpppeach/10"
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
       >
+        {/* Loading Skeleton */}
         {!imageLoaded && (
           <div className="absolute inset-0 bg-tppgrey/10 animate-pulse" />
         )}
         
-        <img
-          src={product.img_url}
-          alt={product.title}
-          className={`w-full h-full object-cover transition-all duration-300 ${
-            imageLoaded ? 'opacity-100' : 'opacity-0'
-          } ${isOutOfStock ? 'grayscale opacity-60' : 'group-hover:scale-105'}`}
-          onLoad={() => setImageLoaded(true)}
-          onError={(e) => {
-            e.target.src = '/placeholder-product.png';
-            setImageLoaded(true);
-          }}
-        />
+        {/* Current Image Display */}
+        {currentImage ? (
+          <img
+            key={`${product.id}-${currentImageIndex}`}
+            src={currentImage.img_url}
+            alt={`${product.title} - Image ${currentImageIndex + 1}`}
+            className={`w-full h-full object-cover transition-all duration-300 ${
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            } ${isOutOfStock ? 'grayscale opacity-60' : 'group-hover:scale-105'}`}
+            onLoad={() => setImageLoaded(true)}
+            onError={(e) => {
+              e.target.src = '/placeholder-product.png';
+              setImageLoaded(true);
+            }}
+          />
+        ) : (
+          // Fallback when no images exist
+          <div className="w-full h-full flex items-center justify-center bg-slate-50">
+            <Package size={64} className="text-slate-300" />
+          </div>
+        )}
+
+        {/* Navigation Arrows - ONLY ON HOVER & MULTIPLE IMAGES */}
+        {hasMultipleImages && isHovering && !isOutOfStock && (
+          <>
+            {/* Left Arrow */}
+            <button
+              onClick={handlePreviousImage}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group/arrow z-20"
+              aria-label="Previous image"
+            >
+              <ChevronLeft size={16} className="text-slate-700 group-hover/arrow:text-tpppink transition-colors" />
+            </button>
+            
+            {/* Right Arrow */}
+            <button
+              onClick={handleNextImage}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group/arrow z-20"
+              aria-label="Next image"
+            >
+              <ChevronRight size={16} className="text-slate-700 group-hover/arrow:text-tpppink transition-colors" />
+            </button>
+          </>
+        )}
+
+        {/* Dot Indicators - ONLY ON HOVER & MULTIPLE IMAGES */}
+        {hasMultipleImages && isHovering && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2 py-1.5 bg-black/60 backdrop-blur-sm rounded-full z-20">
+            {images.map((_, index) => (
+              <button
+                key={index}
+                onClick={(e) => handleDotClick(e, index)}
+                className={`transition-all duration-200 rounded-full ${
+                  index === currentImageIndex
+                    ? 'w-2 h-1 bg-white'
+                    : 'w-1 h-1 bg-white/50 hover:bg-white/75'
+                }`}
+                aria-label={`Go to image ${index + 1}`}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Out of Stock Badge */}
         {isOutOfStock && (
@@ -253,7 +392,9 @@ const ProductCard = ({ product, onQuickView }) => {
         )}
       </Link>
 
-      {/* CONTENT SECTION */}
+      {/* ===========================
+          CONTENT SECTION
+          =========================== */}
       <div className="p-3">
         
         {/* Title */}

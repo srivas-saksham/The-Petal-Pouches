@@ -35,11 +35,19 @@ const ShopController = {
       let allItems = [];
       let totalCount = 0;
 
-      // Fetch Products
+      // Fetch Products with Product_images
       if (type === 'all' || type === 'products') {
         let productQuery = supabase
           .from('Products')
-          .select('*', { count: 'exact' });
+          .select(`
+            *,
+            Product_images (
+              id,
+              img_url,
+              is_primary,
+              display_order
+            )
+          `, { count: 'exact' });
 
         // Filters
         if (search && search.trim()) {
@@ -77,14 +85,20 @@ const ShopController = {
         if (productError) throw productError;
 
         allItems = allItems.concat(
-          (products || []).map(p => ({
-            ...p,
-            item_type: 'product',
-            stock_limit: p.stock,
-            original_price: p.price,
-            discount_percent: 0,
-            savings: 0
-          }))
+          (products || []).map(p => {
+            // Find primary image for backward compatibility
+            const primaryImage = p.Product_images?.find(img => img.is_primary);
+            
+            return {
+              ...p,
+              img_url: primaryImage ? primaryImage.img_url : p.img_url, // Keep backward compatibility
+              item_type: 'product',
+              stock_limit: p.stock,
+              original_price: p.price,
+              discount_percent: 0,
+              savings: 0
+            };
+          })
         );
 
         totalCount += productCount || 0;
@@ -231,7 +245,15 @@ const ShopController = {
       if (type === 'product') {
         const { data, error } = await supabase
           .from('Products')
-          .select('*')
+          .select(`
+            *,
+            Product_images (
+              id,
+              img_url,
+              is_primary,
+              display_order
+            )
+          `)
           .eq('id', id)
           .single();
 
