@@ -525,6 +525,31 @@ async approveAndPlace(shipmentId, adminId) {
 
     console.log('📅 Pickup scheduled for:', pickupScheduledDate);
 
+    // ✅ STEP 2.5: FETCH ORDER ITEMS TO GET PRODUCT DESCRIPTIONS
+    const { data: orderItems, error: itemsError } = await supabase
+      .from('Order_items')
+      .select('bundle_title, quantity')
+      .eq('order_id', shipment.order_id);
+
+    if (itemsError) {
+      console.warn('⚠️ Failed to fetch order items:', itemsError);
+    }
+
+    // ✅ BUILD PRODUCT DESCRIPTION FROM ORDER ITEMS
+    let productsDesc = 'Mixed Items'; // Fallback
+    if (orderItems && orderItems.length > 0) {
+      const descriptions = orderItems.map(item => {
+        const title = item.bundle_title || 'Item';
+        return item.quantity > 1 ? `${title} (x${item.quantity})` : title;
+      });
+      
+      // Join and truncate to 100 chars (Delhivery limit)
+      const fullDesc = descriptions.join(', ');
+      productsDesc = fullDesc.length > 100 ? fullDesc.substring(0, 97) + '...' : fullDesc;
+    }
+
+    console.log(`📦 Product description: ${productsDesc}`);
+
     // STEP 3: Call Delhivery API
     const delhiveryResponse = await delhiveryService.createShipment({
       shipment_id: shipmentId,
@@ -537,10 +562,11 @@ async approveAndPlace(shipmentId, adminId) {
       customer_address: shipment.Orders.shipping_address,
       weight_grams: shipment.weight_grams,
       dimensions_cm: shipment.dimensions_cm,
-      payment_mode: shipment.Orders.payment_method === 'cod' ? 'COD' : 'Prepaid',
-      cod_amount: shipment.Orders.payment_method === 'cod' ? shipment.Orders.final_total : 0,
+      payment_mode: shipment.Orders.payment_method === 'cod' || shipment.Orders.payment_method === 'COD' ? 'COD' : 'Prepaid',
+      cod_amount: shipment.Orders.payment_method === 'cod' || shipment.Orders.payment_method === 'COD' ? shipment.Orders.final_total : 0,
       shipping_mode: shipment.shipping_mode,
-      order_total: shipment.Orders.final_total
+      order_total: shipment.Orders.final_total,
+      products_desc: productsDesc  // ✅ ADD THIS LINE
     });
 
     console.log('✅ Delhivery shipment created:', delhiveryResponse.awb);

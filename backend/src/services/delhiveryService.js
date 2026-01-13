@@ -70,7 +70,7 @@ class DelhiveryService {
         },
         headers: {
           'Authorization': `Token ${this.apiToken}`,
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
           'Accept': 'application/json'
         },
         timeout: 15000,
@@ -253,7 +253,7 @@ class DelhiveryService {
       const response = await axios.post(url, payload, {
         headers: {
           'Authorization': `Token ${this.apiToken}`,
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
           'Accept': 'application/json'
         },
         timeout: 15000,
@@ -423,7 +423,7 @@ class DelhiveryService {
       const response = await axios.post(url, payload, {
         headers: {
           'Authorization': `Token ${this.apiToken}`,
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
           'Accept': 'application/json'
         },
         timeout: 15000,
@@ -463,7 +463,7 @@ class DelhiveryService {
       const {
         originPincode = this.warehousePincode,
         mode = 'S', // 'S' for Surface, 'E' for Express
-        weight = weight, // Weight in grams (default 1000g)
+        weight = 1000, // Weight in grams (default 1000g)
         paymentType = 'Pre-paid', // 'Pre-paid' or 'COD'
         shipmentStatus = 'Delivered' // Status of shipment
       } = options;
@@ -490,7 +490,7 @@ class DelhiveryService {
           },
           headers: {
             'Authorization': `Token ${this.apiToken}`,
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded',
             'Accept': 'application/json'
           },
           timeout: 15000,
@@ -690,7 +690,7 @@ class DelhiveryService {
           },
           headers: {
             'Authorization': `Token ${this.apiToken}`,
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded',
             'Accept': 'application/json'
           },
           timeout: 15000,
@@ -792,7 +792,6 @@ async createShipment(shipmentData) {
       throw new Error('Delhivery API token not configured');
     }
 
-    // ✅ VALIDATE pickup_location exists
     const pickupLocation = process.env.DELHIVERY_PICKUP_LOCATION;
     if (!pickupLocation) {
       throw new Error('DELHIVERY_PICKUP_LOCATION not configured in .env');
@@ -813,77 +812,78 @@ async createShipment(shipmentData) {
       address.zip_code
     ].filter(Boolean).join(', ');
 
-    // ✅ FIXED PAYLOAD - Complete & Production-Ready
-    const shipmentPayload = {
+    // ✅ CORRECT PAYLOAD STRUCTURE
+    const payloadObject = {
       shipments: [{
         // Customer details
         name: shipmentData.customer_name,
         add: fullAddress,
-        pin: shipmentData.destination_pincode,
+        pin: String(shipmentData.destination_pincode),
         city: shipmentData.destination_city,
         state: shipmentData.destination_state,
         country: 'India',
-        phone: shipmentData.customer_phone,
+        phone: String(shipmentData.customer_phone),
         address_type: address.address_type || 'home',
         
         // Order details
         order: shipmentData.order_id,
         payment_mode: shipmentData.payment_mode,
-        cod_amount: shipmentData.payment_mode === 'COD' ? shipmentData.order_total : 0,
-        total_amount: shipmentData.order_total || 0,
+        cod_amount: String(shipmentData.payment_mode === 'COD' ? shipmentData.cod_amount : 0),
+        total_amount: String(shipmentData.order_total || 0),
         order_date: new Date().toISOString(),
         
-        // ✅ CRITICAL: Pickup location (must match registered warehouse)
-        pickup_location: pickupLocation,
-        
-        // ✅ CRITICAL: Complete return address
-        return_name: process.env.WAREHOUSE_NAME,
+        // ✅ Return address (NOT pickup_location here)
+        return_name: process.env.WAREHOUSE_NAME || 'Rizara Luxe',
         return_add: process.env.WAREHOUSE_ADDRESS,
-        return_city: process.env.WAREHOUSE_CITY,
-        return_state: 'Delhi', // ✅ Added fallback
+        return_city: process.env.WAREHOUSE_CITY || 'Delhi',
+        return_state: process.env.WAREHOUSE_STATE || 'Delhi',
         return_country: 'India',
-        return_pin: process.env.WAREHOUSE_PINCODE,
-        return_phone: process.env.WAREHOUSE_PHONE,
+        return_pin: String(process.env.WAREHOUSE_PINCODE),
+        return_phone: String(process.env.WAREHOUSE_PHONE),
         
-        // ✅ CRITICAL: Seller details with invoice
-        seller_name: 'Rizara Luxe',
+        // Seller details
+        seller_name: process.env.SELLER_NAME || 'Rizara Luxe',
         seller_add: process.env.WAREHOUSE_ADDRESS,
-        seller_gst_tin: null,
         seller_inv: `INV-${shipmentData.order_id.substring(0, 8).toUpperCase()}`,
+        seller_gst_tin: process.env.SELLER_GST_TIN || '',
         
         // Product details
-        products_desc: shipmentData.products_desc || 'Gift Bundle',
-        quantity: shipmentData.quantity || 1,
+        products_desc: shipmentData.products_desc || 'Items that she will love <3',
+        quantity: String(shipmentData.quantity || 1),
+        hsn_code: '',
         
         // Package details
-        weight: shipmentData.weight_grams,
-        shipment_width: shipmentData.dimensions_cm.width || 25,
-        shipment_height: shipmentData.dimensions_cm.height || 10,
-        shipment_length: shipmentData.dimensions_cm.length || 30,
-        shipping_mode: shipmentData.shipping_mode === 'Express' ? 'Express' : 'Surface',
+        weight: String(shipmentData.weight_grams),
+        shipment_width: String(shipmentData.dimensions_cm?.width || 25),
+        shipment_height: String(shipmentData.dimensions_cm?.height || 10),
+        shipment_length: String(shipmentData.dimensions_cm?.length || 30),
+        shipping_mode: shipmentData.shipping_mode,
         
         // Optional fields
-        hsn_code: '',
-        waybill: '', // Let Delhivery generate
+        waybill: '',
         fragile_shipment: false,
         dangerous_good: false
-      }]
+      }],
+      // ✅ CRITICAL: pickup_location at ROOT level as object
+      pickup_location: {
+        name: pickupLocation
+      }
     };
     
-    console.log('📤 [Delhivery] Request Payload:', JSON.stringify(shipmentPayload, null, 2));
+    // ✅ CORRECT: Wrap with format=json&data=
+    const body = `format=json&data=${JSON.stringify(payloadObject)}`;
+    
+    console.log('📤 [Delhivery] Request Payload:', JSON.stringify(payloadObject, null, 2));
 
-    const response = await axios.post(url, 
-      `format=json&data=${JSON.stringify(shipmentPayload)}`,
-      {
-        headers: {
-          'Authorization': `Token ${this.apiToken}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json'
-        },
-        timeout: 30000,
-        validateStatus: (status) => status < 500
-      }
-    );
+    const response = await axios.post(url, body, {
+      headers: {
+        'Authorization': `Token ${this.apiToken}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      },
+      timeout: 30000,
+      validateStatus: (status) => status < 500
+    });
 
     console.log('📥 [Delhivery] Response:', JSON.stringify(response.data, null, 2));
 
@@ -908,7 +908,7 @@ async createShipment(shipmentData) {
     return {
       success: true,
       awb: awb,
-      order_id: shipmentResult.order_id || shipmentData.order_id,
+      order_id: shipmentResult.refnum || shipmentData.order_id,
       courier: 'Delhivery',
       tracking_url: trackingUrl,
       label_url: labelUrl,
@@ -943,7 +943,7 @@ async getTrackingInfo(awb) {
       params: { waybill: awb },
       headers: {
         'Authorization': `Token ${this.apiToken}`,
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'application/json'
       },
       timeout: 15000,
@@ -1054,7 +1054,7 @@ async schedulePickup(pickupData) {
     const response = await axios.post(url, payload, {
       headers: {
         'Authorization': `Token ${this.apiToken}`,
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'application/json'
       },
       timeout: 15000,
