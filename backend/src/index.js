@@ -14,12 +14,34 @@ const app = express();
 // ============================================
 
 app.use(helmet());
+const allowedOrigins = [
+  'http://localhost:5173', // Vite frontend
+  'http://localhost:3000', // Vercel dev (self-calls)
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow server-to-server or tools like curl/postman
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`), false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'x-session-id'
+  ]
 }));
 
-// ⭐ IMPORTANT: Raw body parser for Razorpay webhook signature verification
+
+// ⭐ CRITICAL: Raw body parser for Razorpay webhook signature verification
 // Must be BEFORE express.json() for webhook route
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 
@@ -34,49 +56,6 @@ if (process.env.NODE_ENV === 'development') {
     next();
   });
 }
-
-// ============================================
-// SUPABASE CONNECTION TEST
-// ============================================
-
-const supabase = require('./config/supabaseClient');
-
-// Test Supabase connection on startup
-(async () => {
-  try {
-    const { data, error } = await supabase
-      .from('Products')
-      .select('count')
-      .limit(1);
-    
-    if (error) {
-      console.log('⚠️  Supabase connection test failed:', error.message);
-    } else {
-      console.log('✅ Supabase connected successfully');
-    }
-  } catch (err) {
-    console.log('⚠️  Could not test Supabase connection:', err.message);
-  }
-})();
-
-// ============================================
-// RAZORPAY SERVICE HEALTH CHECK
-// ============================================
-
-const razorpayService = require('./services/razorpayService');
-
-(async () => {
-  try {
-    const healthCheck = await razorpayService.healthCheck();
-    if (healthCheck.healthy) {
-      console.log('✅ Razorpay API configured and reachable');
-    } else {
-      console.log('⚠️  Razorpay configuration issue:', healthCheck.message);
-    }
-  } catch (err) {
-    console.log('⚠️  Could not verify Razorpay configuration:', err.message);
-  }
-})();
 
 // ============================================
 // IMPORT AUTHENTICATION MIDDLEWARE
@@ -127,7 +106,7 @@ app.use('/api/products', require('./routes/products'));     // ✅ Browse produc
 app.use('/api/variants', require('./routes/variants'));     // ✅ Product variants
 app.use('/api/reviews', require('./routes/reviews'));       // ✅ Product reviews
 app.use('/api/coupons', require('./routes/coupons'));       // ✅ Validate coupons
-app.use('/api/shop', require('./routes/shop'));               // ✅ Unified shop routes (products + bundles)
+app.use('/api/shop', require('./routes/shop'));             // ✅ Unified shop routes (products + bundles)
 
 // 6. PAYMENT & SHIPPING (MIXED - auth handled inside routes)
 // --------------------------------------------
@@ -140,6 +119,9 @@ app.use('/api/delhivery', require('./routes/delhivery'));   // ✅ Delhivery shi
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
+  const supabase = require('./config/supabaseClient');
+  const razorpayService = require('./services/razorpayService');
+  
   try {
     // Test Supabase connection
     const { error: supabaseError } = await supabase
@@ -183,10 +165,11 @@ app.get('/', (req, res) => {
   res.json({
     success: true,
     message: 'The Petal Pouches API is running! 🌸',
-    version: '1.7.1', // ✅ Security Hardened
+    version: '2.0.0', // ✅ Serverless Migration
     database: 'Supabase',
     payment_gateway: 'Razorpay',
     shipping: 'Delhivery',
+    architecture: 'Serverless Functions',
     documentation: {
       admin: {
         auth: '/api/admin/auth (PUBLIC)',
@@ -218,6 +201,9 @@ app.get('/', (req, res) => {
       webhooks: {
         delhivery: 'POST /api/webhooks/delhivery',
         razorpay: 'POST /api/payments/webhook'
+      },
+      cron: {
+        shipment_sync: 'POST /api/cron/sync-shipments (PROTECTED)'
       }
     }
   });
@@ -284,40 +270,75 @@ app.use((req, res) => {
 });
 
 // ============================================
-// START SERVER + CRON JOBS
+// LOCAL DEVELOPMENT SERVER (ONLY)
 // ============================================
 
-const PORT = process.env.PORT || 5000;
+// ✅ This block only runs when executing `node src/index.js` directly
+// ✅ Vercel ignores this completely and uses module.exports instead
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  
+  app.listen(PORT, async () => {
+    console.log('\n🚀 ===================================');
+    console.log(`   Server running on port ${PORT}`);
+    console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`   Mode: LOCAL DEVELOPMENT`);
+    console.log(`   Database: Supabase`);
+    console.log(`   Payment: Razorpay`);
+    console.log(`   Shipping: Delhivery`);
+    console.log('🚀 ===================================\n');
+    
+    console.log('📍 Key Endpoints:');
+    console.log(`   🌐 Health:     http://localhost:${PORT}/health`);
+    console.log(`   🛒 Products:   http://localhost:${PORT}/api/products`);
+    console.log(`   🛍️ Cart:       http://localhost:${PORT}/api/cart`);
+    console.log(`   🎟️ Coupons:    http://localhost:${PORT}/api/coupons`);
+    console.log(`   🔐 OTP:        http://localhost:${PORT}/api/otp`);
+    console.log(`   👤 User Auth:  http://localhost:${PORT}/api/auth/login`);
+    console.log(`   🔐 Admin Auth: http://localhost:${PORT}/api/admin/auth/login`);
+    console.log(`   📦 Orders:     http://localhost:${PORT}/api/orders`);
+    console.log(`   💳 Payments:   http://localhost:${PORT}/api/payments`);
+    console.log(`   🚚 Webhooks:   http://localhost:${PORT}/api/webhooks/delhivery`);
+    
+    // Test connections on local startup only
+    const supabase = require('./config/supabaseClient');
+    const razorpayService = require('./services/razorpayService');
+    
+    console.log('\n🔍 Testing service connections...');
+    
+    try {
+      const { error } = await supabase.from('Products').select('count').limit(1);
+      if (error) {
+        console.log('⚠️  Supabase connection test failed:', error.message);
+      } else {
+        console.log('✅ Supabase connected successfully');
+      }
+    } catch (err) {
+      console.log('⚠️  Could not test Supabase connection:', err.message);
+    }
+    
+    try {
+      const healthCheck = await razorpayService.healthCheck();
+      if (healthCheck.healthy) {
+        console.log('✅ Razorpay API configured and reachable');
+      } else {
+        console.log('⚠️  Razorpay configuration issue:', healthCheck.message);
+      }
+    } catch (err) {
+      console.log('⚠️  Could not verify Razorpay configuration:', err.message);
+    }
+    
+    // Start local cron job for development testing
+    if (process.env.NODE_ENV === 'development') {
+      console.log('\n🔄 Starting local cron job (development only)...');
+      const { startShipmentSyncJob } = require('./jobs/syncShipments');
+      startShipmentSyncJob();
+    }
+  });
+}
 
-app.listen(PORT, () => {
-  console.log('\n🚀 ===================================');
-  console.log(`   Server running on port ${PORT}`);
-  console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`   Database: Supabase`);
-  console.log(`   Payment: Razorpay`);
-  console.log(`   Shipping: Delhivery`);
-  console.log('🚀 ===================================\n');
-  
-  console.log('📍 Key Endpoints:');
-  console.log(`   🌐 Health:     http://localhost:${PORT}/health`);
-  console.log(`   🛒 Products:   http://localhost:${PORT}/api/products`);
-  console.log(`   🛍️ Cart:       http://localhost:${PORT}/api/cart (PROTECTED)`);
-  console.log(`   🎟️ Coupons:    http://localhost:${PORT}/api/coupons`);
-  console.log(`   🔐 OTP:        http://localhost:${PORT}/api/otp`);
-  console.log(`   👤 User Auth:  http://localhost:${PORT}/api/auth/login`);
-  console.log(`   🔐 Admin Auth: http://localhost:${PORT}/api/admin/auth/login`);
-  console.log(`   📦 Orders:     http://localhost:${PORT}/api/orders (PROTECTED)`);
-  console.log(`   💳 Payments:   http://localhost:${PORT}/api/payments`);
-  console.log(`   🚚 Webhooks:   http://localhost:${PORT}/api/webhooks/delhivery`);
-  
-  // 🆕 START SHIPMENT SYNC CRON JOB (conditional)
-  if (process.env.ENABLE_CRON_SYNC !== 'false') {
-    console.log('\n🔄 Starting background jobs...');
-    const { startShipmentSyncJob } = require('./jobs/syncShipments');
-    startShipmentSyncJob();
-  } else {
-    console.log('⏸️  Cron sync disabled (ENABLE_CRON_SYNC=false)');
-  }
-});
+// ============================================
+// SERVERLESS EXPORT (VERCEL/NETLIFY/AWS)
+// ============================================
 
 module.exports = app;

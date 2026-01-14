@@ -3,6 +3,11 @@
  * Payment Routes
  * Base path: /api/payments
  * Handles Razorpay payment operations
+ * 
+ * ✅ SERVERLESS READY:
+ * - Webhook registered BEFORE auth middleware
+ * - Raw body parser applied in index.js
+ * - No global state or side effects
  */
 
 const express = require('express');
@@ -20,7 +25,7 @@ const {
  * @desc    Handle Razorpay webhooks (payment events)
  * @access  Public (called by Razorpay)
  * @note    NO AUTH - Razorpay servers call this
- * @note    Uses raw body parser for signature verification
+ * @note    Uses raw body parser for signature verification (configured in index.js)
  */
 router.post('/webhook', PaymentController.handleWebhook);
 

@@ -1,8 +1,10 @@
-// backend/src/routes/bundles.js - UPDATED WITH MULTIPLE IMAGE SUPPORT
+// backend/src/routes/bundles.js
+// ⭐ SERVERLESS-READY + SECURITY-HARDENED
 
 const express = require('express');
 const router = express.Router();
 const upload = require('../config/multer');
+const { verifyAdminToken } = require('../middleware/adminAuth'); // ⭐ ADD THIS
 const {
   createBundle,
   getAllBundles,
@@ -13,7 +15,6 @@ const {
   toggleBundleStatus,
   duplicateBundle,
   getBundleStock,
-  // NEW: Image-specific operations
   addBundleImages,
   deleteBundleImage,
   reorderBundleImages,
@@ -25,120 +26,111 @@ const {
 // ========================================
 
 /**
- * GET /api/bundles
- * Get all bundles with optional filters
- * NOW RETURNS: images array with each bundle
+ * @route   GET /api/bundles
+ * @desc    Get all bundles with optional filters
+ * @access  Public
+ * @returns Array of bundles with images
  */
 router.get('/', getAllBundles);
 
 /**
- * GET /api/bundles/:id
- * Get single bundle details with basic info only
- * NOW RETURNS: images array included
+ * @route   GET /api/bundles/:id
+ * @desc    Get single bundle basic info
+ * @access  Public
+ * @returns Bundle object with images array
  */
 router.get('/:id', getBundleById);
 
 /**
- * GET /api/bundles/:id/details
- * Get single bundle with all items and product details
- * NOW RETURNS: images array + product details
+ * @route   GET /api/bundles/:id/details
+ * @desc    Get bundle with all items and product details
+ * @access  Public
+ * @returns Bundle with expanded product info
  */
 router.get('/:id/details', getBundleDetails);
 
 /**
- * GET /api/bundles/:id/stock
- * Check stock availability for all items in bundle
+ * @route   GET /api/bundles/:id/stock
+ * @desc    Check stock availability for bundle
+ * @access  Public
+ * @returns Stock status for all items
  */
 router.get('/:id/stock', getBundleStock);
 
 // ========================================
 // ADMIN ROUTES (Bundle Management)
+// ⭐ SECURITY: All admin routes protected
 // ========================================
 
 /**
- * POST /api/bundles/admin
- * Create new bundle
- * UPDATED: Now accepts multiple images
- * 
- * Content-Type: multipart/form-data
- * 
- * Form Fields:
- *   - images: file[] (NEW: array of images, 1-5 files)
- *   - image: file (BACKWARD COMPATIBLE: single image still works)
- *   - title: string (required)
- *   - description: string (optional)
- *   - price: number (required)
- *   - stock_limit: number (optional)
- *   - tags: JSON string (optional)
- *   - items: JSON string (required)
- * 
- * First image becomes primary by default
+ * @route   POST /api/bundles/admin
+ * @desc    Create new bundle with images
+ * @access  Private (Admin only)
+ * @body    Form-data with images[] and bundle fields
  */
-router.post('/admin', upload.array('images', 5), createBundle);
+router.post('/admin', verifyAdminToken, upload.array('images', 5), createBundle);
 
 /**
- * PUT /api/bundles/admin/:id
- * Update existing bundle
- * UPDATED: Now accepts multiple new images
- * 
- * Form Fields:
- *   - images: file[] (NEW: add new images)
- *   - image: file (BACKWARD COMPATIBLE: single image)
- *   - delete_image_ids: JSON string (array of image IDs to delete)
- *   - ... other fields same as POST
+ * @route   PUT /api/bundles/admin/:id
+ * @desc    Update existing bundle
+ * @access  Private (Admin only)
+ * @body    Form-data with optional new images[]
  */
-router.put('/admin/:id', upload.array('images', 5), updateBundle);
+router.put('/admin/:id', verifyAdminToken, upload.array('images', 5), updateBundle);
 
 /**
- * DELETE /api/bundles/admin/:id
- * Delete bundle (CASCADE deletes bundle_items and bundle_images)
- * UPDATED: Now deletes all images from Cloudinary
+ * @route   DELETE /api/bundles/admin/:id
+ * @desc    Delete bundle (CASCADE deletes items and images)
+ * @access  Private (Admin only)
  */
-router.delete('/admin/:id', deleteBundle);
+router.delete('/admin/:id', verifyAdminToken, deleteBundle);
 
 /**
- * PATCH /api/bundles/admin/:id/toggle
- * Toggle bundle active/inactive status
+ * @route   PATCH /api/bundles/admin/:id/toggle
+ * @desc    Toggle bundle active/inactive status
+ * @access  Private (Admin only)
  */
-router.patch('/admin/:id/toggle', toggleBundleStatus);
+router.patch('/admin/:id/toggle', verifyAdminToken, toggleBundleStatus);
 
 /**
- * POST /api/bundles/admin/:id/duplicate
- * Duplicate existing bundle
- * UPDATED: Preserves all images from original bundle
+ * @route   POST /api/bundles/admin/:id/duplicate
+ * @desc    Duplicate existing bundle with all images
+ * @access  Private (Admin only)
  */
-router.post('/admin/:id/duplicate', duplicateBundle);
+router.post('/admin/:id/duplicate', verifyAdminToken, duplicateBundle);
 
 // ========================================
-// NEW: IMAGE-SPECIFIC ADMIN ROUTES
+// IMAGE-SPECIFIC ADMIN ROUTES
+// ⭐ SECURITY: All image management protected
 // ========================================
 
 /**
- * POST /api/bundles/admin/:id/images
- * Add images to existing bundle
- * Body (multipart): images[] - array of image files
+ * @route   POST /api/bundles/admin/:id/images
+ * @desc    Add images to existing bundle
+ * @access  Private (Admin only)
  */
-router.post('/admin/:id/images', upload.array('images', 5), addBundleImages);
+router.post('/admin/:id/images', verifyAdminToken, upload.array('images', 5), addBundleImages);
 
 /**
- * DELETE /api/bundles/admin/:id/images/:imageId
- * Delete single image from bundle
- * Prevents deletion if it's the only image
+ * @route   DELETE /api/bundles/admin/:id/images/:imageId
+ * @desc    Delete single image from bundle
+ * @access  Private (Admin only)
  */
-router.delete('/admin/:id/images/:imageId', deleteBundleImage);
+router.delete('/admin/:id/images/:imageId', verifyAdminToken, deleteBundleImage);
 
 /**
- * PATCH /api/bundles/admin/:id/images/reorder
- * Reorder images
- * Body: { order: [{ image_id, display_order }, ...] }
+ * @route   PATCH /api/bundles/admin/:id/images/reorder
+ * @desc    Reorder bundle images
+ * @access  Private (Admin only)
+ * @body    { order: [{ image_id, display_order }, ...] }
  */
-router.patch('/admin/:id/images/reorder', reorderBundleImages);
+router.patch('/admin/:id/images/reorder', verifyAdminToken, reorderBundleImages);
 
 /**
- * PATCH /api/bundles/admin/:id/images/:imageId/primary
- * Set image as primary
- * Automatically unsets other primary images
+ * @route   PATCH /api/bundles/admin/:id/images/:imageId/primary
+ * @desc    Set image as primary
+ * @access  Private (Admin only)
  */
-router.patch('/admin/:id/images/:imageId/primary', setPrimaryBundleImage);
+router.patch('/admin/:id/images/:imageId/primary', verifyAdminToken, setPrimaryBundleImage);
 
 module.exports = router;

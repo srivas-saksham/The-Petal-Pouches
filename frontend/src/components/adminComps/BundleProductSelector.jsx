@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Search, Filter, Package, ChevronLeft, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+import adminApi from '../../services/adminApi';
 
 export default function BundleProductSelector({ onSelect, onClose, excludeProductIds = [] }) {
   const [products, setProducts] = useState([]);
@@ -53,10 +52,9 @@ export default function BundleProductSelector({ onSelect, onClose, excludeProduc
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/categories`);
-      const data = await response.json();
-      if (response.ok) {
-        setCategories(data.data || []);
+      const response = await adminApi.get('/api/categories');
+      if (response.data) {
+        setCategories(response.data || []);
       }
     } catch (err) {
       console.error('Failed to fetch categories:', err);
@@ -68,32 +66,31 @@ export default function BundleProductSelector({ onSelect, onClose, excludeProduc
     setError('');
 
     try {
-      const params = new URLSearchParams({
+      const params = {
         page: currentPage,
         limit,
         in_stock: 'true'
-      });
+      };
 
-      if (search) params.append('search', search);
-      if (selectedCategory) params.append('category_id', selectedCategory);
-      if (minPrice) params.append('min_price', minPrice);
-      if (maxPrice) params.append('max_price', maxPrice);
+      if (search) params.search = search;
+      if (selectedCategory) params.category_id = selectedCategory;
+      if (minPrice) params.min_price = minPrice;
+      if (maxPrice) params.max_price = maxPrice;
 
-      const response = await fetch(`${API_URL}/api/products?${params}`);
-      const data = await response.json();
+      const response = await adminApi.get('/api/products', { params });
 
-      if (response.ok) {
-        const filtered = (data.data || []).filter(
+      if (response.data) {
+        const filtered = (response.data || []).filter(
           product => !excludeProductIds.includes(product.id)
         );
         setProducts(filtered);
-        setTotalPages(data.metadata?.totalPages || 1);
-        setTotalCount(data.metadata?.totalCount || 0);
+        setTotalPages(response.metadata?.totalPages || 1);
+        setTotalCount(response.metadata?.totalCount || 0);
       } else {
-        setError(data.message || 'Failed to load products');
+        setError(response.message || 'Failed to load products');
       }
     } catch (err) {
-      setError('Network error: ' + err.message);
+      setError('Network error: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }

@@ -566,24 +566,34 @@ const PaymentController = {
    * Handle Razorpay webhooks
    * POST /api/payments/webhook
    * 
-   * Handles:
-   * - payment.captured
-   * - payment.failed
-   * - order.paid
+   * ⚠️ CRITICAL: req.body MUST be raw buffer for signature verification
+   * Configured in index.js: app.use('/api/payments/webhook', express.raw())
    */
   handleWebhook: async (req, res) => {
     try {
       const signature = req.headers['x-razorpay-signature'];
-      const body = JSON.stringify(req.body);
+      
+      // ✅ FIX: Use raw body buffer directly
+      const rawBody = req.body; // This is a Buffer from express.raw()
 
       console.log('🔔 [Webhook] Received Razorpay webhook');
+      console.log('📦 [Webhook] Body type:', typeof rawBody, Buffer.isBuffer(rawBody));
+
+      if (!Buffer.isBuffer(rawBody)) {
+        console.error('❌ [Webhook] Body is not a buffer - raw body parser not working');
+        return res.status(500).json({
+          success: false,
+          message: 'Server configuration error'
+        });
+      }
 
       // ===== STEP 1: VERIFY WEBHOOK SIGNATURE =====
-      const isValid = razorpayService.verifyWebhookSignature(signature, body);
+      // ✅ Pass raw buffer directly to verification
+      const isValid = razorpayService.verifyWebhookSignature(signature, rawBody);
 
       if (!isValid) {
         console.error('❌ [Webhook] Invalid signature');
-        return res.status(400).json({
+        return res.status(401).json({
           success: false,
           message: 'Invalid webhook signature'
         });
@@ -591,43 +601,56 @@ const PaymentController = {
 
       console.log('✅ [Webhook] Signature verified');
 
-      // ===== STEP 2: PROCESS WEBHOOK EVENT =====
-      const event = req.body.event;
-      const payload = req.body.payload?.payment?.entity || req.body.payload?.order?.entity;
+      // ===== STEP 2: NOW PARSE THE BODY =====
+      // ✅ Parse AFTER verification
+      const payload = JSON.parse(rawBody.toString('utf8'));
+      const event = payload.event;
+      const eventPayload = payload.payload?.payment?.entity || payload.payload?.order?.entity;
 
       console.log(`📨 [Webhook] Event: ${event}`);
 
-      switch (event) {
-        case 'payment.captured':
-          await this.handlePaymentCaptured(payload);
-          break;
-
-        case 'payment.failed':
-          await this.handlePaymentFailed(payload);
-          break;
-
-        case 'order.paid':
-          await this.handleOrderPaid(payload);
-          break;
-
-        default:
-          console.log(`ℹ️ [Webhook] Unhandled event: ${event}`);
-      }
-
-      // ===== STEP 3: ACKNOWLEDGE WEBHOOK =====
-      return res.status(200).json({
+      // ✅ QUICK RESPONSE: Acknowledge immediately (prevent retries)
+      res.status(200).json({
         success: true,
-        message: 'Webhook processed'
+        message: 'Webhook received, processing asynchronously'
+      });
+
+      // ===== STEP 3: ASYNC PROCESSING =====
+      // Process after responding to Razorpay
+      setImmediate(async () => {
+        try {
+          switch (event) {
+            case 'payment.captured':
+              await this.handlePaymentCaptured(eventPayload);
+              break;
+
+            case 'payment.failed':
+              await this.handlePaymentFailed(eventPayload);
+              break;
+
+            case 'order.paid':
+              await this.handleOrderPaid(eventPayload);
+              break;
+
+            default:
+              console.log(`ℹ️ [Webhook] Unhandled event: ${event}`);
+          }
+        } catch (asyncError) {
+          console.error('❌ [Webhook] Async processing error:', asyncError);
+          // Don't throw - webhook already acknowledged
+        }
       });
 
     } catch (error) {
       console.error('❌ [Webhook] Processing error:', error);
       
       // Return 200 to prevent Razorpay retries on server errors
-      return res.status(200).json({
-        success: false,
-        message: 'Webhook received but processing failed'
-      });
+      if (!res.headersSent) {
+        return res.status(200).json({
+          success: false,
+          message: 'Webhook received but processing failed'
+        });
+      }
     }
   },
 
@@ -638,7 +661,7 @@ const PaymentController = {
    */
   handlePaymentCaptured: async (payload) => {
     try {
-      const { order_id, id: payment_id } = payload;
+      const { order_id, id: payment_id, amount, status } = payload;
       
       console.log(`✅ [Webhook] Payment captured: ${payment_id}`);
 
@@ -647,11 +670,22 @@ const PaymentController = {
       const { data: order, error } = await supabase
         .from('Orders')
         .select('id, payment_status')
-        .eq('payment_id', order_id)
+        .eq('razorpay_order_id', order_id) // ⭐ FIXED: Use correct column
         .single();
 
       if (error || !order) {
-        console.warn(`⚠️ [Webhook] Order not found for Razorpay order: ${order_id}`);
+        console.error(`❌ [Webhook] Order not found for Razorpay order: ${order_id}`);
+        
+        // ⭐ LOG FOR MANUAL RECONCILIATION
+        console.error('🔍 [Webhook] Lost webhook data:', JSON.stringify({
+          event: 'payment.captured',
+          razorpay_order_id: order_id,
+          razorpay_payment_id: payment_id,
+          amount: amount / 100,
+          status,
+          timestamp: new Date().toISOString()
+        }));
+        
         return;
       }
 
@@ -660,6 +694,8 @@ const PaymentController = {
         await OrderModel.updatePaymentStatus(order.id, 'paid', payment_id);
         await OrderModel.updateStatus(order.id, 'confirmed');
         console.log(`✅ [Webhook] Order ${order.id} marked as paid`);
+      } else {
+        console.log(`ℹ️ [Webhook] Order ${order.id} already paid, skipping update`);
       }
 
     } catch (error) {
@@ -680,18 +716,28 @@ const PaymentController = {
       const supabase = require('../config/supabaseClient');
       const { data: order, error } = await supabase
         .from('Orders')
-        .select('id')
-        .eq('payment_id', order_id)
+        .select('id, payment_status')
+        .eq('razorpay_order_id', order_id) // ⭐ FIXED: Use correct column
         .single();
 
       if (error || !order) {
-        console.warn(`⚠️ [Webhook] Order not found for Razorpay order: ${order_id}`);
+        console.error(`❌ [Webhook] Order not found for Razorpay order: ${order_id}`);
+        
+        // ⭐ LOG FOR MANUAL RECONCILIATION
+        console.error('🔍 [Webhook] Lost webhook data:', JSON.stringify({
+          event: 'payment.failed',
+          razorpay_order_id: order_id,
+          razorpay_payment_id: payment_id,
+          error_description,
+          timestamp: new Date().toISOString()
+        }));
+        
         return;
       }
 
       // Mark payment as failed
       await OrderModel.updatePaymentStatus(order.id, 'failed', payment_id);
-      console.log(`❌ [Webhook] Order ${order.id} payment failed`);
+      console.log(`❌ [Webhook] Order ${order.id} payment marked as failed`);
 
     } catch (error) {
       console.error('❌ [Webhook] Payment failed handler error:', error);
@@ -712,11 +758,20 @@ const PaymentController = {
       const { data: order, error } = await supabase
         .from('Orders')
         .select('id, payment_status')
-        .eq('payment_id', razorpay_order_id)
+        .eq('razorpay_order_id', razorpay_order_id) // ⭐ FIXED: Use correct column
         .single();
 
       if (error || !order) {
-        console.warn(`⚠️ [Webhook] Order not found: ${razorpay_order_id}`);
+        console.error(`❌ [Webhook] Order not found: ${razorpay_order_id}`);
+        
+        // ⭐ LOG FOR MANUAL RECONCILIATION
+        console.error('🔍 [Webhook] Lost webhook data:', JSON.stringify({
+          event: 'order.paid',
+          razorpay_order_id,
+          amount_paid: amount_paid / 100,
+          timestamp: new Date().toISOString()
+        }));
+        
         return;
       }
 
@@ -724,7 +779,9 @@ const PaymentController = {
       if (order.payment_status !== 'paid') {
         await OrderModel.updatePaymentStatus(order.id, 'paid');
         await OrderModel.updateStatus(order.id, 'confirmed');
-        console.log(`✅ [Webhook] Order ${order.id} confirmed`);
+        console.log(`✅ [Webhook] Order ${order.id} confirmed via webhook`);
+      } else {
+        console.log(`ℹ️ [Webhook] Order ${order.id} already paid, skipping update`);
       }
 
     } catch (error) {
@@ -748,7 +805,8 @@ const PaymentController = {
       if (!order) {
         return res.status(404).json({
           success: false,
-          message: 'Order not found'
+          message: 'Order not found or access denied',
+          code: 'ORDER_NOT_FOUND'
         });
       }
 

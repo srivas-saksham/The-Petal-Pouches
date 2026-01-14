@@ -1,8 +1,7 @@
 // frontend/src/components/adminComps/BundleItemCard.jsx
 
 import { useState, useEffect } from 'react';
-
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+import adminApi from '../../services/adminApi';
 
 export default function BundleItemCard({ item, onVariantChange, onQuantityChange, onRemove }) {
   const [variants, setVariants] = useState([]);
@@ -18,17 +17,15 @@ export default function BundleItemCard({ item, onVariantChange, onQuantityChange
   const fetchVariants = async () => {
     setLoadingVariants(true);
     try {
-      // ✅ UPDATED: Use the correct variants endpoint
-      const response = await fetch(`${API_URL}/api/variants/products/${item.product.id}/variants`);
-      const data = await response.json();
+      const response = await adminApi.get(`/api/variants/products/${item.product.id}/variants`);
       
-      if (response.ok) {
-        console.log('Fetched variants:', data.data);
-        setVariants(data.data || []);
+      if (response.data) {
+        console.log('Fetched variants:', response.data);
+        setVariants(response.data || []);
         
         // Auto-select first variant if none selected
-        if (!item.variant_id && data.data && data.data.length > 0) {
-          const firstVariant = data.data[0];
+        if (!item.variant_id && response.data && response.data.length > 0) {
+          const firstVariant = response.data[0];
           onVariantChange(firstVariant.id, firstVariant);
         }
       }
@@ -39,7 +36,6 @@ export default function BundleItemCard({ item, onVariantChange, onQuantityChange
     }
   };
 
-  // ... rest of the component remains the same
   const handleVariantSelect = (e) => {
     const variantId = e.target.value;
     const variant = variants.find(v => v.id === variantId);

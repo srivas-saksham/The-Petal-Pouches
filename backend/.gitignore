@@ -3,6 +3,11 @@
 .env.local
 .env.production
 
+# Vercel
+.vercel
+.vercel.json.backup
+*.log
+
 # Logs
 logs
 *.log
@@ -30,3 +35,4 @@ dist-ssr
 # Files
 generateHash.js
 backend/generateHash.js
+.vercel

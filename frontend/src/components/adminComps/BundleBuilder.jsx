@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import BundleForm from './BundleForm';
-
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+import adminApi from '../../services/adminApi';
 
 export default function BundleBuilder() {
   const [bundles, setBundles] = useState([]);
@@ -24,16 +23,18 @@ export default function BundleBuilder() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${API_URL}/api/bundles?page=1&limit=50`);
-      const data = await response.json();
+      const response = await adminApi.get('/api/bundles', { 
+        params: { page: 1, limit: 50 } 
+      });
       
-      if (response.ok) {
-        setBundles(data.data || []);
+      // adminApi returns response.data directly
+      if (response.data) {
+        setBundles(response.data || []);
       } else {
-        setError(data.message || 'Failed to fetch bundles');
+        setError(response.message || 'Failed to fetch bundles');
       }
     } catch (err) {
-      setError('Network error: ' + err.message);
+      setError('Network error: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -79,19 +80,17 @@ export default function BundleBuilder() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${API_URL}/api/bundles/admin/${bundleId}`, {
-        method: 'DELETE'
-      });
-      const data = await response.json();
+      const response = await adminApi.delete(`/api/bundles/admin/${bundleId}`);
 
-      if (response.ok) {
+      // adminApi returns response directly
+      if (response) {
         setSuccess('Bundle deleted successfully');
         fetchBundles();
       } else {
-        setError(data.message || 'Failed to delete bundle');
+        setError(response?.message || 'Failed to delete bundle');
       }
     } catch (err) {
-      setError('Network error: ' + err.message);
+      setError('Network error: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -101,19 +100,17 @@ export default function BundleBuilder() {
   const handleToggle = async (bundleId) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/bundles/admin/${bundleId}/toggle`, {
-        method: 'PATCH'
-      });
-      const data = await response.json();
+      const response = await adminApi.patch(`/api/bundles/admin/${bundleId}/toggle`);
 
-      if (response.ok) {
-        setSuccess(data.message);
+      // adminApi returns response directly
+      if (response) {
+        setSuccess(response.message || 'Status toggled successfully');
         fetchBundles();
       } else {
-        setError(data.message || 'Failed to toggle status');
+        setError(response?.message || 'Failed to toggle status');
       }
     } catch (err) {
-      setError('Network error: ' + err.message);
+      setError('Network error: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -123,19 +120,17 @@ export default function BundleBuilder() {
   const handleDuplicate = async (bundleId) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/bundles/admin/${bundleId}/duplicate`, {
-        method: 'POST'
-      });
-      const data = await response.json();
+      const response = await adminApi.post(`/api/bundles/admin/${bundleId}/duplicate`);
 
-      if (response.ok) {
+      // adminApi returns response directly
+      if (response) {
         setSuccess('Bundle duplicated successfully');
         fetchBundles();
       } else {
-        setError(data.message || 'Failed to duplicate bundle');
+        setError(response?.message || 'Failed to duplicate bundle');
       }
     } catch (err) {
-      setError('Network error: ' + err.message);
+      setError('Network error: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }

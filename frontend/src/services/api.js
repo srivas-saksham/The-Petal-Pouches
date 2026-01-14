@@ -1,4 +1,5 @@
 // frontend/src/services/api.js - COMPLETE WITH ORDER ENDPOINTS
+// ⭐ FIXED: Proper token handling for both customer and admin
 
 import axios from 'axios';
 
@@ -14,14 +15,23 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // Add auth token from localStorage
-    // Support both customer and admin tokens
+    // ⭐ FIX: Check request URL instead of window.location
+    const requestUrl = config.url || '';
+    const isAdminRequest = requestUrl.includes('/admin/') || requestUrl.includes('/api/admin');
+    
+    // Get tokens from correct storage
     const customerToken = localStorage.getItem('customer_token');
     const adminToken = sessionStorage.getItem('admin_token');
     
-    // ✅ Check if we're on admin routes
-    const isAdminRoute = window.location.pathname.startsWith('/admin');
-    const token = isAdminRoute ? (adminToken || customerToken) : (customerToken || adminToken);
+    // ⭐ FIX: Choose token based on REQUEST URL, not browser URL
+    let token = null;
+    if (isAdminRequest && adminToken) {
+      // Admin request with admin token available
+      token = adminToken;
+    } else if (customerToken) {
+      // Customer request or fallback to customer token
+      token = customerToken;
+    }
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

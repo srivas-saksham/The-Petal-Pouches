@@ -107,7 +107,7 @@ export function UserAuthProvider({ children }) {
       // ✅ Merge guest cart after registration
       if (newUser.id) {
         try {
-          await mergeCarts(newUser.id);
+          await mergeCarts();
           console.log('✅ Guest cart merged after registration');
         } catch (mergeError) {
           console.error('⚠️ Cart merge failed:', mergeError);
@@ -149,7 +149,7 @@ export function UserAuthProvider({ children }) {
       // ✅ Merge guest cart after login
       if (newUser.id) {
         try {
-          await mergeCarts(newUser.id);
+          await mergeCarts();
           console.log('✅ Guest cart merged after login');
         } catch (mergeError) {
           console.error('⚠️ Cart merge failed:', mergeError);
@@ -224,7 +224,7 @@ export function UserAuthProvider({ children }) {
       // Merge cart
       if (newUser.id) {
         try {
-          await mergeCarts(newUser.id);
+          await mergeCarts();
           console.log('✅ Guest cart merged after Google login');
         } catch (mergeError) {
           console.error('⚠️ Cart merge failed:', mergeError);

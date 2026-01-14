@@ -10,8 +10,7 @@ import {
   DollarSign, Tag, Gift, AlertCircle, TrendingUp, Info
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+import adminApi from '../../../services/adminApi';
 
 export default function OrderDetailModal({ order: initialOrder, isOpen, onClose, onStatusUpdate }) {
   const [order, setOrder] = useState(initialOrder);
@@ -26,16 +25,9 @@ export default function OrderDetailModal({ order: initialOrder, isOpen, onClose,
   const fetchOrderDetails = async () => {
     setLoading(true);
     try {
-      const token = sessionStorage.getItem('admin_token');
-      const response = await fetch(`${API_URL}/api/admin/orders/${initialOrder.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      const result = await response.json();
-      if (result.success) {
-        setOrder(result.data);
+      const response = await adminApi.get(`/api/admin/orders/${initialOrder.id}`);
+      if (response.success) {
+        setOrder(response.data);
       }
     } catch (error) {
       console.error('Error fetching order details:', error);

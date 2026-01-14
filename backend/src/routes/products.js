@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const upload = require('../config/multer');
+const { verifyAdminToken } = require('../middleware/adminAuth'); // ⭐ ADD THIS
 const { 
   getAllProducts, 
   getProductById,
@@ -21,72 +22,55 @@ const supabase = require('../config/supabaseClient');
 // ========================================
 
 /**
- * GET /api/products
- * Get all products with optional filters
- * NOW RETURNS: images array with each product
+ * @route   GET /api/products
+ * @desc    Get all products with optional filters
+ * @access  Public
+ * @returns Array of products with images
  */
 router.get('/', getAllProducts);
 
 /**
- * GET /api/products/:id
- * Get single product details
- * NOW RETURNS: images array included
+ * @route   GET /api/products/:id
+ * @desc    Get single product details
+ * @access  Public
+ * @returns Product object with images array
  */
 router.get('/:id', getProductById);
 
 // ========================================
 // ADMIN ROUTES (Product Management)
+// ⭐ SECURITY: All admin routes protected
 // ========================================
 
 /**
- * POST /api/products/admin
- * Create new product
- * UPDATED: Now accepts multiple images
- * 
- * Content-Type: multipart/form-data
- * 
- * Form Fields:
- *   - images: file[] (NEW: array of images, 1-8 files)
- *   - image: file (BACKWARD COMPATIBLE: single image still works)
- *   - title: string (required)
- *   - description: string (required)
- *   - price: number (required)
- *   - cost_price: number (optional)
- *   - stock: number (required)
- *   - sku: string (required)
- *   - category_id: uuid (optional)
- *   - has_variants: boolean (optional)
- * 
- * First image becomes primary by default
+ * @route   POST /api/products/admin
+ * @desc    Create new product with images
+ * @access  Private (Admin only)
+ * @body    Form-data with images[] and product fields
  */
-router.post('/admin', upload.array('images', 8), createProduct);
+router.post('/admin', verifyAdminToken, upload.array('images', 8), createProduct);
 
 /**
- * PUT /api/products/admin/:id
- * Update existing product
- * UPDATED: Now accepts multiple new images
- * 
- * Form Fields:
- *   - images: file[] (NEW: add new images)
- *   - image: file (BACKWARD COMPATIBLE: single image)
- *   - delete_image_ids: JSON string (array of image IDs to delete)
- *   - ... other fields same as POST
+ * @route   PUT /api/products/admin/:id
+ * @desc    Update existing product
+ * @access  Private (Admin only)
+ * @body    Form-data with optional new images[]
  */
-router.put('/admin/:id', upload.array('images', 8), updateProduct);
+router.put('/admin/:id', verifyAdminToken, upload.array('images', 8), updateProduct);
 
 /**
- * DELETE /api/products/admin/:id
- * Delete product (CASCADE deletes variants and product_images)
- * UPDATED: Now deletes all images from Cloudinary
+ * @route   DELETE /api/products/admin/:id
+ * @desc    Delete product (CASCADE deletes variants and images)
+ * @access  Private (Admin only)
  */
-router.delete('/admin/:id', deleteProduct);
+router.delete('/admin/:id', verifyAdminToken, deleteProduct);
 
 /**
- * POST /api/products/admin/:id/duplicate
- * Duplicate existing product
- * UPDATED: Preserves all images from original product
+ * @route   POST /api/products/admin/:id/duplicate
+ * @desc    Duplicate existing product with all images
+ * @access  Private (Admin only)
  */
-router.post('/admin/:id/duplicate', async (req, res) => {
+router.post('/admin/:id/duplicate', verifyAdminToken, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -113,7 +97,7 @@ router.post('/admin/:id/duplicate', async (req, res) => {
       stock: original.stock,
       sku: `${original.sku}-COPY-${Date.now()}`,
       category_id: original.category_id,
-      img_url: original.img_url, // Will be updated after image duplication
+      img_url: original.img_url,
       has_variants: false, // Don't duplicate variants
       margin_percent: original.margin_percent,
       markup_percent: original.markup_percent
@@ -128,7 +112,7 @@ router.post('/admin/:id/duplicate', async (req, res) => {
 
     if (createError) throw createError;
 
-    // ✅ NEW: Duplicate images from original product
+    // ✅ Duplicate images from original product
     const { data: originalImages, error: imagesError } = await supabase
       .from('Product_images')
       .select('*')
@@ -138,7 +122,7 @@ router.post('/admin/:id/duplicate', async (req, res) => {
     if (!imagesError && originalImages && originalImages.length > 0) {
       const duplicateImages = originalImages.map(img => ({
         product_id: duplicate.id,
-        img_url: img.img_url, // Reuse same Cloudinary URLs
+        img_url: img.img_url,
         display_order: img.display_order,
         is_primary: img.is_primary
       }));
@@ -156,54 +140,58 @@ router.post('/admin/:id/duplicate', async (req, res) => {
       data: duplicate
     });
   } catch (error) {
-    console.error('Duplicate product error:', error);
+    console.error('❌ Duplicate product error:', error);
     res.status(500).json({ 
       success: false,
-      message: error.message 
+      message: 'Failed to duplicate product',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
 
 // ========================================
-// NEW: IMAGE-SPECIFIC ADMIN ROUTES
+// IMAGE-SPECIFIC ADMIN ROUTES
+// ⭐ SECURITY: All image management protected
 // ========================================
 
 /**
- * POST /api/products/admin/:id/images
- * Add images to existing product
- * Body (multipart): images[] - array of image files (max 8 total)
+ * @route   POST /api/products/admin/:id/images
+ * @desc    Add images to existing product
+ * @access  Private (Admin only)
  */
-router.post('/admin/:id/images', upload.array('images', 8), addProductImages);
+router.post('/admin/:id/images', verifyAdminToken, upload.array('images', 8), addProductImages);
 
 /**
- * DELETE /api/products/admin/:id/images/:imageId
- * Delete single image from product
- * Automatically sets new primary if deleted image was primary
+ * @route   DELETE /api/products/admin/:id/images/:imageId
+ * @desc    Delete single image from product
+ * @access  Private (Admin only)
  */
-router.delete('/admin/:id/images/:imageId', deleteProductImage);
+router.delete('/admin/:id/images/:imageId', verifyAdminToken, deleteProductImage);
 
 /**
- * PATCH /api/products/admin/:id/images/:imageId/primary
- * Set image as primary
- * Automatically unsets other primary images
+ * @route   PATCH /api/products/admin/:id/images/:imageId/primary
+ * @desc    Set image as primary
+ * @access  Private (Admin only)
  */
-router.patch('/admin/:id/images/:imageId/primary', setPrimaryProductImage);
+router.patch('/admin/:id/images/:imageId/primary', verifyAdminToken, setPrimaryProductImage);
 
 // ========================================
 // ANALYTICS & STATS ROUTES
+// ⭐ SECURITY: Admin-only analytics
 // ========================================
 
 /**
- * GET /api/products/stats
- * Get product statistics (total, in stock, out of stock, price range)
+ * @route   GET /api/products/stats
+ * @desc    Get product statistics
+ * @access  Private (Admin only)
  */
-router.get('/stats', getProductStats);
+router.get('/stats', verifyAdminToken, getProductStats);
 
 /**
- * GET /api/products/analytics/inventory
- * Get comprehensive inventory analytics
- * (investment, revenue, profit, margins, category breakdown)
+ * @route   GET /api/products/analytics/inventory
+ * @desc    Get comprehensive inventory analytics
+ * @access  Private (Admin only)
  */
-router.get('/analytics/inventory', getInventoryAnalytics);
+router.get('/analytics/inventory', verifyAdminToken, getInventoryAnalytics);
 
 module.exports = router;

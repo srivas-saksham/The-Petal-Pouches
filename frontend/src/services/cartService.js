@@ -1,33 +1,52 @@
-// frontend/src/services/cartService.js - WITH STOCK LIMIT VALIDATION
+// frontend/src/services/cartService.js
+// ⭐ SERVERLESS-COMPATIBLE + SECURE
 
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 /**
- * Get headers with user/session info
- * CRITICAL: Backend expects x-user-id and x-session-id headers
+ * Generate UUID v4 format session ID
+ * Backend requires strict UUID format
+ */
+const generateSessionId = () => {
+  // Use crypto.randomUUID() if available (modern browsers)
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  
+  // Fallback: Generate UUID v4 manually
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+/**
+ * Get authentication headers
+ * For logged-in users: JWT token in Authorization header
+ * For guests: x-session-id header (UUID v4 format)
  */
 const getCartHeaders = () => {
   const headers = {
     'Content-Type': 'application/json',
   };
 
-  // Get user from localStorage
-  const storedUser = localStorage.getItem('customer_user');
-  const user = storedUser ? JSON.parse(storedUser) : null;
-
-  if (user && user.id) {
-    // Logged in user
-    headers['x-user-id'] = user.id;
-    console.log('🔐 Using user ID:', user.id);
+  // Check if user is logged in
+  const token = localStorage.getItem('customer_token');
+  
+  if (token) {
+    // ✅ Authenticated user - send JWT token
+    headers['Authorization'] = `Bearer ${token}`;
+    console.log('🔐 Using JWT token for authenticated user');
   } else {
-    // Guest user - use or create session ID
+    // ✅ Guest user - send UUID v4 session ID
     let sessionId = localStorage.getItem('guest_session_id');
     if (!sessionId) {
-      sessionId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      sessionId = generateSessionId();  // ⭐ FIX: Use proper UUID v4
       localStorage.setItem('guest_session_id', sessionId);
-      console.log('🆕 Created guest session:', sessionId);
+      console.log('🆕 Created guest session (UUID v4):', sessionId);
     }
     headers['x-session-id'] = sessionId;
     console.log('👤 Using session ID:', sessionId);
@@ -37,52 +56,11 @@ const getCartHeaders = () => {
 };
 
 /**
- * Get current cart
- * GET /api/cart
- */
-export const getCart = async () => {
-  try {
-    const response = await axios.get(`${API_URL}/api/cart`, {
-      headers: getCartHeaders(),
-    });
-
-    return {
-      success: true,
-      data: response.data.data,
-    };
-  } catch (error) {
-    console.error('❌ Get cart error:', error);
-    return {
-      success: false,
-      error: error.response?.data?.message || error.message || 'Failed to get cart',
-      data: null,
-    };
-  }
-};
-
-/**
- * ⭐ NEW: Validate stock limit before adding to cart
- * @param {string} bundleId - Bundle UUID
- * @param {number} requestedQuantity - Quantity user wants to add
- * @param {number} currentQuantityInCart - Current quantity already in cart
- * @param {number} stockLimit - Bundle stock limit from API
- * @returns {Object} { valid: boolean, maxAllowed: number, message: string }
+ * Validate stock limit before adding to cart
  */
 export const validateStockLimit = (bundleId, requestedQuantity, currentQuantityInCart, stockLimit) => {
-  console.log('🔍 Validating stock limit:', {
-    bundleId,
-    requestedQuantity,
-    currentQuantityInCart,
-    stockLimit
-  });
-
   if (!stockLimit) {
-    // No stock limit set - allow any quantity
-    return {
-      valid: true,
-      maxAllowed: Infinity,
-      message: 'No stock limit'
-    };
+    return { valid: true, maxAllowed: Infinity, message: 'No stock limit' };
   }
 
   const totalQuantity = currentQuantityInCart + requestedQuantity;
@@ -93,7 +71,7 @@ export const validateStockLimit = (bundleId, requestedQuantity, currentQuantityI
       valid: false,
       maxAllowed: remainingStock,
       message: remainingStock > 0
-        ? `Only ${remainingStock} more unit${remainingStock === 1 ? '' : 's'} available (${stockLimit} total in stock)`
+        ? `Only ${remainingStock} more unit${remainingStock === 1 ? '' : 's'} available`
         : `Maximum ${stockLimit} units allowed per bundle`
     };
   }
@@ -106,27 +84,31 @@ export const validateStockLimit = (bundleId, requestedQuantity, currentQuantityI
 };
 
 /**
- * ⭐ UPDATED: Add bundle to cart with stock validation
- * POST /api/cart/items
- * 
- * @param {string} bundleId - Bundle UUID
- * @param {number} quantity - Number of bundles to add (default: 1)
- * @param {number} stockLimit - Optional stock limit to validate against
- * @param {number} currentQuantityInCart - Optional current quantity already in cart
+ * Get current cart
+ */
+export const getCart = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/api/cart`, {
+      headers: getCartHeaders(),
+    });
+    return { success: true, data: response.data.data };
+  } catch (error) {
+    console.error('❌ Get cart error:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to get cart',
+      data: null,
+    };
+  }
+};
+
+/**
+ * Add bundle to cart with stock validation
  */
 export const addBundleToCart = async (bundleId, quantity = 1, stockLimit = null, currentQuantityInCart = 0) => {
   try {
-    console.log('📦 Adding bundle to cart:', {
-      bundleId,
-      quantity,
-      stockLimit,
-      currentQuantityInCart
-    });
-
-    // ⭐ Validate stock limit if provided
     if (stockLimit) {
       const validation = validateStockLimit(bundleId, quantity, currentQuantityInCart, stockLimit);
-      
       if (!validation.valid) {
         return {
           success: false,
@@ -137,19 +119,11 @@ export const addBundleToCart = async (bundleId, quantity = 1, stockLimit = null,
       }
     }
 
-    // Backend expects: { bundle_id, quantity }
     const response = await axios.post(
       `${API_URL}/api/cart/items`,
-      {
-        bundle_id: bundleId,
-        quantity,
-      },
-      {
-        headers: getCartHeaders(),
-      }
+      { bundle_id: bundleId, quantity },
+      { headers: getCartHeaders() }
     );
-
-    console.log('✅ Bundle added to cart successfully:', response.data);
 
     return {
       success: true,
@@ -157,11 +131,10 @@ export const addBundleToCart = async (bundleId, quantity = 1, stockLimit = null,
       data: response.data.data,
     };
   } catch (error) {
-    console.error('❌ Add bundle to cart error:', error.response?.data || error);
-    
+    console.error('❌ Add bundle error:', error);
     return {
       success: false,
-      error: error.response?.data?.message || error.message || 'Failed to add bundle to cart',
+      error: error.response?.data?.message || 'Failed to add bundle',
       code: error.response?.data?.code,
     };
   }
@@ -169,53 +142,37 @@ export const addBundleToCart = async (bundleId, quantity = 1, stockLimit = null,
 
 /**
  * Add product to cart
- * @param {string} productId - Product UUID
- * @param {number} quantity - Quantity (default: 1)
- * @returns {Promise<Object>} Result
  */
 export const addProductToCart = async (productId, quantity = 1) => {
   try {
-    console.log(`🛒 Adding product ${productId} to cart (qty: ${quantity})`);
-
     const response = await axios.post(
       `${API_URL}/api/cart/products`,
-      {
-        product_id: productId,
-        quantity: quantity
-      },
-      {
-        headers: getCartHeaders()
-      }
+      { product_id: productId, quantity },
+      { headers: getCartHeaders() }
     );
-
-    console.log('✅ Product added to cart:', response.data);
-
     return {
       success: true,
       data: response.data.data,
       message: response.data.message || 'Product added to cart'
     };
   } catch (error) {
-    console.error('❌ Add product to cart error:', error);
-    
+    console.error('❌ Add product error:', error);
     return {
       success: false,
-      error: error.response?.data?.message || 'Failed to add product to cart'
+      error: error.response?.data?.message || 'Failed to add product'
     };
   }
 };
 
 /**
- * ⭐ UPDATED: Update cart item quantity with stock validation
- * PATCH /api/cart/items/:id
+ * Update cart item quantity
  */
 export const updateCartItem = async (cartItemId, quantity, stockLimit = null) => {
   try {
-    // ⭐ Validate against stock limit if provided
     if (stockLimit && quantity > stockLimit) {
       return {
         success: false,
-        error: `Maximum ${stockLimit} units allowed per bundle`,
+        error: `Maximum ${stockLimit} units allowed`,
         code: 'STOCK_LIMIT_EXCEEDED',
         maxAllowed: stockLimit
       };
@@ -224,9 +181,7 @@ export const updateCartItem = async (cartItemId, quantity, stockLimit = null) =>
     const response = await axios.patch(
       `${API_URL}/api/cart/items/${cartItemId}`,
       { quantity },
-      {
-        headers: getCartHeaders(),
-      }
+      { headers: getCartHeaders() }
     );
 
     return {
@@ -235,53 +190,45 @@ export const updateCartItem = async (cartItemId, quantity, stockLimit = null) =>
       data: response.data.data,
     };
   } catch (error) {
-    console.error('❌ Update cart item error:', error);
+    console.error('❌ Update cart error:', error);
     return {
       success: false,
-      error: error.response?.data?.message || error.message || 'Failed to update cart',
+      error: error.response?.data?.message || 'Failed to update cart',
     };
   }
 };
 
 /**
  * Remove item from cart
- * DELETE /api/cart/items/:id
  */
 export const removeFromCart = async (cartItemId) => {
   try {
     const response = await axios.delete(
       `${API_URL}/api/cart/items/${cartItemId}`,
-      {
-        headers: getCartHeaders(),
-      }
+      { headers: getCartHeaders() }
     );
-
     return {
       success: true,
-      message: response.data.message || 'Item removed from cart',
+      message: response.data.message || 'Item removed',
     };
   } catch (error) {
     console.error('❌ Remove from cart error:', error);
     return {
       success: false,
-      error: error.response?.data?.message || error.message || 'Failed to remove item',
+      error: error.response?.data?.message || 'Failed to remove item',
     };
   }
 };
 
 /**
  * Clear entire cart
- * DELETE /api/cart
  */
 export const clearCart = async () => {
   try {
     const response = await axios.delete(
       `${API_URL}/api/cart`,
-      {
-        headers: getCartHeaders(),
-      }
+      { headers: getCartHeaders() }
     );
-
     return {
       success: true,
       message: response.data.message || 'Cart cleared',
@@ -291,21 +238,26 @@ export const clearCart = async () => {
     console.error('❌ Clear cart error:', error);
     return {
       success: false,
-      error: error.response?.data?.message || error.message || 'Failed to clear cart',
+      error: error.response?.data?.message || 'Failed to clear cart',
     };
   }
 };
 
 /**
  * Merge guest cart into user cart (called on login)
- * POST /api/cart/merge
+ * ⭐ FIXED: No parameters - reads token from localStorage
  */
-export const mergeCarts = async (userId) => {
+export const mergeCarts = async () => {
   try {
     const sessionId = localStorage.getItem('guest_session_id');
     
     if (!sessionId) {
       return { success: true, message: 'No guest cart to merge' };
+    }
+
+    const token = localStorage.getItem('customer_token');
+    if (!token) {
+      return { success: false, error: 'Not authenticated' };
     }
 
     const response = await axios.post(
@@ -314,7 +266,7 @@ export const mergeCarts = async (userId) => {
       {
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': userId,
+          'Authorization': `Bearer ${token}`,
         },
       }
     );
@@ -331,13 +283,13 @@ export const mergeCarts = async (userId) => {
     console.error('❌ Merge carts error:', error);
     return {
       success: false,
-      error: error.response?.data?.message || error.message || 'Failed to merge carts',
+      error: error.response?.data?.message || 'Failed to merge carts',
     };
   }
 };
 
 /**
- * Get cart item count (quick check)
+ * Get cart item count
  */
 export const getCartItemCount = async () => {
   try {

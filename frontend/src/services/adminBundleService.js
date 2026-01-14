@@ -29,10 +29,9 @@ export const getBundleById = async (bundleId) => {
 export const createBundle = async (bundleData) => {
   const formData = createFormDataRequest(bundleData, 'image');
   
+  // ⭐ FIX: Let axios set Content-Type automatically for FormData
   return apiRequest(() => 
-    adminApi.post('/api/bundles/admin', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    adminApi.post('/api/bundles/admin', formData)
   );
 };
 
@@ -42,10 +41,9 @@ export const createBundle = async (bundleData) => {
 export const updateBundle = async (bundleId, bundleData) => {
   const formData = createFormDataRequest(bundleData, 'image');
   
+  // ⭐ FIX: Let axios set Content-Type automatically for FormData
   return apiRequest(() => 
-    adminApi.put(`/api/bundles/admin/${bundleId}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    adminApi.put(`/api/bundles/admin/${bundleId}`, formData)
   );
 };
 
@@ -247,10 +245,6 @@ export const getBundlesWithLowStock = async () => {
   };
 };
 
-// ==================== DEFAULT EXPORT ====================
-
-// ==================== ALIAS FOR COMPATIBILITY ====================
-
 /**
  * Alias for getBundles (for statsService compatibility)
  */
@@ -260,7 +254,7 @@ export const getAllBundles = getBundles;
 
 export default {
   getBundles,
-  getAllBundles, // ✅ ADDED
+  getAllBundles,
   getBundleById,
   createBundle,
   updateBundle,

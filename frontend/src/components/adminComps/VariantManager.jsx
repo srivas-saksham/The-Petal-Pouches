@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+import adminApi from '../../services/adminApi';
 
 const VariantManager = ({ productId, onClose }) => {
   const [variants, setVariants] = useState([]);
@@ -31,16 +30,15 @@ const VariantManager = ({ productId, onClose }) => {
   const fetchVariants = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/variants/products/${productId}/variants`);
-      const result = await response.json();
+      const response = await adminApi.get(`/api/variants/products/${productId}/variants`);
 
-      if (result.success) {
-        setVariants(result.data);
+      if (response.success) {
+        setVariants(response.data);
       } else {
-        setError(result.message || 'Failed to fetch variants');
+        setError(response.message || 'Failed to fetch variants');
       }
     } catch (err) {
-      setError('Error fetching variants: ' + err.message);
+      setError('Error fetching variants: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -110,25 +108,15 @@ const VariantManager = ({ productId, onClose }) => {
       if (formData.price) payload.price = parseInt(formData.price);
       if (formData.weight) payload.weight = parseFloat(formData.weight);
 
-      let response;
+      let result;
 
       if (editingVariant) {
         // Update existing variant
-        response = await fetch(`${API_BASE_URL}/api/variants/admin/${editingVariant.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+        result = await adminApi.put(`/api/variants/admin/${editingVariant.id}`, payload);
       } else {
         // Create new variant
-        response = await fetch(`${API_BASE_URL}/api/variants/admin/products/${productId}/variants`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+        result = await adminApi.post(`/api/variants/admin/products/${productId}/variants`, payload);
       }
-
-      const result = await response.json();
 
       if (result.success) {
         // If image was selected, upload it
@@ -143,7 +131,7 @@ const VariantManager = ({ productId, onClose }) => {
         setError(result.message || 'Failed to save variant');
       }
     } catch (err) {
-      setError('Error saving variant: ' + err.message);
+      setError('Error saving variant: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -151,12 +139,12 @@ const VariantManager = ({ productId, onClose }) => {
     const formData = new FormData();
     formData.append('image', imageFile);
 
-    const response = await fetch(`${API_BASE_URL}/api/variants/admin/${variantId}/image`, {
-      method: 'POST',
-      body: formData
+    const result = await adminApi.post(`/api/variants/admin/${variantId}/image`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
     });
 
-    const result = await response.json();
     if (!result.success) {
       throw new Error(result.message || 'Failed to upload image');
     }
@@ -182,11 +170,7 @@ const VariantManager = ({ productId, onClose }) => {
     if (!confirm('Are you sure you want to delete this variant?')) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/variants/admin/${variantId}`, {
-        method: 'DELETE'
-      });
-
-      const result = await response.json();
+      const result = await adminApi.delete(`/api/variants/admin/${variantId}`);
 
       if (result.success) {
         setSuccess('Variant deleted successfully');
@@ -195,7 +179,7 @@ const VariantManager = ({ productId, onClose }) => {
         setError(result.message || 'Failed to delete variant');
       }
     } catch (err) {
-      setError('Error deleting variant: ' + err.message);
+      setError('Error deleting variant: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -505,4 +489,4 @@ const VariantManager = ({ productId, onClose }) => {
   );
 };
 
-export default VariantManager;  
+export default VariantManager;

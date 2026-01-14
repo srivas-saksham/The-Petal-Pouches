@@ -1,8 +1,7 @@
 // frontend/src/components/adminComps/BundlePreview.jsx
 
 import { useState, useEffect } from 'react';
-
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+import adminApi from '../../services/adminApi';
 
 export default function BundlePreview({ bundleId, onClose }) {
   const [bundle, setBundle] = useState(null);
@@ -20,16 +19,15 @@ export default function BundlePreview({ bundleId, onClose }) {
     setError('');
 
     try {
-      const response = await fetch(`${API_URL}/api/bundles/${bundleId}`);
-      const data = await response.json();
+      const response = await adminApi.get(`/api/bundles/${bundleId}`);
 
-      if (response.ok) {
-        setBundle(data.data);
+      if (response.data) {
+        setBundle(response.data);
       } else {
-        setError(data.message || 'Failed to load bundle');
+        setError(response.message || 'Failed to load bundle');
       }
     } catch (err) {
-      setError('Network error: ' + err.message);
+      setError('Network error: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
