@@ -99,6 +99,10 @@ const WhatsTheOccasion = ({ onQuickView }) => {
   const [loading, setLoading] = useState(true);
   const [mousePos, setMousePos] = useState(null);
 
+  const handleMouseMove = (e) => {
+  setMousePos({ x: e.clientX, y: e.clientY });
+  };
+
   // ===========================
   // FETCH VALENTINE'S BUNDLES AND PRODUCTS
   // ===========================
@@ -159,7 +163,10 @@ const WhatsTheOccasion = ({ onQuickView }) => {
   // ===========================
   if (loading) {
     return (
-      <section className="relative py-16 bg-gradient-to-b from-white via-pink-50/30 to-white overflow-hidden">
+      <section className="relative py-16 bg-gradient-to-b from-white via-pink-50/30 to-white overflow-hidden"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setMousePos(null)}
+      >
         <div className="max-w-7xl mx-auto px-6">
           <div className="animate-pulse">
             <div className="h-8 bg-slate-200 rounded w-64 mb-3 mx-auto"></div>
@@ -185,6 +192,8 @@ const WhatsTheOccasion = ({ onQuickView }) => {
   return (
     <section 
       className="relative py-16 bg-gradient-to-b from-white via-pink-50/30 to-white overflow-hidden"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => setMousePos(null)}
     >
       {/* Interactive Grid Background */}
       <GridBackground gridSize={45} opacity={0.12} mousePos={mousePos} />
