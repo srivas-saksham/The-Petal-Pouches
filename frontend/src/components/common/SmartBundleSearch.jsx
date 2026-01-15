@@ -45,9 +45,8 @@ const SmartBundleSearch = ({
   // Constants
   const RESULTS_PER_PAGE = 5;
   const DEBOUNCE_DELAY = 300;
-  const API_URL = window.location.origin.includes('localhost') 
-    ? 'http://localhost:5000' 
-    : window.location.origin;
+  const API_URL = import.meta.env.VITE_API_BASE_URL;
+
 
   /**
    * ✅ FIXED: Normalize tags to array format
