@@ -1,45 +1,91 @@
 // backend/src/index.js
 const express = require('express');
 const dotenv = require('dotenv');
-const cors = require('cors');
 const helmet = require('helmet');
 
-// Load environment variables
-dotenv.config();
+// ============================================
+// 🔥 SERVERLESS OPTIMIZATION: Load env ONCE
+// ============================================
+// Load environment variables at module level (only runs once per container)
+if (!process.env.VERCEL) {
+  dotenv.config();
+}
 
+// ============================================
+// 🔥 SERVERLESS OPTIMIZATION: Cache clients
+// ============================================
+// Cache expensive service initializations to prevent re-initialization on every request
+let supabaseClient = null;
+let razorpayClient = null;
+
+const getSupabase = () => {
+  if (!supabaseClient) {
+    supabaseClient = require('./config/supabaseClient');
+  }
+  return supabaseClient;
+};
+
+const getRazorpay = () => {
+  if (!razorpayClient) {
+    razorpayClient = require('./services/razorpayService');
+  }
+  return razorpayClient;
+};
+
+// ============================================
+// EXPRESS APP INITIALIZATION
+// ============================================
 const app = express();
+
+// ============================================
+// 🔥 SERVERLESS-SAFE CORS (FINAL FIX)
+// ============================================
+
+const allowedOrigins = [
+  process.env.FRONTEND_URL,              // prod frontend (later)
+  'http://localhost:5173',               // local frontend
+  'https://rizarabackend.vercel.app'     // backend self-origin (health, cron)
+].filter(Boolean);
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+
+  res.setHeader('Vary', 'Origin');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, x-session-id, x-user-id'
+  );
+  res.setHeader(
+    'Access-Control-Allow-Methods',
+    'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+  );
+
+  // ✅ CRITICAL: end preflight immediately
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+
+  next();
+});
+
+
+// ============================================
+// SECURITY HEADERS (AFTER CORS)
+// ============================================
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 
 // ============================================
 // MIDDLEWARE CONFIGURATION
 // ============================================
-
-app.use(helmet());
-const allowedOrigins = [
-  'http://localhost:5173', // Vite frontend
-  'http://localhost:3000', // Vercel dev (self-calls)
-  process.env.FRONTEND_URL
-].filter(Boolean);
-
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow server-to-server or tools like curl/postman
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    return callback(new Error(`CORS blocked for origin: ${origin}`), false);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'x-session-id'
-  ]
-}));
-
 
 // ⭐ CRITICAL: Raw body parser for Razorpay webhook signature verification
 // Must be BEFORE express.json() for webhook route
@@ -117,12 +163,12 @@ app.use('/api/delhivery', require('./routes/delhivery'));   // ✅ Delhivery shi
 // HEALTH CHECK & API DOCUMENTATION
 // ============================================
 
-// Health check endpoint
+// Health check endpoint - optimized with cached clients
 app.get('/health', async (req, res) => {
-  const supabase = require('./config/supabaseClient');
-  const razorpayService = require('./services/razorpayService');
-  
   try {
+    const supabase = getSupabase();
+    const razorpayService = getRazorpay();
+    
     // Test Supabase connection
     const { error: supabaseError } = await supabase
       .from('Products')
@@ -301,8 +347,8 @@ if (require.main === module) {
     console.log(`   🚚 Webhooks:   http://localhost:${PORT}/api/webhooks/delhivery`);
     
     // Test connections on local startup only
-    const supabase = require('./config/supabaseClient');
-    const razorpayService = require('./services/razorpayService');
+    const supabase = getSupabase();
+    const razorpayService = getRazorpay();
     
     console.log('\n🔍 Testing service connections...');
     

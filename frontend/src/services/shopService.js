@@ -1,6 +1,6 @@
 // frontend/src/services/shopService.js - FIXED VERSION
 
-import axios from 'axios';
+import api from './api';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -24,72 +24,9 @@ const getSessionId = () => {
 
 // ==================== AXIOS INSTANCE ====================
 
-// Create axios instance with base config
-const shopAPI = axios.create({
-  baseURL: `${API_BASE_URL}/api`,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
-
-/**
- * Request interceptor to add headers
- * Adds x-user-id and x-session-id to all requests
- */
-shopAPI.interceptors.request.use(
-  (config) => {
-    // ✅ FIX: Get user ID from localStorage (stored by UserAuthContext)
-    const storedUser = localStorage.getItem('customer_user');
-    let userId = null;
-    
-    if (storedUser) {
-      try {
-        const userData = JSON.parse(storedUser);
-        userId = userData.id;
-      } catch (e) {
-        console.error('Error parsing customer_user:', e);
-      }
-    }
-
-    // Add user ID if available
-    if (userId) {
-      config.headers['x-user-id'] = userId;
-      console.log('✅ User ID header set:', userId);
-    } else {
-      console.log('⚠️ No user ID available - guest user');
-    }
-
-    // Always add session ID for guest tracking
-    const sessionId = getSessionId();
-    config.headers['x-session-id'] = sessionId;
-
-    console.log(`📤 Request to ${config.url}:`, {
-      'x-user-id': userId || 'not authenticated',
-      'x-session-id': sessionId.substring(0, 15) + '...'
-    });
-
-    return config;
-  },
-  (error) => {
-    console.error('❌ Request interceptor error:', error);
-    return Promise.reject(error);
-  }
-);
-
-/**
- * Response interceptor for better error handling
- */
-shopAPI.interceptors.response.use(
-  (response) => {
-    console.log('✅ API Response:', response.status, response.data);
-    return response;
-  },
-  (error) => {
-    console.error('❌ API Error:', error.response?.status, error.response?.data || error.message);
-    return Promise.reject(error);
-  }
-);
+// ✅ Reuse the main axios instance from api.js
+// This ensures consistent CORS, auth, and credential handling
+const shopAPI = api;
 
 // ==================== DEBOUNCE UTILITY ====================
 
@@ -114,7 +51,7 @@ const shopService = {
    */
   getCart: async () => {
     try {
-      const response = await shopAPI.get('/cart');
+      const response = await shopAPI.get('/api/cart');
       return {
         success: true,
         data: response.data.data,
@@ -138,7 +75,7 @@ const shopService = {
   addToCart: async (data) => {
     try {
       console.log('🛒 Adding to cart:', data);
-      const response = await shopAPI.post('/cart/items', {
+      const response = await shopAPI.post('/api/cart/items', {
         product_variant_id: data.product_variant_id,
         quantity: data.quantity || 1,
         bundle_origin: data.bundle_origin || 'single',
@@ -171,7 +108,7 @@ const shopService = {
   updateCartItem: async (itemId, quantity) => {
     try {
       console.log(`📝 Updating cart item ${itemId} to quantity ${quantity}`);
-      const response = await shopAPI.patch(`/cart/items/${itemId}`, { quantity });
+      const response = await shopAPI.patch(`/api/cart/items/${itemId}`, { quantity });
 
       return {
         success: true,
@@ -197,7 +134,7 @@ const shopService = {
   removeFromCart: async (itemId) => {
     try {
       console.log(`🗑️ Removing cart item ${itemId}`);
-      const response = await shopAPI.delete(`/cart/items/${itemId}`);
+      const response = await shopAPI.delete(`/api/cart/items/${itemId}`);
 
       return {
         success: true,
@@ -220,7 +157,7 @@ const shopService = {
   clearCart: async () => {
     try {
       console.log('🧹 Clearing cart');
-      const response = await shopAPI.delete('/cart');
+      const response = await shopAPI.delete('/api/cart');
 
       return {
         success: true,
@@ -245,7 +182,7 @@ const shopService = {
   mergeCarts: async (sessionId) => {
     try {
       console.log('🔀 Merging carts');
-      const response = await shopAPI.post('/cart/merge', { session_id: sessionId });
+      const response = await shopAPI.post('/api/cart/merge', { session_id: sessionId });
 
       return {
         success: true,
@@ -281,7 +218,7 @@ const shopService = {
       if (filters.page) params.append('page', filters.page);
       if (filters.limit) params.append('limit', filters.limit);
 
-      const response = await shopAPI.get(`/products?${params.toString()}`);
+      const response = await shopAPI.get(`/api/products?${params.toString()}`);
 
       return {
         success: true,
@@ -316,7 +253,7 @@ const shopService = {
    */
   getProductById: async (productId) => {
     try {
-      const response = await shopAPI.get(`/products/${productId}`);
+      const response = await shopAPI.get(`/api/products/${productId}`);
       return {
         success: true,
         data: response.data.data || response.data,
@@ -339,7 +276,7 @@ const shopService = {
    */
   getProductVariants: async (productId) => {
     try {
-      const response = await shopAPI.get(`/variants/products/${productId}/variants`);
+      const response = await shopAPI.get(`/api/variants/products/${productId}/variants`);
       return {
         success: true,
         data: response.data.data || [],
@@ -361,7 +298,7 @@ const shopService = {
    */
   getCategories: async () => {
     try {
-      const response = await shopAPI.get('/categories');
+      const response = await shopAPI.get('/api/categories');
       return {
         success: true,
         data: response.data.data || [],
@@ -390,7 +327,7 @@ const shopService = {
       if (options.limit) params.append('limit', options.limit);
       if (options.sort) params.append('sort', options.sort);
 
-      const response = await shopAPI.get(`/reviews/product/${productId}?${params.toString()}`);
+      const response = await shopAPI.get(`/api/reviews/product/${productId}?${params.toString()}`);
 
       return {
         success: true,
@@ -421,7 +358,7 @@ const shopService = {
       if (filters.page) params.append('page', filters.page);
       if (filters.limit) params.append('limit', filters.limit);
 
-      const response = await shopAPI.get(`/bundles?${params.toString()}`);
+      const response = await shopAPI.get(`/api/bundles?${params.toString()}`);
 
       return {
         success: true,
@@ -466,7 +403,7 @@ const shopService = {
    */
   getPriceRange: async () => {
     try {
-      const response = await shopAPI.get('/products?limit=1');
+      const response = await shopAPI.get('/api/products?limit=1');
       const minPrice = response.data.metadata?.minPrice || 100;
       const maxPrice = response.data.metadata?.maxPrice || 50000;
 
@@ -494,7 +431,7 @@ const shopService = {
    */
   getFeaturedProducts: async (limit = 8) => {
     try {
-      const response = await shopAPI.get(`/products?limit=${limit}&sort=created_at`);
+      const response = await shopAPI.get(`/api/products?limit=${limit}&sort=created_at`);
 
       return {
         success: true,
@@ -520,8 +457,8 @@ const shopService = {
   checkAvailability: async (productId, variantId = null) => {
     try {
       const endpoint = variantId
-        ? `/variants/${variantId}`
-        : `/products/${productId}`;
+        ? `/api/variants/${variantId}`
+        : `/api/products/${productId}`;
 
       const response = await shopAPI.get(endpoint);
 
@@ -541,8 +478,11 @@ const shopService = {
       };
     }
   },
+
   /**
    * Get all shop items (products + bundles mixed)
+   * @param {Object} params - Query parameters
+   * @returns {Promise<Object>} Shop items with metadata
    */
   getAllItems: async (params = {}) => {
     try {
@@ -559,7 +499,7 @@ const shopService = {
       if (params.in_stock) queryParams.append('in_stock', params.in_stock);
       if (params.tags) queryParams.append('tags', params.tags);
 
-      const response = await shopAPI.get(`/shop/items?${queryParams.toString()}`);
+      const response = await shopAPI.get(`/api/shop/items?${queryParams.toString()}`);
       
       return {
         success: true,
@@ -579,10 +519,13 @@ const shopService = {
 
   /**
    * Get single item by type and ID
+   * @param {string} type - Item type ('product' or 'bundle')
+   * @param {string} id - Item ID
+   * @returns {Promise<Object>} Item data
    */
   getItemById: async (type, id) => {
     try {
-      const response = await shopAPI.get(`/shop/${type}/${id}`);
+      const response = await shopAPI.get(`/api/shop/${type}/${id}`);
       
       return {
         success: true,
