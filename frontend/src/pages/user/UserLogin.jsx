@@ -98,9 +98,12 @@ export default function Login() {
     <>
       <div className="h-screen flex overflow-hidden bg-gradient-to-br from-tpppeach via-white to-tpppeach/50">
         {/* Left Section - Image (60%) - Hidden on mobile */}
-        <div className="hidden lg:flex lg:w-3/5 relative items-center justify-center p-8 bg-tpppink">
-          <div className="relative w-full max-w-md">
-          </div>
+        <div className="hidden lg:flex lg:w-3/5 relative items-center justify-center p-8">
+          <img
+            src="/assets/login_illustrations/girl_illustration_2.png"
+            alt="Login Illustration"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
         </div>
 
         <AuthPageTransition>

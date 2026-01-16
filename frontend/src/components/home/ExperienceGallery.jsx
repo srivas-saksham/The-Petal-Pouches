@@ -213,7 +213,7 @@ const ExperienceGallery = () => {
           viewport={{ once: true }}
           className="text-xs tracking-widest text-tppslate/80 mb-2 font-light uppercase"
         >
-          Curated Collections
+          Featured Gift Experiences
         </motion.p>
         
         <motion.h2
@@ -223,7 +223,7 @@ const ExperienceGallery = () => {
           transition={{ delay: 0.1 }}
           className="text-4xl md:text-5xl text-tppslate mb-3"
         >
-          Featured Gift Experiences
+          Surprise a Loved One ♡
         </motion.h2>
         
         <motion.p

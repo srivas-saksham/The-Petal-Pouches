@@ -208,7 +208,7 @@ const HomeFooter = () => {
               <p className="text-white/90 font-semibold text-sm mb-3">Follow Us</p>
               <div className="flex items-center gap-2">
                 <a
-                  href="https://instagram.com"
+                  href="https://www.instagram.com/rizara.luxe/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-2.5 bg-white/10 hover:bg-tpppink rounded-lg transition-all hover:scale-110"
@@ -217,7 +217,7 @@ const HomeFooter = () => {
                   <Instagram size={18} />
                 </a>
                 <a
-                  href="https://facebook.com"
+                  href="https://www.facebook.com/people/Rizara-Luxe/61586194575624/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-2.5 bg-white/10 hover:bg-tpppink rounded-lg transition-all hover:scale-110"
