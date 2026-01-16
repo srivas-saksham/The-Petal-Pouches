@@ -1,10 +1,9 @@
 // frontend/src/components/home/GiftQuiz/quizData.js
 
 /**
- * GIFT QUIZ CONFIGURATION
+ * GIFT QUIZ CONFIGURATION - SIMPLIFIED TAG SYSTEM
  * 
- * This file contains all quiz questions, options, and scoring weights.
- * Each question contributes to the final matching algorithm.
+ * Universal Tags Used: romantic, friendship, elegant, cute, meaningful, trendy, classic
  */
 
 export const QUIZ_QUESTIONS = [
@@ -41,11 +40,11 @@ export const QUIZ_QUESTIONS = [
         description: 'Express your love and affection'
       },
       { 
-        value: 'thank-you', 
-        label: 'Thank You', 
-        icon: '🙏', 
-        primaryTag: 'thank-you',
-        description: 'Show appreciation and gratitude'
+        value: 'friendship-day', 
+        label: 'Friendship Day', 
+        icon: '👯‍♀️', 
+        primaryTag: 'friendship-day',
+        description: 'Celebrate your bestie'
       },
       { 
         value: 'just-because', 
@@ -68,13 +67,6 @@ export const QUIZ_QUESTIONS = [
         primaryTag: 'apology',
         description: 'Make amends with a thoughtful gesture'
       },
-      { 
-        value: 'new-baby', 
-        label: 'New Baby', 
-        icon: '👶', 
-        primaryTag: 'new-baby',
-        description: 'Welcome the newest family member'
-      },
     ]
   },
 
@@ -93,120 +85,42 @@ export const QUIZ_QUESTIONS = [
         value: 'romantic-partner', 
         label: 'Romantic Partner', 
         icon: '💑',
-        tags: ['romantic', 'intimate', 'couple'],
+        tags: ['valentine','romantic', 'meaningful'],
         description: 'Your significant other'
       },
       { 
         value: 'best-friend', 
         label: 'Best Friend', 
         icon: '👯‍♀️',
-        tags: ['friendship', 'fun', 'casual'],
+        tags: ['friendship', 'cute'],
         description: 'Your closest confidant'
       },
       { 
         value: 'mother', 
         label: 'Mother', 
         icon: '💐',
-        tags: ['motherhood', 'family', 'elegant'],
+        tags: ['elegant', 'meaningful'],
         description: 'The woman who gave you life'
       },
       { 
         value: 'sister', 
         label: 'Sister', 
         icon: '👭',
-        tags: ['sibling', 'family', 'playful'],
+        tags: ['friendship', 'trendy'],
         description: 'Your sister or sister-in-law'
       },
       { 
         value: 'colleague', 
         label: 'Colleague', 
         icon: '💼',
-        tags: ['professional', 'elegant', 'sophisticated'],
+        tags: ['elegant', 'classic'],
         description: 'A work associate'
       },
-      { 
-        value: 'teacher', 
-        label: 'Teacher/Mentor', 
-        icon: '📚',
-        tags: ['appreciation', 'professional', 'thoughtful'],
-        description: 'Someone who guides you'
-      },
     ]
   },
 
   // ===========================
-  // QUESTION 3: INTERESTS (Multi-select)
-  // ===========================
-  {
-    id: 'interests',
-    question: "What describes her best?",
-    subtitle: "Select up to 3 that match her personality",
-    type: 'multi-choice',
-    required: true,
-    maxSelections: 3,
-    weight: 7,
-    options: [
-      { 
-        value: 'spa-lover', 
-        label: 'Spa & Wellness', 
-        icon: '🧖‍♀️', 
-        tags: ['spa', 'wellness', 'self-care', 'relaxation'],
-        description: 'Loves pampering and relaxation'
-      },
-      { 
-        value: 'foodie', 
-        label: 'Foodie & Gourmet', 
-        icon: '🍫', 
-        tags: ['gourmet', 'chocolate', 'treats', 'indulgent'],
-        description: 'Appreciates fine flavors'
-      },
-      { 
-        value: 'beauty-enthusiast', 
-        label: 'Beauty Enthusiast', 
-        icon: '💄', 
-        tags: ['beauty', 'skincare', 'makeup', 'cosmetics'],
-        description: 'Passionate about beauty products'
-      },
-      { 
-        value: 'romantic', 
-        label: 'Romantic Soul', 
-        icon: '🌹', 
-        tags: ['romantic', 'flowers', 'candles', 'sentimental'],
-        description: 'Loves thoughtful gestures'
-      },
-      { 
-        value: 'homebody', 
-        label: 'Cozy Homebody', 
-        icon: '🏠', 
-        tags: ['cozy', 'comfort', 'home', 'relaxation'],
-        description: 'Enjoys comfort and home life'
-      },
-      { 
-        value: 'adventurous', 
-        label: 'Adventurous Spirit', 
-        icon: '✈️', 
-        tags: ['adventure', 'unique', 'bold', 'exciting'],
-        description: 'Seeks new experiences'
-      },
-      { 
-        value: 'minimalist', 
-        label: 'Minimalist & Elegant', 
-        icon: '✨', 
-        tags: ['minimal', 'elegant', 'classy', 'sophisticated'],
-        description: 'Appreciates simplicity'
-      },
-      { 
-        value: 'eco-conscious', 
-        label: 'Eco-Conscious', 
-        icon: '🌿', 
-        tags: ['eco-friendly', 'natural', 'organic', 'sustainable'],
-        description: 'Values sustainability'
-      },
-    ]
-  },
-
-  // ===========================
-  // QUESTION 4: STYLE PREFERENCE
+  // QUESTION 3: STYLE PREFERENCE
   // ===========================
   {
     id: 'style',
@@ -214,48 +128,48 @@ export const QUIZ_QUESTIONS = [
     subtitle: "Choose the aesthetic that suits her best",
     type: 'single-choice',
     required: true,
-    weight: 6,
+    weight: 7,
     options: [
       { 
-        value: 'luxe', 
-        label: 'Luxurious & Premium', 
+        value: 'romantic-elegant', 
+        label: 'Romantic & Elegant', 
         icon: '💎',
-        tags: ['luxury', 'premium', 'elegant', 'sophisticated'],
-        description: 'High-end and refined taste'
+        tags: ['romantic', 'elegant'],
+        description: 'Sophisticated and loving'
       },
       { 
-        value: 'cute', 
+        value: 'cute-playful', 
         label: 'Cute & Playful', 
         icon: '🎀',
-        tags: ['cute', 'playful', 'fun', 'youthful'],
-        description: 'Sweet and charming aesthetic'
+        tags: ['cute', 'trendy'],
+        description: 'Sweet and fun aesthetic'
       },
       { 
-        value: 'classic', 
+        value: 'classic-timeless', 
         label: 'Classic & Timeless', 
         icon: '👑',
-        tags: ['classic', 'timeless', 'traditional', 'elegant'],
-        description: 'Timeless and sophisticated'
+        tags: ['classic', 'elegant'],
+        description: 'Traditional and refined'
       },
       { 
-        value: 'trendy', 
+        value: 'trendy-modern', 
         label: 'Trendy & Modern', 
         icon: '⚡',
-        tags: ['trendy', 'modern', 'contemporary', 'stylish'],
-        description: 'Up-to-date with latest trends'
+        tags: ['trendy', 'cute'],
+        description: 'Up-to-date and stylish'
       },
       { 
-        value: 'boho', 
-        label: 'Boho & Natural', 
-        icon: '🌸',
-        tags: ['boho', 'natural', 'earthy', 'organic'],
-        description: 'Free-spirited and natural'
+        value: 'meaningful-sentimental', 
+        label: 'Meaningful & Sentimental', 
+        icon: '💝',
+        tags: ['meaningful', 'romantic'],
+        description: 'Heartfelt and special'
       },
     ]
   },
 
   // ===========================
-  // QUESTION 5: BUDGET RANGE
+  // QUESTION 4: BUDGET RANGE
   // ===========================
   {
     id: 'budget',
@@ -295,48 +209,6 @@ export const QUIZ_QUESTIONS = [
       },
     ]
   },
-
-  // ===========================
-  // QUESTION 6: SPECIAL PREFERENCES (Optional)
-  // ===========================
-  {
-    id: 'special',
-    question: "Any special touches?",
-    subtitle: "Optional preferences (select all that apply)",
-    type: 'multi-choice',
-    required: false,
-    weight: 3,
-    options: [
-      { 
-        value: 'personalized', 
-        label: 'Personalized Items', 
-        icon: '🎨',
-        tags: ['personalized', 'custom', 'unique'],
-        description: 'Custom-made just for her'
-      },
-      { 
-        value: 'handmade', 
-        label: 'Handmade/Artisan', 
-        icon: '🖌️',
-        tags: ['handmade', 'artisan', 'crafted'],
-        description: 'Crafted with care'
-      },
-      { 
-        value: 'vegan', 
-        label: 'Vegan/Cruelty-Free', 
-        icon: '🌱',
-        tags: ['vegan', 'cruelty-free', 'ethical'],
-        description: 'Ethical and animal-friendly'
-      },
-      { 
-        value: 'quick-delivery', 
-        label: 'Quick Delivery', 
-        icon: '⚡',
-        filterFlag: 'in_stock_only',
-        description: 'Need it fast? In-stock items only'
-      },
-    ]
-  },
 ];
 
 /**
@@ -367,13 +239,6 @@ export const validateAnswers = (answers) => {
   QUIZ_QUESTIONS.forEach(question => {
     if (question.required && !answers[question.id]) {
       errors[question.id] = 'This question is required';
-    }
-    
-    if (question.type === 'multi-choice' && question.maxSelections) {
-      const answer = answers[question.id];
-      if (answer && answer.length > question.maxSelections) {
-        errors[question.id] = `Please select up to ${question.maxSelections} options`;
-      }
     }
   });
   

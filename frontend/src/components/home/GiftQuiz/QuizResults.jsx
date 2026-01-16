@@ -1,4 +1,4 @@
-// frontend/src/components/home/GiftQuiz/QuizResults.jsx - FIXED VERSION
+// frontend/src/components/home/GiftQuiz/QuizResults.jsx - WITH DEBUG INFO
 
 import React from 'react';
 import { motion } from 'framer-motion';
@@ -6,21 +6,21 @@ import { Sparkles, Heart, ShoppingBag, RotateCcw, Package } from 'lucide-react';
 import { getMatchQuality } from '../../../utils/quizMatcher';
 
 /**
- * Quiz Results Component - PROFESSIONAL FIXED VERSION
+ * Quiz Results Component - WITH DEBUG TAG DISPLAY
  * 
- * FIXES APPLIED:
- * ✅ Better proportions and spacing
- * ✅ Responsive grid layout
- * ✅ Improved card design
- * ✅ Better mobile experience
- * ✅ Clean, professional styling
+ * NEW FEATURES:
+ * ✅ Debug section showing user's quiz preferences
+ * ✅ Shows primary tag, recipient tags, and style tags
+ * ✅ All existing functionality preserved
  */
 const QuizResults = ({ 
   rankedResults, 
   onRestart, 
   onAddToCart, 
   onViewDetails,
-  loading = false 
+  loading = false,
+  quizAnswers = null, // ADDED: For debug info
+  showDebug = true // ADDED: Toggle debug display
 }) => {
   
   if (loading) {
@@ -66,7 +66,7 @@ const QuizResults = ({
 
   return (
     <div className="space-y-8">
-      {/* Header - FIXED: Better spacing */}
+      {/* Header */}
       <div className="text-center space-y-3">
         <motion.div
           initial={{ scale: 0 }}
@@ -84,6 +84,93 @@ const QuizResults = ({
         </p>
       </div>
 
+      {/* DEBUG INFO - Shows quiz answers and matching tags */}
+      {showDebug && quizAnswers && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-br from-tppslate/5 to-tpppeach/5 border border-tppslate/10 rounded-xl p-4 space-y-3"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-tpppink rounded-full animate-pulse"></div>
+              <h3 className="text-sm font-bold text-tppslate">Debug: Your Matching Preferences</h3>
+            </div>
+            <span className="text-xs text-tppslate/40 font-mono">Quiz Answers</span>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            {/* Occasion */}
+            {quizAnswers.occasion && (
+              <div className="bg-white rounded-lg p-3 border border-tppslate/10 space-y-1.5">
+                <div className="font-semibold text-tppslate/70 text-[10px] uppercase tracking-wide">Occasion</div>
+                <div className="font-bold text-tppslate">{quizAnswers.occasion.label}</div>
+                <div className="flex items-center gap-1">
+                  <span className="text-tppslate/50">Primary Tag:</span>
+                  <span className="px-2 py-0.5 bg-tpppink/10 text-tpppink rounded-full font-mono text-[10px]">
+                    {quizAnswers.occasion.primaryTag}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Recipient */}
+            {quizAnswers.recipient && (
+              <div className="bg-white rounded-lg p-3 border border-tppslate/10 space-y-1.5">
+                <div className="font-semibold text-tppslate/70 text-[10px] uppercase tracking-wide">Recipient</div>
+                <div className="font-bold text-tppslate">{quizAnswers.recipient.label}</div>
+                {quizAnswers.recipient.tags && quizAnswers.recipient.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {quizAnswers.recipient.tags.map((tag, idx) => (
+                      <span key={idx} className="px-2 py-0.5 bg-tppmint/10 text-tppmint rounded-full font-mono text-[10px]">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Style */}
+            {quizAnswers.style && (
+              <div className="bg-white rounded-lg p-3 border border-tppslate/10 space-y-1.5">
+                <div className="font-semibold text-tppslate/70 text-[10px] uppercase tracking-wide">Style</div>
+                <div className="font-bold text-tppslate">{quizAnswers.style.label}</div>
+                {quizAnswers.style.tags && quizAnswers.style.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {quizAnswers.style.tags.map((tag, idx) => (
+                      <span key={idx} className="px-2 py-0.5 bg-tpppeach/10 text-tpppeach rounded-full font-mono text-[10px]">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Budget */}
+            {quizAnswers.budget && (
+              <div className="bg-white rounded-lg p-3 border border-tppslate/10 space-y-1.5">
+                <div className="font-semibold text-tppslate/70 text-[10px] uppercase tracking-wide">Budget</div>
+                <div className="font-bold text-tppslate">{quizAnswers.budget.label}</div>
+                {quizAnswers.budget.priceRange && (
+                  <div className="text-tppslate/60">
+                    ₹{quizAnswers.budget.priceRange[0]} - ₹{quizAnswers.budget.priceRange[1]}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="pt-2 border-t border-tppslate/10">
+            <div className="text-[10px] text-tppslate/50 space-y-0.5">
+              <div>• Items are matched against: <span className="font-mono text-tpppink">primary_tag</span> (occasion) and <span className="font-mono text-tppmint">tags</span> (recipient + style)</div>
+              <div>• Scoring: Primary match +100pts, Recipient tags +20pts each, Style tags +15pts each, Budget +50pts</div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Perfect Matches Section */}
       {perfectMatches.length > 0 && (
         <ResultsSection
@@ -93,6 +180,7 @@ const QuizResults = ({
           items={perfectMatches}
           onAddToCart={onAddToCart}
           onViewDetails={onViewDetails}
+          showDebug={showDebug}
         />
       )}
 
@@ -105,10 +193,11 @@ const QuizResults = ({
           items={goodAlternatives}
           onAddToCart={onAddToCart}
           onViewDetails={onViewDetails}
+          showDebug={showDebug}
         />
       )}
 
-      {/* Actions - FIXED: Better button layout */}
+      {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-3 justify-center pt-6">
         <button
           onClick={onRestart}
@@ -131,9 +220,9 @@ const QuizResults = ({
 };
 
 /**
- * Results Section Component - FIXED: Better layout
+ * Results Section Component
  */
-const ResultsSection = ({ title, subtitle, icon, items, onAddToCart, onViewDetails }) => {
+const ResultsSection = ({ title, subtitle, icon, items, onAddToCart, onViewDetails, showDebug }) => {
   return (
     <div className="space-y-4">
       {/* Section Header */}
@@ -145,7 +234,7 @@ const ResultsSection = ({ title, subtitle, icon, items, onAddToCart, onViewDetai
         </div>
       </div>
 
-      {/* Items Grid - FIXED: Better responsive layout */}
+      {/* Items Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[28rem] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-tppslate/20 scrollbar-track-transparent">
         {items.map((matchedItem, index) => (
           <ResultCard
@@ -154,6 +243,7 @@ const ResultsSection = ({ title, subtitle, icon, items, onAddToCart, onViewDetai
             index={index}
             onAddToCart={onAddToCart}
             onViewDetails={onViewDetails}
+            showDebug={showDebug}
           />
         ))}
       </div>
@@ -162,9 +252,9 @@ const ResultsSection = ({ title, subtitle, icon, items, onAddToCart, onViewDetai
 };
 
 /**
- * Individual Result Card - FIXED: Professional design
+ * Individual Result Card - WITH DEBUG TAG INFO
  */
-const ResultCard = ({ matchedItem, index, onAddToCart, onViewDetails }) => {
+const ResultCard = ({ matchedItem, index, onAddToCart, onViewDetails, showDebug }) => {
   const { item, score, matchReasons, isInStock } = matchedItem;
   const matchQuality = getMatchQuality(score);
   
@@ -189,7 +279,7 @@ const ResultCard = ({ matchedItem, index, onAddToCart, onViewDetails }) => {
       transition={{ delay: index * 0.08 }}
       className="bg-white rounded-xl border border-tppslate/10 overflow-hidden hover:shadow-lg transition-all duration-300"
     >
-      {/* Image - FIXED: Better aspect ratio */}
+      {/* Image */}
       <div className="relative aspect-[4/3] bg-gradient-to-br from-pink-50/80 to-tpppeach/30 overflow-hidden">
         <img
           src={primaryImage}
@@ -197,7 +287,7 @@ const ResultCard = ({ matchedItem, index, onAddToCart, onViewDetails }) => {
           className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
         />
         
-        {/* Match Score Badge - FIXED: Better positioning */}
+        {/* Match Score Badge */}
         <div className={`absolute top-3 right-3 px-2.5 py-1 ${badgeColors[matchQuality.color] || 'bg-tppmint'} rounded-full shadow-md`}>
           <span className="text-xs font-bold text-white">
             {matchQuality.emoji} {matchQuality.label}
@@ -212,14 +302,33 @@ const ResultCard = ({ matchedItem, index, onAddToCart, onViewDetails }) => {
         )}
       </div>
 
-      {/* Content - FIXED: Better spacing and typography */}
+      {/* Content */}
       <div className="p-4 space-y-3">
         {/* Title */}
         <h4 className="font-bold text-tppslate line-clamp-2 text-base leading-tight">
           {item.title}
         </h4>
 
-        {/* Match Reasons - FIXED: Better display */}
+        {/* DEBUG: Item Tags */}
+        {showDebug && item.tags && item.tags.length > 0 && (
+          <div className="bg-tppslate/5 rounded-lg p-2 space-y-1">
+            <div className="text-[9px] font-semibold text-tppslate/50 uppercase tracking-wide">Item Tags</div>
+            <div className="flex flex-wrap gap-1">
+              {item.primary_tag && (
+                <span className="px-1.5 py-0.5 bg-tpppink/20 text-tpppink rounded text-[9px] font-mono border border-tpppink/30">
+                  {item.primary_tag} (primary)
+                </span>
+              )}
+              {item.tags.map((tag, idx) => (
+                <span key={idx} className="px-1.5 py-0.5 bg-tppslate/10 text-tppslate/70 rounded text-[9px] font-mono">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Match Reasons */}
         <div className="space-y-1.5">
           {matchReasons.slice(0, 2).map((reason, i) => (
             <div key={i} className="flex items-start gap-2 text-xs text-tppslate/70">
@@ -229,7 +338,22 @@ const ResultCard = ({ matchedItem, index, onAddToCart, onViewDetails }) => {
           ))}
         </div>
 
-        {/* Price - FIXED: Better styling */}
+        {/* DEBUG: Score Breakdown */}
+        {showDebug && (
+          <div className="bg-tppmint/5 rounded-lg p-2 space-y-1">
+            <div className="text-[9px] font-semibold text-tppslate/50 uppercase tracking-wide">Score: {score} pts</div>
+            <div className="space-y-0.5">
+              {matchReasons.map((reason, idx) => (
+                <div key={idx} className="flex justify-between text-[9px] text-tppslate/60">
+                  <span>{reason.label}</span>
+                  <span className="font-mono text-tppmint">+{reason.points}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Price */}
         <div className="flex items-baseline gap-2 pt-1">
           {item.original_price && item.original_price > item.price && (
             <span className="text-sm text-tppslate/40 line-through">
@@ -241,7 +365,7 @@ const ResultCard = ({ matchedItem, index, onAddToCart, onViewDetails }) => {
           </span>
         </div>
 
-        {/* Actions - FIXED: Better button design */}
+        {/* Actions */}
         <div className="flex gap-2 pt-2">
           <button
             onClick={() => onViewDetails(item, isProduct)}

@@ -1,4 +1,4 @@
-// frontend/src/services/quizService.js
+// frontend/src/services/quizService.js - FIXED TO MATCH SHOP LOGIC
 
 import api, { apiRequest } from './api';
 
@@ -11,30 +11,33 @@ export const fetchQuizMatches = async (quizAnswers) => {
   try {
     console.log('🎯 Fetching quiz matches with answers:', quizAnswers);
     
-    // Build query parameters from quiz answers
-    const params = buildQueryParams(quizAnswers);
+    // Build query parameters EXACTLY like the shop does
+    const params = buildShopStyleParams(quizAnswers);
     
-    // Fetch both bundles and products in parallel
-    const [bundlesResponse, productsResponse] = await Promise.all([
-      apiRequest(() => api.get('/api/bundles', { params: params.bundles })),
-      apiRequest(() => api.get('/api/products', { params: params.products }))
-    ]);
+    console.log('🔧 Built Query Params (Shop-Style):', params);
     
-    // Combine results
-    const bundles = bundlesResponse.success ? bundlesResponse.data : [];
-    const products = productsResponse.success ? productsResponse.data : [];
+    // Fetch using shop service (which already works!)
+    console.log('📡 Fetching from shop API...');
     
-    const combinedItems = [...bundles, ...products];
+    const response = await apiRequest(() => 
+      api.get('/api/shop/items', { params })
+    );
     
-    console.log(`✅ Found ${combinedItems.length} potential matches (${bundles.length} bundles, ${products.length} products)`);
+    console.log('📦 Shop Response:', response);
+    
+    const items = response.success ? response.data : [];
+    
+    console.log(`✅ Found ${items.length} total items`);
+    
+    if (items.length > 0) {
+      console.log('📦 Sample Item:', items[0]);
+    }
     
     return {
       success: true,
-      data: combinedItems,
-      metadata: {
-        totalBundles: bundles.length,
-        totalProducts: products.length,
-        totalItems: combinedItems.length
+      data: items,
+      metadata: response.metadata || {
+        totalItems: items.length
       }
     };
     
@@ -49,70 +52,79 @@ export const fetchQuizMatches = async (quizAnswers) => {
 };
 
 /**
- * Build API query parameters from quiz answers
+ * Build API query parameters EXACTLY like ShopNew.jsx does
+ * This matches the working shop component's approach
  */
-function buildQueryParams(quizAnswers) {
-  const baseParams = {
-    active: 'true',
+function buildShopStyleParams(quizAnswers) {
+  const params = {
+    type: 'all', // Fetch both products and bundles
     page: 1,
-    limit: 50 // Fetch more items for better matching
+    limit: 50, // Get plenty of items for matching
+    sort: 'created_at',
+    order: 'desc'
   };
   
-  // Primary tag filter (occasion)
-  if (quizAnswers.occasion && quizAnswers.occasion.primaryTag) {
-    baseParams.primary_tag = quizAnswers.occasion.primaryTag;
-  }
+  console.log('🏗️ Building shop-style params...');
   
-  // Price range filter
+  // 1. PRICE RANGE (Budget filter)
   if (quizAnswers.budget && quizAnswers.budget.priceRange) {
     const [minPrice, maxPrice] = quizAnswers.budget.priceRange;
-    baseParams.min_price = minPrice;
-    baseParams.max_price = maxPrice * 1.2; // Allow 20% above budget
+    params.min_price = minPrice;
+    params.max_price = maxPrice * 1.2; // Allow 20% above budget
+    console.log('  ✅ Price range:', minPrice, '-', maxPrice * 1.2);
   }
   
-  // Stock filter for quick delivery
-  if (quizAnswers.special) {
-    const needsQuickDelivery = quizAnswers.special.some(s => s.filterFlag === 'in_stock_only');
-    if (needsQuickDelivery) {
-      baseParams.in_stock = 'true';
-    }
-  }
+  // 2. TAGS (Combine ALL tags just like shop does)
+  const allTags = collectAllTags(quizAnswers);
   
-  // Tag-based filtering (optional - can add multiple tags)
-  const allTags = collectRelevantTags(quizAnswers);
   if (allTags.length > 0) {
-    baseParams.tags = allTags.slice(0, 5).join(','); // Limit to top 5 tags
+    // ✅ KEY FIX: Join tags with commas EXACTLY like shop does
+    params.tags = allTags.join(',');
+    console.log('  ✅ Tags (comma-separated):', params.tags);
+  } else {
+    console.warn('  ⚠️ No tags collected!');
   }
   
-  return {
-    bundles: { ...baseParams },
-    products: { ...baseParams }
-  };
+  // 3. STOCK FILTER (optional - ensure we get available items)
+  // params.in_stock = 'true'; // Uncomment to only show in-stock items
+  
+  console.log('📤 Final shop-style params:', params);
+  
+  return params;
 }
 
 /**
- * Collect relevant tags from quiz answers for API filtering
+ * Collect ALL relevant tags from quiz answers
+ * Include primary tag, recipient tags, and style tags
  */
-function collectRelevantTags(quizAnswers) {
+function collectAllTags(quizAnswers) {
   const tags = [];
   
-  // Add recipient tags
+  console.log('🔍 Collecting all tags from quiz answers...');
+  
+  // 1. Primary tag from occasion (highest priority)
+  if (quizAnswers.occasion && quizAnswers.occasion.primaryTag) {
+    tags.push(quizAnswers.occasion.primaryTag);
+    console.log('  ✅ Primary tag:', quizAnswers.occasion.primaryTag);
+  }
+  
+  // 2. Recipient tags
   if (quizAnswers.recipient && quizAnswers.recipient.tags) {
     tags.push(...quizAnswers.recipient.tags);
+    console.log('  ✅ Recipient tags:', quizAnswers.recipient.tags);
   }
   
-  // Add top 2 interest tags
-  if (quizAnswers.interests && Array.isArray(quizAnswers.interests)) {
-    const interestTags = quizAnswers.interests.flatMap(i => i.tags || []);
-    tags.push(...interestTags.slice(0, 2));
-  }
-  
-  // Add style tags
+  // 3. Style tags
   if (quizAnswers.style && quizAnswers.style.tags) {
-    tags.push(...quizAnswers.style.tags.slice(0, 1));
+    tags.push(...quizAnswers.style.tags);
+    console.log('  ✅ Style tags:', quizAnswers.style.tags);
   }
   
-  return [...new Set(tags)]; // Remove duplicates
+  // Remove duplicates and lowercase
+  const uniqueTags = [...new Set(tags.map(tag => tag.toLowerCase()))];
+  console.log('  ✅ Unique tags:', uniqueTags);
+  
+  return uniqueTags;
 }
 
 /**
@@ -120,14 +132,10 @@ function collectRelevantTags(quizAnswers) {
  */
 export const saveQuizResults = async (quizAnswers, matchedItems) => {
   try {
-    // This can be used for analytics/tracking
-    // You can create an endpoint to save quiz completion data
     console.log('📊 Quiz completed:', {
       answers: quizAnswers,
       topMatches: matchedItems.slice(0, 3).map(m => m.item.id)
     });
-    
-    // Example: await api.post('/api/analytics/quiz-completion', { ... });
     
     return { success: true };
   } catch (error) {

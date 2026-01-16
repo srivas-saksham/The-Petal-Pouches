@@ -1,4 +1,4 @@
-// frontend/src/components/home/GiftQuiz/QuizContainer.jsx - COMPACT VERSION
+// frontend/src/components/home/GiftQuiz/QuizContainer.jsx - WITH DEBUG SUPPORT
 
 import React, { useState } from 'react';
 import Stepper, { Step } from '../../reactbits/Stepper';
@@ -9,7 +9,8 @@ import { rankResults } from '../../../utils/quizMatcher';
 import { fetchQuizMatches, saveQuizResults } from '../../../services/quizService';
 
 /**
- * QuizContainer - COMPACT VERSION
+ * QuizContainer - WITH DEBUG SUPPORT
+ * NOW PASSES quizAnswers TO QuizResults FOR DEBUG DISPLAY
  */
 const QuizContainer = ({ onAddToCart, compact = false }) => {
   const [quizAnswers, setQuizAnswers] = useState({});
@@ -109,6 +110,8 @@ const QuizContainer = ({ onAddToCart, compact = false }) => {
           onRestart={handleRestart}
           onAddToCart={handleAddToCart}
           onViewDetails={handleViewDetails}
+          quizAnswers={quizAnswers}  // ✅ PASS QUIZ ANSWERS FOR DEBUG
+          showDebug={true}  // ✅ ENABLE DEBUG MODE (set to false to hide)
         />
       </div>
     );

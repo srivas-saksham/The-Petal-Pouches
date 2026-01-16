@@ -1,17 +1,16 @@
 // frontend/src/utils/quizMatcher.js
 
 /**
- * GIFT QUIZ MATCHING ALGORITHM
+ * GIFT QUIZ MATCHING ALGORITHM - SIMPLIFIED TAG SYSTEM
  * 
- * This algorithm scores bundles/products based on quiz answers.
+ * Universal Tags: romantic, friendship, elegant, cute, meaningful, trendy, classic
  * 
  * SCORING BREAKDOWN:
- * 1. Primary Tag Match (Weight: 10) → +100 points
- * 2. Secondary Tag Matches (Weight: 7) → +10 points per match
- * 3. Price Range Fit (Weight: 5) → +50 points (exact), +25 (close)
- * 4. Stock Availability → Multiplier (1.0, 0.9, 0.3)
- * 5. Recipient Match → +15 points per match
- * 6. Style Match → +20 points
+ * 1. Primary Tag Match (Occasion) → +100 points
+ * 2. Recipient Tag Matches → +20 points per match
+ * 3. Style Tag Matches → +15 points per match
+ * 4. Price Range Fit → +50 points (exact), +25 (close)
+ * 5. Stock Availability → Multiplier (1.0, 0.9, 0.3)
  */
 
 /**
@@ -34,60 +33,42 @@ export function calculateMatchScore(item, quizAnswers) {
     });
   }
   
-  // 2. SECONDARY TAG MATCHES (Interests, Style, Special)
+  // 2. COLLECT USER'S PREFERRED TAGS
   const userTags = collectUserTags(quizAnswers);
-  const itemTags = item.tags || [];
-  const matchingTags = userTags.filter(tag => itemTags.includes(tag.toLowerCase()));
+  const itemTags = (item.tags || []).map(tag => tag.toLowerCase());
   
-  matchingTags.forEach(tag => {
-    score += 10;
-  });
+  // 3. TAG MATCHING
+  const matchingTags = userTags.filter(userTag => 
+    itemTags.includes(userTag.tag.toLowerCase())
+  );
   
-  if (matchingTags.length > 0) {
+  // Group matches by source for better reason display
+  const recipientMatches = matchingTags.filter(m => m.source === 'recipient');
+  const styleMatches = matchingTags.filter(m => m.source === 'style');
+  
+  // Recipient tag matches
+  if (recipientMatches.length > 0) {
+    const recipientScore = recipientMatches.length * 20;
+    score += recipientScore;
     matchReasons.push({
-      type: 'interests',
-      label: `Matches ${matchingTags.length} of her interests`,
-      points: matchingTags.length * 10,
-      tags: matchingTags
+      type: 'recipient',
+      label: `Perfect for ${quizAnswers.recipient.label.toLowerCase()}`,
+      points: recipientScore
     });
   }
   
-  // 3. RECIPIENT TYPE MATCH
-  if (quizAnswers.recipient) {
-    const recipientTags = quizAnswers.recipient.tags || [];
-    const recipientMatches = recipientTags.filter(tag => 
-      itemTags.includes(tag.toLowerCase())
-    );
-    
-    if (recipientMatches.length > 0) {
-      const recipientScore = recipientMatches.length * 15;
-      score += recipientScore;
-      matchReasons.push({
-        type: 'recipient',
-        label: `Great for ${quizAnswers.recipient.label.toLowerCase()}`,
-        points: recipientScore
-      });
-    }
+  // Style tag matches
+  if (styleMatches.length > 0) {
+    const styleScore = styleMatches.length * 15;
+    score += styleScore;
+    matchReasons.push({
+      type: 'style',
+      label: `Matches ${quizAnswers.style.label} style`,
+      points: styleScore
+    });
   }
   
-  // 4. STYLE MATCH
-  if (quizAnswers.style) {
-    const styleTags = quizAnswers.style.tags || [];
-    const styleMatches = styleTags.filter(tag => 
-      itemTags.includes(tag.toLowerCase())
-    );
-    
-    if (styleMatches.length > 0) {
-      score += 20;
-      matchReasons.push({
-        type: 'style',
-        label: `Matches ${quizAnswers.style.label} style`,
-        points: 20
-      });
-    }
-  }
-  
-  // 5. PRICE RANGE FIT
+  // 4. PRICE RANGE FIT
   const priceMatch = calculatePriceMatch(item, quizAnswers.budget);
   score += priceMatch.points;
   
@@ -99,7 +80,7 @@ export function calculateMatchScore(item, quizAnswers) {
     });
   }
   
-  // 6. STOCK AVAILABILITY MULTIPLIER
+  // 5. STOCK AVAILABILITY MULTIPLIER
   const stock = item.stock || item.stock_limit || 0;
   let stockMultiplier = 1.0;
   
@@ -121,24 +102,6 @@ export function calculateMatchScore(item, quizAnswers) {
   
   score *= stockMultiplier;
   
-  // 7. SPECIAL PREFERENCES BONUS
-  if (quizAnswers.special && quizAnswers.special.length > 0) {
-    const specialTags = quizAnswers.special.flatMap(s => s.tags || []);
-    const specialMatches = specialTags.filter(tag => 
-      itemTags.includes(tag.toLowerCase())
-    );
-    
-    if (specialMatches.length > 0) {
-      const specialScore = specialMatches.length * 8;
-      score += specialScore;
-      matchReasons.push({
-        type: 'special',
-        label: 'Includes special touches you wanted',
-        points: specialScore
-      });
-    }
-  }
-  
   return {
     item,
     score: Math.round(score),
@@ -150,41 +113,26 @@ export function calculateMatchScore(item, quizAnswers) {
 }
 
 /**
- * Collect all tags from quiz answers
+ * Collect all tags from quiz answers with their source
  */
 function collectUserTags(quizAnswers) {
   const tags = [];
   
   // Recipient tags
   if (quizAnswers.recipient && quizAnswers.recipient.tags) {
-    tags.push(...quizAnswers.recipient.tags);
-  }
-  
-  // Interest tags (multi-select)
-  if (quizAnswers.interests && Array.isArray(quizAnswers.interests)) {
-    quizAnswers.interests.forEach(interest => {
-      if (interest.tags) {
-        tags.push(...interest.tags);
-      }
+    quizAnswers.recipient.tags.forEach(tag => {
+      tags.push({ tag, source: 'recipient' });
     });
   }
   
   // Style tags
   if (quizAnswers.style && quizAnswers.style.tags) {
-    tags.push(...quizAnswers.style.tags);
-  }
-  
-  // Special tags
-  if (quizAnswers.special && Array.isArray(quizAnswers.special)) {
-    quizAnswers.special.forEach(special => {
-      if (special.tags) {
-        tags.push(...special.tags);
-      }
+    quizAnswers.style.tags.forEach(tag => {
+      tags.push({ tag, source: 'style' });
     });
   }
   
-  // Return unique tags, lowercased
-  return [...new Set(tags.map(tag => tag.toLowerCase()))];
+  return tags;
 }
 
 /**
