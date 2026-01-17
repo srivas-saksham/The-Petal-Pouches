@@ -9,6 +9,8 @@ import ProfileHeader from '../../components/user/profile/ProfileHeader';
 import ProfileInfoCard from '../../components/user/profile/ProfileInfoCard';
 import SecuritySettingsCard from '../../components/user/profile/SecuritySettingsCard';
 
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 // ==================== SKELETON COMPONENTS ====================
 
 const ProfileHeaderSkeleton = () => (
@@ -44,17 +46,35 @@ const CardSkeleton = () => (
 export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const { user, updateUser, logout } = useUserAuth();
+  const { user, updateUser, logout, getAuthHeader } = useUserAuth();
   const toast = useToast();
   const navigate = useNavigate();
 
+  // ✅ FIX: Fetch fresh user data if created_at is missing
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 600);
+    const fetchUserProfile = async () => {
+      if (user && !user.created_at) {
+        try {
+          const response = await fetch(`${API_URL}/api/auth/me`, {
+            headers: getAuthHeader()
+          });
 
-    return () => clearTimeout(timer);
-  }, []);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data.user) {
+              updateUser(data.data.user);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to refresh user profile:', error);
+        }
+      }
+      
+      setTimeout(() => setLoading(false), 600);
+    };
+
+    fetchUserProfile();
+  }, [user?.id]); // Only run when user ID changes
 
   const handleLogout = async () => {
     if (!confirm('Are you sure you want to logout?')) return;

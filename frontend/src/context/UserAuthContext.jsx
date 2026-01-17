@@ -97,7 +97,22 @@ export function UserAuthProvider({ children }) {
       }
 
       // Auto-login after successful registration
-      const { token: newToken, user: newUser } = result.data;
+      const { token: newToken, user: basicUser } = result.data;
+      
+      // ✅ FIX: Fetch full profile to get created_at
+      const profileResponse = await fetch(`${API_URL}/api/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${newToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      let newUser = basicUser;
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        newUser = profileData.data.user;
+      }
+      
       setToken(newToken);
       setUser(newUser);
 
@@ -120,7 +135,7 @@ export function UserAuthProvider({ children }) {
       setError(errorMsg);
       return { success: false, error: errorMsg };
     }
-  }, []);
+  }, [API_URL]);
 
   // ✅ Login user
   const login = useCallback(async (email, password) => {
@@ -139,7 +154,22 @@ export function UserAuthProvider({ children }) {
         return { success: false, error: data.message };
       }
 
-      const { token: newToken, user: newUser } = data.data;
+      const { token: newToken, user: basicUser } = data.data;
+      
+      // ✅ FIX: Fetch full user profile to get created_at
+      const profileResponse = await fetch(`${API_URL}/api/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${newToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      let newUser = basicUser;
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        newUser = profileData.data.user; // Includes created_at
+      }
+
       setToken(newToken);
       setUser(newUser);
 

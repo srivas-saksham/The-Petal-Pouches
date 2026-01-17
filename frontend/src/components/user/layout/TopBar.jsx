@@ -161,25 +161,30 @@ export default function UserTopBar({ onMenuClick }) {
 
               {/* User Menu Dropdown */}
               {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border-2 border-tppslate/10 z-50 animate-scale-in">
-                  <div className="p-4 border-b-2 border-tppslate/10">
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-tppslate/10 z-50 animate-scale-in overflow-hidden">
+                  {/* User Info Header */}
+                  <div className="p-4 bg-gradient-to-br from-tppslate/5 to-tpppink/5 border-b border-tppslate/10">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-tpppink to-tpppeach rounded-full flex items-center justify-center shadow-md">
-                        <span className="text-white text-sm font-semibold">
-                          {getInitials(user?.name)}
-                        </span>
+                      <div className="relative">
+                        <div className="w-12 h-12 bg-gradient-to-br from-tpppink to-tppslate rounded-full flex items-center justify-center shadow-sm ring-2 ring-white">
+                          <span className="text-white text-sm font-bold">
+                            {getInitials(user?.name)}
+                          </span>
+                        </div>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white" />
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-tppslate">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-tppslate truncate">
                           {user?.name || 'User'}
                         </p>
-                        <p className="text-xs text-tppslate/60">
+                        <p className="text-xs text-tppslate/60 truncate">
                           {user?.email || 'email@example.com'}
                         </p>
                       </div>
                     </div>
                   </div>
 
+                  {/* Menu Items */}
                   <div className="p-2">
                     {/* Profile Link */}
                     <button
@@ -187,55 +192,30 @@ export default function UserTopBar({ onMenuClick }) {
                         navigate('/user/profile');
                         setShowUserMenu(false);
                       }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-tppslate hover:bg-tpppeach/20 rounded-lg transition-all duration-200 font-medium"
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-tppslate hover:bg-tppslate/5 rounded-lg transition-all duration-200 font-medium group"
                     >
-                      <User className="w-4 h-4" />
+                      <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-tppslate/5 group-hover:bg-tppslate/10 transition-colors">
+                        <User className="w-4 h-4 text-tppslate" />
+                      </div>
                       <span>My Profile</span>
                     </button>
 
-                    {/* Dashboard Link */}
-                    <button
-                      onClick={() => {
-                        navigate('/user/dashboard');
-                        setShowUserMenu(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-tppslate hover:bg-tpppeach/20 rounded-lg transition-all duration-200 font-medium"
-                    >
-                      <Menu className="w-4 h-4" />
-                      <span>Dashboard</span>
-                    </button>
-
-                    {/* Settings Link */}
-                    <button
-                      onClick={() => {
-                        navigate('/user/settings');
-                        setShowUserMenu(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-tppslate hover:bg-tpppeach/20 rounded-lg transition-all duration-200 font-medium"
-                    >
-                      <span className="text-lg">⚙️</span>
-                      <span>Settings</span>
-                    </button>
-
-                    <div className="my-2 border-t-2 border-tppslate/10" />
+                    <div className="my-2 border-t border-tppslate/10" />
 
                     {/* Logout Button */}
                     <button
                       onClick={handleLogout}
                       disabled={isLoggingOut}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 font-medium border-2 border-transparent hover:border-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 font-medium group disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {isLoggingOut ? (
-                        <>
+                      <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 group-hover:bg-red-100 transition-colors">
+                        {isLoggingOut ? (
                           <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                          <span>Logging out...</span>
-                        </>
-                      ) : (
-                        <>
-                          <LogOut className="w-4 h-4" />
-                          <span>Logout</span>
-                        </>
-                      )}
+                        ) : (
+                          <LogOut className="w-4 h-4 text-red-600" />
+                        )}
+                      </div>
+                      <span>{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
                     </button>
                   </div>
                 </div>
