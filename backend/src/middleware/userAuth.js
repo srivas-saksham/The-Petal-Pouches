@@ -145,7 +145,7 @@ const optionalCustomerAuth = async (req, res, next) => {
             // ✅ Valid token - verify user still exists
             const { data: user, error } = await supabase
               .from('Users')
-              .select('id, email, phone, full_name, email_verified')
+              .select('id, email, phone, name, email_verified')
               .eq('id', userId)  // ⭐ Use extracted userId
               .single();
 
@@ -165,7 +165,7 @@ const optionalCustomerAuth = async (req, res, next) => {
                 userId: user.id, // Compatibility with legacy code
                 email: user.email,
                 phone: user.phone,
-                full_name: user.full_name,
+                name: user.name,
                 email_verified: user.email_verified
               };
               
@@ -192,7 +192,7 @@ const optionalCustomerAuth = async (req, res, next) => {
                 userId: userId,
                 email: decoded.email || null,
                 phone: decoded.phone || null,
-                full_name: decoded.full_name || null,
+                name: decoded.name || null,
                 email_verified: decoded.email_verified || false
               };
               

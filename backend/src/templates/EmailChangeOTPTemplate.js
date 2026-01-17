@@ -21,7 +21,7 @@ function EmailChangeOTPTemplate({ name, otp }) {
               <tr>
                 <td style="padding: 60px 60px 40px; border-bottom: 1px solid #e5e5e5;">
                   <h1 style="margin: 0; font-size: 14px; font-weight: 400; letter-spacing: 3px; text-transform: uppercase; color: #1a1a1a; text-align: center;">
-                    Rizara Jewels
+                    Rizara Luxe
                   </h1>
                 </td>
               </tr>
@@ -86,7 +86,7 @@ function EmailChangeOTPTemplate({ name, otp }) {
               <tr>
                 <td style="padding: 40px 60px; border-top: 1px solid #e5e5e5; text-align: center;">
                   <p style="margin: 0; font-size: 12px; line-height: 18px; color: #a3a3a3;">
-                    © ${new Date().getFullYear()} Rizara Jewels. All rights reserved.
+                    © ${new Date().getFullYear()} Rizara Luxe. All rights reserved.
                   </p>
                 </td>
               </tr>

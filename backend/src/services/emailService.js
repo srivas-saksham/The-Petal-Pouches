@@ -19,7 +19,7 @@ async function sendEmail(emailData) {
   return new Promise((resolve, reject) => {
     const postData = JSON.stringify({
       sender: {
-        name: 'Rizara Jewels',
+        name: 'Rizara Luxe',
         email: EMAIL_FROM
       },
       to: [{ email: emailData.to }],
@@ -75,7 +75,7 @@ async function sendRegistrationOTP(email, otp, name) {
   
   return await sendEmail({
     to: email,
-    subject: 'Verify Your Email Address - Rizara Jewels',
+    subject: 'Verify Your Email Address - Rizara Luxe',
     html
   });
 }
@@ -88,7 +88,7 @@ async function sendPasswordResetOTP(email, otp, name) {
   
   return await sendEmail({
     to: email,
-    subject: 'Password Reset Request - Rizara Jewels',
+    subject: 'Password Reset Request - Rizara Luxe',
     html
   });
 }
@@ -101,7 +101,7 @@ async function sendEmailChangeOTP(email, otp, name) {
   
   return await sendEmail({
     to: email,
-    subject: 'Email Address Change Verification - Rizara Jewels',
+    subject: 'Email Address Change Verification - Rizara Luxe',
     html
   });
 }
@@ -114,7 +114,7 @@ async function sendWelcomeEmail(email, name) {
   
   return await sendEmail({
     to: email,
-    subject: 'Welcome to Rizara Jewels',
+    subject: 'Welcome to Rizara Luxe',
     html
   });
 }

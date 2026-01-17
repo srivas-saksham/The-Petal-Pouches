@@ -37,24 +37,24 @@ const NAVIGATION_ITEMS = [
     icon: MapPin,
     path: '/user/addresses',
   },
-  {
-    id: 'wishlist',
-    label: 'Wishlist',
-    icon: Heart,
-    path: '/user/wishlist',
-  },
+  // {
+  //   id: 'wishlist',
+  //   label: 'Wishlist',
+  //   icon: Heart,
+  //   path: '/user/wishlist',
+  // },
   {
     id: 'profile',
     label: 'Profile',
     icon: User,
     path: '/user/profile',
   },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: Settings,
-    path: '/user/settings',
-  },
+  // {
+  //   id: 'settings',
+  //   label: 'Settings',
+  //   icon: Settings,
+  //   path: '/user/settings',
+  // },
 ];
 
 export default function UserSidebar({ isOpen, onClose }) {

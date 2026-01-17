@@ -59,10 +59,10 @@ export default function UserRoutes() {
         <Route path="orders" element={<Orders />} />
 
         {/* Wishlist - /user/wishlist */}
-        <Route path="wishlist" element={<Wishlist />} />
+        {/* <Route path="wishlist" element={<Wishlist />} /> */}
 
         {/* Settings - /user/settings */}
-        <Route path="settings" element={<Settings />} />
+        {/* <Route path="settings" element={<Settings />} /> */}
 
         {/* Notifications - /user/notifications */}
         <Route path="notifications" element={<Notifications />} />

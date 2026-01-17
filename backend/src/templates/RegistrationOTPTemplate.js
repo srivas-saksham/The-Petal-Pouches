@@ -21,7 +21,7 @@ function RegistrationOTPTemplate({ name, otp }) {
               <tr>
                 <td style="padding: 30px 16px 20px; border-bottom: 1px solid #e5e5e5;">
                   <h1 style="margin: 0; font-size: 12px; font-weight: 400; letter-spacing: 2px; text-transform: uppercase; color: #1a1a1a; text-align: center;">
-                    Rizara Jewels
+                    Rizara Luxe
                   </h1>
                 </td>
               </tr>
@@ -85,7 +85,7 @@ function RegistrationOTPTemplate({ name, otp }) {
               <tr>
                 <td style="padding: 20px 16px; border-top: 1px solid #e5e5e5; text-align: center;">
                   <p style="margin: 0; font-size: 11px; line-height: 16px; color: #a3a3a3;">
-                    © ${new Date().getFullYear()} Rizara Jewels. All rights reserved.
+                    © ${new Date().getFullYear()} Rizara Luxe. All rights reserved.
                   </p>
                 </td>
               </tr>
