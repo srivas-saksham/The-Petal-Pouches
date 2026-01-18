@@ -1,55 +1,42 @@
-// frontend/src/pages/ShopNew.jsx - WITH LOADING PAGE & PRODUCT TAGS SUPPORT
+// frontend/src/pages/ShopNew.jsx - CLEANED UP VERSION
 
-import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import MixedShopGrid from '../components/shop/MixedShopGrid';
 import BundleEmpty from '../components/shop/BundleEmpty';
 import SidebarFilters from '../components/shop/SidebarFilters';
 import CommonHeader from '../components/common/CommonHeader';
 import ShopFiltersBar from '../components/shop/ShopFiltersBar';
-// import ShopLoadingPage from '../components/shop/ShopLoadingPage'; // ✅ NEW IMPORT
 import useBundleFilters from '../hooks/useBundleFilters';
-import bundleService from '../services/bundleService';
 import shopService from '../services/shopService';
-import { getTagsWithCounts } from '../services/tagsService'; // 🆕 NEW: Import tags service
-import api from '../services/api';
+import { getTagsWithCounts } from '../services/tagsService';
 import { useCart } from '../hooks/useCart';
 
-/**
- * BundleShop Component - WITH LOADING PAGE & PRODUCT TAGS SUPPORT
- * 
- * FEATURES:
- * - Shows animated loading page for first 5 seconds
- * - Zebra bars animation with brand name
- * - Smooth fade out transition
- * - Then shows normal shop content
- * - 🆕 NEW: Supports filtering products AND bundles by tags
- * - 🆕 NEW: Type filter (All | Products | Bundles)
- */
 const BundleShop = () => {
-  // ✅ NEW: Loading page state
-  const [showLoadingPage, setShowLoadingPage] = useState(true);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-
   const [bundles, setBundles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [metadata, setMetadata] = useState(null);
   const [availableTags, setAvailableTags] = useState([]);
   const [tagsLoading, setTagsLoading] = useState(false);
-  const [itemType, setItemType] = useState('all'); // 'all' | 'products' | 'bundles'
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  // Layout state - load from localStorage or default to '4'
+  // ⭐ SCROLL HIDE/SHOW STATE
+  const [isFiltersBarVisible, setIsFiltersBarVisible] = useState(true);
+  const lastScrollY = useRef(0);
+  const scrollThreshold = 50;
+
   const [layoutMode, setLayoutMode] = useState(() => {
-    return localStorage.getItem('bundleLayoutMode') || '4';
+    return localStorage.getItem('bundleLayoutMode') || '5';
   });
   
-  // Cart Context
   const { cartItems, refreshCart } = useCart();
 
-  // Use filter hook
   const {
     filters,
+    itemType,
+    setItemType,
     setSearch,
     setSortBy,
     setPriceRange,
@@ -61,59 +48,58 @@ const BundleShop = () => {
     getApiParams
   } = useBundleFilters();
 
-  // Save layout preference to localStorage
+  // Save layout preference
   useEffect(() => {
     localStorage.setItem('bundleLayoutMode', layoutMode);
   }, [layoutMode]);
 
-  // ✅ NEW: Check if this is the first visit in this session
+  // ⭐ SCROLL DETECTION FOR HIDE/SHOW FILTERS BAR
   useEffect(() => {
-    // Check sessionStorage to see if loading page has been shown
-    const hasShownLoading = sessionStorage.getItem('shopLoadingShown');
-    
-    if (hasShownLoading) {
-      // Already shown in this session, skip loading page
-      setShowLoadingPage(false);
-      setIsInitialLoad(false);
-    } else {
-      // First visit, show loading page and mark as shown
-      sessionStorage.setItem('shopLoadingShown', 'true');
-    }
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      if (Math.abs(currentScrollY - lastScrollY.current) < 5) {
+        return;
+      }
+
+      // Scrolling down - hide
+      if (currentScrollY > lastScrollY.current && currentScrollY > scrollThreshold) {
+        setIsFiltersBarVisible(false);
+      } 
+      // Scrolling up - show immediately
+      else if (currentScrollY < lastScrollY.current) {
+        setIsFiltersBarVisible(true);
+      }
+
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
-  // ✅ NEW: Handle loading page completion
-  const handleLoadingComplete = () => {
-    setShowLoadingPage(false);
-    setIsInitialLoad(false);
-  };
-
-  // 🆕 UPDATED: Fetch tags with type filter support
+  // Fetch tags with counts
   useEffect(() => {
     const fetchTags = async () => {
       setTagsLoading(true);
       try {
-        console.log('🏷️ Fetching tags with dynamic counts based on current filters...');
-        
-        // 🆕 NEW: Build filter context with type
         const filterContext = {
           tags: filters.tags || '',
           search: filters.search || '',
           min_price: filters.min_price || '',
           max_price: filters.max_price || '',
           in_stock: filters.in_stock || '',
-          type: itemType || 'all' // 🆕 NEW: Pass item type to get correct counts
+          type: itemType || 'all'
         };
 
-        console.log('📤 Fetching tags with context:', filterContext);
-        
-        // 🆕 NEW: Use tagsService instead of direct API call
         const response = await getTagsWithCounts(filterContext);
         
         if (response.success && response.data) {
-          console.log('✅ Received dynamic tag counts:', response.data);
           setAvailableTags(response.data);
         } else {
-          console.warn('⚠️ No tags returned from backend');
           setAvailableTags([]);
         }
       } catch (err) {
@@ -125,9 +111,9 @@ const BundleShop = () => {
     };
 
     fetchTags();
-  }, [filters.search, filters.min_price, filters.max_price, filters.in_stock, filters.tags, itemType]); // 🆕 NEW: Add itemType to dependencies
+  }, [filters.search, filters.min_price, filters.max_price, filters.in_stock, filters.tags, itemType]);
 
-  // Fetch bundles
+  // Fetch bundles/products
   useEffect(() => {
     const fetchBundles = async () => {
       setLoading(true);
@@ -136,11 +122,8 @@ const BundleShop = () => {
       try {
         const apiParams = getApiParams();
         apiParams.type = itemType;
-        console.log('📤 Fetching bundles with params:', apiParams);
         
         const response = await shopService.getAllItems(apiParams);
-        
-        console.log('📥 Received response:', response);
         
         const bundlesData = response.data || [];
         setBundles(bundlesData);
@@ -162,21 +145,17 @@ const BundleShop = () => {
     fetchBundles();
   }, [filters, getApiParams, itemType]);
 
-  // Handle layout change
+  // Handlers
   const handleLayoutChange = (mode) => {
     setLayoutMode(mode);
   };
 
-  // 🆕 NEW: Handle type change
   const handleTypeChange = (type) => {
-    console.log(`🔧 Type filter change: ${type}`);
+    console.log('🔧 Type changed to:', type);
     setItemType(type);
   };
 
-  // Handle filter changes
   const handleFilterChange = (filterType, value) => {
-    console.log(`🔧 Filter change: ${filterType} = ${value}`);
-    
     switch (filterType) {
       case 'search':
         setSearch(value);
@@ -197,17 +176,14 @@ const BundleShop = () => {
         setTags(value);
         break;
       default:
-        console.warn('Unknown filter type:', filterType);
         break;
     }
   };
 
-  // Handle search change
   const handleSearchChange = (value) => {
     handleFilterChange('search', value);
   };
 
-  // Handle tag click
   const handleTagClick = (tagName) => {
     if (tagName === null) {
       handleFilterChange('tags', '');
@@ -226,17 +202,14 @@ const BundleShop = () => {
     handleFilterChange('tags', newTags.join(','));
   };
 
-  // Get selected tags
+  const handleOpenMobileFilters = () => {
+    setShowMobileFilters(true);
+  };
+
   const selectedTags = filters.tags 
     ? filters.tags.split(',').filter(t => t.trim())
     : [];
 
-  // ✅ NEW: Show loading page for first 5 seconds
-  if (showLoadingPage && isInitialLoad) {
-    // return <ShopLoadingPage onComplete={handleLoadingComplete} />;
-  }
-
-  // Show main shop content
   return (
     <div 
       className="min-h-screen relative"
@@ -246,12 +219,11 @@ const BundleShop = () => {
         backgroundSize: 'auto',
       }}
     >
-      {/* Overlay for better readability */}
       <div className="absolute inset-0 bg-white/30"></div>
 
-      {/* Content */}
       <div className="relative z-10">
-        {/* SHOP HEADER */}
+        
+        {/* HEADER */}
         <CommonHeader
           filters={filters}
           onSearchChange={handleSearchChange}
@@ -264,22 +236,31 @@ const BundleShop = () => {
           onLayoutChange={handleLayoutChange}
         />
 
-        {/* SHOP FILTERS BAR - Tags & Layout */}
-        <ShopFiltersBar
-          availableTags={availableTags}
-          selectedTags={selectedTags}
-          onTagClick={handleTagClick}
-          loading={tagsLoading}
-          layoutMode={layoutMode}
-          onLayoutChange={handleLayoutChange}
-          itemType={itemType} // 🆕 NEW: Pass itemType
-          onTypeChange={handleTypeChange} // 🆕 NEW: Pass type change handler
-        />
+        {/* ⭐ UNIFIED FILTERS BAR (Mobile + Desktop) - WITH SCROLL HIDE/SHOW */}
+        <div
+          className={`sticky top-16 z-30 transition-transform duration-300 ease-in-out ${
+            isFiltersBarVisible ? 'translate-y-0' : '-translate-y-full'
+          }`}
+        >
+          <ShopFiltersBar
+            availableTags={availableTags}
+            selectedTags={selectedTags}
+            onTagClick={handleTagClick}
+            loading={tagsLoading}
+            layoutMode={layoutMode}
+            onLayoutChange={handleLayoutChange}
+            itemType={itemType}
+            onTypeChange={handleTypeChange}
+            onOpenFilters={handleOpenMobileFilters}
+            hasActiveFilters={hasActiveFilters()}
+          />
+        </div>
 
         {/* CONTENT AREA */}
         <div className="flex">
-          {/* LEFT SECTION - Bundles */}
-          <div className="flex-1 px-6 py-6">
+          
+          {/* BUNDLES GRID */}
+          <div className="flex-1 px-3 py-3 lg:px-6 lg:py-6">
             <MixedShopGrid 
               items={bundles} 
               loading={loading} 
@@ -293,38 +274,38 @@ const BundleShop = () => {
             {!loading && bundles.length === 0 && hasActiveFilters() && (
               <div className="bg-white rounded-lg border-2 border-slate-200 shadow-sm">
                 <BundleEmpty
-                  message="No bundles match your filters"
+                  message="No items match your filters"
                   showReset={true}
                   onReset={resetFilters}
                 />
               </div>
             )}
 
-            {/* Pagination */}
+            {/* PAGINATION */}
             {!loading && metadata && metadata.totalPages > 1 && (
-              <div className="mt-6">
-                <div className="bg-white/95 backdrop-blur-sm rounded-lg border-2 border-slate-200 shadow-sm p-4">
-                  <div className="flex items-center justify-between gap-4">
+              <div className="mt-4 lg:mt-6">
+                <div className="bg-white/95 backdrop-blur-sm rounded-lg border-2 border-slate-200 shadow-sm p-3 lg:p-4">
+                  <div className="flex items-center justify-between gap-2 lg:gap-4">
+                    
                     {/* Page Info */}
-                    <div className="text-sm text-slate-600">
+                    <div className="text-xs lg:text-sm text-slate-600">
                       Page <span className="font-semibold text-slate-900">{filters.page}</span> of{' '}
                       <span className="font-semibold text-slate-900">{metadata.totalPages}</span>
                     </div>
 
                     {/* Pagination Controls */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 lg:gap-2">
+                      {/* Previous Button */}
                       <button
                         onClick={() => setPage(filters.page - 1)}
                         disabled={filters.page <= 1}
-                        className="p-2 border-2 border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-slate-700"
-                        title="Previous"
-                        aria-label="Previous page"
+                        className="p-1.5 lg:p-2 border-2 border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-slate-700"
                       >
-                        <ChevronLeft size={20} />
+                        <ChevronLeft size={16} />
                       </button>
                       
-                      {/* Page Numbers */}
-                      <div className="flex items-center gap-1">
+                      {/* Page Numbers - Desktop Only */}
+                      <div className="hidden md:flex items-center gap-1">
                         {[...Array(metadata.totalPages)].map((_, i) => {
                           const page = i + 1;
                           if (
@@ -336,7 +317,7 @@ const BundleShop = () => {
                               <button
                                 key={page}
                                 onClick={() => setPage(page)}
-                                className={`min-w-[40px] h-10 px-3 text-sm font-semibold border-2 rounded-lg transition-all ${
+                                className={`min-w-[32px] lg:min-w-[40px] h-8 lg:h-10 px-2 lg:px-3 text-xs lg:text-sm font-semibold border-2 rounded-lg transition-all ${
                                   page === filters.page
                                     ? 'bg-tpppink text-white border-tpppink shadow-sm'
                                     : 'border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -352,7 +333,7 @@ const BundleShop = () => {
                             page === filters.page + 2
                           ) {
                             return (
-                              <span key={page} className="px-1 text-slate-400 text-sm" aria-hidden="true">
+                              <span key={page} className="px-1 text-slate-400 text-xs" aria-hidden="true">
                                 ···
                               </span>
                             );
@@ -361,14 +342,13 @@ const BundleShop = () => {
                         })}
                       </div>
 
+                      {/* Next Button */}
                       <button
                         onClick={() => setPage(filters.page + 1)}
                         disabled={filters.page >= metadata.totalPages}
-                        className="p-2 border-2 border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-slate-700"
-                        title="Next"
-                        aria-label="Next page"
+                        className="p-1.5 lg:p-2 border-2 border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-slate-700"
                       >
-                        <ChevronRight size={20} />
+                        <ChevronRight size={16} />
                       </button>
                     </div>
                   </div>
@@ -377,8 +357,8 @@ const BundleShop = () => {
             )}
           </div>
 
-          {/* RIGHT SECTION - Filters Sidebar */}
-          <div className="flex-shrink-0 py-6 pr-6">
+          {/* ⭐ DESKTOP: Sidebar Filters */}
+          <div className="hidden lg:block flex-shrink-0 py-6 pr-6">
             <SidebarFilters
               filters={{
                 search: filters.search,
@@ -393,12 +373,106 @@ const BundleShop = () => {
               availableTags={availableTags}
               tagsLoading={tagsLoading}
               metadata={metadata}
-              itemType={itemType} // 🆕 NEW: Pass itemType to sidebar
-              onTypeChange={handleTypeChange} // 🆕 NEW: Pass type change handler
+              itemType={itemType}
+              onTypeChange={handleTypeChange}
             />
           </div>
         </div>
       </div>
+
+      {/* ⭐ MOBILE: Framer Motion Filter Sidebar */}
+      <AnimatePresence>
+        {showMobileFilters && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="lg:hidden fixed inset-0 bg-black/60 z-40"
+              onClick={() => setShowMobileFilters(false)}
+            />
+
+            {/* Sidebar */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="lg:hidden fixed top-0 right-0 bottom-0 w-[85vw] max-w-sm bg-white z-50 shadow-2xl overflow-hidden flex flex-col"
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-tpppeach to-white border-b-2 border-tpppink/20 px-4 py-3 flex items-center justify-between flex-shrink-0">
+                <div>
+                  <h2 className="text-sm font-bold text-tpppink uppercase">Filters</h2>
+                  {metadata?.totalCount !== undefined && (
+                    <p className="text-[10px] text-slate-500">{metadata.totalCount} results</p>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {hasActiveFilters() && (
+                    <button
+                      onClick={resetFilters}
+                      className="text-[10px] font-bold text-tpppink hover:text-white hover:bg-tpppink px-2 py-1 rounded border border-tpppink transition-all active:scale-95"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowMobileFilters(false)}
+                    className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors active:scale-95"
+                  >
+                    <X size={20} className="text-slate-600" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Scrollable Filters */}
+              <div className="flex-1 overflow-y-auto">
+                <SidebarFilters
+                  filters={{
+                    search: filters.search,
+                    sort: filters.sort,
+                    min_price: filters.min_price,
+                    max_price: filters.max_price,
+                    in_stock: filters.in_stock,
+                    tags: filters.tags
+                  }}
+                  onFilterChange={handleFilterChange}
+                  onResetFilters={resetFilters}
+                  availableTags={availableTags}
+                  tagsLoading={tagsLoading}
+                  metadata={metadata}
+                  itemType={itemType}
+                  onTypeChange={handleTypeChange}
+                />
+              </div>
+
+              {/* Apply Button */}
+              <div className="border-t border-slate-200 p-3 flex-shrink-0">
+                <button
+                  onClick={() => setShowMobileFilters(false)}
+                  className="w-full bg-tpppink text-white py-2.5 rounded-lg font-bold text-sm active:scale-95 transition-transform shadow-sm"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <style jsx>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   );
 };

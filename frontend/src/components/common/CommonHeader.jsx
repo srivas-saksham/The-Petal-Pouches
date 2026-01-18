@@ -112,14 +112,17 @@ const CommonHeader = () => {
           
           {/* Logo - Left */}
           <Link to="/" className="flex-shrink-0 flex items-center gap-3">
-            <img 
-              src="/assets/RZ_logo_simple.png" 
+            {/* <img 
+              src="/assets/RizaraLuxe_Script.png" 
               alt="Rizara Logo" 
-              className="h-16 w-16 object-contain"
-            />
+              className="h-32 w-32 object-contain"
+            /> */}
+            
             <h1 className="text-5xl font-italianno text-tpppink hover:text-tpppink/80 transition-colors">
               Rizara
             </h1>
+           
+            
           </Link>
 
           {/* Navigation Links - Center (Absolutely Centered) */}
