@@ -1,4 +1,4 @@
-// frontend/src/components/shop/ItemQuickView.jsx - UNIFIED FOR PRODUCTS & BUNDLES
+// frontend/src/components/shop/ItemQuickView.jsx - MOBILE OPTIMIZED
 
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ShoppingCart, Star, Package, AlertTriangle, XCircle, Plus, Minus, Trash2, Check } from 'lucide-react';
@@ -8,7 +8,7 @@ import { addBundleToCart, updateCartItem, removeFromCart } from '../../services/
 import { useCart } from '../../hooks/useCart';
 
 /**
- * ItemQuickView - Unified for Products AND Bundles
+ * ItemQuickView - Unified for Products AND Bundles - MOBILE OPTIMIZED
  */
 const ItemQuickView = ({ item, itemType, isOpen, onClose }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -213,43 +213,44 @@ const ItemQuickView = ({ item, itemType, isOpen, onClose }) => {
       />
 
       <div 
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+        className="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-4 pointer-events-none"
         onClick={handleBackdropClick}
       >
         <div
-          className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden transform transition-all duration-300 animate-in zoom-in-95 slide-in-from-bottom-4 pointer-events-auto"
+          className="bg-white rounded-xl md:rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] md:max-h-[90vh] overflow-hidden transform transition-all duration-300 animate-in zoom-in-95 slide-in-from-bottom-4 pointer-events-auto"
           onClick={e => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="sticky top-0 bg-white border-b border-tppgrey z-10 px-6 py-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-tppslate flex items-center gap-2">
-              <Package size={20} className="text-tpppink" />
-              {isProduct ? 'Product' : 'Bundle'} Quick View
+          {/* Header - MOBILE OPTIMIZED */}
+          <div className="sticky top-0 bg-white border-b border-tppgrey z-10 px-3 md:px-6 py-2 md:py-4 flex items-center justify-between">
+            <h2 className="text-sm md:text-lg font-bold text-tppslate flex items-center gap-1.5 md:gap-2">
+              <Package size={16} className="text-tpppink md:w-5 md:h-5" />
+              <span className="hidden sm:inline">{isProduct ? 'Product' : 'Bundle'} Quick View</span>
+              <span className="sm:hidden">Quick View</span>
             </h2>
-            <div className='flex items-center'>
+            <div className='flex items-center gap-1 md:gap-2'>
               <a
                 href={detailUrl}
-                className="font-inter text-center px-6 py-2 text-tpppink font-semibold hover:text-tppslate transition-colors border-b-2 border-transparent hover:border-tpppink"
+                className="font-inter text-center px-2 md:px-6 py-1.5 md:py-2 text-xs md:text-sm text-tpppink font-semibold hover:text-tppslate transition-colors border-b-2 border-transparent hover:border-tpppink"
                 onClick={handleClose}
               >
-                View Full Details →
+                <span className="sm:inline">View Full Details →</span>
               </a>
               <button
                 onClick={handleClose}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors active:scale-95"
+                className="p-1.5 md:p-2 hover:bg-slate-100 rounded-lg transition-colors active:scale-95"
               >
-                <X className="w-5 h-5 text-slate-600" />
+                <X className="w-4 h-4 md:w-5 md:h-5 text-slate-600" />
               </button>
             </div>
           </div>
 
-          {/* Content */}
-          <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Content - MOBILE OPTIMIZED */}
+          <div className="overflow-y-auto max-h-[calc(95vh-50px)] md:max-h-[calc(90vh-80px)]">
+            <div className="p-3 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-8">
               
-              {/* Image Section */}
-              <div className="flex flex-col gap-4">
-                <div className="relative bg-slate-100 rounded-xl overflow-hidden aspect-square flex items-center justify-center">
+              {/* Image Section - MOBILE OPTIMIZED */}
+              <div className="flex flex-col gap-2 md:gap-4">
+                <div className="relative bg-slate-100 rounded-lg md:rounded-xl overflow-hidden aspect-square flex items-center justify-center">
                   {!imageLoaded && (
                     <div className="absolute inset-0 bg-slate-200 animate-pulse" />
                   )}
@@ -268,49 +269,49 @@ const ItemQuickView = ({ item, itemType, isOpen, onClose }) => {
                   />
 
                   {isOutOfStock && (
-                    <div className="absolute top-4 left-4 bg-red-500 text-white text-sm font-bold px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg">
-                      <XCircle size={16} />
+                    <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-red-500 text-white text-xs md:text-sm font-bold px-2 md:px-4 py-1 md:py-2 rounded-md md:rounded-lg flex items-center gap-1 md:gap-2 shadow-lg">
+                      <XCircle size={12} className="md:w-4 md:h-4" />
                       OUT OF STOCK
                     </div>
                   )}
 
                   {!isOutOfStock && isBundle && bundleItems.length > 0 && (
-                    <div className="absolute top-4 right-4 bg-tpppink text-white text-sm font-semibold px-3 py-2 rounded-lg flex items-center gap-2 shadow-lg">
-                      <Package size={14} />
+                    <div className="absolute top-2 md:top-4 right-2 md:right-4 bg-tpppink text-white text-xs md:text-sm font-semibold px-2 md:px-3 py-1 md:py-2 rounded-md md:rounded-lg flex items-center gap-1 md:gap-2 shadow-lg">
+                      <Package size={12} className="md:w-3.5 md:h-3.5" />
                       {bundleItems.length} Items
                     </div>
                   )}
                 </div>
 
                 {isBundle && (
-                  <div className="bg-tpppeach/10 border border-tppgrey rounded-xl p-4">
-                    <h3 className="text-sm font-semibold text-tppslate mb-2 uppercase tracking-wide">
+                  <div className="bg-tpppeach/10 border border-tppgrey rounded-lg md:rounded-xl p-2 md:p-4">
+                    <h3 className="text-xs md:text-sm font-semibold text-tppslate mb-1 md:mb-2 uppercase tracking-wide">
                       What's Included
                     </h3>
-                    <p className="text-xs text-slate-600">
+                    <p className="text-[10px] md:text-xs text-slate-600 leading-tight md:leading-normal">
                       This bundle contains {bundleItems.length} carefully selected {bundleItems.length === 1 ? 'item' : 'items'}.
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* Info Section */}
-              <div className="flex flex-col gap-4">
-                <div className="inline-flex items-center gap-2 text-xs font-semibold text-tpppink uppercase tracking-wide bg-tpppeach/20 px-3 py-1 rounded-full w-fit">
+              {/* Info Section - MOBILE OPTIMIZED */}
+              <div className="flex flex-col gap-2 md:gap-4">
+                <div className="inline-flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs font-semibold text-tpppink uppercase tracking-wide bg-tpppeach/20 px-2 md:px-3 py-0.5 md:py-1 rounded-full w-fit">
                   {isProduct ? 'Individual Product' : 'Bundle Deal'}
                 </div>
 
-                <h1 className="text-2xl md:text-3xl font-bold text-tppslate leading-tight">
+                <h1 className="text-lg md:text-2xl lg:text-3xl font-bold text-tppslate leading-tight">
                   {item.title}
                 </h1>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 md:gap-2">
                   <div className="flex gap-0.5">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <Star
                         key={star}
-                        size={16}
-                        className={`${
+                        size={14}
+                        className={`md:w-4 md:h-4 ${
                           star <= Math.floor(ratingInfo.rating)
                             ? 'fill-amber-400 text-amber-400'
                             : 'fill-slate-200 text-slate-200'
@@ -318,50 +319,50 @@ const ItemQuickView = ({ item, itemType, isOpen, onClose }) => {
                       />
                     ))}
                   </div>
-                  <span className="text-sm font-medium text-tppslate">
+                  <span className="text-xs md:text-sm font-medium text-tppslate">
                     {formatRating(ratingInfo.rating)}
                   </span>
                 </div>
 
-                <div className="py-4 border-y border-tppgrey">
+                <div className="py-2 md:py-4 border-y border-tppgrey">
                   {isOutOfStock ? (
-                    <div className="text-xl font-bold text-red-600">
+                    <div className="text-base md:text-xl font-bold text-red-600">
                       Currently Unavailable
                     </div>
                   ) : (
                     <>
-                      <div className="text-3xl md:text-4xl font-bold text-tpppink mb-2">
+                      <div className="text-2xl md:text-3xl lg:text-4xl font-bold text-tpppink mb-1 md:mb-2">
                         {isProduct ? `₹${item.price}` : formatBundlePrice(item.price)}
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                      <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm">
+                        <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-green-500" />
                         <span className="font-medium text-green-600">In Stock</span>
                       </div>
                     </>
                   )}
                 </div>
 
-                <div className="text-slate-600 text-sm leading-relaxed">
+                <div className="text-slate-600 text-xs md:text-sm leading-snug md:leading-relaxed line-clamp-3 md:line-clamp-none">
                   {item.description || `A premium ${isProduct ? 'product' : 'bundle'} designed for you.`}
                 </div>
 
                 {isLowStock && (
-                  <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-4 py-3 rounded-lg border border-amber-200">
-                    <AlertTriangle size={16} />
+                  <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-amber-600 bg-amber-50 px-2 md:px-4 py-2 md:py-3 rounded-lg border border-amber-200">
+                    <AlertTriangle size={14} className="md:w-4 md:h-4 flex-shrink-0" />
                     <span className="font-semibold">Only {stockLimit} left!</span>
                   </div>
                 )}
 
                 {isBundle && bundleItems.length > 0 && (
-                  <div className="bg-slate-50 border border-tppgrey rounded-xl p-4 max-h-48 overflow-y-auto">
-                    <h3 className="text-sm font-semibold text-tppslate mb-3 uppercase tracking-wide flex items-center gap-2">
-                      <Package size={14} />
+                  <div className="bg-slate-50 border border-tppgrey rounded-lg md:rounded-xl p-2 md:p-4 max-h-36 md:max-h-48 overflow-y-auto">
+                    <h3 className="text-xs md:text-sm font-semibold text-tppslate mb-2 md:mb-3 uppercase tracking-wide flex items-center gap-1.5 md:gap-2">
+                      <Package size={12} className="md:w-3.5 md:h-3.5" />
                       Products Included ({bundleItems.length})
                     </h3>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5 md:space-y-2">
                       {bundleItems.map((bundleItem, index) => (
-                        <div key={index} className="flex items-center gap-3 bg-white p-2 rounded-lg border border-tppgrey/50">
-                          <div className="w-12 h-12 rounded-lg overflow-hidden bg-tpppeach/20 flex-shrink-0">
+                        <div key={index} className="flex items-center gap-2 md:gap-3 bg-white p-1.5 md:p-2 rounded-md md:rounded-lg border border-tppgrey/50">
+                          <div className="w-10 h-10 md:w-12 md:h-12 rounded-md md:rounded-lg overflow-hidden bg-tpppeach/20 flex-shrink-0">
                             <img
                               src={getItemImageUrl(bundleItem)}
                               alt={getItemDisplayName(bundleItem)}
@@ -369,7 +370,7 @@ const ItemQuickView = ({ item, itemType, isOpen, onClose }) => {
                             />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-700 line-clamp-1">
+                            <p className="text-xs md:text-sm font-medium text-slate-700 line-clamp-1">
                               {getItemDisplayName(bundleItem)}
                             </p>
                           </div>
@@ -379,12 +380,12 @@ const ItemQuickView = ({ item, itemType, isOpen, onClose }) => {
                   </div>
                 )}
 
-                {/* Cart Actions */}
+                {/* Cart Actions - MOBILE OPTIMIZED */}
                 {!isInCart ? (
                   <button
                     onClick={handleAddToCart}
                     disabled={isOutOfStock || adding}
-                    className={`flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg font-semibold transition-all ${
+                    className={`flex items-center justify-center gap-1.5 md:gap-2 px-4 md:px-6 py-2.5 md:py-3.5 rounded-lg font-semibold text-sm md:text-base transition-all ${
                       isOutOfStock || adding
                         ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                         : 'bg-tpppink text-white hover:bg-tppslate active:scale-95'
@@ -392,60 +393,60 @@ const ItemQuickView = ({ item, itemType, isOpen, onClose }) => {
                   >
                     {adding ? (
                       <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                         Adding...
                       </>
                     ) : (
                       <>
-                        <ShoppingCart size={18} />
+                        <ShoppingCart size={16} className="md:w-[18px] md:h-[18px]" />
                         Add to Cart
                       </>
                     )}
                   </button>
                 ) : (
-                  <div className="space-y-3">
-                    <div className="bg-green-50 border-2 border-green-600 rounded-xl p-4 relative">
+                  <div className="space-y-2 md:space-y-3">
+                    <div className="bg-green-50 border-2 border-green-600 rounded-lg md:rounded-xl p-3 md:p-4 relative">
                       {updating && (
-                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-tppslate text-white text-xs px-3 py-1.5 rounded-md">
+                        <div className="absolute -top-6 md:-top-8 left-1/2 -translate-x-1/2 bg-tppslate text-white text-[10px] md:text-xs px-2 md:px-3 py-1 md:py-1.5 rounded-md whitespace-nowrap">
                           Syncing...
                         </div>
                       )}
 
-                      <div className="flex items-center gap-2 mb-3">
-                        <Check size={18} className="text-green-700 stroke-[3]" />
-                        <span className="text-green-700 font-semibold">In Cart</span>
+                      <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-3">
+                        <Check size={16} className="text-green-700 stroke-[3] md:w-[18px] md:h-[18px]" />
+                        <span className="text-green-700 font-semibold text-sm md:text-base">In Cart</span>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 md:gap-2">
                         <button
                           onClick={handleCartDecrement}
                           disabled={updating || localQuantity <= 1}
-                          className={`w-10 h-10 rounded-lg border-2 flex items-center justify-center ${
+                          className={`w-9 h-9 md:w-10 md:h-10 rounded-lg border-2 flex items-center justify-center ${
                             updating || localQuantity <= 1
                               ? 'border-tppgrey text-tppslate/40'
                               : 'border-green-600 text-green-700 hover:bg-green-100'
                           }`}
                         >
-                          <Minus size={18} />
+                          <Minus size={16} className="md:w-[18px] md:h-[18px]" />
                         </button>
 
-                        <div className="flex-1 flex items-center justify-center bg-white border-2 border-green-600 rounded-lg py-2.5 relative">
-                          <span className="text-xl font-bold text-green-700">{localQuantity}</span>
+                        <div className="flex-1 flex items-center justify-center bg-white border-2 border-green-600 rounded-lg py-2 md:py-2.5 relative">
+                          <span className="text-lg md:text-xl font-bold text-green-700">{localQuantity}</span>
                           {pendingQuantity !== null && (
-                            <div className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                            <div className="absolute top-0.5 md:top-1 right-0.5 md:right-1 w-1.5 h-1.5 md:w-2 md:h-2 bg-amber-500 rounded-full animate-pulse" />
                           )}
                         </div>
 
                         <button
                           onClick={handleCartIncrement}
                           disabled={updating || (stockLimit && localQuantity >= stockLimit)}
-                          className={`w-10 h-10 rounded-lg border-2 flex items-center justify-center ${
+                          className={`w-9 h-9 md:w-10 md:h-10 rounded-lg border-2 flex items-center justify-center ${
                             updating || (stockLimit && localQuantity >= stockLimit)
                               ? 'border-tppgrey text-tppslate/40'
                               : 'border-green-600 text-green-700 hover:bg-green-100'
                           }`}
                         >
-                          <Plus size={18} />
+                          <Plus size={16} className="md:w-[18px] md:h-[18px]" />
                         </button>
                       </div>
                     </div>
@@ -453,9 +454,9 @@ const ItemQuickView = ({ item, itemType, isOpen, onClose }) => {
                     <button
                       onClick={handleRemoveFromCart}
                       disabled={updating}
-                      className="w-full flex items-center justify-center gap-2 px-6 py-2.5 border-2 border-red-500 text-red-600 rounded-lg font-semibold hover:bg-red-50"
+                      className="w-full flex items-center justify-center gap-1.5 md:gap-2 px-4 md:px-6 py-2 md:py-2.5 border-2 border-red-500 text-red-600 rounded-lg font-semibold text-sm md:text-base hover:bg-red-50"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={14} className="md:w-4 md:h-4" />
                       Remove
                     </button>
                   </div>

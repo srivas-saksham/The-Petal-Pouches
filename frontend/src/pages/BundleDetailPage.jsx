@@ -354,15 +354,18 @@ const BundleDetailPage = () => {
         </div>
       )}
 
-      <div className="max-w-9xl mx-auto px-6 py-6">
-        <div className="grid lg:grid-cols-[1fr_320px] gap-12">
+      {/* MOBILE: Single column | DESKTOP: 2-column with sidebar */}
+      <div className="max-w-9xl mx-auto px-3 py-3 md:px-6 md:py-6">
+        <div className="grid lg:grid-cols-[1fr_320px] gap-4 md:gap-12">
           
+          {/* Main Content */}
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
             
-            <div className="grid lg:grid-cols-[45%_55%]">
+            {/* Image + Details Section */}
+            <div className="grid md:grid-cols-1 lg:grid-cols-[45%_55%]">
               <BundleImageGallery bundle={item} isOutOfStock={isOutOfStock} />
               
-              <div className="p-6 border-l border-slate-200">
+              <div className="p-3 md:p-6 md:border-l border-slate-200">
                 <BundleKeyDetails
                   bundle={item}
                   items={items}
@@ -387,39 +390,64 @@ const BundleDetailPage = () => {
               </div>
             </div>
 
-            <div className="border-t border-slate-200"></div>
+            {/* MOBILE ONLY: Delivery Section (inline after details) */}
+            <div className="md:hidden border-t border-slate-200">
+              <FloatingSidebar
+                bundle={item}
+                stockLimit={stockLimit}
+                isOutOfStock={isOutOfStock}
+                isLowStock={isLowStock}
+                cartItem={cartItem}
+                localQuantity={localQuantity}
+                setLocalQuantity={setLocalQuantity}
+                onAddToCart={handleAddToCart}
+                onIncrement={cartItem ? handleCartIncrement : handleIncrement}
+                onDecrement={cartItem ? handleCartDecrement : handleDecrement}
+                adding={adding}
+                updating={updating}
+                showRemoveConfirm={showRemoveConfirm}
+                onRemoveClick={handleRemoveClick}
+                onConfirmRemove={handleConfirmRemove}
+                onCancelRemove={handleCancelRemove}
+                pendingQuantity={pendingQuantity}
+                bundleWeight={currentBundleWeight}
+                pendingWeight={pendingWeight}
+              />
+            </div>
 
             {item.description && (
               <>
                 <div className="border-t border-slate-200"></div>
                 
-                <div className="p-6">
-                  <h2 className="text-lg font-bold text-tppslate mb-3">
+                <div className="p-3 md:p-6">
+                  <h2 className="text-base md:text-lg font-bold text-tppslate mb-2 md:mb-3">
                     About This {itemType === 'product' ? 'Product' : 'Bundle'}
                   </h2>
-                  <p className="text-sm text-slate-700 leading-relaxed">
+                  <p className="text-xs md:text-sm text-slate-700 leading-relaxed">
                     {item.description}
                   </p>
                 </div>
               </>
             )}
 
+            {/* Reviews Section */}
             <div className="border-t border-slate-200"></div>
 
-            <div className="p-6">
-              <h2 className="text-lg font-bold text-tppslate mb-4">Customer Reviews</h2>
+            <div className="p-3 md:p-6">
+              <h2 className="text-base md:text-lg font-bold text-tppslate mb-3 md:mb-4">Customer Reviews</h2>
               
-              <div className="flex items-center gap-6 mb-6 pb-6 border-b border-slate-100">
+              {/* Rating Summary */}
+              <div className="flex items-center gap-4 md:gap-6 mb-4 md:mb-6 pb-4 md:pb-6 border-b border-slate-100">
                 <div className="text-center">
-                  <p className="text-4xl font-bold text-tppslate mb-1">
+                  <p className="text-2xl md:text-4xl font-bold text-tppslate mb-1">
                     {formatRating(ratingInfo.rating)}
                   </p>
                   <div className="flex gap-0.5 mb-1">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <Star
                         key={star}
-                        size={14}
-                        className={`${
+                        size={12}
+                        className={`md:w-3.5 md:h-3.5 ${
                           star <= Math.floor(ratingInfo.rating)
                             ? 'fill-amber-400 text-amber-400'
                             : 'fill-slate-200 text-slate-200'
@@ -432,12 +460,13 @@ const BundleDetailPage = () => {
                   </p>
                 </div>
 
-                <div className="flex-1 space-y-2">
+                {/* Distribution Bars */}
+                <div className="flex-1 space-y-1.5 md:space-y-2">
                   {[5, 4, 3, 2, 1].map((rating) => (
-                    <div key={rating} className="flex items-center gap-2">
-                      <span className="text-xs w-3">{rating}</span>
-                      <Star size={10} className="fill-amber-400 text-amber-400" />
-                      <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div key={rating} className="flex items-center gap-1.5 md:gap-2">
+                      <span className="text-xs w-2 md:w-3">{rating}</span>
+                      <Star size={8} className="md:w-2.5 md:h-2.5 fill-amber-400 text-amber-400" />
+                      <div className="flex-1 h-1.5 md:h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-amber-400"
                           style={{
@@ -445,7 +474,7 @@ const BundleDetailPage = () => {
                           }}
                         />
                       </div>
-                      <span className="text-xs text-slate-500 w-8 text-right">
+                      <span className="text-xs text-slate-500 w-6 md:w-8 text-right">
                         {distribution[rating]}
                       </span>
                     </div>
@@ -453,16 +482,17 @@ const BundleDetailPage = () => {
                 </div>
               </div>
 
+              {/* Individual Reviews */}
               {reviews.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-3 md:space-y-4">
                   {reviews.slice(0, 3).map((review, index) => (
-                    <div key={index} className="pb-4 border-b border-slate-100 last:border-0">
+                    <div key={index} className="pb-3 md:pb-4 border-b border-slate-100 last:border-0">
                       <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">
+                        <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">
                           {review.user_name ? review.user_name.charAt(0) : 'A'}
                         </div>
                         <div>
-                          <span className="text-sm font-semibold text-tppslate">
+                          <span className="text-xs md:text-sm font-semibold text-tppslate">
                             {review.user_name || 'Anonymous'}
                           </span>
                           <p className="text-xs text-slate-400">
@@ -474,8 +504,8 @@ const BundleDetailPage = () => {
                         {[1, 2, 3, 4, 5].map((star) => (
                           <Star
                             key={star}
-                            size={12}
-                            className={`${
+                            size={10}
+                            className={`md:w-3 md:h-3 ${
                               star <= review.rating
                                 ? 'fill-amber-400 text-amber-400'
                                 : 'fill-slate-200 text-slate-200'
@@ -483,13 +513,13 @@ const BundleDetailPage = () => {
                           />
                         ))}
                       </div>
-                      <p className="text-sm text-slate-700">{review.comment}</p>
+                      <p className="text-xs md:text-sm text-slate-700">{review.comment}</p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-6">
-                  <p className="text-sm text-slate-500 mb-2">No reviews yet</p>
+                <div className="text-center py-4 md:py-6">
+                  <p className="text-xs md:text-sm text-slate-500 mb-2">No reviews yet</p>
                   <button className="text-xs font-semibold text-tpppink hover:underline">
                     Be the first to review
                   </button>
@@ -499,7 +529,8 @@ const BundleDetailPage = () => {
 
           </div>
 
-          <div className="lg:relative lg:self-start">
+          {/* DESKTOP ONLY: Sidebar */}
+          <div className="hidden lg:block lg:relative lg:self-start">
             <FloatingSidebar
               bundle={item}
               stockLimit={stockLimit}

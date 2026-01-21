@@ -238,7 +238,7 @@ const BundleShop = () => {
 
         {/* ⭐ UNIFIED FILTERS BAR (Mobile + Desktop) - WITH SCROLL HIDE/SHOW */}
         <div
-          className={`sticky top-16 z-30 transition-transform duration-300 ease-in-out ${
+          className={`sticky md:top-16 top-28 z-30 transition-transform duration-300 ease-in-out ${
             isFiltersBarVisible ? 'translate-y-0' : '-translate-y-full'
           }`}
         >

@@ -107,25 +107,19 @@ const CommonHeader = () => {
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
+      <div className="max-w-8xl mx-auto">
+        
       <div className="max-w-8xl mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           
           {/* Logo - Left */}
           <Link to="/" className="flex-shrink-0 flex items-center gap-3">
-            {/* <img 
-              src="/assets/RizaraLuxe_Script.png" 
-              alt="Rizara Logo" 
-              className="h-32 w-32 object-contain"
-            /> */}
-            
             <h1 className="text-5xl font-italianno text-tpppink hover:text-tpppink/80 transition-colors">
               Rizara
             </h1>
-           
-            
           </Link>
 
-          {/* Navigation Links - Center (Absolutely Centered) */}
+          {/* Navigation Links - Center (Absolutely Centered) - DESKTOP ONLY */}
           <nav className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-8">
             <Link
               to="/"
@@ -305,6 +299,85 @@ const CommonHeader = () => {
             )}
           </div>
         </div>
+
+        {/* ROW 2: Navigation Links - MOBILE ONLY */}
+        <div className="md:hidden border-t border-slate-100">
+          <nav className="flex items-center justify-between px-6 py-3">
+            <Link
+              to="/"
+              className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
+                isActiveSection('/') 
+                  ? 'text-tpppink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-tpppink' 
+                  : 'text-tppslate hover:text-tpppink'
+              }`}
+            >
+              Home
+            </Link>
+            
+            <Link
+              to="/shop"
+              className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
+                isActiveSection('/shop') 
+                  ? 'text-tpppink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-tpppink' 
+                  : 'text-tppslate hover:text-tpppink'
+              }`}
+            >
+              Shop
+            </Link>
+
+            {/* Categories Dropdown - Mobile */}
+            <div className="relative" ref={categoriesRef}>
+              <button
+                onClick={() => setShowCategories(!showCategories)}
+                className="font-inter flex items-center gap-1.5 text-sm font-semibold text-tppslate hover:text-tpppink transition-colors"
+              >
+                <span>Categories</span>
+                <ChevronDown 
+                  size={14} 
+                  className={`transition-transform ${showCategories ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {showCategories && (
+                <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg py-1 animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+                  {categories.map((category) => (
+                    <Link
+                      key={category.name}
+                      to={category.path}
+                      onClick={() => setShowCategories(false)}
+                      className="block px-4 py-2 text-sm font-medium text-tppslate hover:bg-tpppeach hover:text-tpppink transition-colors"
+                    >
+                      {category.name}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Link
+              to="/about"
+              className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
+                isActiveSection('/about') 
+                  ? 'text-tpppink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-tpppink' 
+                  : 'text-tppslate hover:text-tpppink'
+              }`}
+            >
+              About
+            </Link>
+
+            <Link
+              to="/faqs"
+              className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
+                isActiveSection('/faqs') 
+                  ? 'text-tpppink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-tpppink' 
+                  : 'text-tppslate hover:text-tpppink'
+              }`}
+            >
+              FAQs
+            </Link>
+          </nav>
+        </div>
+      </div>
       </div>
     </header>
   );

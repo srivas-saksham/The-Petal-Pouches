@@ -185,10 +185,10 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
   }, [hasMultipleImages, selectedIndex]);
 
   return (
-    <div className="relative bg-white flex flex-col w-full">
+    <div className="relative bg-white flex flex-col w-full max-w-full overflow-hidden">
       
-      {/* Main Image Container - STRICT 1:1 ASPECT RATIO */}
-      <div className="relative w-full" style={{ aspectRatio: '1 / 1' }}>
+      {/* Main Image Container - STRICT 1:1 ASPECT RATIO with mobile constraints */}
+      <div className="relative w-full max-w-full" style={{ aspectRatio: '1 / 1' }}>
         
         {/* Loading Skeleton */}
         {imageLoading && (
@@ -212,7 +212,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
         ) : (
           // Fallback when no images
           <div className="w-full h-full flex items-center justify-center bg-slate-50">
-            <Package size={64} className="text-slate-300" />
+            <Package size={48} className="md:w-16 md:h-16 text-slate-300" />
           </div>
         )}
 
@@ -221,40 +221,40 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
           <>
             <button
               onClick={handlePrevious}
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group z-10"
+              className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group z-10"
               aria-label="Previous image"
             >
-              <ChevronLeft size={20} className="text-slate-700 group-hover:text-tpppink transition-colors" />
+              <ChevronLeft size={16} className="md:w-5 md:h-5 text-slate-700 group-hover:text-tpppink transition-colors" />
             </button>
             
             <button
               onClick={handleNext}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group z-10"
+              className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group z-10"
               aria-label="Next image"
             >
-              <ChevronRight size={20} className="text-slate-700 group-hover:text-tpppink transition-colors" />
+              <ChevronRight size={16} className="md:w-5 md:h-5 text-slate-700 group-hover:text-tpppink transition-colors" />
             </button>
           </>
         )}
 
         {/* Image Counter (only if multiple images) */}
         {hasMultipleImages && (
-          <div className="absolute bottom-4 right-4 bg-black/70 text-white text-xs font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm">
+          <div className="absolute bottom-2 md:bottom-4 right-2 md:right-4 bg-black/70 text-white text-xs font-semibold px-2 py-1 md:px-3 md:py-1.5 rounded-full backdrop-blur-sm">
             {selectedIndex + 1} / {images.length}
           </div>
         )}
 
         {/* Out of Stock Badge */}
         {isOutOfStock && (
-          <div className="absolute top-4 left-4 bg-red-500 text-white text-sm font-bold px-4 py-2 rounded-md shadow-lg flex items-center gap-2 z-10">
-            <AlertCircle size={16} />
+          <div className="absolute top-2 md:top-4 left-2 md:left-4 bg-red-500 text-white text-xs md:text-sm font-bold px-2 py-1 md:px-4 md:py-2 rounded-md shadow-lg flex items-center gap-1 md:gap-2 z-10">
+            <AlertCircle size={12} className="md:w-4 md:h-4" />
             OUT OF STOCK
           </div>
         )}
 
         {/* Discount Badge */}
         {!isOutOfStock && bundle?.discount_percent > 0 && (
-          <div className="absolute top-4 right-4 bg-green-500 text-white text-sm font-bold px-4 py-2 rounded-md shadow-lg z-10">
+          <div className="absolute top-2 md:top-4 right-2 md:right-4 bg-green-500 text-white text-xs md:text-sm font-bold px-2 py-1 md:px-4 md:py-2 rounded-md shadow-lg z-10">
             {bundle.discount_percent}% OFF
           </div>
         )}
@@ -262,23 +262,23 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
 
       {/* Full-Width Carousel Thumbnail Gallery (only if multiple images) */}
       {hasMultipleImages && (
-        <div className="border-t border-slate-200 bg-slate-50 p-4 relative">
+        <div className="border-t border-slate-200 bg-slate-50 p-2 md:p-4 relative max-w-full overflow-hidden">
           
           {/* Left Chevron - Positioned absolutely over carousel */}
           {canScrollLeft && (
             <button
               onClick={scrollCarouselLeft}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 bg-white hover:bg-slate-50 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group border-2 border-slate-200"
+              className="absolute left-1 md:left-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 md:w-9 md:h-9 bg-white hover:bg-slate-50 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group border-2 border-slate-200"
               aria-label="Scroll thumbnails left"
             >
-              <ChevronLeft size={18} className="text-slate-600 group-hover:text-tpppink transition-colors" />
+              <ChevronLeft size={14} className="md:w-[18px] md:h-[18px] text-slate-600 group-hover:text-tpppink transition-colors" />
             </button>
           )}
 
           {/* Draggable Thumbnail Container - FULL WIDTH */}
           <div 
             ref={carouselRef}
-            className="flex gap-2 overflow-x-auto overflow-y-hidden scrollbar-hide select-none"
+            className="flex gap-1.5 md:gap-2 overflow-x-auto overflow-y-hidden scrollbar-hide select-none max-w-full"
             style={{ 
               cursor: isDragging ? 'grabbing' : 'grab',
               scrollbarWidth: 'none', // Firefox
@@ -329,10 +329,10 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
           {canScrollRight && (
             <button
               onClick={scrollCarouselRight}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 bg-white hover:bg-slate-50 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group border-2 border-slate-200"
+              className="absolute right-1 md:right-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 md:w-9 md:h-9 bg-white hover:bg-slate-50 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group border-2 border-slate-200"
               aria-label="Scroll thumbnails right"
             >
-              <ChevronRight size={18} className="text-slate-600 group-hover:text-tpppink transition-colors" />
+              <ChevronRight size={14} className="md:w-[18px] md:h-[18px] text-slate-600 group-hover:text-tpppink transition-colors" />
             </button>
           )}
         </div>
