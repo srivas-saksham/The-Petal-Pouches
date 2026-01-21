@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Trash2, Plus, Minus, Package, AlertTriangle, Loader, Check, X, Eye, ShoppingBag } from 'lucide-react';
 import { formatBundlePrice } from '../../utils/bundleHelpers';
 import { updateCartItem, removeFromCart, validateStockLimit } from '../../services/cartService';
-import BundleQuickView from '../shop/BundleQuickView';
+import ItemQuickView from '../shop/ItemQuickView';
 
 /**
  * CheckoutCart Component - UNIFIED for Products & Bundles
@@ -28,7 +28,8 @@ const CheckoutCart = ({
   const [pendingQuantities, setPendingQuantities] = useState({});
   const debounceTimersRef = useRef({});
   
-  const [quickViewBundle, setQuickViewBundle] = useState(null);
+  const [quickViewItem, setQuickViewItem] = useState(null);
+  const [quickViewItemType, setQuickViewItemType] = useState(null);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
 
   // ⭐ Handle item click (bundle or product)
@@ -40,16 +41,18 @@ const CheckoutCart = ({
     }
   };
 
-  // ⭐ Handle Quick View (bundles only)
-  const handleQuickView = (e, bundle) => {
+  // ⭐ Handle Quick View (products and bundles)
+  const handleQuickView = (e, itemData, itemType) => {
     e.stopPropagation();
-    setQuickViewBundle(bundle);
+    setQuickViewItem(itemData);
+    setQuickViewItemType(itemType);
     setIsQuickViewOpen(true);
   };
 
   const handleCloseQuickView = () => {
     setIsQuickViewOpen(false);
-    setQuickViewBundle(null);
+    setQuickViewItem(null);
+    setQuickViewItemType(null);
   };
 
   // ⭐ DEBOUNCED QUANTITY UPDATE
@@ -223,20 +226,20 @@ const CheckoutCart = ({
 
   if (!cartItems || cartItems.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-8 text-center">
+      <div className="bg-white rounded-lg shadow p-6 md:p-8 text-center">
         <Package size={48} className="mx-auto mb-4 text-slate-400" />
-        <p className="text-slate-600">Your cart is empty</p>
+        <p className="text-sm md:text-base text-slate-600">Your cart is empty</p>
       </div>
     );
   }
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-3 md:space-y-4">
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {/* Header */}
-          <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
-            <h2 className="text-lg font-bold text-slate-900">
+          <div className="bg-slate-50 px-4 py-3 md:px-6 md:py-4 border-b border-slate-200">
+            <h2 className="text-base md:text-lg font-bold text-slate-900">
               Order Items ({cartItems.length})
             </h2>
           </div>
@@ -279,17 +282,185 @@ const CheckoutCart = ({
               const itemKey = isBundle ? cartItem.bundle_id : cartItem.product_id;
 
               return (
-                <div key={cartItem.id} className="p-6">
+                <div key={cartItem.id} className="p-4 md:p-6">
                   {/* Error Alert */}
                   {hasError && (
-                    <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 rounded-lg flex items-start gap-2">
-                      <AlertTriangle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-red-700">{hasError}</p>
+                    <div className="mb-3 md:mb-4 p-2 md:p-3 bg-red-50 border-l-4 border-red-500 rounded-lg flex items-start gap-2">
+                      <AlertTriangle size={16} className="text-red-600 flex-shrink-0 mt-0.5 md:w-[18px] md:h-[18px]" />
+                      <p className="text-xs md:text-sm text-red-700">{hasError}</p>
                     </div>
                   )}
 
-                  {/* Main Item Info */}
-                  <div className="flex gap-6">
+                  {/* MOBILE LAYOUT */}
+                  <div className="md:hidden space-y-3">
+                    {/* Row 1: Image + Title + Quick View */}
+                    <div className="flex gap-3">
+                      {/* Image */}
+                      <div 
+                        className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 hover:border-tpppink transition-colors cursor-pointer"
+                        onClick={() => handleItemClick(cartItem)}
+                      >
+                        {itemData.img_url ? (
+                          <img
+                            src={itemData.img_url}
+                            alt={itemData.title}
+                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                            onError={(e) => {
+                              e.target.src = isProduct ? '/placeholder-product.png' : '/placeholder-bundle.png';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-slate-200">
+                            {isProduct ? <ShoppingBag size={24} className="text-slate-400" /> : <Package size={24} className="text-slate-400" />}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Title + Quick View */}
+                      <div className="flex-1 min-w-0">
+                        <h3 
+                          className="text-sm font-semibold text-slate-900 mb-1 cursor-pointer hover:text-tpppink transition-colors line-clamp-2"
+                          onClick={() => handleItemClick(cartItem)}
+                        >
+                          {itemData.title}
+                        </h3>
+                        
+                        {/* Quick View Button (products and bundles) */}
+                        <button
+                          onClick={(e) => handleQuickView(e, itemData, isProduct ? 'product' : 'bundle')}
+                          className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-tpppink hover:text-white bg-white hover:bg-tpppink border border-tpppink rounded transition-all"
+                          title="Quick View"
+                        >
+                          <Eye size={12} />
+                          <span>Quick View</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Row 2: Description */}
+                    {itemData.description && (
+                      <p className="text-xs text-slate-600 line-clamp-2">
+                        {itemData.description}
+                      </p>
+                    )}
+
+                    {/* Row 3: Price + Controls */}
+                    <div className="flex items-center justify-between gap-3">
+                      {/* Price */}
+                      <div className="text-lg font-bold text-tpppink">
+                        {formatBundlePrice(itemData.price)}
+                      </div>
+
+                      {/* Quantity Controls + Delete */}
+                      <div className="flex items-center gap-2">
+                        {/* Quantity Controls */}
+                        <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 relative">
+                          {updating === cartItem.id && (
+                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10 shadow-lg">
+                              Syncing...
+                            </div>
+                          )}
+
+                          <button
+                            onClick={() =>
+                              handleUpdateQuantity(
+                                cartItem.id,
+                                itemKey,
+                                (localQuantities[cartItem.id] ?? cartItem.quantity) - 1,
+                                stockLimit
+                              )
+                            }
+                            disabled={(localQuantities[cartItem.id] ?? cartItem.quantity) <= 1 || updating === cartItem.id}
+                            className="w-7 h-7 flex items-center justify-center rounded hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <Minus size={14} className="text-slate-600" />
+                          </button>
+
+                          <div className="relative min-w-[28px] text-center">
+                            <span className="text-sm font-semibold text-slate-900">
+                              {updating === cartItem.id ? (
+                                <Loader size={14} className="animate-spin mx-auto" />
+                              ) : (
+                                localQuantities[cartItem.id] ?? cartItem.quantity
+                              )}
+                            </span>
+
+                            {pendingQuantities[cartItem.id] && !updating && (
+                              <div className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                            )}
+                          </div>
+
+                          <button
+                            onClick={() =>
+                              handleUpdateQuantity(
+                                cartItem.id,
+                                itemKey,
+                                (localQuantities[cartItem.id] ?? cartItem.quantity) + 1,
+                                stockLimit
+                              )
+                            }
+                            disabled={updating === cartItem.id || isMaxed}
+                            className="w-7 h-7 flex items-center justify-center rounded hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <Plus size={14} className="text-slate-600" />
+                          </button>
+                        </div>
+
+                        {/* Remove Button */}
+                        {!isConfirming ? (
+                          <button
+                            onClick={() => handleRemoveClick(cartItem.id)}
+                            disabled={removing === cartItem.id || updating === cartItem.id}
+                            className="text-tpppink hover:text-red-600 transition-colors disabled:opacity-40"
+                          >
+                            {removing === cartItem.id ? (
+                              <Loader size={16} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={16}/>
+                            )}
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-1 bg-tppslate/15 border rounded-lg p-0.5">
+                            <button
+                              onClick={() => handleCancelRemove(cartItem.id)}
+                              disabled={removing === cartItem.id}
+                              className="w-7 h-7 flex items-center justify-center rounded bg-slate-200 hover:bg-slate-300 text-slate-700 transition-colors"
+                            >
+                              <X size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleConfirmRemove(cartItem.id)}
+                              disabled={removing === cartItem.id}
+                              className="w-7 h-7 flex items-center justify-center rounded bg-tpppink hover:bg-tpppink/90 text-white transition-colors"
+                            >
+                              {removing === cartItem.id ? (
+                                <Loader size={14} className="animate-spin" />
+                              ) : (
+                                <Check size={14} />
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Row 4: Stock Warnings */}
+                    {isLowStock && (
+                      <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 px-2 py-1.5 rounded-md">
+                        <AlertTriangle size={12} className="flex-shrink-0" />
+                        <span className="font-medium">Only {stockLimit} unit{stockLimit === 1 ? '' : 's'} available!</span>
+                      </div>
+                    )}
+
+                    {stockLimit && isMaxed && (
+                      <p className="text-xs text-yellow-700">
+                        Only {stockLimit} in stock
+                      </p>
+                    )}
+                  </div>
+
+                  {/* DESKTOP LAYOUT */}
+                  <div className="hidden md:flex gap-6">
                     {/* Image with Quick View */}
                     <div className="flex-shrink-0 flex flex-col gap-2">
                       <div 
@@ -312,17 +483,15 @@ const CheckoutCart = ({
                         )}
                       </div>
 
-                      {/* Quick View Button (bundles only) */}
-                      {isBundle && (
-                        <button
-                          onClick={(e) => handleQuickView(e, itemData)}
-                          className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-tpppink hover:text-white bg-white hover:bg-tpppink border border-tpppink rounded-md transition-all active:scale-95"
-                          title="Quick View"
-                        >
-                          <Eye size={12} />
-                          <span>Quick View</span>
-                        </button>
-                      )}
+                      {/* Quick View Button (products and bundles) */}
+                      <button
+                        onClick={(e) => handleQuickView(e, itemData, isProduct ? 'product' : 'bundle')}
+                        className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-tpppink hover:text-white bg-white hover:bg-tpppink border border-tpppink rounded-md transition-all active:scale-95"
+                        title="Quick View"
+                      >
+                        <Eye size={12} />
+                        <span>Quick View</span>
+                      </button>
                     </div>
 
                     {/* Item Details */}
@@ -466,8 +635,9 @@ const CheckoutCart = ({
         </div>
       </div>
 
-      <BundleQuickView
-        bundle={quickViewBundle}
+      <ItemQuickView
+        item={quickViewItem}
+        itemType={quickViewItemType}
         isOpen={isQuickViewOpen}
         onClose={handleCloseQuickView}
       />

@@ -209,9 +209,9 @@ const CommonHeader = () => {
                 {showSearch ? <X size={20} /> : <Search size={20} />}
               </button>
 
-              {/* Search Dropdown */}
+              {/* Search Dropdown - MOBILE RESPONSIVE FIXED */}
               {showSearch && (
-                <div className="absolute right-0 mt-2 w-[450px] bg-transparent rounded-xl z-[100]">
+                <div className="fixed left-3 right-3 mt-2 md:absolute md:left-auto md:right-0 md:w-[450px] bg-transparent rounded-xl z-[100]">
                   <div className="p-3" style={{ minHeight: '400px' }}>
                     <SmartBundleSearch
                       placeholder="Just type-in what you're looking for..."
@@ -290,7 +290,7 @@ const CommonHeader = () => {
                 >
                   <ShoppingCart size={20} />
                   {cartCount > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-tpppink text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-sm">
+                    <span className="absolute -top-2 -right-2 bg-tpppink text-white text-[10px] font-bold rounded-full min-w-[18px] h-18px] flex items-center justify-center px-1 shadow-sm">
                       {cartCount > 99 ? '99+' : cartCount}
                     </span>
                   )}

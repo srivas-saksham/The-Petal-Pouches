@@ -90,7 +90,7 @@ const CheckoutSummary = ({
   }, [subtotal, expressCharge, discount]);
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col-reverse md:flex-col space-y-4 space-y-reverse md:space-y-4 md:space-y-0 gap-4">
       {/* Order Summary Card */}
       <div className="bg-white rounded-lg shadow border border-slate-200">
         {/* Header */}
