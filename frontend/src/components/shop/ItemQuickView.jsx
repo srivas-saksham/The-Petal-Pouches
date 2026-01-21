@@ -1,7 +1,7 @@
 // frontend/src/components/shop/ItemQuickView.jsx - MOBILE OPTIMIZED
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, ShoppingCart, Star, Package, AlertTriangle, XCircle, Plus, Minus, Trash2, Check } from 'lucide-react';
+import { X, ShoppingCart, Star, Package, AlertTriangle, XCircle, Plus, Minus, Trash2, Check, Loader } from 'lucide-react';
 import { formatBundlePrice, getItemDisplayName, getItemImageUrl } from '../../utils/bundleHelpers';
 import { getDisplayRating, formatRating } from '../../utils/reviewHelpers';
 import { addBundleToCart, updateCartItem, removeFromCart } from '../../services/cartService';
@@ -14,6 +14,7 @@ const ItemQuickView = ({ item, itemType, isOpen, onClose }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [adding, setAdding] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
   const { refreshCart, getBundleQuantityInCart, getCartItemByBundleId, getProductQuantityInCart, getCartItemByProductId } = useCart();
 
@@ -51,6 +52,7 @@ const ItemQuickView = ({ item, itemType, isOpen, onClose }) => {
       setAdding(false);
       setUpdating(false);
       setPendingQuantity(null);
+      setShowRemoveConfirm(false);
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
@@ -166,28 +168,40 @@ const ItemQuickView = ({ item, itemType, isOpen, onClose }) => {
     setPendingQuantity(newQuantity);
   };
 
-  const handleRemoveFromCart = async (e) => {
+  const handleRemoveClick = (e) => {
     e.stopPropagation();
+    setShowRemoveConfirm(true);
+  };
+
+  const handleConfirmRemove = async (e) => {
+    e.stopPropagation();
+
     if (!cartItem) return;
-    if (!window.confirm(`Remove "${item.title}" from cart?`)) return;
 
     setUpdating(true);
 
     try {
       const result = await removeFromCart(cartItem.id);
+      
       if (result.success) {
         setLocalQuantity(0);
         setPendingQuantity(null);
+        setShowRemoveConfirm(false);
         refreshCart();
         onClose();
       } else {
-        alert(result.error);
+        alert(result.error || 'Failed to remove item');
       }
     } catch (error) {
       alert('Failed to remove item');
     } finally {
       setUpdating(false);
     }
+  };
+
+  const handleCancelRemove = (e) => {
+    e.stopPropagation();
+    setShowRemoveConfirm(false);
   };
 
   const handleClose = (e) => {
@@ -451,14 +465,42 @@ const ItemQuickView = ({ item, itemType, isOpen, onClose }) => {
                       </div>
                     </div>
 
-                    <button
-                      onClick={handleRemoveFromCart}
-                      disabled={updating}
-                      className="w-full flex items-center justify-center gap-1.5 md:gap-2 px-4 md:px-6 py-2 md:py-2.5 border-2 border-red-500 text-red-600 rounded-lg font-semibold text-sm md:text-base hover:bg-red-50"
-                    >
-                      <Trash2 size={14} className="md:w-4 md:h-4" />
-                      Remove
-                    </button>
+                    {/* Remove Button with Confirm/Cancel - Same as BundleCard */}
+                    {!showRemoveConfirm ? (
+                      <button
+                        onClick={handleRemoveClick}
+                        disabled={updating}
+                        className={`w-full flex items-center justify-center gap-1.5 md:gap-2 px-4 md:px-6 py-2 md:py-2.5 border-2 rounded-lg font-semibold text-sm md:text-base transition-all ${
+                          updating
+                            ? 'border-tppgrey text-tppslate/40 cursor-not-allowed'
+                            : 'border-red-500 text-red-600 hover:bg-red-50 active:scale-95'
+                        }`}
+                      >
+                        <Trash2 size={14} className="md:w-4 md:h-4" />
+                        Remove from Cart
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-1.5 md:gap-2">
+                        <button
+                          onClick={handleConfirmRemove}
+                          disabled={updating}
+                          className="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs md:text-sm font-bold px-3 md:px-4 py-2 md:py-2.5 rounded-lg transition-all disabled:opacity-40"
+                        >
+                          {updating ? (
+                            <Loader size={14} className="md:w-4 md:h-4 animate-spin mx-auto" />
+                          ) : (
+                            'Confirm'
+                          )}
+                        </button>
+                        <button
+                          onClick={handleCancelRemove}
+                          disabled={updating}
+                          className="px-3 md:px-4 py-2 md:py-2.5 text-slate-500 hover:text-slate-700 text-xs md:text-sm font-medium disabled:opacity-40"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
