@@ -1,4 +1,5 @@
 // frontend/src/services/userAuthService.js
+import api from './api';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -10,35 +11,22 @@ const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
  */
 export const sendOTP = async (email, type, name = '') => {
   try {
-    const response = await fetch(`${API_URL}/api/otp/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email.trim(),
-        type,
-        name: name.trim(),
-      }),
+    const response = await api.post('/api/otp/send', {
+      email: email.trim(),
+      type,
+      name: name.trim(),
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Failed to send OTP',
-      };
-    }
 
     return {
       success: true,
-      message: data.message,
-      attemptsRemaining: data.attemptsRemaining,
-      expiresIn: data.expiresIn,
+      message: response.data.message,
+      attemptsRemaining: response.data.attemptsRemaining,
+      expiresIn: response.data.expiresIn,
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'OTP send error',
+      error: error.response?.data?.message || error.message || 'Failed to send OTP',
     };
   }
 };
@@ -49,35 +37,22 @@ export const sendOTP = async (email, type, name = '') => {
  */
 export const verifyOTP = async (email, otp, type) => {
   try {
-    const response = await fetch(`${API_URL}/api/otp/verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email.trim(),
-        otp,
-        type,
-      }),
+    const response = await api.post('/api/otp/verify', {
+      email: email.trim(),
+      otp,
+      type,
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'OTP verification failed',
-        code: data.code,
-      };
-    }
 
     return {
       success: true,
-      message: data.message,
-      verified: data.verified,
+      message: response.data.message,
+      verified: response.data.verified,
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'OTP verification error',
+      error: error.response?.data?.message || error.message || 'OTP verification failed',
+      code: error.response?.data?.code,
     };
   }
 };
@@ -88,35 +63,22 @@ export const verifyOTP = async (email, otp, type) => {
  */
 export const resendOTP = async (email, type, name = '') => {
   try {
-    const response = await fetch(`${API_URL}/api/otp/resend`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email.trim(),
-        type,
-        name: name.trim(),
-      }),
+    const response = await api.post('/api/otp/resend', {
+      email: email.trim(),
+      type,
+      name: name.trim(),
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Failed to resend OTP',
-      };
-    }
 
     return {
       success: true,
-      message: data.message,
-      attemptsRemaining: data.attemptsRemaining,
-      expiresIn: data.expiresIn,
+      message: response.data.message,
+      attemptsRemaining: response.data.attemptsRemaining,
+      expiresIn: response.data.expiresIn,
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'OTP resend error',
+      error: error.response?.data?.message || error.message || 'Failed to resend OTP',
     };
   }
 };
@@ -127,35 +89,22 @@ export const resendOTP = async (email, type, name = '') => {
  */
 export const registerUser = async (email, password, name, phone = null) => {
   try {
-    const response = await fetch(`${API_URL}/api/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email.trim(),
-        password,
-        name: name.trim(),
-        phone,
-      }),
+    const response = await api.post('/api/auth/register', {
+      email: email.trim(),
+      password,
+      name: name.trim(),
+      phone,
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Registration failed',
-      };
-    }
 
     return {
       success: true,
-      requiresOTP: data.requiresOTP,
-      message: data.message,
+      requiresOTP: response.data.requiresOTP,
+      message: response.data.message,
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'Registration error',
+      error: error.response?.data?.message || error.message || 'Registration failed',
     };
   }
 };
@@ -166,35 +115,22 @@ export const registerUser = async (email, password, name, phone = null) => {
  */
 export const completeRegistration = async (email, password, name, otp, phone = null) => {
   try {
-    const response = await fetch(`${API_URL}/api/auth/register/complete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email.trim(),
-        password,
-        name: name.trim(),
-        otp,
-        phone,
-      }),
+    const response = await api.post('/api/auth/register/complete', {
+      email: email.trim(),
+      password,
+      name: name.trim(),
+      otp,
+      phone,
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Registration completion failed',
-      };
-    }
 
     return {
       success: true,
-      data: data.data,
+      data: response.data.data,
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'Registration completion error',
+      error: error.response?.data?.message || error.message || 'Registration completion failed',
     };
   }
 };
@@ -205,32 +141,19 @@ export const completeRegistration = async (email, password, name, otp, phone = n
  */
 export const loginUser = async (email, password) => {
   try {
-    const response = await fetch(`${API_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email.trim(),
-        password,
-      }),
+    const response = await api.post('/api/auth/login', {
+      email: email.trim(),
+      password,
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Login failed',
-      };
-    }
 
     return {
       success: true,
-      data: data.data,
+      data: response.data.data,
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'Login error',
+      error: error.response?.data?.message || error.message || 'Login failed',
     };
   }
 };
@@ -241,31 +164,16 @@ export const loginUser = async (email, password) => {
  */
 export const getCurrentUser = async (token) => {
   try {
-    const response = await fetch(`${API_URL}/api/auth/me`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Failed to fetch user',
-      };
-    }
+    const response = await api.get('/api/auth/me');
 
     return {
       success: true,
-      data: data.data,
+      data: response.data.data,
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'Error fetching user',
+      error: error.response?.data?.message || error.message || 'Failed to fetch user',
     };
   }
 };
@@ -276,19 +184,7 @@ export const getCurrentUser = async (token) => {
  */
 export const logoutUser = async (token) => {
   try {
-    const response = await fetch(`${API_URL}/api/auth/logout`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.warn('Logout warning:', data.message);
-    }
+    await api.post('/api/auth/logout');
 
     return {
       success: true,
@@ -308,31 +204,16 @@ export const logoutUser = async (token) => {
  */
 export const refreshAuthToken = async (token) => {
   try {
-    const response = await fetch(`${API_URL}/api/auth/refresh-token`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Token refresh failed',
-      };
-    }
+    const response = await api.post('/api/auth/refresh-token');
 
     return {
       success: true,
-      data: data.data,
+      data: response.data.data,
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'Token refresh error',
+      error: error.response?.data?.message || error.message || 'Token refresh failed',
     };
   }
 };
@@ -343,22 +224,9 @@ export const refreshAuthToken = async (token) => {
  */
 export const requestPasswordReset = async (email) => {
   try {
-    const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email.trim(),
-      }),
+    const response = await api.post('/api/auth/forgot-password', {
+      email: email.trim(),
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Failed to send reset email',
-      };
-    }
 
     return {
       success: true,
@@ -367,7 +235,7 @@ export const requestPasswordReset = async (email) => {
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'Password reset request error',
+      error: error.response?.data?.message || error.message || 'Failed to send reset email',
     };
   }
 };
@@ -378,24 +246,11 @@ export const requestPasswordReset = async (email) => {
  */
 export const resetPassword = async (email, otp, newPassword) => {
   try {
-    const response = await fetch(`${API_URL}/api/auth/reset-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email.trim(),
-        otp,
-        password: newPassword,
-      }),
+    const response = await api.post('/api/auth/reset-password', {
+      email: email.trim(),
+      otp,
+      password: newPassword,
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Password reset failed',
-      };
-    }
 
     return {
       success: true,
@@ -404,7 +259,7 @@ export const resetPassword = async (email, otp, newPassword) => {
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'Password reset error',
+      error: error.response?.data?.message || error.message || 'Password reset failed',
     };
   }
 };
@@ -415,22 +270,9 @@ export const resetPassword = async (email, otp, newPassword) => {
  */
 export const verifyEmail = async (verificationToken) => {
   try {
-    const response = await fetch(`${API_URL}/api/auth/verify-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token: verificationToken,
-      }),
+    const response = await api.post('/api/auth/verify-email', {
+      token: verificationToken,
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Email verification failed',
-      };
-    }
 
     return {
       success: true,
@@ -439,7 +281,7 @@ export const verifyEmail = async (verificationToken) => {
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'Email verification error',
+      error: error.response?.data?.message || error.message || 'Email verification failed',
     };
   }
 };
@@ -450,31 +292,16 @@ export const verifyEmail = async (verificationToken) => {
  */
 export const requestPasswordChange = async (token) => {
   try {
-    const response = await fetch(`${API_URL}/api/auth/change-password/request`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Failed to send verification code',
-      };
-    }
+    const response = await api.post('/api/auth/change-password/request');
 
     return {
       success: true,
-      message: data.message,
+      message: response.data.message,
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'Password change request error',
+      error: error.response?.data?.message || error.message || 'Failed to send verification code',
     };
   }
 };
@@ -485,36 +312,20 @@ export const requestPasswordChange = async (token) => {
  */
 export const changePassword = async (token, otp, currentPassword, newPassword) => {
   try {
-    const response = await fetch(`${API_URL}/api/auth/change-password`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        otp,
-        currentPassword,
-        newPassword,
-      }),
+    const response = await api.put('/api/auth/change-password', {
+      otp,
+      currentPassword,
+      newPassword,
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Password change failed',
-      };
-    }
 
     return {
       success: true,
-      message: data.message,
+      message: response.data.message,
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'Password change error',
+      error: error.response?.data?.message || error.message || 'Password change failed',
     };
   }
 };

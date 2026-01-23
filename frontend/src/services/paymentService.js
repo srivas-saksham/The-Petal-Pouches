@@ -4,7 +4,7 @@
  * Handles Razorpay payment operations on frontend
  */
 
-import axios from 'axios';
+import api from './api';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -27,24 +27,9 @@ const getAuthToken = () => {
  */
 export const createPaymentOrder = async (orderData) => {
   try {
-    const token = getAuthToken();
-    
-    if (!token) {
-      throw new Error('Authentication required');
-    }
-
     console.log('💳 Creating payment order...');
 
-    const response = await axios.post(
-      `${API_URL}/api/payments/create-order`,
-      orderData,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const response = await api.post('/api/payments/create-order', orderData);
 
     console.log('✅ Payment order created:', response.data.data.razorpay_order_id);
 
@@ -74,29 +59,14 @@ export const createPaymentOrder = async (orderData) => {
  */
 export const verifyPayment = async (paymentData, orderData) => {
   try {
-    const token = getAuthToken();
-    
-    if (!token) {
-      throw new Error('Authentication required');
-    }
-
     console.log('🔐 Verifying payment...');
 
-    const response = await axios.post(
-      `${API_URL}/api/payments/verify`,
-      {
-        razorpay_order_id: paymentData.razorpay_order_id,
-        razorpay_payment_id: paymentData.razorpay_payment_id,
-        razorpay_signature: paymentData.razorpay_signature,
-        order_data: orderData, // ⭐ Send order data for database order creation
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const response = await api.post('/api/payments/verify', {
+      razorpay_order_id: paymentData.razorpay_order_id,
+      razorpay_payment_id: paymentData.razorpay_payment_id,
+      razorpay_signature: paymentData.razorpay_signature,
+      order_data: orderData, // ⭐ Send order data for database order creation
+    });
 
     console.log('✅ Payment verified:', response.data);
 
@@ -121,20 +91,7 @@ export const verifyPayment = async (paymentData, orderData) => {
  */
 export const getPaymentStatus = async (orderId) => {
   try {
-    const token = getAuthToken();
-    
-    if (!token) {
-      throw new Error('Authentication required');
-    }
-
-    const response = await axios.get(
-      `${API_URL}/api/payments/status/${orderId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      }
-    );
+    const response = await api.get(`/api/payments/status/${orderId}`);
 
     return {
       success: true,

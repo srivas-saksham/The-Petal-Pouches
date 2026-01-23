@@ -1,5 +1,7 @@
 // frontend/src/services/addressService.js
 
+import api from './api';
+
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 /**
@@ -15,39 +17,16 @@ const getToken = () => {
  */
 export const getAddresses = async () => {
   try {
-    const token = getToken();
-    if (!token) {
-      return {
-        success: false,
-        error: 'Not authenticated',
-      };
-    }
-
-    const response = await fetch(`${API_URL}/api/addresses`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Failed to fetch addresses',
-      };
-    }
+    const response = await api.get('/api/addresses');
 
     return {
       success: true,
-      data: data.addresses || [],
+      data: response.data.addresses || response.data.data || [],
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'Error fetching addresses',
+      error: error.response?.data?.message || error.message || 'Failed to fetch addresses',
     };
   }
 };
@@ -58,39 +37,16 @@ export const getAddresses = async () => {
  */
 export const getAddressById = async (addressId) => {
   try {
-    const token = getToken();
-    if (!token) {
-      return {
-        success: false,
-        error: 'Not authenticated',
-      };
-    }
-
-    const response = await fetch(`${API_URL}/api/addresses/${addressId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Failed to fetch address',
-      };
-    }
+    const response = await api.get(`/api/addresses/${addressId}`);
 
     return {
       success: true,
-      data: data.data,
+      data: response.data.data,
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'Error fetching address',
+      error: error.response?.data?.message || error.message || 'Failed to fetch address',
     };
   }
 };
@@ -113,14 +69,6 @@ export const getAddressById = async (addressId) => {
  */
 export const createAddress = async (addressData) => {
   try {
-    const token = getToken();
-    if (!token) {
-      return {
-        success: false,
-        error: 'Not authenticated',
-      };
-    }
-
     // Validate required fields
     const requiredFields = ['line1', 'city', 'state', 'country', 'zip_code', 'phone'];
     for (const field of requiredFields) {
@@ -132,33 +80,17 @@ export const createAddress = async (addressData) => {
       }
     }
 
-    const response = await fetch(`${API_URL}/api/addresses`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(addressData),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Failed to create address',
-      };
-    }
+    const response = await api.post('/api/addresses', addressData);
 
     return {
       success: true,
-      data: data.data,
+      data: response.data.data,
       message: 'Address created successfully',
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'Error creating address',
+      error: error.response?.data?.message || error.message || 'Failed to create address',
     };
   }
 };
@@ -169,14 +101,6 @@ export const createAddress = async (addressData) => {
  */
 export const updateAddress = async (addressId, addressData) => {
   try {
-    const token = getToken();
-    if (!token) {
-      return {
-        success: false,
-        error: 'Not authenticated',
-      };
-    }
-
     // Validate required fields
     const requiredFields = ['line1', 'city', 'state', 'country', 'zip_code', 'phone'];
     for (const field of requiredFields) {
@@ -188,33 +112,17 @@ export const updateAddress = async (addressId, addressData) => {
       }
     }
 
-    const response = await fetch(`${API_URL}/api/addresses/${addressId}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(addressData),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Failed to update address',
-      };
-    }
+    const response = await api.put(`/api/addresses/${addressId}`, addressData);
 
     return {
       success: true,
-      data: data.data,
+      data: response.data.data,
       message: 'Address updated successfully',
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'Error updating address',
+      error: error.response?.data?.message || error.message || 'Failed to update address',
     };
   }
 };
@@ -225,30 +133,7 @@ export const updateAddress = async (addressId, addressData) => {
  */
 export const deleteAddress = async (addressId) => {
   try {
-    const token = getToken();
-    if (!token) {
-      return {
-        success: false,
-        error: 'Not authenticated',
-      };
-    }
-
-    const response = await fetch(`${API_URL}/api/addresses/${addressId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Failed to delete address',
-      };
-    }
+    const response = await api.delete(`/api/addresses/${addressId}`);
 
     return {
       success: true,
@@ -257,7 +142,7 @@ export const deleteAddress = async (addressId) => {
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'Error deleting address',
+      error: error.response?.data?.message || error.message || 'Failed to delete address',
     };
   }
 };
@@ -268,40 +153,17 @@ export const deleteAddress = async (addressId) => {
  */
 export const setDefaultAddress = async (addressId) => {
   try {
-    const token = getToken();
-    if (!token) {
-      return {
-        success: false,
-        error: 'Not authenticated',
-      };
-    }
-
-    const response = await fetch(`${API_URL}/api/addresses/${addressId}/default`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || 'Failed to set default address',
-      };
-    }
+    const response = await api.patch(`/api/addresses/${addressId}/default`);
 
     return {
       success: true,
-      data: data.data,
+      data: response.data.data,
       message: 'Default address updated',
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message || 'Error setting default address',
+      error: error.response?.data?.message || error.message || 'Failed to set default address',
     };
   }
 };

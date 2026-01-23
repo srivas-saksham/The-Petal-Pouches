@@ -1,48 +1,15 @@
 // frontend/src/services/adminAuthService.js
 
-import axios from 'axios';
+import adminApi from './adminApi';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
-
-/**
- * Add token to request headers
- */
-api.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('admin_token'); // ✅ Changed to sessionStorage
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-/**
- * Handle token expiration
- */
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401 && error.response?.data?.code === 'TOKEN_EXPIRED') {
-      // Clear session and redirect to re-auth
-      sessionStorage.removeItem('admin_token');
-      window.location.href = '/admin/login';
-    }
-    return Promise.reject(error);
-  }
-);
 
 /**
  * Admin Registration
  */
 export const registerAdmin = async (adminData) => {
   try {
-    const response = await api.post('/api/admin/auth/register', adminData);
+    const response = await adminApi.post('/api/admin/auth/register', adminData);
     return {
       success: true,
       data: response.data.data,
@@ -61,7 +28,7 @@ export const registerAdmin = async (adminData) => {
  */
 export const loginAdmin = async (email, password) => {
   try {
-    const response = await api.post('/api/admin/auth/login', {
+    const response = await adminApi.post('/api/admin/auth/login', {
       email,
       password
     });
@@ -101,7 +68,7 @@ export const verifyAdminPassword = async (password) => {
       };
     }
 
-    const response = await api.post('/api/admin/auth/verify', {
+    const response = await adminApi.post('/api/admin/auth/verify', {
       email: adminEmail,
       password
     });
@@ -127,7 +94,7 @@ export const verifyAdminPassword = async (password) => {
  */
 export const getCurrentAdmin = async () => {
   try {
-    const response = await api.get('/api/admin/auth/me');
+    const response = await adminApi.get('/api/admin/auth/me');
     return {
       success: true,
       data: response.data.data
@@ -151,12 +118,9 @@ export const refreshAdminToken = async () => {
 /**
  * Admin Logout
  */
-/**
- * Admin Logout
- */
 export const logoutAdmin = async () => {
   try {
-    await api.post('/api/admin/auth/logout');
+    await adminApi.post('/api/admin/auth/logout');
     
     // ✅ Clear session storage
     sessionStorage.removeItem('admin_token');

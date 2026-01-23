@@ -1,7 +1,7 @@
 // frontend/src/services/cartService.js
 // ⭐ SERVERLESS-COMPATIBLE + SECURE
 
-import axios from 'axios';
+import api from './api';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -24,6 +24,19 @@ const generateSessionId = () => {
 };
 
 /**
+ * Get session ID for guest users
+ */
+const getSessionId = () => {
+  let sessionId = localStorage.getItem('guest_session_id');
+  if (!sessionId) {
+    sessionId = generateSessionId();
+    localStorage.setItem('guest_session_id', sessionId);
+    console.log('🆕 Created guest session (UUID v4):', sessionId);
+  }
+  return sessionId;
+};
+
+/**
  * Get authentication headers
  * For logged-in users: JWT token in Authorization header
  * For guests: x-session-id header (UUID v4 format)
@@ -42,14 +55,8 @@ const getCartHeaders = () => {
     console.log('🔐 Using JWT token for authenticated user');
   } else {
     // ✅ Guest user - send UUID v4 session ID
-    let sessionId = localStorage.getItem('guest_session_id');
-    if (!sessionId) {
-      sessionId = generateSessionId();  // ⭐ FIX: Use proper UUID v4
-      localStorage.setItem('guest_session_id', sessionId);
-      console.log('🆕 Created guest session (UUID v4):', sessionId);
-    }
-    headers['x-session-id'] = sessionId;
-    console.log('👤 Using session ID:', sessionId);
+    headers['x-session-id'] = getSessionId();
+    console.log('👤 Using session ID:', headers['x-session-id']);
   }
 
   return headers;
@@ -88,8 +95,10 @@ export const validateStockLimit = (bundleId, requestedQuantity, currentQuantityI
  */
 export const getCart = async () => {
   try {
-    const response = await axios.get(`${API_URL}/api/cart`, {
-      headers: getCartHeaders(),
+    const response = await api.get('/api/cart', {
+      headers: {
+        'x-session-id': getSessionId()
+      }
     });
     return { success: true, data: response.data.data };
   } catch (error) {
@@ -119,10 +128,14 @@ export const addBundleToCart = async (bundleId, quantity = 1, stockLimit = null,
       }
     }
 
-    const response = await axios.post(
-      `${API_URL}/api/cart/items`,
+    const response = await api.post(
+      '/api/cart/items',
       { bundle_id: bundleId, quantity },
-      { headers: getCartHeaders() }
+      {
+        headers: {
+          'x-session-id': getSessionId()
+        }
+      }
     );
 
     return {
@@ -145,10 +158,14 @@ export const addBundleToCart = async (bundleId, quantity = 1, stockLimit = null,
  */
 export const addProductToCart = async (productId, quantity = 1) => {
   try {
-    const response = await axios.post(
-      `${API_URL}/api/cart/products`,
+    const response = await api.post(
+      '/api/cart/products',
       { product_id: productId, quantity },
-      { headers: getCartHeaders() }
+      {
+        headers: {
+          'x-session-id': getSessionId()
+        }
+      }
     );
     return {
       success: true,
@@ -178,10 +195,14 @@ export const updateCartItem = async (cartItemId, quantity, stockLimit = null) =>
       };
     }
 
-    const response = await axios.patch(
-      `${API_URL}/api/cart/items/${cartItemId}`,
+    const response = await api.patch(
+      `/api/cart/items/${cartItemId}`,
       { quantity },
-      { headers: getCartHeaders() }
+      {
+        headers: {
+          'x-session-id': getSessionId()
+        }
+      }
     );
 
     return {
@@ -203,9 +224,13 @@ export const updateCartItem = async (cartItemId, quantity, stockLimit = null) =>
  */
 export const removeFromCart = async (cartItemId) => {
   try {
-    const response = await axios.delete(
-      `${API_URL}/api/cart/items/${cartItemId}`,
-      { headers: getCartHeaders() }
+    const response = await api.delete(
+      `/api/cart/items/${cartItemId}`,
+      {
+        headers: {
+          'x-session-id': getSessionId()
+        }
+      }
     );
     return {
       success: true,
@@ -225,9 +250,13 @@ export const removeFromCart = async (cartItemId) => {
  */
 export const clearCart = async () => {
   try {
-    const response = await axios.delete(
-      `${API_URL}/api/cart`,
-      { headers: getCartHeaders() }
+    const response = await api.delete(
+      '/api/cart',
+      {
+        headers: {
+          'x-session-id': getSessionId()
+        }
+      }
     );
     return {
       success: true,
@@ -260,16 +289,7 @@ export const mergeCarts = async () => {
       return { success: false, error: 'Not authenticated' };
     }
 
-    const response = await axios.post(
-      `${API_URL}/api/cart/merge`,
-      { session_id: sessionId },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      }
-    );
+    const response = await api.post('/api/cart/merge', { session_id: sessionId });
 
     // Clear guest session after successful merge
     localStorage.removeItem('guest_session_id');

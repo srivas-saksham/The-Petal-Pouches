@@ -1,6 +1,6 @@
 // frontend/src/services/checkoutService.js
 
-import axios from 'axios';
+import api from './api';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -9,17 +9,7 @@ const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
  */
 export const createOrder = async (orderData) => {
   try {
-    const token = localStorage.getItem('customer_token');
-    const response = await axios.post(
-      `${API_URL}/api/orders`,
-      orderData,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const response = await api.post('/api/orders', orderData);
 
     return {
       success: true,
@@ -38,10 +28,7 @@ export const createOrder = async (orderData) => {
  */
 export const validatePromoCode = async (code) => {
   try {
-    const response = await axios.post(
-      `${API_URL}/api/coupons/validate`,
-      { code }
-    );
+    const response = await api.post('/api/coupons/validate', { code });
 
     return {
       success: true,
