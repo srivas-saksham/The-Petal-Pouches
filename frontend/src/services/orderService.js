@@ -392,17 +392,33 @@ export const searchOrders = async (searchTerm, filters = {}) => {
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
  * @param {Object} params - Additional params
+ * @param {boolean} isAdmin - Use admin API (default: false)
  */
-export const getOrdersByDateRange = async (startDate, endDate, params = {}) => {
-  return apiRequest(() => 
-    api.get('/api/orders', {
+export const getOrdersByDateRange = async (startDate, endDate, params = {}, isAdmin = false) => {
+  try {
+    const apiInstance = isAdmin ? adminApi : api;
+    const endpoint = isAdmin ? '/api/admin/orders' : '/api/orders';
+    
+    const response = await apiInstance.get(endpoint, {
       params: {
         start_date: startDate,
         end_date: endDate,
         ...params,
       },
-    })
-  );
+    });
+    
+    return {
+      success: true,
+      data: response.data.data || []
+    };
+  } catch (error) {
+    console.error('❌ Get orders by date range error:', error);
+    return {
+      success: false,
+      data: [],
+      error: error.message
+    };
+  }
 };
 
 /**
@@ -539,9 +555,10 @@ export const updatePaymentStatus = async (orderId, paymentStatus) => {
  * Calculate revenue by period
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
+ * @param {boolean} isAdmin - Use admin API (default: false)
  */
-export const getRevenuByPeriod = async (startDate, endDate) => {
-  const result = await getOrdersByDateRange(startDate, endDate);
+export const getRevenuByPeriod = async (startDate, endDate, isAdmin = false) => {
+  const result = await getOrdersByDateRange(startDate, endDate, {}, isAdmin);
   
   if (!result.success) {
     return {
@@ -554,12 +571,12 @@ export const getRevenuByPeriod = async (startDate, endDate) => {
     };
   }
 
-  const orders = result.data.data || [];
+  const orders = result.data || [];
   const paidOrders = orders.filter(o => 
     o.payment_status === 'paid' && o.status !== 'cancelled'
   );
 
-  const totalRevenue = paidOrders.reduce((sum, o) => sum + (o.final_total || 0), 0);
+  const totalRevenue = paidOrders.reduce((sum, o) => sum + (parseFloat(o.final_total) || 0), 0);
 
   return {
     success: true,

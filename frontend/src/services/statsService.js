@@ -230,7 +230,7 @@ export const getDashboardStats = async () => {
  */
 export const getStatsForDateRange = async (startDate, endDate) => {
   try {
-    const revenueResult = await getRevenuByPeriod(startDate, endDate);
+    const revenueResult = await getRevenuByPeriod(startDate, endDate, true);
     
     return {
       success: true,
@@ -258,7 +258,7 @@ export const getMonthlyRevenue = async () => {
     const startDate = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
     const endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
     
-    const result = await getRevenuByPeriod(startDate, endDate);
+    const result = await getRevenuByPeriod(startDate, endDate, true);
     
     monthlyData.push({
       month: date.toLocaleString('default', { month: 'short' }),
@@ -534,8 +534,8 @@ export const getSalesTrends = async () => {
   const prevEndDate = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0];
   
   const [currentResult, previousResult] = await Promise.all([
-    getRevenuByPeriod(currentStartDate, currentEndDate),
-    getRevenuByPeriod(prevStartDate, prevEndDate),
+    getRevenuByPeriod(currentStartDate, currentEndDate, true),
+    getRevenuByPeriod(prevStartDate, prevEndDate, true),
   ]);
 
   const current = currentResult.success ? currentResult.data : {};

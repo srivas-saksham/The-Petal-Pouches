@@ -58,7 +58,7 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Content-Type, Authorization, x-session-id, x-user-id'
+    'Content-Type, Authorization, x-session-id, x-user-id, x-gateway-token'
   );
   res.setHeader(
     'Access-Control-Allow-Methods',
@@ -72,7 +72,6 @@ app.use((req, res, next) => {
 
   next();
 });
-
 
 // ============================================
 // SECURITY HEADERS (AFTER CORS)
@@ -91,7 +90,8 @@ app.use(
 // Must be BEFORE express.json() for webhook route
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 
-// Standard JSON/URL-encoded parsers for all other routes
+// ✅ CRITICAL: Standard JSON/URL-encoded parsers for all other routes
+// MUST BE BEFORE ANY ROUTES THAT NEED req.body
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -102,6 +102,20 @@ if (process.env.NODE_ENV === 'development') {
     next();
   });
 }
+
+// ============================================
+// 🔒 GATEWAY ROUTES (BEFORE GATEWAY MIDDLEWARE!)
+// ============================================
+// ⚠️ CRITICAL: This MUST come AFTER express.json() so req.body works
+// ⚠️ CRITICAL: This MUST come BEFORE gatewayMiddleware so route is accessible
+app.use('/api/gateway', require('./routes/gateway'));
+
+// ============================================
+// 🔒 GATEWAY PROTECTION (OPTIONAL)
+// ============================================
+// ⚠️ CRITICAL: This MUST come AFTER gateway routes
+const { gatewayMiddleware } = require('./middleware/gateway');
+app.use(gatewayMiddleware);
 
 // ============================================
 // IMPORT AUTHENTICATION MIDDLEWARE
@@ -139,13 +153,13 @@ app.use('/api/otp', require('./routes/otp'));         // ✅ OTP verification - 
 // --------------------------------------------
 app.use('/api/users', verifyCustomerToken, require('./routes/users'));           // ✅ Profile/Dashboard
 app.use('/api/addresses', verifyCustomerToken, require('./routes/addresses'));   // ✅ Address management
-app.use('/api/cart', require('./routes/cart')); // ✅ NO auth - works for guests too
 app.use('/api/wishlist', verifyCustomerToken, require('./routes/wishlist'));     // ✅ Wishlist
 app.use('/api/orders', verifyCustomerToken, require('./routes/orders'));         // ✅ Order management
 
 // 5. PUBLIC CATALOG ROUTES (NO AUTH REQUIRED)
 // --------------------------------------------
-app.use('/api/categories', require('./routes/categories'));  // ✅ Browse categories
+app.use('/api/cart', require('./routes/cart'));             // ✅ Cart (works for guests too)
+app.use('/api/categories', require('./routes/categories')); // ✅ Browse categories
 app.use('/api/tags', require('./routes/tagsRoutes'));       // ✅ Browse tags
 app.use('/api/bundles', require('./routes/bundles'));       // ✅ Browse bundles (admin endpoints inside have own auth)
 app.use('/api/products', require('./routes/products'));     // ✅ Browse products (admin endpoints inside have own auth)
@@ -217,6 +231,10 @@ app.get('/', (req, res) => {
     shipping: 'Delhivery',
     architecture: 'Serverless Functions',
     documentation: {
+      gateway: {
+        verify: '/api/gateway/verify (PUBLIC)',
+        status: '/api/gateway/status (PUBLIC)'
+      },
       admin: {
         auth: '/api/admin/auth (PUBLIC)',
         products: '/api/admin/products (PROTECTED)',
@@ -232,7 +250,7 @@ app.get('/', (req, res) => {
         profile: '/api/users (PROTECTED)',
         addresses: '/api/addresses (PROTECTED)',
         orders: '/api/orders (PROTECTED)',
-        cart: '/api/cart (PROTECTED)',
+        cart: '/api/cart (PUBLIC - supports guests)',
         wishlist: '/api/wishlist (PROTECTED)',
         payments: '/api/payments (MIXED)'
       },
@@ -308,7 +326,7 @@ app.use((req, res) => {
     success: false,
     message: `Route not found: ${req.method} ${req.path}`,
     availableResources: [
-      '/api/auth', '/api/otp', '/api/users', '/api/products',
+      '/api/gateway', '/api/auth', '/api/otp', '/api/users', '/api/products',
       '/api/cart', '/api/orders', '/api/payments', 
       '/api/coupons', '/api/webhooks'
     ]
@@ -336,6 +354,7 @@ if (require.main === module) {
     
     console.log('📍 Key Endpoints:');
     console.log(`   🌐 Health:     http://localhost:${PORT}/health`);
+    console.log(`   🔒 Gateway:    http://localhost:${PORT}/api/gateway/verify`);
     console.log(`   🛒 Products:   http://localhost:${PORT}/api/products`);
     console.log(`   🛍️ Cart:       http://localhost:${PORT}/api/cart`);
     console.log(`   🎟️ Coupons:    http://localhost:${PORT}/api/coupons`);
