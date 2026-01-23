@@ -32,6 +32,7 @@ C:\Projects_External\The Petal Pouches\backend\src\cron\syncShipments.js
 C:\Projects_External\The Petal Pouches\backend\src\jobs\syncShipments.js
 C:\Projects_External\The Petal Pouches\backend\src\middleware\addressValidation.js
 C:\Projects_External\The Petal Pouches\backend\src\middleware\adminAuth.js
+C:\Projects_External\The Petal Pouches\backend\src\middleware\gateway.js
 C:\Projects_External\The Petal Pouches\backend\src\middleware\userAuth.js
 C:\Projects_External\The Petal Pouches\backend\src\middleware\validateShipmentEdit.js
 C:\Projects_External\The Petal Pouches\backend\src\models\addressModel.js
@@ -59,6 +60,7 @@ C:\Projects_External\The Petal Pouches\backend\src\routes\categories.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\coupons.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\cron.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\delhivery.js
+C:\Projects_External\The Petal Pouches\backend\src\routes\gateway.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\orders.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\otp.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\payments.js
@@ -97,6 +99,7 @@ C:\Projects_External\The Petal Pouches\backend\.env
 C:\Projects_External\The Petal Pouches\backend\.env.example
 C:\Projects_External\The Petal Pouches\backend\.env.local
 C:\Projects_External\The Petal Pouches\backend\.gitignore
+C:\Projects_External\The Petal Pouches\backend\generateGatewayHash.js
 C:\Projects_External\The Petal Pouches\backend\generateHash.js
 C:\Projects_External\The Petal Pouches\backend\package-lock.json
 C:\Projects_External\The Petal Pouches\backend\package.json
@@ -410,6 +413,7 @@ C:\Projects_External\The Petal Pouches\frontend\src\components\user\profile\Prof
 C:\Projects_External\The Petal Pouches\frontend\src\components\user\profile\ProfileInfoCard.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\user\profile\SecuritySettingsCard.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\user\ProtectedCustomerRoute.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\components\ProtectedByGateway.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\context\AdminAuthContext.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\context\CartContext.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\context\ToastContext.jsx
@@ -453,6 +457,7 @@ C:\Projects_External\The Petal Pouches\frontend\src\pages\user\Wishlist.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\Admin.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\BundleDetailPage.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\Checkout.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\pages\GatewayLogin.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\Home.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\OrderSuccess.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\ShopNew.jsx
@@ -492,6 +497,7 @@ C:\Projects_External\The Petal Pouches\frontend\src\utils\couponErrorMessages.js
 C:\Projects_External\The Petal Pouches\frontend\src\utils\couponHelpers.js
 C:\Projects_External\The Petal Pouches\frontend\src\utils\deliveryHelpers.js
 C:\Projects_External\The Petal Pouches\frontend\src\utils\deliveryStorage.js
+C:\Projects_External\The Petal Pouches\frontend\src\utils\gatewayAuth.js
 C:\Projects_External\The Petal Pouches\frontend\src\utils\geocodingHelpers.js
 C:\Projects_External\The Petal Pouches\frontend\src\utils\mockData.js
 C:\Projects_External\The Petal Pouches\frontend\src\utils\quizMatcher.js
