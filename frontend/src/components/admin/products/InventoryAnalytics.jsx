@@ -16,7 +16,7 @@ import {
   BarChart3
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+import adminApi from '../../../services/adminApi';
 
 const formatCurrency = (amount) => {
   if (amount === null || amount === undefined || isNaN(amount)) return '₹0';
@@ -97,14 +97,13 @@ export default function InventoryAnalytics() {
     setError('');
 
     try {
-      const response = await fetch(`${API_URL}/api/products/analytics/inventory`);
-      const result = await response.json();
+      const response = await adminApi.get('/api/products/analytics/inventory');
 
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to fetch analytics');
+      if (response.data) {
+        setAnalytics(response.data.data || response.data);
+      } else {
+        throw new Error('Failed to fetch analytics');
       }
-
-      setAnalytics(result.data);
     } catch (err) {
       console.error('Error fetching inventory analytics:', err);
       setError(err.message || 'Failed to load analytics');

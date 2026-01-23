@@ -54,10 +54,15 @@ export default function BundleProductSelector({ onSelect, onClose, excludeProduc
     try {
       const response = await adminApi.get('/api/categories');
       if (response.data) {
-        setCategories(response.data || []);
+        // ✅ FIXED: Handle both array and nested object responses
+        const categoriesData = Array.isArray(response.data) 
+          ? response.data 
+          : response.data.data || [];
+        setCategories(categoriesData);
       }
     } catch (err) {
       console.error('Failed to fetch categories:', err);
+      setCategories([]); // ✅ Ensure it's always an array
     }
   };
 
@@ -69,7 +74,8 @@ export default function BundleProductSelector({ onSelect, onClose, excludeProduc
       const params = {
         page: currentPage,
         limit,
-        in_stock: 'true'
+        in_stock: 'true',
+        admin_view: 'true'
       };
 
       if (search) params.search = search;
@@ -80,12 +86,22 @@ export default function BundleProductSelector({ onSelect, onClose, excludeProduc
       const response = await adminApi.get('/api/products', { params });
 
       if (response.data) {
-        const filtered = (response.data || []).filter(
+        // ✅ FIXED: Handle both array and nested object responses
+        const productsData = Array.isArray(response.data) 
+          ? response.data 
+          : response.data.data || [];
+        
+        const metadataData = Array.isArray(response.data)
+          ? null
+          : response.data.metadata || null;
+        
+        const filtered = productsData.filter(
           product => !excludeProductIds.includes(product.id)
         );
+        
         setProducts(filtered);
-        setTotalPages(response.metadata?.totalPages || 1);
-        setTotalCount(response.metadata?.totalCount || 0);
+        setTotalPages(metadataData?.totalPages || 1);
+        setTotalCount(metadataData?.total || filtered.length);
       } else {
         setError(response.message || 'Failed to load products');
       }

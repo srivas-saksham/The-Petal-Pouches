@@ -47,7 +47,8 @@ const ShopController = {
               is_primary,
               display_order
             )
-          `, { count: 'exact' });
+          `, { count: 'exact' })
+          .eq('is_sellable', true);
 
         // Filters
         if (search && search.trim()) {
@@ -258,6 +259,14 @@ const ShopController = {
           .single();
 
         if (error) throw error;
+        
+        // 🔒 NEW: SECURITY - Prevent access to bundle-only products
+        if (data.is_sellable === false) {
+          return res.status(403).json({
+            success: false,
+            message: 'This product is only available as part of a bundle'
+          });
+        }
 
         res.status(200).json({
           success: true,

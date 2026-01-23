@@ -179,6 +179,15 @@ export default function ProductRow({
                 </div>
               )}
 
+              {/* 🔒 NEW: Bundle-Only Badge */}
+              {product.is_sellable === false && (
+                <div className="absolute bottom-2 left-2 right-2">
+                  <div className="bg-purple-500 text-white text-[10px] px-2 py-1 rounded font-bold text-center shadow-lg">
+                    BUNDLE ONLY
+                  </div>
+                </div>
+              )}
+
               {/* Variant Badge */}
               {hasVariants && variantCount > 0 && (
                 <div className="absolute top-2 right-2 bg-tppslate text-white px-1.5 py-0.5 rounded text-[11px] font-bold uppercase shadow-lg flex items-center gap-0.5">
@@ -189,7 +198,7 @@ export default function ProductRow({
 
               {/* Stock Warning Badge */}
               {!stockStatus.available && (
-                <div className="absolute bottom-2 left-2 right-2">
+                <div className="absolute bottom-10 left-2 right-2">
                   <div className="bg-red-500 text-white text-[10px] px-2 py-1 rounded font-bold text-center">
                     {stockStatus.label}
                   </div>

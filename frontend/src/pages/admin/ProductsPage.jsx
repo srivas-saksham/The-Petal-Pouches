@@ -105,6 +105,7 @@ export default function ProductsPage() {
     const params = {
       page: currentPage,
       limit: itemsPerPage,
+      admin_view: 'true'
     };
 
     // Add filters only if they have values

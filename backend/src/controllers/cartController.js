@@ -429,7 +429,7 @@ const CartController = {
       // Verify product exists
       const { data: product, error: productError } = await supabase
         .from(TABLES.PRODUCTS)
-        .select('id, title, price, stock')
+        .select('id, title, price, stock, is_sellable') // 🔒 NEW: Fetch sellability flag
         .eq('id', product_id)
         .single();
 
@@ -437,6 +437,14 @@ const CartController = {
         return res.status(404).json({
           success: false,
           message: 'Product not found'
+        });
+      }
+
+      // 🔒 NEW: CRITICAL SECURITY - Prevent bundle-only products from being purchased individually
+      if (product.is_sellable === false) {
+        return res.status(403).json({
+          success: false,
+          message: 'This product is only available as part of a bundle'
         });
       }
 

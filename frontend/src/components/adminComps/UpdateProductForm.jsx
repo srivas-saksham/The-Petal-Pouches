@@ -57,7 +57,8 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     cost_price: '',
     stock: '',
     sku: '',
-    category_id: ''
+    category_id: '',
+    is_sellable: true 
   });
   const [images, setImages] = useState([]); // New images: { file, preview, id, is_primary }
   const [existingImages, setExistingImages] = useState([]); // From server: { id, img_url, is_primary, display_order }
@@ -108,7 +109,8 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         cost_price: product.cost_price || '',
         stock: product.stock || '',
         sku: product.sku || '',
-        category_id: product.category_id || ''
+        category_id: product.category_id || '',
+        is_sellable: product.is_sellable !== undefined ? product.is_sellable : true
       });
       
       // ✅ NEW: Load existing images
@@ -540,7 +542,8 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         has_variants: hasVariants,
         images: images.map(img => img.file), // New images
         delete_image_ids: imagesToDelete, // Images to delete
-        tags: tags // 🆕 NEW: Include tags
+        tags: tags,
+        is_sellable: formData.is_sellable
       };
 
       // ✅ NEW: Handle primary image change for existing images
@@ -1136,6 +1139,51 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
               {formData.description.length}/2000 characters
             </p>
           </InputWrapper>
+        </div>
+
+        {/* 🔒 NEW: Sellable Toggle */}
+        <div className="bg-white rounded-lg p-5 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
+          <div className="flex items-start gap-4">
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, is_sellable: !prev.is_sellable }))}
+              className="relative flex items-center focus:outline-none focus:ring-2 focus:ring-tppslate/20 rounded-full"
+              role="switch"
+              aria-checked={formData.is_sellable}
+              aria-label="Toggle product sellability"
+            >
+              <div className={`w-11 h-6 rounded-full transition-all duration-200 ${
+                formData.is_sellable ? 'bg-green-500' : 'bg-purple-500'
+              }`}></div>
+              <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-all duration-200 shadow-sm ${
+                formData.is_sellable ? 'translate-x-5' : ''
+              }`}></div>
+            </button>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <Package className="w-4 h-4 text-tppslate/60" />
+                <span className="font-semibold text-sm text-tppslate">
+                  {formData.is_sellable ? 'Sell this product individually' : 'Bundle-only product'}
+                </span>
+              </div>
+              <p className="text-xs text-tppslate/60 mt-1">
+                {formData.is_sellable 
+                  ? 'This product can be purchased alone and used in bundles'
+                  : 'This product will ONLY appear inside bundles, not in the shop'
+                }
+              </p>
+              {!formData.is_sellable && (
+                <div className="mt-3 p-3 bg-purple-50 border-2 border-purple-200 rounded-lg animate-slide-in">
+                  <p className="text-xs text-purple-800 flex items-start gap-2">
+                    <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Bundle-Only Mode:</strong> This product won't appear in shop listings or search results. It can only be added to bundles.
+                    </span>
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Has Variants Toggle with WARNING */}

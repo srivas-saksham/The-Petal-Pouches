@@ -96,6 +96,7 @@ const getPriceRange = async () => {
       .from('Products')
       .select('price')
       .gt('stock', 0)
+      .eq('is_sellable', true) // 🔒 NEW: Only sellable products in price range
       .order('price', { ascending: true });
 
     if (error) throw error;
@@ -190,7 +191,8 @@ const createProduct = async (req, res) => {
       sku, 
       has_variants, 
       cost_price,
-      tags // 🆕 NEW: Accept tags from request
+      tags,
+      is_sellable
     } = req.body;
 
     // ✅ CHANGED: Support both 'images' array and 'image' single file
@@ -231,7 +233,8 @@ const createProduct = async (req, res) => {
       img_url: null,
       has_variants: has_variants === 'true' || has_variants === true || false,
       tags: parsedTags, // 🆕 NEW
-      primary_tag: primaryTag // 🆕 NEW
+      primary_tag: primaryTag,
+      is_sellable: is_sellable === 'false' || is_sellable === false ? false : true // 🔒 NEW: Default true
     };
 
     if (cost_price) {
@@ -364,7 +367,8 @@ const updateProduct = async (req, res) => {
       sku, 
       has_variants, 
       cost_price,
-      tags // 🆕 NEW
+      tags,
+      is_sellable
     } = req.body;
 
     // Fetch existing product
@@ -402,7 +406,12 @@ const updateProduct = async (req, res) => {
       } catch (parseError) {
         console.error('Tags parse error:', parseError);
       }
-}
+    } // <-- ADD THIS CLOSING BRACE
+
+    // 🔒 NEW: Handle is_sellable update
+    if (is_sellable !== undefined) {
+      updateData.is_sellable = is_sellable === 'false' || is_sellable === false ? false : true;
+    }
 
 // Handle cost_price and margins
     if (cost_price !== undefined) {
@@ -641,12 +650,20 @@ const getAllProducts = async (req, res) => {
       in_stock,
       has_variants,
       stock_level,
-      tags
+      tags,
+      admin_view
     } = req.query;
 
     let query = supabase
       .from('Products')
       .select('*, Categories(id, name)', { count: 'exact' });
+
+    // 🔒 NEW: Filter by sellability (unless admin view)
+    // Admin needs to see ALL products (sellable + bundle-only)
+    // Shop/public should only see sellable products
+    if (admin_view !== 'true') {
+      query = query.eq('is_sellable', true);
+    }
 
     // Apply filters (keeping all existing logic)
     if (category_id) {
