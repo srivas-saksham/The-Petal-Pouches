@@ -42,10 +42,18 @@ const app = express();
 // ============================================
 
 const allowedOrigins = [
-  process.env.FRONTEND_URL,              // prod frontend (later)
-  'http://localhost:5173',               // local frontend
-  'https://rizarabackend.vercel.app'     // backend self-origin (health, cron)
-].filter(Boolean);
+  // 🌍 Production frontend domains
+  'https://rizarafrontend.vercel.app',
+  'https://rizara.in',
+  'https://www.rizara.in',
+
+  // 🧪 Local development
+  'http://localhost:5173',
+
+  // 🛠 Backend self-origin
+  'https://rizarabackend.vercel.app'
+];
+
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;

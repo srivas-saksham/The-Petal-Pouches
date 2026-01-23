@@ -105,6 +105,11 @@ const verifyGatewayToken = (token) => {
  * Supports both JWT tokens and plain passwords (for backward compatibility)
  */
 const gatewayMiddleware = async (req, res, next) => {
+  // ✅ CRITICAL: Allow CORS preflight immediately
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+
   // ✅ FAST PATH: Gateway disabled
   if (!GATEWAY_ENABLED) {
     return next();
@@ -144,7 +149,8 @@ const gatewayMiddleware = async (req, res, next) => {
   }
 
   // ⚠️ CRITICAL: Extract token/password from custom header
-  const providedToken = req.headers[GATEWAY_HEADER_NAME];
+  const providedToken = req.headers[GATEWAY_HEADER_NAME.toLowerCase()];
+
 
   if (!providedToken) {
     return res.status(401).json({
