@@ -518,5 +518,6 @@ C:\Projects_External\The Petal Pouches\frontend\postcss.config.js
 C:\Projects_External\The Petal Pouches\frontend\README.md
 C:\Projects_External\The Petal Pouches\frontend\requirements.txt
 C:\Projects_External\The Petal Pouches\frontend\tailwind.config.js
+C:\Projects_External\The Petal Pouches\frontend\vercel.json
 C:\Projects_External\The Petal Pouches\frontend\vite.config.js
 C:\Projects_External\The Petal Pouches\scripts\export-structure.ps1
