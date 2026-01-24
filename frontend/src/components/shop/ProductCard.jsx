@@ -1,4 +1,4 @@
-// frontend/src/components/shop/ProductCard.jsx - MOBILE RESPONSIVE WITH DESKTOP UI PRESERVED
+// frontend/src/components/shop/ProductCard.jsx - MOBILE RESPONSIVE WITH SWIPER GESTURES
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -6,14 +6,21 @@ import { ShoppingCart, Eye, Check, Plus, Minus, Trash2, AlertTriangle, XCircle, 
 import { useCart } from '../../hooks/useCart';
 import { useUserAuth } from '../../context/UserAuthContext';
 
+// Import Swiper React components
+import { Swiper, SwiperSlide } from 'swiper/react';
+
+// Import Swiper styles
+import 'swiper/css';
+
 /**
  * ProductCard Component - Individual Product Display with Multi-Image Gallery
- * MOBILE RESPONSIVE - DESKTOP UI PRESERVED EXACTLY AS ORIGINAL
+ * MOBILE RESPONSIVE WITH SWIPER GESTURES - DESKTOP UI PRESERVED EXACTLY AS ORIGINAL
  * 
  * Features:
- * - Multi-image gallery with hover navigation
- * - Left/Right arrow navigation
- * - Dot indicators showing current image
+ * - Multi-image gallery with hover navigation (DESKTOP)
+ * - Swiper touch gestures for mobile image navigation
+ * - Left/Right arrow navigation (DESKTOP ONLY)
+ * - Dot indicators (ALWAYS VISIBLE ON MOBILE)
  * - Complete cart integration
  * - Stock management
  * - Debounced quantity updates
@@ -56,6 +63,7 @@ const ProductCard = ({ product, onQuickView }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const [swiperInstance, setSwiperInstance] = useState(null);
   const hasMultipleImages = images.length > 1;
   const currentImage = images[currentImageIndex] || null;
   
@@ -93,6 +101,11 @@ const ProductCard = ({ product, onQuickView }) => {
     const newIndex = currentImageIndex === 0 ? images.length - 1 : currentImageIndex - 1;
     setCurrentImageIndex(newIndex);
     setImageLoaded(false);
+    
+    // Sync with Swiper if available
+    if (swiperInstance) {
+      swiperInstance.slideTo(newIndex);
+    }
   };
 
   const handleNextImage = (e) => {
@@ -101,6 +114,11 @@ const ProductCard = ({ product, onQuickView }) => {
     const newIndex = currentImageIndex === images.length - 1 ? 0 : currentImageIndex + 1;
     setCurrentImageIndex(newIndex);
     setImageLoaded(false);
+    
+    // Sync with Swiper if available
+    if (swiperInstance) {
+      swiperInstance.slideTo(newIndex);
+    }
   };
 
   const handleDotClick = (e, index) => {
@@ -109,7 +127,18 @@ const ProductCard = ({ product, onQuickView }) => {
     if (index !== currentImageIndex) {
       setCurrentImageIndex(index);
       setImageLoaded(false);
+      
+      // Sync with Swiper if available
+      if (swiperInstance) {
+        swiperInstance.slideTo(index);
+      }
     }
+  };
+
+  const handleSlideChange = (swiper) => {
+    const index = hasMultipleImages ? swiper.realIndex : swiper.activeIndex;
+    setCurrentImageIndex(index);
+    setImageLoaded(false);
   };
 
   // Reset image index when product changes
@@ -123,7 +152,12 @@ const ProductCard = ({ product, onQuickView }) => {
       img.onload = () => setImageLoaded(true);
       img.onerror = () => setImageLoaded(true);
     }
-  }, [product.id, images]);
+    
+    // Reset swiper to first slide
+    if (swiperInstance) {
+      swiperInstance.slideTo(0);
+    }
+  }, [product.id, images, swiperInstance]);
 
   // ===========================
   // CART SYNC EFFECTS
@@ -299,7 +333,7 @@ const ProductCard = ({ product, onQuickView }) => {
     <div className={`bg-white rounded-lg border border-tppgrey shadow-sm hover:shadow-md hover:border-tppslate/60 transition-all duration-200 overflow-hidden group ${isInCart ? 'border-2 border-tpppink' : ''}`}>
       
       {/* ===========================
-          IMAGE SECTION WITH GALLERY
+          IMAGE SECTION WITH GALLERY & SWIPER
           =========================== */}
       <Link 
         to={`/shop/products/${product.id}`} 
@@ -307,78 +341,134 @@ const ProductCard = ({ product, onQuickView }) => {
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
       >
-        {/* Loading Skeleton */}
-        {!imageLoaded && (
-          <div className="absolute inset-0 bg-tppgrey/10 animate-pulse" />
-        )}
-        
-        {/* Current Image Display */}
-        {currentImage ? (
-          <img
-            key={`${product.id}-${currentImageIndex}`}
-            src={currentImage.img_url}
-            alt={`${product.title} - Image ${currentImageIndex + 1}`}
-            className={`w-full h-full object-cover transition-all duration-300 ${
-              imageLoaded ? 'opacity-100' : 'opacity-0'
-            } ${isOutOfStock ? 'grayscale opacity-60' : 'group-hover:scale-105'}`}
-            onLoad={() => setImageLoaded(true)}
-            onError={(e) => {
-              e.target.src = '/placeholder-product.png';
-              setImageLoaded(true);
-            }}
-          />
-        ) : (
-          // Fallback when no images exist
-          <div className="w-full h-full flex items-center justify-center bg-slate-50">
-            <Package size={48} className="md:w-16 md:h-16 text-slate-300" />
-          </div>
-        )}
+        {/* MOBILE: Swiper Gallery with Touch Gestures */}
+        <div className="md:hidden w-full h-full">
+          {images.length > 0 ? (
+            <Swiper
+              spaceBetween={0}
+              slidesPerView={1}
+              onSwiper={setSwiperInstance}
+              onSlideChange={handleSlideChange}
+              loop={hasMultipleImages}
+              loopAdditionalSlides={1}
+              className="w-full h-full"
+            >
+              {images.map((image, index) => (
+                <SwiperSlide key={image.id || index}>
+                  <img
+                    src={image.img_url}
+                    alt={`${product.title} - Image ${index + 1}`}
+                    className={`w-full h-full object-cover ${
+                      isOutOfStock ? 'grayscale opacity-60' : ''
+                    }`}
+                    onError={(e) => {
+                      e.target.src = '/placeholder-product.png';
+                    }}
+                  />
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-slate-50">
+              <Package size={48} className="text-slate-300" />
+            </div>
+          )}
+        </div>
 
-        {/* Navigation Arrows - MOBILE: Always visible, DESKTOP: Show on hover */}
-        {hasMultipleImages && !isOutOfStock && (
-          <>
-            {/* Left Arrow - Responsive sizing */}
-            <button
-              onClick={handlePreviousImage}
-              className={`absolute left-1 md:left-2 top-1/2 -translate-y-1/2 w-6 h-6 md:w-8 md:h-8 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group/arrow z-20 ${
-                isHovering ? 'opacity-100' : 'opacity-100 md:opacity-0'
-              }`}
-              aria-label="Previous image"
-            >
-              <ChevronLeft size={14} className="md:w-4 md:h-4 text-slate-700 group-hover/arrow:text-tpppink transition-colors" />
-            </button>
-            
-            {/* Right Arrow - Responsive sizing */}
-            <button
-              onClick={handleNextImage}
-              className={`absolute right-1 md:right-2 top-1/2 -translate-y-1/2 w-6 h-6 md:w-8 md:h-8 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group/arrow z-20 ${
-                isHovering ? 'opacity-100' : 'opacity-100 md:opacity-0'
-              }`}
-              aria-label="Next image"
-            >
-              <ChevronRight size={14} className="md:w-4 md:h-4 text-slate-700 group-hover/arrow:text-tpppink transition-colors" />
-            </button>
-          </>
-        )}
+        {/* DESKTOP: Original Image Display with Hover Navigation */}
+        <div className="hidden md:block w-full h-full">
+          {/* Loading Skeleton */}
+          {!imageLoaded && (
+            <div className="absolute inset-0 bg-tppgrey/10 animate-pulse" />
+          )}
+          
+          {/* Current Image Display */}
+          {currentImage ? (
+            <img
+              key={`${product.id}-${currentImageIndex}`}
+              src={currentImage.img_url}
+              alt={`${product.title} - Image ${currentImageIndex + 1}`}
+              className={`w-full h-full object-cover transition-all duration-300 ${
+                imageLoaded ? 'opacity-100' : 'opacity-0'
+              } ${isOutOfStock ? 'grayscale opacity-60' : 'group-hover:scale-105'}`}
+              onLoad={() => setImageLoaded(true)}
+              onError={(e) => {
+                e.target.src = '/placeholder-product.png';
+                setImageLoaded(true);
+              }}
+            />
+          ) : (
+            // Fallback when no images exist
+            <div className="w-full h-full flex items-center justify-center bg-slate-50">
+              <Package size={48} className="md:w-16 md:h-16 text-slate-300" />
+            </div>
+          )}
+
+          {/* Navigation Arrows - DESKTOP ONLY: Show on hover */}
+          {hasMultipleImages && !isOutOfStock && (
+            <>
+              {/* Left Arrow */}
+              <button
+                onClick={handlePreviousImage}
+                className={`absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group/arrow z-20 ${
+                  isHovering ? 'opacity-100' : 'opacity-0'
+                }`}
+                aria-label="Previous image"
+              >
+                <ChevronLeft size={16} className="text-slate-700 group-hover/arrow:text-tpppink transition-colors" />
+              </button>
+              
+              {/* Right Arrow */}
+              <button
+                onClick={handleNextImage}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group/arrow z-20 ${
+                  isHovering ? 'opacity-100' : 'opacity-0'
+                }`}
+                aria-label="Next image"
+              >
+                <ChevronRight size={16} className="text-slate-700 group-hover/arrow:text-tpppink transition-colors" />
+              </button>
+            </>
+          )}
+        </div>
 
         {/* Dot Indicators - MOBILE: Always visible, DESKTOP: Show on hover */}
         {hasMultipleImages && (
-          <div className={`absolute bottom-2 md:bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2 py-1 md:py-1.5 bg-black/60 backdrop-blur-sm rounded-full z-20 ${
-            isHovering ? 'opacity-100' : 'opacity-100 md:opacity-0'
-          }`}>
-            {images.map((_, index) => (
-              <button
-                key={index}
-                onClick={(e) => handleDotClick(e, index)}
-                className={`transition-all duration-200 rounded-full ${
-                  index === currentImageIndex
-                    ? 'w-1.5 md:w-2 h-1 bg-white'
-                    : 'w-1 h-1 bg-white/50 hover:bg-white/75'
-                }`}
-                aria-label={`Go to image ${index + 1}`}
-              />
-            ))}
-          </div>
+          <>
+            {/* Mobile: Manual dot indicators */}
+            <div className="md:hidden absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 px-1.5 py-1 bg-black/60 backdrop-blur-sm rounded-full z-20">
+              {images.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={(e) => handleDotClick(e, index)}
+                  className={`transition-all duration-200 rounded-full ${
+                    index === currentImageIndex
+                      ? 'w-1.5 h-1 bg-white'
+                      : 'w-1 h-1 bg-white/50 active:bg-white/75'
+                  }`}
+                  aria-label={`Go to image ${index + 1}`}
+                />
+              ))}
+            </div>
+            
+            {/* Desktop: Custom dot indicators */}
+            <div className={`hidden md:flex absolute bottom-3 left-1/2 -translate-x-1/2 items-center gap-1.5 px-2 py-1.5 bg-black/60 backdrop-blur-sm rounded-full z-20 transition-opacity duration-200 ${
+              isHovering ? 'opacity-100' : 'opacity-0'
+            }`}>
+              {images.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={(e) => handleDotClick(e, index)}
+                  className={`transition-all duration-200 rounded-full ${
+                    index === currentImageIndex
+                      ? 'w-2 h-1 bg-white'
+                      : 'w-1 h-1 bg-white/50 hover:bg-white/75'
+                  }`}
+                  aria-label={`Go to image ${index + 1}`}
+                />
+              ))}
+            </div>
+          </>
         )}
 
         {/* Out of Stock Badge - Responsive */}

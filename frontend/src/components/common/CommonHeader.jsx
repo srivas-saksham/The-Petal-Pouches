@@ -234,14 +234,17 @@ const CommonHeader = () => {
                 {/* User Profile Menu Component */}
                 <UserProfileMenu user={user} />
 
-                {/* Orders & Tracking Button */}
+                {/* Orders & Tracking Button - MOBILE: Icon only, DESKTOP: Text */}
                 <button
                   onClick={handleOrdersClick}
-                  className="flex items-center rounded-lg border border-transparent transition-all text-tppslate hover:text-tpppink"
+                  className="flex items-center gap-2 rounded-lg border border-transparent transition-all text-tppslate hover:text-tpppink"
                   title="Orders & Tracking"
                   aria-label="Orders & Tracking"
                 >
-                  {/* Label (hidden on mobile) */}
+                  {/* Icon - MOBILE ONLY */}
+                  <Package size={20} className="md:hidden" />
+                  
+                  {/* Label - DESKTOP ONLY */}
                   <span className="hidden md:inline text-sm font-medium max-w-[120px] truncate">
                     Your Orders
                   </span>
@@ -250,7 +253,7 @@ const CommonHeader = () => {
                 {/* Cart Icon */}
                 <button
                   onClick={handleCartClick}
-                  className="relative text-slate-600 hover:text-tpppink transition-colors"
+                  className="relative text-slate-600 hover:text-tpppink transition-colors ml-2"
                   title="Shopping Cart"
                   aria-label={`Shopping Cart (${cartCount} items)`}
                 >
@@ -302,7 +305,7 @@ const CommonHeader = () => {
 
         {/* ROW 2: Navigation Links - MOBILE ONLY */}
         <div className="md:hidden border-t border-slate-100">
-          <nav className="flex items-center justify-between px-6 py-3">
+          <nav className="flex items-center justify-between py-3">
             <Link
               to="/"
               className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
