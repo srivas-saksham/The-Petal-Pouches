@@ -162,31 +162,34 @@ const Addresses = () => {
   // Skeleton loading state
   if (loading && !showAddForm) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-3 md:px-4 py-4 md:py-6">
         <AddressesSkeleton />
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4">
+    <div className="max-w-7xl mx-auto px-3 md:px-4">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-4 md:mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-tppslate flex items-center gap-3">
-              <MapPinned className="w-7 h-7 text-tpppink" />
+            <h1 className="text-2xl font-bold text-tppslate flex items-center gap-2 md:gap-3">
+              <MapPinned className="w-5 h-5 md:w-7 md:h-7 text-tpppink" />
               My Addresses
             </h1>
-            <p className="text-sm text-tppslate/80 mt-1">
-              Manage your delivery addresses • {addresses.length} {addresses.length === 1 ? 'address' : 'addresses'} saved
+            <p className="text-xs md:text-sm text-tppslate/80 mt-0.5 md:mt-1">
+              Manage your delivery addresses
+            </p>
+            <p className="text-xs md:text-sm text-tppslate/80 mt-0.5 md:mt-1">
+              • {addresses.length} {addresses.length === 1 ? 'address' : 'addresses'} saved
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Layout Toggle */}
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* Layout Toggle - HIDDEN ON MOBILE */}
             {!showAddForm && addresses.length > 0 && (
-              <div className="flex items-center gap-1 bg-tppslate/5 rounded-lg p-1 border border-tppslate/10">
+              <div className="hidden md:flex items-center gap-1 bg-tppslate/5 rounded-lg p-1 border border-tppslate/10">
                 <button
                   onClick={() => setLayoutColumns(2)}
                   className={`px-3 py-2 rounded-md transition-all duration-200 flex items-center gap-1.5 text-xs font-bold ${
@@ -217,9 +220,9 @@ const Addresses = () => {
             {!showAddForm && (
               <button
                 onClick={handleAddAddress}
-                className="flex items-center gap-2 px-4 py-2.5 bg-tpppink text-white rounded-lg hover:bg-tpppink/90 transition-all duration-200 shadow-sm font-bold text-sm"
+                className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-tpppink text-white rounded-lg hover:bg-tpppink/90 transition-all duration-200 shadow-sm font-bold text-xs md:text-sm"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 <span className="hidden sm:inline">Add New Address</span>
                 <span className="sm:hidden">Add</span>
               </button>

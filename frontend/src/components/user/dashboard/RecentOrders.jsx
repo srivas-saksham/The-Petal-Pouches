@@ -1,8 +1,7 @@
-// frontend/src/components/user/dashboard/RecentOrders.jsx - BALANCED COMPACT DESIGN
+// frontend/src/components/user/dashboard/RecentOrders.jsx
 
 import React, { useState, useEffect } from 'react';
 import { Package, Clock, Truck, CheckCircle, XCircle, MapPin, Calendar } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
 /**
  * Get status configuration with colors (matching OrderCard)
@@ -155,13 +154,13 @@ const RecentOrders = ({ orders = [], loading = false, onViewAll }) => {
   useEffect(() => {
     console.log('📦 Recent Orders received:', orders);
     if (orders && Array.isArray(orders)) {
-      setDisplayOrders(orders.slice(0, 5));
+      setDisplayOrders(orders.slice(0, 3));
     }
   }, [orders]);
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-tppslate/10 p-5">
+      <div className="bg-white rounded-xl border border-tppslate/10 p-4 md:p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="h-5 bg-tppslate/10 rounded w-32 animate-pulse"></div>
           <div className="h-4 bg-tppslate/10 rounded w-16 animate-pulse"></div>
@@ -169,12 +168,30 @@ const RecentOrders = ({ orders = [], loading = false, onViewAll }) => {
         
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="flex gap-3 p-3 border border-tppslate/10 rounded-lg animate-pulse">
-              <div className="w-16 h-16 bg-tppslate/10 rounded"></div>
-              <div className="flex-1 space-y-2">
-                <div className="h-4 bg-tppslate/10 rounded w-3/4"></div>
-                <div className="h-3 bg-tppslate/10 rounded w-1/2"></div>
-                <div className="h-3 bg-tppslate/10 rounded w-1/3"></div>
+            <div key={i} className="border border-tppslate/10 rounded-lg p-3 animate-pulse">
+              {/* Mobile Loading */}
+              <div className="flex flex-col gap-3 md:hidden">
+                <div className="flex gap-2 items-center">
+                  <div className="w-20 h-20 bg-tppslate/10 rounded"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-tppslate/10 rounded w-3/4"></div>
+                    <div className="h-3 bg-tppslate/10 rounded w-1/2"></div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-3 bg-tppslate/10 rounded w-1/3"></div>
+                  <div className="h-3 bg-tppslate/10 rounded w-1/2"></div>
+                </div>
+              </div>
+              
+              {/* Desktop Loading */}
+              <div className="hidden md:flex gap-3">
+                <div className="w-16 h-16 bg-tppslate/10 rounded"></div>
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-tppslate/10 rounded w-3/4"></div>
+                  <div className="h-3 bg-tppslate/10 rounded w-1/2"></div>
+                  <div className="h-3 bg-tppslate/10 rounded w-1/3"></div>
+                </div>
               </div>
             </div>
           ))}
@@ -185,7 +202,7 @@ const RecentOrders = ({ orders = [], loading = false, onViewAll }) => {
 
   if (!displayOrders || displayOrders.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-tppslate/10 p-5">
+      <div className="bg-white rounded-xl border border-tppslate/10 p-4 md:p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-tppslate flex items-center gap-2">
             <Package className="w-4 h-4" />
@@ -196,19 +213,19 @@ const RecentOrders = ({ orders = [], loading = false, onViewAll }) => {
         <div className="text-center py-12">
           <Package className="w-12 h-12 text-tppslate/20 mx-auto mb-3" />
           <p className="text-sm text-tppslate/60 mb-4">No orders yet</p>
-          <Link 
-            to="/products" 
+          <a 
+            href="/products" 
             className="inline-flex items-center gap-2 px-4 py-2 bg-tppslate text-white text-sm font-semibold rounded-lg hover:bg-tppslate/90 transition-colors"
           >
             Browse Products
-          </Link>
+          </a>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl border border-tppslate/10 p-5">
+    <div className="bg-white rounded-xl border border-tppslate/10 p-4 md:p-5">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-bold text-tppslate flex items-center gap-2">
@@ -226,8 +243,8 @@ const RecentOrders = ({ orders = [], loading = false, onViewAll }) => {
         )}
       </div>
 
-      {/* Orders List - Balanced Compact */}
-      <div className="space-y-3">
+      {/* Orders List */}
+      <div className="space-y-2 md:space-y-3">
         {displayOrders.map((order) => {
           console.log('📦 Order status:', order.status, 'for order:', order.id);
           
@@ -242,85 +259,163 @@ const RecentOrders = ({ orders = [], loading = false, onViewAll }) => {
           const orderId = order.id?.substring(0, 8).toUpperCase() || 'N/A';
           
           return (
-            <Link
+            <a
               key={order.id}
-              to={`/user/orders/${order.id}`}
-              className="flex gap-3 p-3 border border-tppslate/30 rounded-lg hover:border-tpppink/90 hover:bg-tppslate/[0.02] transition-all group"
+              href={`/user/orders/${order.id}`}
+              className="block border border-tppslate/30 rounded-lg p-2.5 md:p-3 hover:border-tpppink/90 hover:bg-tppslate/[0.02] transition-all"
             >
-              {/* Image */}
-              <div className="relative flex-shrink-0">
-                <div className="w-16 h-16 rounded-lg overflow-hidden bg-tppslate/5">
-                  {firstItem?.bundle_img ? (
-                    <img
-                      src={firstItem.bundle_img}
-                      alt={firstItem.bundle_title || 'Order'}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Package className="w-6 h-6 text-tppslate/20" />
+              {/* MOBILE LAYOUT - Compact Vertical Stack */}
+              <div className="flex flex-col gap-2 md:hidden">
+                {/* Row 1: Image + Title/OrderID + Status Badge (Horizontal) */}
+                <div className="flex gap-2 items-start">
+                  {/* Image */}
+                  <div className="relative flex-shrink-0">
+                    <div className="w-14 h-14 rounded-lg overflow-hidden bg-tppslate/5">
+                      {firstItem?.bundle_img ? (
+                        <img
+                          src={firstItem.bundle_img}
+                          alt={firstItem.bundle_title || 'Order'}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Package className="w-5 h-5 text-tppslate/20" />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                {itemCount > 1 && (
-                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-tppslate text-white rounded-full flex items-center justify-center text-[10px] font-bold">
-                    {itemCount}
+                    {itemCount > 1 && (
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-tppslate text-white rounded-full flex items-center justify-center text-[10px] font-bold">
+                        {itemCount}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Details - Two Lines */}
-              <div className="flex-1 min-w-0">
-                {/* Line 1: Title + Status */}
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-tppslate truncate">
+                  {/* Title + Order ID + Status */}
+                  <div className="flex-1 min-w-0 flex flex-col gap-1">
+                    <h3 className="text-xs font-semibold text-tppslate line-clamp-2 leading-tight">
                       {firstItem?.bundle_title || 'Order Bundle'}
                     </h3>
-                    <p className="text-xs text-tppslate/60 font-mono">
+                    <p className="text-[10px] text-tppslate/60 font-mono">
                       #{orderId}
                       {itemCount > 1 && <span className="text-tppslate/50"> • {itemCount} items</span>}
                     </p>
-                  </div>
-                  
-                  {/* Status Badge */}
-                  <div className={`flex items-center gap-1 px-2 py-1 ${statusConfig.bg} rounded text-xs font-semibold ${statusConfig.text} whitespace-nowrap`}>
-                    <StatusIcon className="w-3 h-3" />
-                    {statusConfig.label}
+                    
+                    {/* Status Badge - Inline */}
+                    <div className={`inline-flex self-start items-center gap-1 px-2 py-0.5 ${statusConfig.bg} rounded text-[10px] font-semibold ${statusConfig.text}`}>
+                      <StatusIcon className="w-2.5 h-2.5" />
+                      {statusConfig.label}
+                    </div>
                   </div>
                 </div>
 
-                {/* Line 2: Location + Date + Amount */}
-                <div className="flex items-center gap-3 text-xs text-tppslate/70">
+                {/* Row 2: Compact Metadata - Single Line with Separators */}
+                <div className="flex items-center gap-2 text-[11px] text-tppslate/70 flex-wrap">
                   {/* Location */}
                   <div className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    <span>{city}</span>
+                    <MapPin className="w-3 h-3 flex-shrink-0" />
+                    <span className="truncate max-w-[80px]">{city}</span>
                   </div>
                   
                   <span className="text-tppslate/30">•</span>
                   
                   {/* Date/Status Info */}
                   <div className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
+                    <Calendar className="w-3 h-3 flex-shrink-0" />
                     {order.status === 'delivered' ? (
-                      <span>Delivered {formatDate(order.delivered_at || order.created_at)}</span>
+                      <span>{formatDate(order.delivered_at || order.created_at)}</span>
                     ) : order.status === 'cancelled' ? (
-                      <span>Cancelled {formatDate(order.created_at)}</span>
+                      <span>{formatDate(order.created_at)}</span>
                     ) : (
-                      <span>Arriving {getEstimatedDelivery(order)}</span>
+                      <span>{getEstimatedDelivery(order)}</span>
                     )}
                   </div>
                   
                   <span className="text-tppslate/30">•</span>
                   
                   {/* Amount */}
-                  <span className="font-semibold text-tppslate ml-auto">
+                  <span className="font-semibold text-xs text-tppslate ml-auto">
                     {formatCurrency(order.final_total || order.total)}
                   </span>
                 </div>
               </div>
-            </Link>
+
+              {/* DESKTOP LAYOUT - Original Horizontal (UNCHANGED) */}
+              <div className="hidden md:flex gap-3">
+                {/* Image */}
+                <div className="relative flex-shrink-0">
+                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-tppslate/5">
+                    {firstItem?.bundle_img ? (
+                      <img
+                        src={firstItem.bundle_img}
+                        alt={firstItem.bundle_title || 'Order'}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package className="w-6 h-6 text-tppslate/20" />
+                      </div>
+                    )}
+                  </div>
+                  {itemCount > 1 && (
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-tppslate text-white rounded-full flex items-center justify-center text-[10px] font-bold">
+                      {itemCount}
+                    </div>
+                  )}
+                </div>
+
+                {/* Details - Two Lines */}
+                <div className="flex-1 min-w-0">
+                  {/* Line 1: Title + Status */}
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold text-tppslate truncate">
+                        {firstItem?.bundle_title || 'Order Bundle'}
+                      </h3>
+                      <p className="text-xs text-tppslate/60 font-mono">
+                        #{orderId}
+                        {itemCount > 1 && <span className="text-tppslate/50"> • {itemCount} items</span>}
+                      </p>
+                    </div>
+                    
+                    {/* Status Badge */}
+                    <div className={`flex items-center gap-1 px-2 py-1 ${statusConfig.bg} rounded text-xs font-semibold ${statusConfig.text} whitespace-nowrap`}>
+                      <StatusIcon className="w-3 h-3" />
+                      {statusConfig.label}
+                    </div>
+                  </div>
+
+                  {/* Line 2: Location + Date + Amount */}
+                  <div className="flex items-center gap-3 text-xs text-tppslate/70">
+                    {/* Location */}
+                    <div className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      <span>{city}</span>
+                    </div>
+                    
+                    <span className="text-tppslate/30">•</span>
+                    
+                    {/* Date/Status Info */}
+                    <div className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {order.status === 'delivered' ? (
+                        <span>Delivered {formatDate(order.delivered_at || order.created_at)}</span>
+                      ) : order.status === 'cancelled' ? (
+                        <span>Cancelled {formatDate(order.created_at)}</span>
+                      ) : (
+                        <span>Arriving {getEstimatedDelivery(order)}</span>
+                      )}
+                    </div>
+                    
+                    <span className="text-tppslate/30">•</span>
+                    
+                    {/* Amount */}
+                    <span className="font-semibold text-tppslate ml-auto">
+                      {formatCurrency(order.final_total || order.total)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </a>
           );
         })}
       </div>

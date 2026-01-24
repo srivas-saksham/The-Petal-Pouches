@@ -28,7 +28,7 @@ const BundleShop = () => {
   const scrollThreshold = 50;
 
   const [layoutMode, setLayoutMode] = useState(() => {
-    return localStorage.getItem('bundleLayoutMode') || '5';
+    return localStorage.getItem('bundleLayoutMode') || '4';
   });
   
   const { cartItems, refreshCart } = useCart();

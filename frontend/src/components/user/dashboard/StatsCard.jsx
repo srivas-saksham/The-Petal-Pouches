@@ -1,5 +1,3 @@
-// frontend/src/components/user/dashboard/StatsCard.jsx
-
 import React, { useState } from 'react';
 import { Package, TrendingUp, Clock, CheckCircle, ChevronDown } from 'lucide-react';
 
@@ -27,8 +25,16 @@ const StatsCard = ({
 
   if (loading) {
     return (
-      <div className="bg-white border border-tppslate/10 rounded-lg p-3 animate-pulse">
-        <div className="flex items-center justify-between h-full">
+      <div className="bg-white border border-tppslate/10 rounded-lg p-2 md:p-3 animate-pulse">
+        {/* Mobile Loading State - Compact Vertical Stack */}
+        <div className="flex flex-col items-center gap-1 md:hidden">
+          <div className="w-4 h-4 bg-tppslate/10 rounded"></div>
+          <div className="w-20 h-2.5 bg-tppslate/10 rounded"></div>
+          <div className="w-12 h-6 bg-tppslate/10 rounded"></div>
+        </div>
+        
+        {/* Desktop Loading State - Original Horizontal */}
+        <div className="hidden md:flex items-center justify-between h-full">
           <div className="flex-1 flex flex-col gap-1">
             <div className="w-4 h-4 bg-tppslate/10 rounded"></div>
             <div className="w-20 h-3 bg-tppslate/10 rounded"></div>
@@ -42,8 +48,66 @@ const StatsCard = ({
   }
 
   return (
-    <div className="bg-white border border-tppslate/10 rounded-lg p-3 hover:border-tppslate/30 transition-colors">
-      <div className="flex items-center justify-between h-full gap-3">
+    <div className="bg-white border border-tppslate/10 rounded-lg p-2 md:p-3 hover:border-tppslate/30 transition-colors">
+      {/* MOBILE LAYOUT - Compact Vertical Stack */}
+      <div className="flex flex-col items-center justify-between gap-1 min-h-[100px] md:hidden">
+        {/* Icon */}
+        <Icon className="w-4 h-4 text-tpppink flex-shrink-0" />
+        
+        {/* Label */}
+        <p className="text-sm text-tppslate/60 font-medium text-center leading-tight">{label}</p>
+        
+        {/* Dropdown (if present) */}
+        {dropdown && (
+          <div className="relative">
+            <button
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="flex items-center gap-1 text-[10px] font-semibold text-tppslate/50 hover:text-tppslate transition-colors py-0.5 px-1.5"
+            >
+              {dropdown.selected}
+              <ChevronDown className={`w-3 h-3 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {dropdownOpen && (
+              <>
+                {/* Backdrop */}
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setDropdownOpen(false)}
+                />
+                
+                {/* Dropdown Menu */}
+                <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-white border border-tppslate/10 rounded-lg shadow-lg py-1 z-20 min-w-[140px]">
+                  {dropdown.options.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        dropdown.onChange(option.value);
+                        setDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
+                        dropdown.selected === option.label
+                          ? 'bg-tpppink/10 text-tpppink font-semibold'
+                          : 'text-tppslate/80 hover:bg-tppslate/5'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        
+        {/* Value */}
+        <p className="text-xl font-bold text-tppslate leading-none">
+          {value}
+        </p>
+      </div>
+
+      {/* DESKTOP LAYOUT - Original Horizontal (UNCHANGED) */}
+      <div className="hidden md:flex items-center justify-between h-full gap-3">
         {/* Left Column - Icon + Label (80%) */}
         <div className="flex-1 min-w-0">
           <div className="mb-1.5">
@@ -244,7 +308,7 @@ export const DashboardStats = ({ stats, loading = false }) => {
   const selectedTimelineLabel = timelineOptions.find(opt => opt.value === spendTimeline)?.label || 'Lifetime';
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
       {/* Total Orders */}
       <StatsCard
         icon={Package}

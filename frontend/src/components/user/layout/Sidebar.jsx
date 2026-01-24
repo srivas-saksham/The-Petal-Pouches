@@ -112,7 +112,6 @@ export default function UserSidebar({ isOpen, onClose }) {
       <aside
         className={`
           fixed lg:sticky top-0 left-0 h-screen
-          relative
           z-50
           transition-all duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -157,18 +156,21 @@ export default function UserSidebar({ isOpen, onClose }) {
           bg-white/10 flex items-center gap-3 border-b-2 border-white/20 transition-all relative z-10
           ${isCollapsed ? 'justify-center px-3 py-4' : 'px-5 py-5'}
         `}>
-          <div className={`
-            bg-white rounded-lg flex items-center justify-center flex-shrink-0 transition-all
+          {/* <div className={`
+            bg-white rounded-lg flex items-center justify-center flex-shrink-0 transition-all overflow-hidden
             ${isCollapsed ? 'w-11 h-11' : 'w-9 h-9'}
           `}>
-            <span className={`text-tpppink font-bold transition-all ${isCollapsed ? 'text-lg' : 'text-base'}`}>
-              TP
-            </span>
-          </div>
+            <img 
+              src="/assets/RZ_infinity.png" 
+              alt="Rizara Logo" 
+              className="w-full h-full object-contain"
+            />
+          </div> */}
           {!isCollapsed && (
             <div className="flex-1 overflow-hidden">
-              <h1 className="text-white font-semibold text-base truncate">The Petal Pouches</h1>
-              <p className="text-white/70 text-xs">Customer Portal</p>
+              <h1 className="text-white font-italianno text-5xl tracking-wide truncate">
+                Rizara
+              </h1>
             </div>
           )}
         </div>
