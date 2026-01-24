@@ -353,13 +353,15 @@ const BundleCard = ({ bundle, onQuickView }) => {
           </div>
         )}
 
-        {/* Navigation Arrows - ONLY ON HOVER & MULTIPLE IMAGES */}
-        {hasMultipleImages && isHovering && !isOutOfStock && (
+        {/* Navigation Arrows - MOBILE: Always visible, DESKTOP: Show on hover */}
+        {hasMultipleImages && !isOutOfStock && (
           <>
             {/* Left Arrow - Responsive sizing */}
             <button
               onClick={handlePreviousImage}
-              className="absolute left-1 md:left-2 top-1/2 -translate-y-1/2 w-6 h-6 md:w-8 md:h-8 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group/arrow z-20"
+              className={`absolute left-1 md:left-2 top-1/2 -translate-y-1/2 w-6 h-6 md:w-8 md:h-8 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group/arrow z-20 ${
+                isHovering ? 'opacity-100' : 'opacity-100 md:opacity-0'
+              }`}
               aria-label="Previous image"
             >
               <ChevronLeft size={14} className="md:w-4 md:h-4 text-slate-700 group-hover/arrow:text-tpppink transition-colors" />
@@ -368,7 +370,9 @@ const BundleCard = ({ bundle, onQuickView }) => {
             {/* Right Arrow - Responsive sizing */}
             <button
               onClick={handleNextImage}
-              className="absolute right-1 md:right-2 top-1/2 -translate-y-1/2 w-6 h-6 md:w-8 md:h-8 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group/arrow z-20"
+              className={`absolute right-1 md:right-2 top-1/2 -translate-y-1/2 w-6 h-6 md:w-8 md:h-8 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group/arrow z-20 ${
+                isHovering ? 'opacity-100' : 'opacity-100 md:opacity-0'
+              }`}
               aria-label="Next image"
             >
               <ChevronRight size={14} className="md:w-4 md:h-4 text-slate-700 group-hover/arrow:text-tpppink transition-colors" />
@@ -376,9 +380,11 @@ const BundleCard = ({ bundle, onQuickView }) => {
           </>
         )}
 
-        {/* Dot Indicators - ONLY ON HOVER & MULTIPLE IMAGES */}
-        {hasMultipleImages && isHovering && (
-          <div className="absolute bottom-2 md:bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2 py-1 md:py-1.5 bg-black/60 backdrop-blur-sm rounded-full z-20">
+        {/* Dot Indicators - MOBILE: Always visible, DESKTOP: Show on hover */}
+        {hasMultipleImages && (
+          <div className={`absolute bottom-2 md:bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2 py-1 md:py-1.5 bg-black/60 backdrop-blur-sm rounded-full z-20 ${
+            isHovering ? 'opacity-100' : 'opacity-100 md:opacity-0'
+          }`}>
             {images.map((_, index) => (
               <button
                 key={index}

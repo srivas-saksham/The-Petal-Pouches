@@ -1,4 +1,4 @@
-// frontend/src/components/home/GiftQuizModule.jsx - COMPACT VERSION
+// frontend/src/components/home/GiftQuizModule.jsx - MOBILE OPTIMIZED
 
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, useInView } from 'framer-motion';
@@ -74,7 +74,14 @@ const GridBackground = ({ gridSize = 45, opacity = 0.05, mousePos }) => {
 };
 
 /**
- * GiftQuizModule Component - COMPACT VERSION
+ * GiftQuizModule Component - MOBILE OPTIMIZED
+ * 
+ * Mobile Changes:
+ * ✅ Minimal text on mobile - only title
+ * ✅ Removed features section on mobile
+ * ✅ Removed CTA hints on mobile
+ * ✅ Compact layout
+ * ✅ Desktop UI unchanged
  */
 const GiftQuizModule = ({ onAddToCart }) => {
   const sectionRef = useRef(null);
@@ -87,8 +94,9 @@ const GiftQuizModule = ({ onAddToCart }) => {
 
   return (
     <section
+      id="gift-quiz-section"
       ref={sectionRef}
-      className="relative py-16 md:py-24 bg-gradient-to-br from-white via-tpppeach/10 to-tpppeach/20 overflow-hidden"
+      className="relative py-12 md:py-24 bg-gradient-to-br from-white via-tpppeach/10 to-tpppeach/20 overflow-hidden"
       onMouseMove={handleMouseMove}
       onMouseLeave={() => setMousePos(null)}
     >
@@ -131,26 +139,26 @@ const GiftQuizModule = ({ onAddToCart }) => {
             initial={{ opacity: 0, x: -30 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.8 }}
-            className="lg:pr-6 space-y-6"
+            className="lg:pr-6 space-y-4 md:space-y-6"
           >
-            {/* Small heading */}
-            <p className="text-xs sm:text-sm tracking-wider text-tpppink uppercase font-medium">
+            {/* Small heading - DESKTOP ONLY */}
+            <p className="hidden md:block text-xs sm:text-sm tracking-wider text-tpppink uppercase font-medium">
               Not Sure What to Gift?
             </p>
 
-            {/* Main heading */}
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-italianno text-tppslate leading-tight">
-              Find Her Perfect Gift in 30 Seconds
+            {/* Main heading - MOBILE: Smaller, DESKTOP: Original size */}
+            <h2 className="text-4xl md:text-4xl lg:text-5xl font-italianno text-tppslate leading-tight text-center">
+              Find Her Perfect Gift
             </h2>
 
-            {/* Supporting text */}
-            <p className="text-sm sm:text-base text-tppslate/70 leading-relaxed font-light max-w-xl">
+            {/* Supporting text - DESKTOP ONLY */}
+            <p className="hidden md:block text-sm sm:text-base text-tppslate/70 leading-relaxed font-light max-w-xl">
               Answer a few quick questions about her style, interests, and your relationship. 
               We'll recommend a beautifully curated gift box that she'll absolutely love.
             </p>
 
-            {/* Features */}
-            <div className="flex flex-wrap gap-4 sm:gap-6">
+            {/* Features - DESKTOP ONLY */}
+            <div className="hidden md:flex flex-wrap gap-4 sm:gap-6">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-full bg-tpppink/10 flex items-center justify-center flex-shrink-0">
                   <Heart size={16} className="text-tpppink" />
@@ -173,13 +181,7 @@ const GiftQuizModule = ({ onAddToCart }) => {
               </div>
             </div>
 
-            {/* Call-to-action hint - Mobile only */}
-            <div className="flex lg:hidden items-center gap-2 text-xs sm:text-sm text-tppslate/60">
-              <ArrowRight size={14} className="text-tpppink" />
-              <span className="font-light">Take the quiz below to get started</span>
-            </div>
-
-            {/* Desktop CTA */}
+            {/* Call-to-action hint - DESKTOP ONLY */}
             <div className="hidden lg:flex items-center gap-2 text-sm text-tppslate/60">
               <ArrowRight size={16} className="text-tpppink" />
               <span className="font-light">Get started with the quiz on the right →</span>
@@ -195,7 +197,7 @@ const GiftQuizModule = ({ onAddToCart }) => {
           >
             {/* Quiz Card with decorative elements */}
             <div className="relative w-full">
-              {/* Decorative floating elements */}
+              {/* Decorative floating elements - DESKTOP ONLY */}
               <motion.div
                 animate={{
                   y: [0, -10, 0],
@@ -206,7 +208,7 @@ const GiftQuizModule = ({ onAddToCart }) => {
                   repeat: Infinity,
                   ease: "easeInOut",
                 }}
-                className="absolute -top-3 -right-3 w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-[#FFB5A0] to-[#FFC5D0] rounded-2xl opacity-80 shadow-lg z-0"
+                className="hidden md:block absolute -top-3 -right-3 w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-[#FFB5A0] to-[#FFC5D0] rounded-2xl opacity-80 shadow-lg z-0"
               />
 
               <motion.div
@@ -220,7 +222,7 @@ const GiftQuizModule = ({ onAddToCart }) => {
                   ease: "easeInOut",
                   delay: 1,
                 }}
-                className="absolute -bottom-3 -left-3 w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-[#D4A5FF] to-[#E8C5FF] rounded-2xl opacity-70 shadow-lg z-0"
+                className="hidden md:block absolute -bottom-3 -left-3 w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-[#D4A5FF] to-[#E8C5FF] rounded-2xl opacity-70 shadow-lg z-0"
               />
 
               {/* Actual Quiz Container */}
@@ -234,12 +236,12 @@ const GiftQuizModule = ({ onAddToCart }) => {
           </motion.div>
         </div>
 
-        {/* Trust Badges */}
+        {/* Trust Badges - DESKTOP ONLY */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.8, delay: 0.4 }}
-          className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 lg:gap-8 mt-12 lg:mt-16 text-tppslate/60 text-xs sm:text-sm font-light"
+          className="hidden md:flex flex-wrap justify-center items-center gap-4 sm:gap-6 lg:gap-8 mt-12 lg:mt-16 text-tppslate/60 text-xs sm:text-sm font-light"
         >
           <div className="flex items-center gap-2">
             <svg className="w-4 h-4 sm:w-5 sm:h-5 text-tppmint" fill="currentColor" viewBox="0 0 20 20">

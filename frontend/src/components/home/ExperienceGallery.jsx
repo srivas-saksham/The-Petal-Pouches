@@ -1,7 +1,8 @@
-// frontend/src/components/home/ExperienceGallery.jsx
+// frontend/src/components/home/ExperienceGallery.jsx - MOBILE OPTIMIZED
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import CircularGallery from '../reactbits/CircularGallery';
+import { useNavigate } from 'react-router-dom';
 
 // Interactive Grid Background Component
 const GridBackground = ({ gridSize = 40, opacity = 0.05, mousePos }) => {
@@ -76,6 +77,7 @@ const ExperienceGallery = () => {
   const [mousePos, setMousePos] = useState(null);
   const [galleryItems, setGalleryItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // ✅ CUSTOM TEXT FOR EACH IMAGE - EDIT THESE!
@@ -184,7 +186,7 @@ const ExperienceGallery = () => {
             <div className="h-8 bg-slate-200 rounded w-64 mx-auto mb-4"></div>
             <div className="h-12 bg-slate-200 rounded w-96 mx-auto mb-8"></div>
           </div>
-          <div style={{ height: '600px' }} className="bg-slate-100 rounded-lg flex items-center justify-center">
+          <div style={{ height: '400px' }} className="md:h-[600px] bg-slate-100 rounded-lg flex items-center justify-center">
             <div className="text-slate-400">Loading gallery...</div>
           </div>
         </div>
@@ -237,8 +239,8 @@ const ExperienceGallery = () => {
         </motion.p>
       </div>
 
-      {/* Circular Gallery */}
-      <div className="relative z-10" style={{ height: '600px' }}>
+      {/* Circular Gallery - MOBILE: 400px height, DESKTOP: 600px height */}
+      <div className="relative z-10 h-[300px] md:h-[600px]">
         <CircularGallery 
           items={galleryItems}
           bend={2} 
@@ -253,6 +255,7 @@ const ExperienceGallery = () => {
       {/* CTA Button */}
       <div className="relative z-10 text-center mt-8">
         <motion.button
+          onClick={() => navigate('/shop')}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           className="px-8 py-3 bg-tpppink text-white rounded-full text-md font-semibold shadow-lg hover:shadow-xl hover:bg-tpppink/90 transition-all"

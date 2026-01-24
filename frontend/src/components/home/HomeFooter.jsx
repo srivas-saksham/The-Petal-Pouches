@@ -89,8 +89,13 @@ const HomeFooter = () => {
                 </Link>
               </li>
               <li>
-                <Link 
-                  to="/gift-quiz" 
+                <Link
+                  onClick={() => {
+                    const quizSection = document.getElementById('gift-quiz-section');
+                    if (quizSection) {
+                      quizSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }}
                   className="text-white/70 hover:text-tpppink transition-colors text-sm inline-flex items-center gap-2 group"
                 >
                   <span className="w-0 group-hover:w-2 h-0.5 bg-tpppink transition-all duration-300"></span>

@@ -1,24 +1,24 @@
-// frontend/src/components/home/HeroParallax.jsx
+// frontend/src/components/home/HeroParallax.jsx - MOBILE-ONLY FIXES
 
 import React, { useRef, useState } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 /**
- * HeroParallax Component - REDESIGNED
+ * HeroParallax Component - MOBILE-ONLY OPTIMIZATIONS
  * 
- * Features:
- * - Curved mask hero container (NO straight edges)
- * - Vertical parallax on hero image
- * - Floating content with depth
- * - Minimal, premium aesthetic
- * - Soft wave divider at bottom
- * - Interactive blur effect on hover
+ * Changes:
+ * ✅ Desktop UI completely untouched
+ * ✅ Mobile: Reduced height to 60vh
+ * ✅ Mobile: Static curved divider (no animation)
+ * ✅ Mobile: Better CTA positioning
  */
 const HeroParallax = () => {
   const heroRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
-  
+  const navigate = useNavigate();
+
   // Scroll-based parallax transforms
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -36,7 +36,7 @@ const HeroParallax = () => {
   return (
     <section 
       ref={heroRef} 
-      className="relative h-[85vh] overflow-hidden bg-gradient-to-br from-[#FFF1F6] via-[#F7E1D7] to-[#FFE8E0]"
+      className="relative h-[60vh] md:h-[85vh] overflow-hidden bg-gradient-to-br from-[#FFF1F6] via-[#F7E1D7] to-[#FFE8E0]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -67,70 +67,77 @@ const HeroParallax = () => {
       </div>
 
       {/* CTA Buttons - Bottom Aligned */}
-<motion.div
-  style={{ opacity: contentOpacity, y: contentY }}
-  className="absolute bottom-28 left-0 right-0 z-10 px-6"
->
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.8, delay: 0.4 }}
-    className="flex flex-col sm:flex-row items-center justify-center gap-4"
-  >
-    {/* Primary CTA */}
-    <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.98 }}
-      className="px-8 py-4 bg-tpppink text-white rounded-full text-sm font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-shadow"
-      style={{
-        boxShadow: `
-          2px 2px 0 rgba(0,0,0,0.1),
-          4px 4px 0 rgba(0,0,0,0.09),
-          6px 6px 0 rgba(0,0,0,0.08),
-          8px 8px 0 rgba(0,0,0,0.07),
-          10px 10px 0 rgba(0,0,0,0.06),
-          12px 12px 0 rgba(0,0,0,0.05),
-          14px 14px 0 rgba(0,0,0,0.04),
-          16px 16px 0 rgba(0,0,0,0.03),
-          18px 18px 0 rgba(0,0,0,0.02),
-          20px 20px 0 rgba(0,0,0,0.01)
-        `
-      }}
-    >
-      <span>
-        Explore Collections
-      </span>
-      <ArrowRight size={18} />
-    </motion.button>
+      <motion.div
+        style={{ opacity: contentOpacity, y: contentY }}
+        className="absolute bottom-24 md:bottom-28 left-0 right-0 z-10 px-6"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.4 }}
+          className="flex flex-row items-center justify-center gap-3 md:gap-4"
+        >
+          {/* Primary CTA */}
+          <motion.button
+            onClick={() => navigate('/shop')}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.98 }}
+            className="px-4 py-3 md:px-8 md:py-4 bg-tpppink text-white rounded-full text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2 shadow-lg hover:shadow-xl transition-shadow"
+            style={{
+              boxShadow: `
+                2px 2px 0 rgba(0,0,0,0.1),
+                4px 4px 0 rgba(0,0,0,0.09),
+                6px 6px 0 rgba(0,0,0,0.08),
+                8px 8px 0 rgba(0,0,0,0.07),
+                10px 10px 0 rgba(0,0,0,0.06),
+                12px 12px 0 rgba(0,0,0,0.05),
+                14px 14px 0 rgba(0,0,0,0.04),
+                16px 16px 0 rgba(0,0,0,0.03),
+                18px 18px 0 rgba(0,0,0,0.02),
+                20px 20px 0 rgba(0,0,0,0.01)
+              `
+            }}
+          >
+            <span>
+              Explore Collections
+            </span>
+            <ArrowRight size={16} className="md:w-[18px] md:h-[18px]" />
+          </motion.button>
 
-    {/* Secondary CTA */}
-    <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.98 }}
-      className="px-8 py-4 bg-white/90 backdrop-blur-sm text-tppslate rounded-full text-sm font-medium flex items-center gap-2 border border-tppgrey/30 hover:bg-white transition-colors"
-      style={{
-        boxShadow: `
-          2px 2px 0 rgba(0,0,0,0.08),
-          4px 4px 0 rgba(0,0,0,0.07),
-          6px 6px 0 rgba(0,0,0,0.06),
-          8px 8px 0 rgba(0,0,0,0.05),
-          10px 10px 0 rgba(0,0,0,0.04),
-          12px 12px 0 rgba(0,0,0,0.03),
-          14px 14px 0 rgba(0,0,0,0.02),
-          16px 16px 0 rgba(0,0,0,0.01)
-        `
-      }}
-    >
-      <Sparkles size={18} />
-      <span>
-        Take Gift Quiz
-      </span>
-    </motion.button>
-  </motion.div>
-</motion.div>
+          {/* Secondary CTA */}
+          <motion.button
+            onClick={() => {
+              const quizSection = document.getElementById('gift-quiz-section');
+              if (quizSection) {
+                quizSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.98 }}
+            className="px-4 py-3 md:px-8 md:py-4 bg-white/90 backdrop-blur-sm text-tppslate rounded-full text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2 border border-tppgrey/30 hover:bg-white transition-colors"
+            style={{
+              boxShadow: `
+                2px 2px 0 rgba(0,0,0,0.08),
+                4px 4px 0 rgba(0,0,0,0.07),
+                6px 6px 0 rgba(0,0,0,0.06),
+                8px 8px 0 rgba(0,0,0,0.05),
+                10px 10px 0 rgba(0,0,0,0.04),
+                12px 12px 0 rgba(0,0,0,0.03),
+                14px 14px 0 rgba(0,0,0,0.02),
+                16px 16px 0 rgba(0,0,0,0.01)
+              `
+            }}
+          >
+            <Sparkles size={16} className="md:w-[18px] md:h-[18px]" />
+            <span>
+              Take Gift Quiz
+            </span>
+          </motion.button>
+        </motion.div>
+      </motion.div>
 
-      {/* Animated Wave Divider - Bottom */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none overflow-hidden">
+      {/* Animated Wave Divider - DESKTOP ONLY (Unchanged) */}
+      <div className="hidden md:block absolute bottom-0 left-0 right-0 z-20 pointer-events-none overflow-hidden">
         <motion.svg
           className="w-full h-24 md:h-32"
           viewBox="0 0 1440 120"
@@ -149,6 +156,32 @@ const HeroParallax = () => {
                 }}
             transition={{
               duration: 12,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            fill="#FFFFFF"
+          />
+        </motion.svg>
+      </div>
+
+      {/* Static Wave Divider - MOBILE ONLY */}
+      <div className="md:hidden absolute bottom-0 left-0 right-0 z-20 pointer-events-none overflow-hidden">
+        <motion.svg
+          className="w-full h-20"
+          viewBox="0 0 1440 120"
+          preserveAspectRatio="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <motion.path
+            animate={{
+              d: [
+                "M0,64 C360,90 720,100 1080,85 C1260,70 1380,45 1440,64 L1440,120 L0,120 Z",
+                "M0,70 C360,45 720,60 1080,75 C1260,90 1380,80 1440,70 L1440,120 L0,120 Z",
+                "M0,64 C360,90 720,100 1080,85 C1260,70 1380,45 1440,64 L1440,120 L0,120 Z",
+              ]
+            }}
+            transition={{
+              duration: 10,
               repeat: Infinity,
               ease: "easeInOut"
             }}

@@ -1,18 +1,13 @@
-// frontend/src/components/home/Circular3DCarousel.jsx
+// frontend/src/components/home/Circular3DCarousel.jsx - MOBILE OPTIMIZED
 
 import React, { useState, useEffect, useRef } from 'react';
 
 /**
- * Circular3DCarousel.jsx
+ * Circular3DCarousel.jsx - MOBILE OPTIMIZED
  * 
- * Professional 3D Carousel Component matching exact UI behavior from reference
- * Features:
- * - Infinite circular scrolling with seamless loop
- * - 3D perspective depth with translateZ
- * - Drag-to-scroll functionality
- * - Touch-enabled for mobile
- * - Progress bars with diamond indicators
- * - Smooth transitions
+ * Mobile-Only Changes:
+ * ✅ Carousel scaled to 70% on mobile
+ * ✅ Desktop UI completely untouched
  */
 const Circular3DCarousel = ({
   items = [],
@@ -33,7 +28,23 @@ const Circular3DCarousel = ({
   const [diffX, setDiffX] = useState(0);
   const [movingStatus, setMovingStatus] = useState(1);
   const [dataArray, setDataArray] = useState(items);
+  const [isMobile, setIsMobile] = useState(false);
   const timerRef = useRef(null);
+
+  // Check if mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Responsive item width: 250px on mobile, 400px on desktop
+  const responsiveItemWidth = isMobile ? 250 : itemWidth;
+  const responsiveItemMargin = isMobile ? 16 : itemMargin;
 
   // Initialize infinite scroll data
   useEffect(() => {
@@ -67,11 +78,11 @@ const Circular3DCarousel = ({
 
   // Compute left position for carousel
   const computedLeft = () => {
-    const leftSpan = parseInt(`${-nowIndex * parseInt(itemWidth)}`);
-    let marginSpan = itemMargin * nowIndex;
+    const leftSpan = parseInt(`${-nowIndex * parseInt(responsiveItemWidth)}`);
+    let marginSpan = responsiveItemMargin * nowIndex;
     
     if (isInfinity) {
-      marginSpan = itemMargin * (nowIndex - 1) + itemMargin;
+      marginSpan = responsiveItemMargin * (nowIndex - 1) + responsiveItemMargin;
     }
     
     return {
@@ -124,7 +135,7 @@ const Circular3DCarousel = ({
     const mobileMoveX = e.touches ? e.touches[0].clientX : startX;
     const moveX = e.clientX ? e.clientX : mobileMoveX;
     const diff = startX - moveX;
-    const spanDistance = itemWidth + itemMargin;
+    const spanDistance = responsiveItemWidth + responsiveItemMargin;
     
     if (diff > spanDistance || diff < -spanDistance) return;
     
@@ -135,7 +146,7 @@ const Circular3DCarousel = ({
   const handleMouseUp = (e) => {
     if (!isMouseDown) return;
     
-    const maxDiffX = itemWidth / 2;
+    const maxDiffX = responsiveItemWidth / 2;
     const mobileMoveX = e.changedTouches ? e.changedTouches[0].pageX : startX;
     const moveX = e.clientX || mobileMoveX;
     const diff = startX - moveX;
@@ -179,26 +190,26 @@ const Circular3DCarousel = ({
     if (!isMouseDown && nowIndex > index) {
       return {
         translateX: 0,
-        translateZ: -itemWidth,
+        translateZ: -responsiveItemWidth,
         opacityStyle: 0
       };
     }
     
     if (movingStatus === 1) {
       if (nowIndex - 1 === index) {
-        const z = -itemWidth + parseInt(-diffX);
+        const z = -responsiveItemWidth + parseInt(-diffX);
         styles.translateZ = `${z > 0 ? 0 : z}`;
-        styles.opacityStyle = `${-diffX / itemWidth}`;
+        styles.opacityStyle = `${-diffX / responsiveItemWidth}`;
       } else if (nowIndex > index) {
-        styles.translateZ = `${-itemWidth}`;
+        styles.translateZ = `${-responsiveItemWidth}`;
         styles.opacityStyle = `0`;
       }
     } else if (movingStatus === -1) {
       if (nowIndex === index) {
         styles.translateZ = `${-diffX}`;
-        styles.opacityStyle = `${1 - Math.abs(diffX / itemWidth)}`;
+        styles.opacityStyle = `${1 - Math.abs(diffX / responsiveItemWidth)}`;
       } else if (nowIndex > index) {
-        styles.translateZ = `${-itemWidth}`;
+        styles.translateZ = `${-responsiveItemWidth}`;
         styles.opacityStyle = `0`;
       }
     }
@@ -244,9 +255,9 @@ const Circular3DCarousel = ({
                 key={item.time || item.id || index}
                 className={`inline-block relative ${isAnimate ? 'transition-all duration-500 ease-out' : ''}`}
                 style={{
-                  width: `${itemWidth}px`,
+                  width: `${responsiveItemWidth}px`,
                   height: 'auto',
-                  marginRight: `${itemMargin}px`,
+                  marginRight: `${responsiveItemMargin}px`,
                   transform: `translateX(${parseInt(carouselTranslateX) + parseInt(translateX)}px) translateZ(${parseInt(translateZ)}px)`,
                   opacity: opacityStyle,
                   transformStyle: 'preserve-3d',
@@ -274,8 +285,8 @@ const Circular3DCarousel = ({
                 key={`bar-${item.time || item.id || index}`}
                 className={`relative border-b border-tppslate ${isAnimate ? 'transition-all duration-500 ease-out delay-100' : ''}`}
                 style={{
-                  width: `${itemWidth}px`,
-                  paddingRight: `${itemMargin}px`,
+                  width: `${responsiveItemWidth}px`,
+                  paddingRight: `${responsiveItemMargin}px`,
                   paddingBottom: '40px',
                   marginBottom: '10px',
                   transform: `translateX(${parseInt(carouselTranslateX) + parseInt(translateX)}px) translateZ(${(parseInt(translateZ) * 2) / 3}px)`,

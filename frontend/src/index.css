@@ -8,7 +8,7 @@
 /* 2) CSS Custom Properties (Color Palette) */
 :root {
   /* Admin Color Palette */
-  --admin-pink: #EDAFB8;
+  --admin-pink: #d95669;
   --admin-peach: #F7E1D7;
   --admin-grey: #DEDBD2;
   --admin-mint: #B0C4B1;
@@ -57,6 +57,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
   font-size: 14px;
   line-height: 1.5;
+}
+
+/* Text Selection Styling */
+::selection {
+  background-color: var(--admin-pink); /* or any color you prefer */
+  color: white; /* text color when selected */
+}
+
+::-moz-selection {
+  background-color: var(--admin-pink);
+  color: white;
 }
 
 * {
