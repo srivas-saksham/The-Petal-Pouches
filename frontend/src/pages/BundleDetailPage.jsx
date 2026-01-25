@@ -309,20 +309,23 @@ const BundleDetailPage = () => {
   if (!item) return null;
 
   return (
-    <div className="min-h-screen"
-      style={{
-        backgroundImage: 'url(/assets/doodle_bg.png)',
-        backgroundRepeat: 'repeat',
-        backgroundSize: 'auto',
-      }}
-    >
-      <BundleHeader />
+  <div className="min-h-screen"
+    style={{
+      backgroundImage: 'url(/assets/doodle_bg.png)',
+      backgroundRepeat: 'repeat',
+      backgroundSize: 'auto',
+    }}
+  >
+    <BundleHeader />
 
-      {/* MOBILE: Single column | DESKTOP: 2-column with sidebar */}
-      <div className="max-w-9xl mx-auto px-3 py-3 md:px-6 md:py-6">
-        <div className="grid lg:grid-cols-[1fr_320px] gap-4 md:gap-12">
+    {/* MOBILE: Single column | DESKTOP: 2-column with sidebar */}
+    <div className="max-w-9xl mx-auto px-3 py-3 md:px-6 md:py-6">
+      <div className="grid lg:grid-cols-[1fr_320px] gap-4 md:gap-12">
+        
+        {/* Main Content - Wrapper for mobile spacing */}
+        <div className="space-y-4 md:space-y-0">
           
-          {/* Main Content */}
+          {/* CONTAINER 1: Product Details */}
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
             
             {/* Image + Details Section */}
@@ -354,31 +357,6 @@ const BundleDetailPage = () => {
               </div>
             </div>
 
-            {/* MOBILE ONLY: Delivery Section (inline after details) */}
-            <div className="md:hidden border-t border-slate-200">
-              <FloatingSidebar
-                bundle={item}
-                stockLimit={stockLimit}
-                isOutOfStock={isOutOfStock}
-                isLowStock={isLowStock}
-                cartItem={cartItem}
-                localQuantity={localQuantity}
-                setLocalQuantity={setLocalQuantity}
-                onAddToCart={handleAddToCart}
-                onIncrement={cartItem ? handleCartIncrement : handleIncrement}
-                onDecrement={cartItem ? handleCartDecrement : handleDecrement}
-                adding={adding}
-                updating={updating}
-                showRemoveConfirm={showRemoveConfirm}
-                onRemoveClick={handleRemoveClick}
-                onConfirmRemove={handleConfirmRemove}
-                onCancelRemove={handleCancelRemove}
-                pendingQuantity={pendingQuantity}
-                bundleWeight={currentBundleWeight}
-                pendingWeight={pendingWeight}
-              />
-            </div>
-
             {item.description && (
               <>
                 <div className="border-t border-slate-200"></div>
@@ -394,9 +372,36 @@ const BundleDetailPage = () => {
               </>
             )}
 
-            {/* Reviews Section */}
-            <div className="border-t border-slate-200"></div>
+          </div>
 
+          {/* CONTAINER 2: MOBILE ONLY - Delivery Section (separate container) */}
+          <div className="md:hidden bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+            <FloatingSidebar
+              bundle={item}
+              stockLimit={stockLimit}
+              isOutOfStock={isOutOfStock}
+              isLowStock={isLowStock}
+              cartItem={cartItem}
+              localQuantity={localQuantity}
+              setLocalQuantity={setLocalQuantity}
+              onAddToCart={handleAddToCart}
+              onIncrement={cartItem ? handleCartIncrement : handleIncrement}
+              onDecrement={cartItem ? handleCartDecrement : handleDecrement}
+              adding={adding}
+              updating={updating}
+              showRemoveConfirm={showRemoveConfirm}
+              onRemoveClick={handleRemoveClick}
+              onConfirmRemove={handleConfirmRemove}
+              onCancelRemove={handleCancelRemove}
+              pendingQuantity={pendingQuantity}
+              bundleWeight={currentBundleWeight}
+              pendingWeight={pendingWeight}
+            />
+          </div>
+
+          {/* CONTAINER 3: Reviews Section */}
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+            
             <div className="p-3 md:p-6">
               <h2 className="text-base md:text-lg font-bold text-tppslate mb-3 md:mb-4">Customer Reviews</h2>
               
@@ -493,34 +498,36 @@ const BundleDetailPage = () => {
 
           </div>
 
-          {/* DESKTOP ONLY: Sidebar */}
-          <div className="hidden lg:block lg:relative lg:self-start">
-            <FloatingSidebar
-              bundle={item}
-              stockLimit={stockLimit}
-              isOutOfStock={isOutOfStock}
-              isLowStock={isLowStock}
-              cartItem={cartItem}
-              localQuantity={localQuantity}
-              setLocalQuantity={setLocalQuantity}
-              onAddToCart={handleAddToCart}
-              onIncrement={cartItem ? handleCartIncrement : handleIncrement}
-              onDecrement={cartItem ? handleCartDecrement : handleDecrement}
-              adding={adding}
-              updating={updating}
-              showRemoveConfirm={showRemoveConfirm}
-              onRemoveClick={handleRemoveClick}
-              onConfirmRemove={handleConfirmRemove}
-              onCancelRemove={handleCancelRemove}
-              pendingQuantity={pendingQuantity}
-              bundleWeight={currentBundleWeight}
-              pendingWeight={pendingWeight}
-            />
-          </div>
+        </div>
+
+        {/* DESKTOP ONLY: Sidebar */}
+        <div className="hidden lg:block lg:relative lg:self-start">
+          <FloatingSidebar
+            bundle={item}
+            stockLimit={stockLimit}
+            isOutOfStock={isOutOfStock}
+            isLowStock={isLowStock}
+            cartItem={cartItem}
+            localQuantity={localQuantity}
+            setLocalQuantity={setLocalQuantity}
+            onAddToCart={handleAddToCart}
+            onIncrement={cartItem ? handleCartIncrement : handleIncrement}
+            onDecrement={cartItem ? handleCartDecrement : handleDecrement}
+            adding={adding}
+            updating={updating}
+            showRemoveConfirm={showRemoveConfirm}
+            onRemoveClick={handleRemoveClick}
+            onConfirmRemove={handleConfirmRemove}
+            onCancelRemove={handleCancelRemove}
+            pendingQuantity={pendingQuantity}
+            bundleWeight={currentBundleWeight}
+            pendingWeight={pendingWeight}
+          />
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default BundleDetailPage;

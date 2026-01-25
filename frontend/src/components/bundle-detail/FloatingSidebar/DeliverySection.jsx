@@ -669,7 +669,7 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
                   {pinCheckResult.rawData?.priceDifference&& (
                     <div className="font-inter bg-yellow-50 border-t border-yellow-100 px-3 py-2">
                       <div className="flex items-center gap-1.5">
-                        <div className="relative ml-auto">
+                        <div className="relative">
                           <AlertCircle 
                             size={12} 
                             className="alert-icon text-yellow-600 flex-shrink-0 cursor-help" 

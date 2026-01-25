@@ -15,7 +15,7 @@ const FloatingSidebar = ({ bundle, bundleWeight = 1000, pendingWeight = null }) 
   return (
     <div className="sticky top-20">
       {/* SINGLE UNIFIED CONTAINER - RECEIPT DESIGN */}
-      <div className="group bg-white rounded-xl border-2 border-dashed border-tppslate/50 hover:border-tpppink/70 shadow-lg overflow-hidden transition-colors duration-300">
+      <div className="group bg-white rounded-xl border-0 sm:border-2 sm:border-dashed sm:border-tppslate/50 hover:border-tpppink/70 shadow-lg overflow-hidden transition-colors duration-300">
         
         {/* ==================== DELIVERY SECTION ==================== */}
         <DeliverySection 
@@ -23,14 +23,32 @@ const FloatingSidebar = ({ bundle, bundleWeight = 1000, pendingWeight = null }) 
           isRecalculating={pendingWeight !== null} // ✅ Pass loading state
         />
 
-        {/* ==================== DOTTED SEPARATOR ==================== */}
-        <div className="border-t-2 border-dashed border-tppslate/50 group-hover:border-tpppink/70 transition-colors duration-300"></div>
+        {/* ==================== SECTION BREAK ==================== */}
+        <div className="relative py-2 bg-transparent">
+          <div className="absolute inset-0 flex items-center px-4">
+            <div className="w-full border-t border-gray-200"></div>
+          </div>
+          <div className="relative flex justify-center">
+            <div className="bg-white px-3">
+              <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+            </div>
+          </div>
+        </div>
 
         {/* ==================== BUNDLE VALUE SECTION ==================== */}
         <BundleValueSection bundle={bundle} items={items} />
 
-        {/* ==================== DOTTED SEPARATOR ==================== */}
-        <div className="border-t-2 border-dashed border-tppslate/50 group-hover:border-tpppink/70 transition-colors duration-300"></div>
+        {/* ==================== SECTION BREAK ==================== */}
+        <div className="relative py-2 bg-transparent">
+          <div className="absolute inset-0 flex items-center px-4">
+            <div className="w-full border-t border-gray-200"></div>
+          </div>
+          <div className="relative flex justify-center">
+            <div className="bg-white px-3">
+              <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+            </div>
+          </div>
+        </div>
 
         {/* ==================== TRUST BADGES SECTION ==================== */}
         <TrustBadgesSection />
