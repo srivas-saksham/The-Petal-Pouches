@@ -2,17 +2,58 @@
 
 /**
  * Review Helper Functions
- * Utility functions for review operations and display
+ * Utility functions for review operations and display with deterministic generation
  */
 
 /**
- * Generate random rating between 4.0 and 4.9 for bundles with no reviews
- * @returns {number} Random rating (e.g., 4.3, 4.7)
+ * Seeded random generator for consistent results based on product ID
+ * @param {number|string} seed - Seed value (product ID)
+ * @param {number} counter - Counter for multiple random calls
+ * @returns {Function} Seeded random function
  */
-export const generatePlaceholderRating = () => {
-  // Generate random number between 4.0 and 4.9 with 1 decimal
-  const rating = 4.0 + Math.random() * 0.9;
+const createSeededRandom = (seed, counter = 0) => {
+  const baseSeed = seed ? parseInt(seed.toString().split('').reduce((a, b) => a + b.charCodeAt(0), 0)) : 12345;
+  let seedCounter = counter;
+  
+  return (min = 0, max = 1) => {
+    seedCounter++;
+    const x = Math.sin(baseSeed * seedCounter) * 10000;
+    const random = x - Math.floor(x);
+    return min + random * (max - min);
+  };
+};
+
+/**
+ * Generate deterministic rating based on product ID
+ * Uses same algorithm as BundleReviews to ensure consistency
+ * @param {number|string} productId - Product ID for seeding
+ * @returns {number} Rating between 4.0 and 4.9 (e.g., 4.3, 4.7)
+ */
+export const generatePlaceholderRating = (productId) => {
+  if (!productId) {
+    // Fallback to random if no ID provided
+    const rating = 4.0 + Math.random() * 0.9;
+    return Math.round(rating * 10) / 10;
+  }
+
+  const seededRandom = createSeededRandom(productId);
+  const rating = 4.0 + seededRandom(0, 0.9);
   return Math.round(rating * 10) / 10;
+};
+
+/**
+ * Generate deterministic review count based on product ID
+ * Uses same algorithm as BundleReviews (5-20 reviews)
+ * @param {number|string} productId - Product ID for seeding
+ * @returns {number} Review count between 5 and 20
+ */
+export const generatePlaceholderCount = (productId) => {
+  if (!productId) {
+    return Math.floor(5 + Math.random() * 16); // 5-20
+  }
+
+  const seededRandom = createSeededRandom(productId);
+  return Math.floor(seededRandom(5, 21)); // 5-20
 };
 
 /**
@@ -32,12 +73,14 @@ export const calculateAverageRating = (reviews) => {
 };
 
 /**
- * Get display rating (use actual if available, otherwise placeholder)
+ * Get display rating (use actual if available, otherwise deterministic placeholder)
+ * UPDATED: Now accepts productId for deterministic placeholder generation
  * @param {Array|null} reviews - Reviews array or null
  * @param {number|null} cachedRating - Pre-calculated average rating
+ * @param {number|string} productId - Product ID for deterministic generation
  * @returns {Object} { rating: number, isPlaceholder: boolean, count: number }
  */
-export const getDisplayRating = (reviews = null, cachedRating = null) => {
+export const getDisplayRating = (reviews = null, cachedRating = null, productId = null) => {
   // If we have cached rating from product
   if (cachedRating && cachedRating > 0) {
     return {
@@ -56,11 +99,11 @@ export const getDisplayRating = (reviews = null, cachedRating = null) => {
     };
   }
   
-  // No reviews - use placeholder
+  // No reviews - use deterministic placeholder based on product ID
   return {
-    rating: generatePlaceholderRating(),
+    rating: generatePlaceholderRating(productId),
     isPlaceholder: true,
-    count: 0
+    count: generatePlaceholderCount(productId)
   };
 };
 

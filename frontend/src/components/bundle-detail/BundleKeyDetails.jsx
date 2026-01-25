@@ -69,7 +69,7 @@ const BundleKeyDetails = ({
       {/* 2. DESCRIPTION (without heading) */}
       {bundle.description && (
         <div>
-          <p className="text-md font-dancing text-slate-700 leading-relaxed">
+          <p className="text-md text-slate-700 leading-relaxed">
             {bundle.description}
           </p>
         </div>
@@ -77,19 +77,19 @@ const BundleKeyDetails = ({
 
       {/* 3. PRICE SECTION */}
       <div className="border-t border-slate-200 pt-4">
-        <div className="mb-2">
+        <div className="flex items-end gap-2 mb-2">
           <p className="text-4xl font-bold text-tpppink">
             {formatBundlePrice(bundle.price)}
           </p>
           {bundle.original_price && bundle.original_price > bundle.price && (
-            <p className="text-sm text-slate-400 line-through mt-1">
+            <p className="text-sm text-slate-400 line-through mb-1">
               {formatBundlePrice(bundle.original_price)}
             </p>
           )}
         </div>
 
         {/* Stock Status */}
-        <div className="flex items-center gap-2 text-sm mb-3">
+        <div className="flex items-center gap-2 text-sm">
           {isOutOfStock ? (
             <>
               <div className="w-2 h-2 rounded-full bg-red-500" />
@@ -103,6 +103,10 @@ const BundleKeyDetails = ({
           )}
         </div>
 
+        <p className="text-md text-tppslate/50 leading-relaxed mb-3">
+          *inclusive of all tax, and shipping charges.
+        </p>
+
         {/* Low Stock Warning */}
         {isLowStock && (
           <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200 mb-3">
@@ -110,6 +114,7 @@ const BundleKeyDetails = ({
             <span className="font-bold">Only {stockLimit} left in stock!</span>
           </div>
         )}
+
       </div>
 
       {/* 4. QUANTITY & ADD TO CART SECTION */}

@@ -104,7 +104,7 @@ const BundleCard = ({ bundle, onQuickView }) => {
   const isInStock = !isOutOfStock;
   
   // Get rating info (real or placeholder)
-  const ratingInfo = getDisplayRating(bundle.reviews, bundle.average_rating);
+  const ratingInfo = getDisplayRating(bundle.reviews, bundle.average_rating, bundle.id);
 
   // ===========================
   // IMAGE NAVIGATION HANDLERS

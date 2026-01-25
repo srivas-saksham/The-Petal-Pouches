@@ -1,6 +1,6 @@
 // frontend/src/components/bundle-detail/FloatingSidebar/BundleValueSection.jsx
 import React from 'react';
-import { Package, Gift, Sparkles } from 'lucide-react';
+import { Package, Gift, Sparkles, Circle } from 'lucide-react';
 
 /**
  * BundleValueSection - Compact bundle value display
@@ -86,22 +86,14 @@ const BundleValueSection = ({ bundle, items = [] }) => {
       </div>
 
       {/* Compact Experience Features */}
-      <div className="grid grid-cols-2 gap-2">
-        <div className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg border border-purple-100">
-          <Gift size={14} className="text-purple-600 flex-shrink-0" />
-          <div>
-            <p className="text-xs font-bold text-gray-800 leading-tight">Premium</p>
-            <p className="text-xs text-gray-600">Packaging</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 p-2 bg-pink-50 rounded-lg border border-pink-100">
-          <Sparkles size={14} className="text-tpppink flex-shrink-0" />
-          <div>
-            <p className="text-xs font-bold text-gray-800 leading-tight">Unboxing</p>
-            <p className="text-xs text-gray-600">Experience</p>
-          </div>
-        </div>
+      <div className="flex items-center justify-between gap-2 px-6">
+        <p>
+          Premium Packaging
+        </p>
+        <Circle size={10} className=''/>
+        <p>
+          Experience Unboxing
+        </p>
       </div>
     </div>
   );

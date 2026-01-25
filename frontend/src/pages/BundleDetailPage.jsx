@@ -1,12 +1,13 @@
 // frontend/src/pages/BundleDetailPage.jsx - UNIFIED FOR PRODUCTS & BUNDLES
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Check, AlertCircle, Package, Star } from 'lucide-react';
+import { Check, AlertCircle, Package } from 'lucide-react';
 import useBundleDetail from '../hooks/useBundleDetail';
 import BundleImageGallery from '../components/bundle-detail/BundleImageGallery';
 import BundleKeyDetails from '../components/bundle-detail/BundleKeyDetails';
 import FloatingSidebar from '../components/bundle-detail/FloatingSidebar/FloatingSidebar';
 import BundleHeader from '../components/bundle-detail/BundleHeader';
+import BundleReviews from '../components/bundle-detail/BundleReviews';
 import { addBundleToCart, updateCartItem, removeFromCart } from '../services/cartService';
 import { useCart } from '../hooks/useCart';
 import { getDisplayRating, formatRating, formatTimeAgo } from '../utils/reviewHelpers';
@@ -97,7 +98,6 @@ const BundleDetailPage = () => {
   const isOutOfStock = stockLimit === 0 || stockLimit === null;
   const items = item?.items || [];
   const reviews = item?.reviews || [];
-  const ratingInfo = item ? getDisplayRating(item.reviews, item.average_rating) : { rating: 0, count: 0 };
   const stockStatus = isProductView ? { available: !isOutOfStock } : bundleHook.stockStatus;
 
   useEffect(() => {
@@ -269,14 +269,6 @@ const BundleDetailPage = () => {
     }
   };
 
-  const distribution = reviews.length > 0 ? {
-    5: Math.floor(reviews.length * 0.6),
-    4: Math.floor(reviews.length * 0.25),
-    3: Math.floor(reviews.length * 0.1),
-    2: Math.floor(reviews.length * 0.03),
-    1: Math.floor(reviews.length * 0.02)
-  } : { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -319,7 +311,7 @@ const BundleDetailPage = () => {
     <BundleHeader />
 
     {/* MOBILE: Single column | DESKTOP: 2-column with sidebar */}
-    <div className="max-w-9xl mx-auto px-3 py-3 md:px-6 md:py-6">
+    <div className="max-w-9xl mx-auto md:px-6 md:py-6">
       <div className="grid lg:grid-cols-[1fr_320px] gap-4 md:gap-12">
         
         {/* Main Content - Wrapper for mobile spacing */}
@@ -401,101 +393,7 @@ const BundleDetailPage = () => {
 
           {/* CONTAINER 3: Reviews Section */}
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-            
-            <div className="p-3 md:p-6">
-              <h2 className="text-base md:text-lg font-bold text-tppslate mb-3 md:mb-4">Customer Reviews</h2>
-              
-              {/* Rating Summary */}
-              <div className="flex items-center gap-4 md:gap-6 mb-4 md:mb-6 pb-4 md:pb-6 border-b border-slate-100">
-                <div className="text-center">
-                  <p className="text-2xl md:text-4xl font-bold text-tppslate mb-1">
-                    {formatRating(ratingInfo.rating)}
-                  </p>
-                  <div className="flex gap-0.5 mb-1">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star
-                        key={star}
-                        size={12}
-                        className={`md:w-3.5 md:h-3.5 ${
-                          star <= Math.floor(ratingInfo.rating)
-                            ? 'fill-amber-400 text-amber-400'
-                            : 'fill-slate-200 text-slate-200'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    {ratingInfo.count} {ratingInfo.count === 1 ? 'review' : 'reviews'}
-                  </p>
-                </div>
-
-                {/* Distribution Bars */}
-                <div className="flex-1 space-y-1.5 md:space-y-2">
-                  {[5, 4, 3, 2, 1].map((rating) => (
-                    <div key={rating} className="flex items-center gap-1.5 md:gap-2">
-                      <span className="text-xs w-2 md:w-3">{rating}</span>
-                      <Star size={8} className="md:w-2.5 md:h-2.5 fill-amber-400 text-amber-400" />
-                      <div className="flex-1 h-1.5 md:h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-amber-400"
-                          style={{
-                            width: `${reviews.length > 0 ? (distribution[rating] / reviews.length) * 100 : 0}%`
-                          }}
-                        />
-                      </div>
-                      <span className="text-xs text-slate-500 w-6 md:w-8 text-right">
-                        {distribution[rating]}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Individual Reviews */}
-              {reviews.length > 0 ? (
-                <div className="space-y-3 md:space-y-4">
-                  {reviews.slice(0, 3).map((review, index) => (
-                    <div key={index} className="pb-3 md:pb-4 border-b border-slate-100 last:border-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">
-                          {review.user_name ? review.user_name.charAt(0) : 'A'}
-                        </div>
-                        <div>
-                          <span className="text-xs md:text-sm font-semibold text-tppslate">
-                            {review.user_name || 'Anonymous'}
-                          </span>
-                          <p className="text-xs text-slate-400">
-                            {formatTimeAgo(review.created_at)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex gap-0.5 mb-2">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Star
-                            key={star}
-                            size={10}
-                            className={`md:w-3 md:h-3 ${
-                              star <= review.rating
-                                ? 'fill-amber-400 text-amber-400'
-                                : 'fill-slate-200 text-slate-200'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <p className="text-xs md:text-sm text-slate-700">{review.comment}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4 md:py-6">
-                  <p className="text-xs md:text-sm text-slate-500 mb-2">No reviews yet</p>
-                  <button className="text-xs font-semibold text-tpppink hover:underline">
-                    Be the first to review
-                  </button>
-                </div>
-              )}
-            </div>
-
+            <BundleReviews bundle={item} />
           </div>
 
         </div>

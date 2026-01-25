@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Eye, Check, Plus, Minus, Trash2, AlertTriangle, XCircle, Loader, ArrowBigRightDash, ChevronLeft, ChevronRight, Package } from 'lucide-react';
+import { ShoppingCart, Eye, Check, Plus, Minus, Trash2, AlertTriangle, XCircle, Loader, ArrowBigRightDash, ChevronLeft, ChevronRight, Package, Star } from 'lucide-react';
 import { useCart } from '../../hooks/useCart';
 import { useUserAuth } from '../../context/UserAuthContext';
+import { getDisplayRating, formatRating } from '../../utils/reviewHelpers';
 
 // Import Swiper React components
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -90,6 +91,8 @@ const ProductCard = ({ product, onQuickView }) => {
   const isOutOfStock = stockLimit === 0;
   const isLowStock = !isOutOfStock && stockLimit && stockLimit < 5;
   const isInCart = localQuantity > 0;
+  // Get rating info (real or placeholder) - pass product.id for deterministic generation
+  const ratingInfo = getDisplayRating(product.reviews, product.average_rating, product.id);
 
   // ===========================
   // IMAGE NAVIGATION HANDLERS
@@ -503,6 +506,33 @@ const ProductCard = ({ product, onQuickView }) => {
             {product.title}
           </h3>
         </Link>
+
+        {/* Rating - Responsive */}
+        <div className="flex items-center gap-1 md:gap-1.5 mb-1 md:mb-2">
+          <div className="flex items-center gap-0.5">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                size={10}
+                className={`md:w-3 md:h-3 ${
+                  star <= Math.floor(ratingInfo.rating)
+                    ? 'fill-amber-400 text-amber-400'
+                    : star === Math.ceil(ratingInfo.rating) && ratingInfo.rating % 1 !== 0
+                    ? 'fill-amber-400/50 text-amber-400'
+                    : 'fill-slate-200 text-slate-200'
+                }`}
+              />
+            ))}
+          </div>
+          <span className="text-[10px] md:text-xs font-medium text-tppslate">
+            {formatRating(ratingInfo.rating)}
+          </span>
+          {ratingInfo.count > 0 && (
+            <span className="text-[9px] md:text-xs text-slate-400">
+              ({ratingInfo.count})
+            </span>
+          )}
+        </div>
 
         {/* Price & Stock Section - Responsive */}
         <div className="mb-2 md:mb-3">
