@@ -5,12 +5,14 @@ import { getAddresses, createAddress } from '../../../services/addressService';
 import api from '../../../services/api';
 // ✅ NEW IMPORT
 import { saveDeliveryData, getDeliveryData, getStoredAddressId, getStoredPinCode } from '../../../utils/deliveryStorage';
+import AddressFormSidebar from '../../user/addresses/AddressFormSidebar';
 
 /**
  * DeliverySection - Delivery info with Delhivery PIN check and TAT
  * Shows default address for logged-in users or PIN code input for guests
  * Integrates with Delhivery API for serviceability and delivery estimates
  * ✅ NOW WITH: localStorage persistence for seamless checkout flow
+ * ✅ NOW WITH: AddressFormSidebar instead of custom modal
  */
 const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
   const { isAuthenticated, user } = useUserAuth();
@@ -21,9 +23,8 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
   const [showAddressList, setShowAddressList] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  // New address modal state
-  const [showNewAddressModal, setShowNewAddressModal] = useState(false);
-  const [savingAddress, setSavingAddress] = useState(false);
+  // ✅ CHANGED: New address sidebar state (replaces modal state)
+  const [showAddressSidebar, setShowAddressSidebar] = useState(false);
   
   // PIN code state (for guests and checking)
   const [pinCode, setPinCode] = useState('');
@@ -35,19 +36,6 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
   
   // Refs
   const addressListRef = useRef(null);
-  const modalRef = useRef(null);
-  
-  // New address form data
-  const [newAddressForm, setNewAddressForm] = useState({
-    line1: '',
-    line2: '',
-    city: '',
-    state: '',
-    zip_code: '',
-    phone: '',
-    landmark: '',
-    address_type: 'home',
-  });
 
   // ==================== ✅ NEW: LOAD FROM LOCALSTORAGE ON MOUNT ====================
   
@@ -92,12 +80,12 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
 
     try {
       console.log('🔍 Checking Delhivery serviceability for PIN:', pin);
-      console.log(`📦 Using weight: ${bundleWeight}g (${bundleWeight/1000}kg)`); // ✅ CHANGED
+      console.log(`📦 Using weight: ${bundleWeight}g (${bundleWeight/1000}kg)`);
       
       // Call combined delivery check endpoint
       const response = await api.get(`/api/delhivery/check/${pin}`, {
         params: {
-          weight: bundleWeight // ✅ CHANGED - Use dynamic weight
+          weight: bundleWeight
         }
       });
       
@@ -277,6 +265,17 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
     console.log('💾 [DeliverySection] Saved address selection to localStorage');
   };
 
+  // ✅ NEW: Handle sidebar success callback
+  const handleSidebarSuccess = async (newAddress) => {
+    console.log('✅ [DeliverySection] New address saved via sidebar:', newAddress);
+    
+    // Refresh addresses list
+    await fetchAddresses();
+    
+    // Close sidebar
+    setShowAddressSidebar(false);
+  };
+
   // Get address icon
   const getAddressIcon = (type) => {
     switch (type?.toLowerCase()) {
@@ -292,53 +291,6 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
   // Get formatted address type
   const getAddressTypeName = (type) => {
     return type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Address';
-  };
-
-  // Handle new address form submission
-  const handleSaveNewAddress = async () => {
-    // Validate required fields
-    if (!newAddressForm.line1 || !newAddressForm.city || !newAddressForm.state || !newAddressForm.zip_code) {
-      alert('Please fill in all required fields');
-      return;
-    }
-
-    setSavingAddress(true);
-    try {
-      const result = await createAddress({
-        ...newAddressForm,
-        country: 'India',
-      });
-
-      if (result.success) {
-        setAddresses([...addresses, result.data]);
-        setSelectedAddress(result.data);
-        setShowNewAddressModal(false);
-        
-        // ✅ NEW: Save to localStorage
-        saveDeliveryData({
-          selectedAddressId: result.data.id
-        });
-        
-        // Reset form
-        setNewAddressForm({
-          line1: '',
-          line2: '',
-          city: '',
-          state: '',
-          zip_code: '',
-          phone: '',
-          landmark: '',
-          address_type: 'home',
-        });
-      } else {
-        alert(result.error || 'Failed to save address');
-      }
-    } catch (error) {
-      console.error('Error saving address:', error);
-      alert('Failed to save address');
-    } finally {
-      setSavingAddress(false);
-    }
   };
 
   // Close dropdown when clicking outside
@@ -357,23 +309,6 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showAddressList]);
-
-  // Close modal when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (modalRef.current && !modalRef.current.contains(event.target)) {
-        setShowNewAddressModal(false);
-      }
-    };
-
-    if (showNewAddressModal) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showNewAddressModal]);
 
   return (
     <div className="p-4 space-y-3">
@@ -440,9 +375,10 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
           {/* Address Dropdown */}
           {showAddressList && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-gray-200 rounded-lg shadow-xl max-h-80 overflow-y-auto z-50">
+              {/* ✅ CHANGED: Opens AddressFormSidebar instead of modal */}
               <button
                 onClick={() => {
-                  setShowNewAddressModal(true);
+                  setShowAddressSidebar(true);
                   setShowAddressList(false);
                 }}
                 className="w-full p-3 bg-tpppink/10 border-b-2 border-gray-100 flex items-center gap-2 hover:bg-tpppink transition-colors text-tpppink hover:text-white font-semibold"
@@ -479,7 +415,7 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
                             <span className="text-xs bg-tpppink text-white px-1.5 py-0.5 rounded-full font-semibold">
                               Default
                             </span>
-                          )}
+                            )}
                         </div>
                         <p className="text-xs text-gray-700 font-medium truncate">
                           {addr.line1}
@@ -666,7 +602,7 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
                   </div>
 
                   {/* Price Comparison Summary - Simplified */}
-                  {pinCheckResult.rawData?.priceDifference&& (
+                  {pinCheckResult.rawData?.priceDifference && (
                     <div className="font-inter bg-yellow-50 border-t border-yellow-100 px-3 py-2">
                       <div className="flex items-center gap-1.5">
                         <div className="relative">
@@ -757,147 +693,13 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
         </div>
       )}
 
-      {/* New Address Modal (unchanged) */}
-      {showNewAddressModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div ref={modalRef} className="bg-white rounded-lg shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-tpppink px-6 py-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Plus size={20} />
-                Add New Address
-              </h3>
-              <button
-                onClick={() => setShowNewAddressModal(false)}
-                className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-1 transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Address Type</label>
-                <select
-                  value={newAddressForm.address_type}
-                  onChange={(e) => setNewAddressForm({ ...newAddressForm, address_type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
-                >
-                  <option value="home">Home</option>
-                  <option value="work">Work</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Street Address *</label>
-                <input
-                  type="text"
-                  placeholder="House No., Building Name"
-                  value={newAddressForm.line1}
-                  onChange={(e) => setNewAddressForm({ ...newAddressForm, line1: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Apartment, Suite, etc. (optional)</label>
-                <input
-                  type="text"
-                  placeholder="Apartment, floor, etc."
-                  value={newAddressForm.line2}
-                  onChange={(e) => setNewAddressForm({ ...newAddressForm, line2: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">City *</label>
-                  <input
-                    type="text"
-                    placeholder="City"
-                    value={newAddressForm.city}
-                    onChange={(e) => setNewAddressForm({ ...newAddressForm, city: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">State *</label>
-                  <input
-                    type="text"
-                    placeholder="State"
-                    value={newAddressForm.state}
-                    onChange={(e) => setNewAddressForm({ ...newAddressForm, state: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">PIN Code *</label>
-                <input
-                  type="text"
-                  placeholder="6-digit PIN code"
-                  value={newAddressForm.zip_code}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '');
-                    if (value.length <= 6) {
-                      setNewAddressForm({ ...newAddressForm, zip_code: value });
-                    }
-                  }}
-                  maxLength={6}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number (optional)</label>
-                <input
-                  type="tel"
-                  placeholder="10-digit phone number"
-                  value={newAddressForm.phone}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '');
-                    if (value.length <= 10) {
-                      setNewAddressForm({ ...newAddressForm, phone: value });
-                    }
-                  }}
-                  maxLength={10}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Landmark (optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Near City Hospital"
-                  value={newAddressForm.landmark}
-                  onChange={(e) => setNewAddressForm({ ...newAddressForm, landmark: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            <div className="px-6 py-4 bg-gray-50 border-t flex gap-3">
-              <button
-                onClick={() => setShowNewAddressModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveNewAddress}
-                disabled={savingAddress}
-                className="flex-1 px-4 py-2 bg-tpppink text-white rounded-lg font-medium hover:bg-tpppink/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {savingAddress ? 'Saving...' : 'Save Address'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ✅ NEW: AddressFormSidebar (replaces modal) */}
+      <AddressFormSidebar
+        isOpen={showAddressSidebar}
+        editingAddress={null}
+        onClose={() => setShowAddressSidebar(false)}
+        onSuccess={handleSidebarSuccess}
+      />
     </div>
   );
 };

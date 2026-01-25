@@ -18,10 +18,12 @@ import AddressNotifications from './AddressNotifications';
  * 
  * Features:
  * - ✅ Smooth slide-in animation from right
- * - ✅ Resizable width by dragging left edge
+ * - ✅ Resizable width by dragging left edge (desktop only)
  * - ✅ Form validation
  * - ✅ Success/Error notifications
  * - ✅ Responsive design
+ * - ✅ Mobile: Compact modal (85% height) from right
+ * - ✅ Desktop: Full-height sidebar from right
  */
 const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
   // Resizable width state
@@ -257,32 +259,34 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
     <>
       {/* Backdrop with fade-in */}
       <div
-        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-40 will-change-opacity
+        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] will-change-opacity
           transition-opacity duration-200 ${isAnimating ? 'opacity-100' : 'opacity-0'}`}
         onClick={handleClose}
         aria-hidden="true"
       />
 
-      {/* Sidebar with slide-in animation */}
+      {/* Sidebar - Mobile: 85vh height bottom-aligned, Desktop: Full height - BOTH slide from right */}
       <div
         ref={sidebarRef}
-        className={`fixed top-0 right-0 h-full bg-white shadow-2xl z-50
+        className={`fixed right-0 bg-white shadow-2xl z-[70]
           flex flex-col will-change-transform
           ${isAnimating ? 'translate-x-0' : 'translate-x-full'}
-          transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]`}
+          transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]
+          bottom-0 h-[85vh] rounded-t-2xl
+          sm:top-0 sm:h-full sm:rounded-none`}
         style={{ width: window.innerWidth < 640 ? '100%' : `${sidebarWidth}px` }}
         role="dialog"
         aria-label="Address form"
         aria-modal="true"
       >
-        {/* Resize Handle - Left Edge */}
+        {/* Resize Handle - Left Edge - DESKTOP ONLY */}
         {window.innerWidth >= 640 && (
           <div
             onMouseDown={handleResizeStart}
             className={`absolute left-0 top-0 h-full w-1 cursor-ew-resize group transition-colors ${
               isResizing ? 'bg-tpppink' : 'hover:bg-tpppink/30'
             }`}
-            style={{ zIndex: 60 }}
+            style={{ zIndex: 80 }}
           >
             {/* Grip Icon */}
             <div
@@ -326,7 +330,7 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
         </div>
 
         {/* Form Content */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto bg-tppslate/10">
           <div className="p-6">
             {/* Notifications */}
             <AddressNotifications
@@ -543,7 +547,7 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
       </div>
 
       {/* Resize cursor overlay when resizing */}
-      {isResizing && <div className="fixed inset-0 z-[60] cursor-ew-resize" />}
+      {isResizing && <div className="fixed inset-0 z-[80] cursor-ew-resize" />}
     </>
   );
 };
