@@ -33,8 +33,6 @@ const BundleDetailPage = () => {
   // Use bundle hook only for bundles
   const bundleHook = useBundleDetail(isProductView ? null : id);
   
-  const [showShareModal, setShowShareModal] = useState(false);
-  
   const { 
     refreshCart, 
     getBundleQuantityInCart, 
@@ -271,28 +269,6 @@ const BundleDetailPage = () => {
     }
   };
 
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: item.title,
-          text: item.description,
-          url: window.location.href
-        });
-      } catch (err) {
-        console.log('Share cancelled');
-      }
-    } else {
-      setShowShareModal(true);
-      navigator.clipboard.writeText(window.location.href);
-      setTimeout(() => setShowShareModal(false), 2000);
-    }
-  };
-
-  const handleWishlist = () => {
-    alert('Wishlist feature coming soon!');
-  };
-
   const distribution = reviews.length > 0 ? {
     5: Math.floor(reviews.length * 0.6),
     4: Math.floor(reviews.length * 0.25),
@@ -340,19 +316,7 @@ const BundleDetailPage = () => {
         backgroundSize: 'auto',
       }}
     >
-      <BundleHeader
-        bundle={item}
-        onShare={handleShare}
-        onWishlist={handleWishlist}
-        onSearchChange={handleSearch}
-      />
-
-      {showShareModal && (
-        <div className="fixed top-24 right-4 z-50 bg-green-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm animate-in slide-in-from-top-4 duration-200">
-          <Check size={14} />
-          <span className="font-medium">Link copied!</span>
-        </div>
-      )}
+      <BundleHeader />
 
       {/* MOBILE: Single column | DESKTOP: 2-column with sidebar */}
       <div className="max-w-9xl mx-auto px-3 py-3 md:px-6 md:py-6">
