@@ -205,7 +205,7 @@ Rizara Luxe`,
               {/* Share Button */}
               <button
                 onClick={handleShare}
-                className="p-2 md:p-2.5 border-2 border-slate-200 rounded-lg hover:border-tpppink hover:bg-tpppink/5 
+                className="p-2 md:p-1.5 border-2 border-slate-200 rounded-lg hover:border-tpppink hover:bg-tpppink/5 
                   active:scale-95 transition-all text-slate-600 hover:text-tpppink touch-manipulation"
                 title="Share Bundle"
                 aria-label="Share bundle"
@@ -216,7 +216,7 @@ Rizara Luxe`,
               {/* Wishlist Button - Simple Heart Toggle (No Popup) */}
               <button
                 onClick={handleWishlistClick}
-                className={`p-2 md:p-2.5 border-2 rounded-lg active:scale-95 transition-all touch-manipulation ${
+                className={`p-2 md:p-1.5 border-2 rounded-lg active:scale-95 transition-all touch-manipulation ${
                   isWishlisted
                     ? 'border-red-500 bg-red-50 text-red-500'
                     : 'border-slate-200 hover:border-tpppink hover:bg-tpppink/5 text-slate-600 hover:text-tpppink'

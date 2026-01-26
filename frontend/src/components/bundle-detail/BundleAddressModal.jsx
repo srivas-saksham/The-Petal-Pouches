@@ -1,42 +1,30 @@
-// frontend/src/components/user/addresses/AddressFormSidebar.jsx
-// SLIDING ADDRESS FORM SIDEBAR - STANDALONE VERSION
+// frontend/src/components/bundle-detail/BundleAddressModal.jsx
+// NEW COMPONENT - Bottom slide-up modal for bundle detail page ONLY
+// Slides from bottom-right corner for BOTH mobile and desktop
+// Max height: 80vh for ALL devices
 
-import React, { useEffect, useState, useRef } from 'react';
-import { X, MapPin, Loader, GripVertical } from 'lucide-react';
-import { createAddress, updateAddress, validateAddress } from '../../../services/addressService';
-import AddressNotifications from './AddressNotifications';
+import React, { useEffect, useState } from 'react';
+import { X, MapPin, Loader } from 'lucide-react';
+import { createAddress, validateAddress } from '../../services/addressService';
+import AddressNotifications from '../user/addresses/AddressNotifications';
 
 /**
- * AddressFormSidebar Component
- * Professional sliding sidebar for adding/editing addresses
- * 
- * Props:
- * - isOpen: boolean - Controls sidebar visibility
- * - editingAddress: object | null - Address to edit, null for new address
- * - onClose: function - Callback when sidebar closes
- * - onSuccess: function - Callback when address is saved successfully
+ * BundleAddressModal Component
+ * Dedicated modal for adding addresses in bundle detail page
  * 
  * Features:
- * - ✅ Smooth slide-in animation from right
- * - ✅ Resizable width by dragging left edge (desktop only)
+ * - ✅ Slides from bottom-right corner (both mobile & desktop)
+ * - ✅ Max height: 80vh
+ * - ✅ Rounded top corners
  * - ✅ Form validation
  * - ✅ Success/Error notifications
- * - ✅ Responsive design
- * - ✅ Mobile: Compact modal (85% height) from right
- * - ✅ Desktop: Full-height sidebar from right
  */
-const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
-  // Resizable width state
-  const [sidebarWidth, setSidebarWidth] = useState(520);
-  const [isResizing, setIsResizing] = useState(false);
-  const sidebarRef = useRef(null);
-
+const BundleAddressModal = ({ isOpen, onClose, onSuccess }) => {
   // Animation state
   const [shouldRender, setShouldRender] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
   // Form state
-  const isEditing = !!editingAddress;
   const [formData, setFormData] = useState({
     line1: '',
     line2: '',
@@ -54,7 +42,7 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  // Handle body scroll when sidebar opens/closes
+  // Handle body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -70,33 +58,18 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
   // Handle render and animation state
   useEffect(() => {
     if (isOpen) {
-      // Load address data if editing
-      if (editingAddress) {
-        setFormData({
-          line1: editingAddress.line1 || '',
-          line2: editingAddress.line2 || '',
-          city: editingAddress.city || '',
-          state: editingAddress.state || '',
-          country: editingAddress.country || 'India',
-          zip_code: editingAddress.zip_code || '',
-          landmark: editingAddress.landmark || '',
-          phone: editingAddress.phone || '',
-          is_default: editingAddress.is_default || false
-        });
-      } else {
-        // Reset form for new address
-        setFormData({
-          line1: '',
-          line2: '',
-          city: '',
-          state: '',
-          country: 'India',
-          zip_code: '',
-          landmark: '',
-          phone: '',
-          is_default: false
-        });
-      }
+      // Reset form
+      setFormData({
+        line1: '',
+        line2: '',
+        city: '',
+        state: '',
+        country: 'India',
+        zip_code: '',
+        landmark: '',
+        phone: '',
+        is_default: false
+      });
 
       // Clear previous states
       setErrors({});
@@ -121,45 +94,7 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, editingAddress]);
-
-  // Handle resizing
-  useEffect(() => {
-    if (!isResizing) return;
-
-    const handleMouseMove = (e) => {
-      if (!sidebarRef.current) return;
-
-      const newWidth = window.innerWidth - e.clientX;
-
-      // Constrain width between 320px and 800px
-      if (newWidth >= 320 && newWidth <= 800) {
-        setSidebarWidth(newWidth);
-      }
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      document.body.style.cursor = 'default';
-      document.body.style.userSelect = 'auto';
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing]);
-
-  // Start resizing
-  const handleResizeStart = (e) => {
-    e.preventDefault();
-    setIsResizing(true);
-    document.body.style.cursor = 'ew-resize';
-    document.body.style.userSelect = 'none';
-  };
+  }, [isOpen]);
 
   // Handle input change
   const handleChange = (e) => {
@@ -213,12 +148,7 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
     try {
       setLoading(true);
 
-      let response;
-      if (isEditing) {
-        response = await updateAddress(editingAddress.id, formData);
-      } else {
-        response = await createAddress(formData);
-      }
+      const response = await createAddress(formData);
 
       if (response.success) {
         setSubmitSuccess(true);
@@ -228,7 +158,7 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
           onSuccess(response.data);
         }
 
-        // Close sidebar after short delay
+        // Close modal after short delay
         setTimeout(() => {
           if (onClose) {
             onClose();
@@ -259,62 +189,35 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
     <>
       {/* Backdrop with fade-in */}
       <div
-        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] will-change-opacity
+        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] will-change-opacity
           transition-opacity duration-200 ${isAnimating ? 'opacity-100' : 'opacity-0'}`}
         onClick={handleClose}
         aria-hidden="true"
       />
 
-      {/* Sidebar - Mobile: max-h-[85vh] responsive height bottom-aligned, Desktop: Full height - BOTH slide from right */}
+      {/* Modal - Slides from bottom-right corner for BOTH mobile & desktop */}
       <div
-        ref={sidebarRef}
-        className={`fixed right-0 bg-white shadow-2xl z-[70]
-          flex flex-col will-change-transform
-          ${isAnimating ? 'translate-x-0' : 'translate-x-full'}
-          transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]
-          bottom-0 max-h-[80vh] rounded-t-2xl
-          sm:top-0 sm:h-full sm:max-h-none sm:rounded-none`}
-        style={{ width: window.innerWidth < 640 ? '100%' : `${sidebarWidth}px` }}
+        className={`fixed right-0 bottom-0 bg-white shadow-2xl z-[110]
+          flex flex-col will-change-transform rounded-t-2xl
+          w-full sm:w-[520px] h-[80vh]
+          transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
+          ${isAnimating ? 'translate-y-0' : 'translate-y-full'}`}
         role="dialog"
-        aria-label="Address form"
+        aria-label="Add new address"
         aria-modal="true"
       >
-        {/* Resize Handle - Left Edge - DESKTOP ONLY */}
-        {window.innerWidth >= 640 && (
-          <div
-            onMouseDown={handleResizeStart}
-            className={`absolute left-0 top-0 h-full w-1 cursor-ew-resize group transition-colors ${
-              isResizing ? 'bg-tpppink' : 'hover:bg-tpppink/30'
-            }`}
-            style={{ zIndex: 80 }}
-          >
-            {/* Grip Icon */}
-            <div
-              className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 
-              bg-white rounded-full p-1 shadow-md border border-slate-200
-              transition-all duration-200 ${
-                isResizing
-                  ? 'text-tpppink scale-110 border-tpppink'
-                  : 'text-slate-400 group-hover:text-tpppink group-hover:scale-105 group-hover:border-tpppink'
-              }`}
-            >
-              <GripVertical size={16} />
-            </div>
-          </div>
-        )}
-
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white flex-shrink-0 rounded-t-2xl">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-tpppink to-tpppeach rounded-lg flex items-center justify-center shadow-md">
               <MapPin size={20} className="text-white" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-tppslate">
-                {isEditing ? 'Edit Address' : 'Add New Address'}
+                Add New Address
               </h2>
               <p className="text-xs text-tppslate/60">
-                {isEditing ? 'Update your delivery address' : 'Add a new delivery address'}
+                Add a new delivery address
               </p>
             </div>
           </div>
@@ -329,12 +232,12 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
           </button>
         </div>
 
-        {/* Form Content */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Form Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto bg-tppslate/10">
           <div className="p-6">
             {/* Notifications */}
             <AddressNotifications
-              success={submitSuccess ? `Address ${isEditing ? 'updated' : 'added'} successfully!` : null}
+              success={submitSuccess ? 'Address added successfully!' : null}
               error={submitError}
               onDismissSuccess={() => setSubmitSuccess(false)}
               onDismissError={() => setSubmitError(null)}
@@ -394,7 +297,7 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
               </div>
 
               {/* City and State */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="city" className="block text-sm font-medium text-tppslate mb-1">
                     City <span className="text-red-500">*</span>
@@ -433,7 +336,7 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
               </div>
 
               {/* Zip Code and Country */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="zip_code" className="block text-sm font-medium text-tppslate mb-1">
                     Postal Code <span className="text-red-500">*</span>
@@ -526,10 +429,10 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
             {loading ? (
               <>
                 <Loader className="w-4 h-4 animate-spin" />
-                {isEditing ? 'Updating...' : 'Saving...'}
+                Saving...
               </>
             ) : (
-              <>{isEditing ? 'Update Address' : 'Save Address'}</>
+              'Save Address'
             )}
           </button>
 
@@ -545,11 +448,8 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
           </button>
         </div>
       </div>
-
-      {/* Resize cursor overlay when resizing */}
-      {isResizing && <div className="fixed inset-0 z-[80] cursor-ew-resize" />}
     </>
   );
 };
 
-export default AddressFormSidebar;
+export default BundleAddressModal;

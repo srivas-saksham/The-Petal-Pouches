@@ -330,7 +330,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
           <>
             <button
               onClick={handlePrevious}
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group z-10"
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group"
               aria-label="Previous image"
             >
               <ChevronLeft size={20} className="text-slate-700 group-hover:text-tpppink transition-colors" />
@@ -338,7 +338,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
             
             <button
               onClick={handleNext}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group z-10"
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group"
               aria-label="Next image"
             >
               <ChevronRight size={20} className="text-slate-700 group-hover:text-tpppink transition-colors" />
@@ -355,7 +355,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
 
         {/* Out of Stock Badge - DESKTOP */}
         {isOutOfStock && (
-          <div className="absolute top-4 left-4 bg-red-500 text-white text-sm font-bold px-4 py-2 rounded-md shadow-lg flex items-center gap-2 z-10">
+          <div className="absolute top-4 left-4 bg-red-500 text-white text-sm font-bold px-4 py-2 rounded-md shadow-lg flex items-center gap-2 ">
             <AlertCircle size={16} />
             OUT OF STOCK
           </div>
@@ -363,7 +363,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
 
         {/* Discount Badge - DESKTOP */}
         {!isOutOfStock && bundle?.discount_percent > 0 && (
-          <div className="absolute top-4 right-4 bg-green-500 text-white text-sm font-bold px-4 py-2 rounded-md shadow-lg z-10">
+          <div className="absolute top-4 right-4 bg-green-500 text-white text-sm font-bold px-4 py-2 rounded-md shadow-lg">
             {bundle.discount_percent}% OFF
           </div>
         )}

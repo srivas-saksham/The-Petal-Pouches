@@ -1,18 +1,20 @@
+// frontend/src/components/bundle-detail/FloatingSidebar/DeliverySection.jsx
+// ✅ COMPLETE REWRITE: Now uses BundleAddressModal with all existing functionality preserved
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Truck, MapPin, Calendar, ChevronDown, ChevronUp, Plus, Home, Briefcase, X, CheckCircle, Loader, AlertCircle, Package, Plane } from 'lucide-react';
+import { Truck, MapPin, Calendar, ChevronDown, ChevronUp, Plus, Home, Briefcase, CheckCircle, Loader, AlertCircle, Package, Plane } from 'lucide-react';
 import { useUserAuth } from '../../../context/UserAuthContext';
-import { getAddresses, createAddress } from '../../../services/addressService';
+import { getAddresses } from '../../../services/addressService';
 import api from '../../../services/api';
-// ✅ NEW IMPORT
-import { saveDeliveryData, getDeliveryData, getStoredAddressId, getStoredPinCode } from '../../../utils/deliveryStorage';
-import AddressFormSidebar from '../../user/addresses/AddressFormSidebar';
+import { saveDeliveryData, getDeliveryData, getStoredAddressId } from '../../../utils/deliveryStorage';
+import BundleAddressModal from '../../bundle-detail/BundleAddressModal';
 
 /**
  * DeliverySection - Delivery info with Delhivery PIN check and TAT
  * Shows default address for logged-in users or PIN code input for guests
  * Integrates with Delhivery API for serviceability and delivery estimates
- * ✅ NOW WITH: localStorage persistence for seamless checkout flow
- * ✅ NOW WITH: AddressFormSidebar instead of custom modal
+ * ✅ NOW USING: BundleAddressModal (bottom slide-up for both mobile & desktop)
+ * ✅ PRESERVES: All existing functionality including localStorage persistence
  */
 const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
   const { isAuthenticated, user } = useUserAuth();
@@ -23,21 +25,20 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
   const [showAddressList, setShowAddressList] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  // ✅ CHANGED: New address sidebar state (replaces modal state)
-  const [showAddressSidebar, setShowAddressSidebar] = useState(false);
+  // ✅ Modal state (using BundleAddressModal)
+  const [showAddressModal, setShowAddressModal] = useState(false);
   
-  // PIN code state (for guests and checking)
+  // PIN code state
   const [pinCode, setPinCode] = useState('');
   const [checkingPin, setCheckingPin] = useState(false);
   const [pinCheckResult, setPinCheckResult] = useState(null);
   const [pinError, setPinError] = useState(null);
-
   const [lastCheckedWeight, setLastCheckedWeight] = useState(null);
   
   // Refs
   const addressListRef = useRef(null);
 
-  // ==================== ✅ NEW: LOAD FROM LOCALSTORAGE ON MOUNT ====================
+  // ==================== LOAD FROM LOCALSTORAGE ON MOUNT ====================
   
   useEffect(() => {
     const loadStoredData = () => {
@@ -66,7 +67,7 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
   
   /**
    * Check PIN serviceability and TAT with Delhivery API
-   * ✅ NOW SAVES: Result to localStorage
+   * ✅ Saves result to localStorage
    */
   const checkPinDelivery = async (pin) => {
     if (!pin || pin.length !== 6) {
@@ -82,11 +83,8 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
       console.log('🔍 Checking Delhivery serviceability for PIN:', pin);
       console.log(`📦 Using weight: ${bundleWeight}g (${bundleWeight/1000}kg)`);
       
-      // Call combined delivery check endpoint
       const response = await api.get(`/api/delhivery/check/${pin}`, {
-        params: {
-          weight: bundleWeight
-        }
+        params: { weight: bundleWeight }
       });
       
       console.log('📦 Delhivery response:', response.data);
@@ -97,14 +95,12 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
         console.log('✅ Full Delhivery response:', JSON.stringify(data, null, 2));
         
         if (data.serviceable) {
-          // PIN is serviceable - get TAT
           const deliveryOptions = data.deliveryOptions || {};
           const bestOption = data.bestOption || deliveryOptions.surface || deliveryOptions.express;
           
           console.log('📦 Best option:', bestOption);
           console.log('📦 Delivery options:', deliveryOptions);
           
-          // Try multiple paths to get TAT data
           let estimatedDays = null;
           let deliveryDate = null;
           let mode = 'Surface';
@@ -133,13 +129,13 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
             deliveryDate: deliveryDate,
             mode: mode,
             features: data.features || {},
-            rawData: data // Keep raw data for debugging
+            rawData: data
           };
           
           console.log('💾 Setting pin check result:', result);
           setPinCheckResult(result);
 
-          // ✅ NEW: Save to localStorage
+          // Save to localStorage
           const deliveryData = {
             deliveryCheck: result,
             guestPinCode: !isAuthenticated ? pin : undefined,
@@ -148,7 +144,6 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
           saveDeliveryData(deliveryData);
           console.log('💾 [DeliverySection] Saved delivery check to localStorage');
         } else {
-          // PIN is not serviceable
           setPinCheckResult({
             serviceable: false,
             reason: data.reason || 'Delivery not available for this PIN code'
@@ -165,10 +160,7 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
     }
   };
 
-  /**
-   * Auto-check PIN when address is selected (for logged-in users)
-   * ✅ NOW SAVES: Selected address to localStorage
-   */
+  // Auto-check PIN when address is selected
   useEffect(() => {
     if (selectedAddress && selectedAddress.zip_code) {
       const pin = selectedAddress.zip_code;
@@ -176,7 +168,6 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
         setPinCode(pin);
         checkPinDelivery(pin);
 
-        // ✅ NEW: Save selected address to localStorage
         saveDeliveryData({
           selectedAddressId: selectedAddress.id,
           deliveryCheck: pinCheckResult
@@ -186,19 +177,13 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
     }
   }, [selectedAddress, bundleWeight]);
 
+  // Re-check when weight changes
   useEffect(() => {
-    // Only re-check if:
-    // 1. We have a valid PIN code already checked
-    // 2. Weight actually changed
-    // 3. Weight is different from last checked weight
     if (pinCode && pinCode.length === 6 && pinCheckResult && bundleWeight !== lastCheckedWeight) {
       console.log(`🔄 [DeliverySection] Weight changed: ${lastCheckedWeight}g → ${bundleWeight}g`);
       console.log(`   Rechecking delivery costs...`);
       
-      // Update last checked weight
       setLastCheckedWeight(bundleWeight);
-      
-      // Re-run delivery check with new weight
       checkPinDelivery(pinCode);
     }
   }, [bundleWeight]);
@@ -206,7 +191,6 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
   // ==================== ADDRESS MANAGEMENT ====================
 
   // Fetch addresses on mount if authenticated
-  // ✅ ENHANCED: Try to restore previously selected address
   useEffect(() => {
     if (isAuthenticated) {
       fetchAddresses();
@@ -220,7 +204,6 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
       if (result.success && result.data) {
         setAddresses(result.data);
         
-        // ✅ ENHANCED: Try to restore previously selected address
         const storedAddressId = getStoredAddressId();
         let addressToSelect = null;
 
@@ -231,7 +214,6 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
           }
         }
 
-        // Fallback to default address
         if (!addressToSelect) {
           const defaultAddr = result.data.find(a => a.is_default);
           if (defaultAddr) {
@@ -252,31 +234,23 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
     }
   };
 
-  // Handle address selection
-  // ✅ ENHANCED: Save to localStorage
   const handleAddressSelect = (address) => {
     setSelectedAddress(address);
     setShowAddressList(false);
 
-    // ✅ NEW: Save to localStorage
     saveDeliveryData({
       selectedAddressId: address.id
     });
     console.log('💾 [DeliverySection] Saved address selection to localStorage');
   };
 
-  // ✅ NEW: Handle sidebar success callback
-  const handleSidebarSuccess = async (newAddress) => {
-    console.log('✅ [DeliverySection] New address saved via sidebar:', newAddress);
-    
-    // Refresh addresses list
+  // ✅ Handle modal success
+  const handleModalSuccess = async (newAddress) => {
+    console.log('✅ [DeliverySection] New address saved:', newAddress);
     await fetchAddresses();
-    
-    // Close sidebar
-    setShowAddressSidebar(false);
+    setShowAddressModal(false);
   };
 
-  // Get address icon
   const getAddressIcon = (type) => {
     switch (type?.toLowerCase()) {
       case 'home':
@@ -288,7 +262,6 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
     }
   };
 
-  // Get formatted address type
   const getAddressTypeName = (type) => {
     return type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Address';
   };
@@ -375,10 +348,10 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
           {/* Address Dropdown */}
           {showAddressList && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-gray-200 rounded-lg shadow-xl max-h-80 overflow-y-auto z-50">
-              {/* ✅ CHANGED: Opens AddressFormSidebar instead of modal */}
+              {/* ✅ Opens BundleAddressModal */}
               <button
                 onClick={() => {
-                  setShowAddressSidebar(true);
+                  setShowAddressModal(true);
                   setShowAddressList(false);
                 }}
                 className="w-full p-3 bg-tpppink/10 border-b-2 border-gray-100 flex items-center gap-2 hover:bg-tpppink transition-colors text-tpppink hover:text-white font-semibold"
@@ -415,7 +388,7 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
                             <span className="text-xs bg-tpppink text-white px-1.5 py-0.5 rounded-full font-semibold">
                               Default
                             </span>
-                            )}
+                          )}
                         </div>
                         <p className="text-xs text-gray-700 font-medium truncate">
                           {addr.line1}
@@ -435,7 +408,7 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
           )}
         </div>
       ) : (
-        /* Guest users: PIN input with check button */
+        /* Guest users: PIN input */
         <div className="space-y-2">
           <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
             <MapPin size={12} />
@@ -612,7 +585,7 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
                             onMouseEnter={(e) => {
                               const rect = e.currentTarget.getBoundingClientRect();
                               const tooltip = e.currentTarget.nextElementSibling;
-                              tooltip.style.left = `${rect.right - 256}px`; // 256px = w-64
+                              tooltip.style.left = `${rect.right - 256}px`;
                               tooltip.style.top = `${rect.top - 8}px`;
                               tooltip.classList.remove('hidden');
                             }}
@@ -621,12 +594,10 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
                               tooltip.classList.add('hidden');
                             }}
                           />
-                          {/* Tooltip - using fixed positioning to escape all parent constraints */}
                           <div className="tooltip fixed hidden w-64 p-2.5 bg-tppslate/100 text-white text-xs rounded-lg shadow-xl z-[99999] -translate-y-full pointer-events-none">
                             <p className="leading-relaxed">
                               <b>Delivery charges</b> and <b>express fees</b> are determined and applied directly by our logistics partner, <b>Delhivery</b>, based on <b>shipment weight and destination</b>.
                             </p>
-                            {/* Tooltip arrow - pointing down from bottom right */}
                             <div className="absolute top-full right-3 -mt-1 border-4 border-transparent border-t-gray-900"></div>
                           </div>
                         </div>
@@ -693,12 +664,11 @@ const DeliverySection = ({ bundleWeight = 1000, isRecalculating = false }) => {
         </div>
       )}
 
-      {/* ✅ NEW: AddressFormSidebar (replaces modal) */}
-      <AddressFormSidebar
-        isOpen={showAddressSidebar}
-        editingAddress={null}
-        onClose={() => setShowAddressSidebar(false)}
-        onSuccess={handleSidebarSuccess}
+      {/* ✅ BundleAddressModal */}
+      <BundleAddressModal
+        isOpen={showAddressModal}
+        onClose={() => setShowAddressModal(false)}
+        onSuccess={handleModalSuccess}
       />
     </div>
   );
