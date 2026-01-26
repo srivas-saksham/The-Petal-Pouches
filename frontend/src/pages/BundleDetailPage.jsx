@@ -8,6 +8,7 @@ import BundleKeyDetails from '../components/bundle-detail/BundleKeyDetails';
 import FloatingSidebar from '../components/bundle-detail/FloatingSidebar/FloatingSidebar';
 import BundleHeader from '../components/bundle-detail/BundleHeader';
 import BundleReviews from '../components/bundle-detail/BundleReviews';
+import BundleSkeleton from '../components/bundle-detail/ui/BundleSkeleton';
 import { addBundleToCart, updateCartItem, removeFromCart } from '../services/cartService';
 import { useCart } from '../hooks/useCart';
 import { getDisplayRating, formatRating, formatTimeAgo } from '../utils/reviewHelpers';
@@ -153,6 +154,16 @@ const BundleDetailPage = () => {
     };
   }, [pendingQuantity, cartItem, stockLimit, refreshCart]);
 
+  useEffect(() => {
+  if (!loading && item) {
+    // Wait one frame for layout + images
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    });
+  }
+}, [loading, item]);
+
+
   const handleAddToCart = async () => {
     if (!stockStatus?.available) {
       alert(`This ${itemType} is currently out of stock`);
@@ -270,14 +281,7 @@ const BundleDetailPage = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-3 border-tpppink border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-tppslate text-sm font-medium">Loading details...</p>
-        </div>
-      </div>
-    );
+    return <BundleSkeleton />;
   }
 
   if (error) {

@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ShoppingCart, User, Search, X, ChevronDown, Package } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useCart } from '../../hooks/useCart';
 import { useCartSidebar } from '../../hooks/useCartSidebar';
@@ -105,6 +106,17 @@ const CommonHeader = () => {
     }
   };
 
+  // ⭐ NEW: Get active section for underline animation
+  const getActiveSection = () => {
+    if (isActiveSection('/')) return 'home';
+    if (isActiveSection('/shop')) return 'shop';
+    if (isActiveSection('/about')) return 'about';
+    if (isActiveSection('/faqs')) return 'faqs';
+    return null;
+  };
+
+  const activeSection = getActiveSection();
+
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
       <div className="max-w-8xl mx-auto">
@@ -125,10 +137,23 @@ const CommonHeader = () => {
               to="/"
               className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
                 isActiveSection('/') 
-                  ? 'text-tpppink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-tpppink' 
+                  ? 'text-tpppink' 
                   : 'text-tppslate hover:text-tpppink'
               }`}
             >
+              {activeSection === 'home' && (
+                <motion.div
+                  layoutId="desktop-nav-underline"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-tpppink"
+                  initial={false}
+                  transition={{
+                    type: "spring",
+                    stiffness: 380,
+                    damping: 30,
+                    mass: 0.6
+                  }}
+                />
+              )}
               Home
             </Link>
             
@@ -136,10 +161,23 @@ const CommonHeader = () => {
               to="/shop"
               className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
                 isActiveSection('/shop') 
-                  ? 'text-tpppink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-tpppink' 
+                  ? 'text-tpppink' 
                   : 'text-tppslate hover:text-tpppink'
               }`}
             >
+              {activeSection === 'shop' && (
+                <motion.div
+                  layoutId="desktop-nav-underline"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-tpppink"
+                  initial={false}
+                  transition={{
+                    type: "spring",
+                    stiffness: 380,
+                    damping: 30,
+                    mass: 0.6
+                  }}
+                />
+              )}
               Shop
             </Link>
 
@@ -176,10 +214,23 @@ const CommonHeader = () => {
               to="/about"
               className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
                 isActiveSection('/about') 
-                  ? 'text-tpppink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-tpppink' 
+                  ? 'text-tpppink' 
                   : 'text-tppslate hover:text-tpppink'
               }`}
             >
+              {activeSection === 'about' && (
+                <motion.div
+                  layoutId="desktop-nav-underline"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-tpppink"
+                  initial={false}
+                  transition={{
+                    type: "spring",
+                    stiffness: 380,
+                    damping: 30,
+                    mass: 0.6
+                  }}
+                />
+              )}
               About
             </Link>
 
@@ -187,10 +238,23 @@ const CommonHeader = () => {
               to="/faqs"
               className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
                 isActiveSection('/faqs') 
-                  ? 'text-tpppink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-tpppink' 
+                  ? 'text-tpppink' 
                   : 'text-tppslate hover:text-tpppink'
               }`}
             >
+              {activeSection === 'faqs' && (
+                <motion.div
+                  layoutId="desktop-nav-underline"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-tpppink"
+                  initial={false}
+                  transition={{
+                    type: "spring",
+                    stiffness: 380,
+                    damping: 30,
+                    mass: 0.6
+                  }}
+                />
+              )}
               FAQs
             </Link>
           </nav>
@@ -293,7 +357,7 @@ const CommonHeader = () => {
                 >
                   <ShoppingCart size={20} />
                   {cartCount > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-tpppink text-white text-[10px] font-bold rounded-full min-w-[18px] h-18px] flex items-center justify-center px-1 shadow-sm">
+                    <span className="absolute -top-2 -right-2 bg-tpppink text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-sm">
                       {cartCount > 99 ? '99+' : cartCount}
                     </span>
                   )}
@@ -310,10 +374,23 @@ const CommonHeader = () => {
               to="/"
               className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
                 isActiveSection('/') 
-                  ? 'text-tpppink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-tpppink' 
+                  ? 'text-tpppink' 
                   : 'text-tppslate hover:text-tpppink'
               }`}
             >
+              {activeSection === 'home' && (
+                <motion.div
+                  layoutId="mobile-nav-underline"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-tpppink"
+                  initial={false}
+                  transition={{
+                    type: "spring",
+                    stiffness: 380,
+                    damping: 30,
+                    mass: 0.6
+                  }}
+                />
+              )}
               Home
             </Link>
             
@@ -321,10 +398,23 @@ const CommonHeader = () => {
               to="/shop"
               className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
                 isActiveSection('/shop') 
-                  ? 'text-tpppink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-tpppink' 
+                  ? 'text-tpppink' 
                   : 'text-tppslate hover:text-tpppink'
               }`}
             >
+              {activeSection === 'shop' && (
+                <motion.div
+                  layoutId="mobile-nav-underline"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-tpppink"
+                  initial={false}
+                  transition={{
+                    type: "spring",
+                    stiffness: 380,
+                    damping: 30,
+                    mass: 0.6
+                  }}
+                />
+              )}
               Shop
             </Link>
 
@@ -361,10 +451,23 @@ const CommonHeader = () => {
               to="/about"
               className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
                 isActiveSection('/about') 
-                  ? 'text-tpppink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-tpppink' 
+                  ? 'text-tpppink' 
                   : 'text-tppslate hover:text-tpppink'
               }`}
             >
+              {activeSection === 'about' && (
+                <motion.div
+                  layoutId="mobile-nav-underline"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-tpppink"
+                  initial={false}
+                  transition={{
+                    type: "spring",
+                    stiffness: 380,
+                    damping: 30,
+                    mass: 0.6
+                  }}
+                />
+              )}
               About
             </Link>
 
@@ -372,10 +475,23 @@ const CommonHeader = () => {
               to="/faqs"
               className={`font-inter text-sm font-semibold transition-colors relative pb-1 ${
                 isActiveSection('/faqs') 
-                  ? 'text-tpppink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-tpppink' 
+                  ? 'text-tpppink' 
                   : 'text-tppslate hover:text-tpppink'
               }`}
             >
+              {activeSection === 'faqs' && (
+                <motion.div
+                  layoutId="mobile-nav-underline"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-tpppink"
+                  initial={false}
+                  transition={{
+                    type: "spring",
+                    stiffness: 380,
+                    damping: 30,
+                    mass: 0.6
+                  }}
+                />
+              )}
               FAQs
             </Link>
           </nav>

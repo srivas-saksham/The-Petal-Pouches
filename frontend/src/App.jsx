@@ -9,6 +9,7 @@ import { CartSidebarProvider } from './hooks/useCartSidebar';
 import ProtectedRoute from './components/admin/ProtectedRoute';
 import ProtectedCustomerRoute from './components/user/ProtectedCustomerRoute';
 import ProtectedByGateway from './components/ProtectedByGateway';
+import useScrollRestoration from './hooks/useScrollRestoration';
 
 // Admin Pages
 import AdminLogin from './pages/admin/AdminLogin';
@@ -39,9 +40,15 @@ import CartSidebar from './components/cart/CartSidebar';
 // 🔒 Gateway Login
 import GatewayLogin from './pages/GatewayLogin';
 
+function ScrollManager() {
+  useScrollRestoration();
+  return null;
+}
+
 function App() {
   return (
     <BrowserRouter>
+    <ScrollManager />
       <ToastProvider>
         <AdminAuthProvider>
           <UserAuthProvider>

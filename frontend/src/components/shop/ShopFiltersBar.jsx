@@ -1,13 +1,14 @@
-// frontend/src/components/shop/ShopFiltersBar.jsx - MOBILE OPTIMIZED
+// frontend/src/components/shop/ShopFiltersBar.jsx - MOBILE OPTIMIZED WITH FRAMER MOTION
 
 import React, { useState } from 'react';
 import { LayoutGrid, Grid3x2, Grid3x3, ChevronDown, ChevronUp, Package, Box, Filter, X } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 /**
- * ShopFiltersBar Component - MOBILE OPTIMIZED
+ * ShopFiltersBar Component - MOBILE OPTIMIZED WITH ANIMATED TAB SWITCHER
  * 
  * MOBILE:
- * - Type tabs at top (ALL/PRODUCTS/BUNDLES)
+ * - Type tabs at top (ALL/PRODUCTS/BUNDLES) with sliding background animation
  * - Top 3 tags + "Show All" button
  * - Filter button to open sidebar
  * - Layout switcher HIDDEN
@@ -15,7 +16,7 @@ import { LayoutGrid, Grid3x2, Grid3x3, ChevronDown, ChevronUp, Package, Box, Fil
  * DESKTOP:
  * - All tags visible
  * - Layout switcher visible
- * - Type filter integrated
+ * - Type filter integrated with sliding background animation
  */
 const ShopFiltersBar = ({
   availableTags = [],
@@ -43,35 +44,54 @@ const ShopFiltersBar = ({
         
         {/* Row 1: Type Tabs + Filter Button */}
         <div className="flex items-center justify-between gap-2 mb-2">
-          {/* Type Tabs */}
+          {/* Type Tabs - ANIMATED */}
           {onTypeChange && (
-            <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5 flex-1">
+            <div className="relative flex items-center gap-1 bg-slate-100 rounded-lg p-0.5 flex-1">
+              {/* Animated Background */}
+              <motion.div
+                layoutId="mobile-tab-indicator"
+                className="absolute bg-tpppink rounded shadow-sm"
+                style={{ height: 'calc(100% - 4px)', top: '2px' }}
+                initial={false}
+                transition={{
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 30,
+                  mass: 0.8
+                }}
+                animate={{
+                  left: itemType === 'all' ? '2px' : itemType === 'products' ? 'calc(33.333% + 1px)' : 'calc(66.666%)',
+                  width: 'calc(33.333% - 4px)'
+                }}
+              />
+              
+              {/* Tab Buttons */}
               <button
                 onClick={() => onTypeChange('all')}
-                className={`flex-1 px-2 py-1.5 rounded text-[10px] font-bold transition-all active:scale-95 ${
+                className={`relative z-10 flex-1 px-2 py-1.5 rounded text-[10px] font-bold transition-colors duration-200 active:scale-95 ${
                   itemType === 'all'
-                    ? 'bg-tpppink text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-200'
+                    ? 'text-white'
+                    : 'text-slate-600'
                 }`}
               >
                 ALL
               </button>
               <button
                 onClick={() => onTypeChange('products')}
-                className={`flex-1 px-2 py-1.5 rounded text-[10px] font-bold transition-all active:scale-95 ${
+                className={`relative z-10 flex-1 px-2 py-1.5 rounded text-[10px] font-bold transition-colors duration-200 active:scale-95 ${
                   itemType === 'products'
-                    ? 'bg-tpppink text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-200'
+                    ? 'text-white'
+                    : 'text-slate-600'
                 }`}
               >
                 PRODUCTS
               </button>
               <button
                 onClick={() => onTypeChange('bundles')}
-                className={`flex-1 px-2 py-1.5 rounded text-[10px] font-bold transition-all active:scale-95 ${
+                className={`relative z-10 flex-1 px-2 py-1.5 rounded text-[10px] font-bold transition-colors duration-200 active:scale-95 ${
                   itemType === 'bundles'
-                    ? 'bg-tpppink text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-200'
+                    ? 'text-white'
+                    : 'text-slate-600'
                 }`}
               >
                 BUNDLES
@@ -171,41 +191,96 @@ const ShopFiltersBar = ({
       <div className="hidden lg:block px-6 py-3">
         <div className="flex items-center gap-3">
           
-          {/* Type Toggle - Desktop */}
+          {/* Type Toggle - Desktop - ANIMATED */}
           {onTypeChange && (
-            <div className="flex items-center gap-1 bg-white backdrop-blur-md rounded-lg p-1 border-2 border-slate-200 shadow-md flex-shrink-0">
+            <div className="relative flex items-center gap-1 bg-white backdrop-blur-md rounded-lg p-1 border-2 border-slate-200 shadow-md flex-shrink-0">
+              {/* Animated Background - Desktop with Layout Animation */}
+              {itemType === 'all' && (
+                <motion.div
+                  layoutId="desktop-tab-bg"
+                  className="absolute bg-tpppink rounded-md shadow-sm inset-y-1"
+                  initial={false}
+                  transition={{
+                    type: "spring",
+                    stiffness: 380,
+                    damping: 28,
+                    mass: 0.6
+                  }}
+                />
+              )}
+              
+              {/* Tab Buttons - Desktop */}
               <button
                 onClick={() => onTypeChange('all')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors duration-200 ${
                   itemType === 'all'
-                    ? 'bg-tpppink text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100'
+                    ? 'text-white'
+                    : 'text-slate-600'
                 }`}
               >
-                <Box size={14} />
-                All
+                {itemType === 'all' && (
+                  <motion.div
+                    layoutId="desktop-tab-bg"
+                    className="absolute inset-0 bg-tpppink rounded-md shadow-sm"
+                    initial={false}
+                    transition={{
+                      type: "spring",
+                      stiffness: 380,
+                      damping: 28,
+                      mass: 0.6
+                    }}
+                  />
+                )}
+                <Box size={14} className="relative z-10" />
+                <span className="relative z-10">All</span>
               </button>
               <button
                 onClick={() => onTypeChange('products')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors duration-200 ${
                   itemType === 'products'
-                    ? 'bg-tpppink text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100'
+                    ? 'text-white'
+                    : 'text-slate-600'
                 }`}
               >
-                <Package size={14} />
-                Products
+                {itemType === 'products' && (
+                  <motion.div
+                    layoutId="desktop-tab-bg"
+                    className="absolute inset-0 bg-tpppink rounded-md shadow-sm"
+                    initial={false}
+                    transition={{
+                      type: "spring",
+                      stiffness: 380,
+                      damping: 28,
+                      mass: 0.6
+                    }}
+                  />
+                )}
+                <Package size={14} className="relative z-10" />
+                <span className="relative z-10">Products</span>
               </button>
               <button
                 onClick={() => onTypeChange('bundles')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors duration-200 ${
                   itemType === 'bundles'
-                    ? 'bg-tpppink text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100'
+                    ? 'text-white'
+                    : 'text-slate-600'
                 }`}
               >
-                <Package size={14} />
-                Bundles
+                {itemType === 'bundles' && (
+                  <motion.div
+                    layoutId="desktop-tab-bg"
+                    className="absolute inset-0 bg-tpppink rounded-md shadow-sm"
+                    initial={false}
+                    transition={{
+                      type: "spring",
+                      stiffness: 380,
+                      damping: 28,
+                      mass: 0.6
+                    }}
+                  />
+                )}
+                <Package size={14} className="relative z-10" />
+                <span className="relative z-10">Bundles</span>
               </button>
             </div>
           )}
