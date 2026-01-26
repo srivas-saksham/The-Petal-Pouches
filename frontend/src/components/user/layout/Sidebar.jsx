@@ -167,10 +167,14 @@ export default function UserSidebar({ isOpen, onClose }) {
             />
           </div> */}
           {!isCollapsed && (
-            <div className="flex-1 overflow-hidden">
-              <h1 className="text-white font-italianno text-5xl tracking-wide truncate">
+            <div className="relative inline-block">
+              <h1 className="text-6xl font-italianno text-white transition-colors">
                 Rizara
               </h1>
+
+              <span className="absolute -right-1 bottom-1 uppercase text-[10px] tracking-[0.35em] font-light text-white pointer-events-none">
+                Luxe
+              </span>
             </div>
           )}
         </div>

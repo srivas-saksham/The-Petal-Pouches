@@ -124,12 +124,17 @@ const CommonHeader = () => {
       <div className="max-w-8xl mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           
-          {/* Logo - Left */}
-          <Link to="/" className="flex-shrink-0 flex items-center gap-3">
-            <h1 className="text-5xl font-italianno text-tpppink hover:text-tpppink/80 transition-colors">
+          {/* Logo */}
+          <Link to="/" className="relative inline-block">
+            <h1 className="text-6xl font-italianno text-tpppink hover:text-tpppink/80 transition-colors">
               Rizara
             </h1>
+
+            <span className="absolute -right-1 bottom-1 uppercase text-[10px] tracking-[0.35em] font-light text-tpppink pointer-events-none">
+              Luxe
+            </span>
           </Link>
+
 
           {/* Navigation Links - Center (Absolutely Centered) - DESKTOP ONLY */}
           <nav className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-8">
