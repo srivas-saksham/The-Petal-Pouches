@@ -19,6 +19,7 @@ import AdminRoutes from './routes/adminRoutes';
 import Home from './pages/Home';
 import Shop from './pages/ShopNew';
 import BundleDetailPage from './pages/BundleDetailPage';
+import FAQPage from './pages/FAQPage';
 
 // User/Customer Auth Pages
 import UserLogin from './pages/user/UserLogin';
@@ -94,6 +95,9 @@ function App() {
                             }
                           />
                           
+                          {/* FAQ Page - ADD THIS ROUTE */}
+                          <Route path="/faqs" element={<FAQPage />} />
+
                           {/* ==================== ORDER SUCCESS ROUTE (Protected) ==================== */}
                           
                           {/* Order Success Page - Shows after successful order placement */}

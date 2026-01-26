@@ -155,6 +155,7 @@ C:\Projects_External\The Petal Pouches\docx\References\Logo References\Minimal W
 C:\Projects_External\The Petal Pouches\docx\References\Logo References\MInimal White.png
 C:\Projects_External\The Petal Pouches\docx\References\Logo References\Pouch with Name no subtitle.png
 C:\Projects_External\The Petal Pouches\docx\References\Logo References\Pouch with Name.png
+C:\Projects_External\The Petal Pouches\docx\References\Logo References\Rizara Infinity Logo No Text Trans.png
 C:\Projects_External\The Petal Pouches\docx\References\Logo References\Rizara Infinity Logo No Text.png
 C:\Projects_External\The Petal Pouches\docx\References\Logo References\Rizara Infinity Logo.png
 C:\Projects_External\The Petal Pouches\docx\References\Logo References\Rizara Script Logo.png
@@ -221,6 +222,8 @@ C:\Projects_External\The Petal Pouches\docx\References\Tileable Background Wallp
 C:\Projects_External\The Petal Pouches\docx\References\UI Reference Links.txt
 C:\Projects_External\The Petal Pouches\docx\Startup Regstraton Docx\01 TPP Registration Checklist.docx
 C:\Projects_External\The Petal Pouches\docx\Pincodes.csv
+C:\Projects_External\The Petal Pouches\frontend\.vercel\project.json
+C:\Projects_External\The Petal Pouches\frontend\.vercel\README.txt
 C:\Projects_External\The Petal Pouches\frontend\public\assets\exp_gallery\img1.jpeg
 C:\Projects_External\The Petal Pouches\frontend\public\assets\exp_gallery\img2.jpeg
 C:\Projects_External\The Petal Pouches\frontend\public\assets\exp_gallery\img3.jpeg
@@ -248,6 +251,7 @@ C:\Projects_External\The Petal Pouches\frontend\public\assets\hero-video-poster2
 C:\Projects_External\The Petal Pouches\frontend\public\assets\Italianno Font.zip
 C:\Projects_External\The Petal Pouches\frontend\public\assets\logo3d.png
 C:\Projects_External\The Petal Pouches\frontend\public\assets\RizaraLuxe_Script.png
+C:\Projects_External\The Petal Pouches\frontend\public\assets\RZ_infinity.png
 C:\Projects_External\The Petal Pouches\frontend\public\assets\windmill_grey.png
 C:\Projects_External\The Petal Pouches\frontend\public\assets\windmill_saturated.png
 C:\Projects_External\The Petal Pouches\frontend\public\assets\Yatra_One Font.zip
@@ -326,7 +330,8 @@ C:\Projects_External\The Petal Pouches\frontend\src\components\bundle-detail\Flo
 C:\Projects_External\The Petal Pouches\frontend\src\components\bundle-detail\ui\Accordion.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\bundle-detail\ui\Badge.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\bundle-detail\ui\Breadcrumb.jsx
-C:\Projects_External\The Petal Pouches\frontend\src\components\bundle-detail\ui\Skeleton.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\components\bundle-detail\ui\BundleSkeleton.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\components\bundle-detail\BundleAddressModal.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\bundle-detail\BundleHeader.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\bundle-detail\BundleImageGallery.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\bundle-detail\BundleInfo.jsx
@@ -428,6 +433,7 @@ C:\Projects_External\The Petal Pouches\frontend\src\hooks\useParallax.js
 C:\Projects_External\The Petal Pouches\frontend\src\hooks\useProductGrid.js
 C:\Projects_External\The Petal Pouches\frontend\src\hooks\useRazorpay.js
 C:\Projects_External\The Petal Pouches\frontend\src\hooks\useScrollProgress.js
+C:\Projects_External\The Petal Pouches\frontend\src\hooks\useScrollRestoration.js
 C:\Projects_External\The Petal Pouches\frontend\src\hooks\useShipmentEdit.js
 C:\Projects_External\The Petal Pouches\frontend\src\hooks\useToast.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\admin\orders\AdminOrdersPage.jsx
