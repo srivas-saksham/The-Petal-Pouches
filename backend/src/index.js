@@ -119,6 +119,15 @@ if (process.env.NODE_ENV === 'development') {
 app.use('/api/gateway', require('./routes/gateway'));
 
 // ============================================
+// 🗺️ SITEMAP - SEO CRITICAL (PUBLIC ROUTE)
+// ============================================
+// ⚠️ MUST be BEFORE gatewayMiddleware to be publicly accessible
+// ⚠️ MUST be AFTER express.json() for proper request handling
+// Location: https://rizarabackend.vercel.app/sitemap.xml
+// Purpose: Dynamic sitemap generation from database
+app.use('/', require('./routes/sitemap'));
+
+// ============================================
 // 🔒 GATEWAY PROTECTION (OPTIONAL)
 // ============================================
 // ⚠️ CRITICAL: This MUST come AFTER gateway routes

@@ -1,0 +1,56 @@
+# ============================================
+# RIZARA LUXE - Production robots.txt
+# ============================================
+# Purpose: Controls what search engines can crawl
+# Location: frontend/public/robots.txt
+# Impact: Protects admin routes, guides Google
+# ============================================
+
+User-agent: *
+
+# ============================================
+# ALLOWED - High Priority SEO Pages
+# ============================================
+Allow: /
+Allow: /shop
+Allow: /shop/bundles/
+Allow: /shop/products/
+Allow: /faqs
+
+# ============================================
+# BLOCKED - Admin Panel & Internal Routes
+# ============================================
+Disallow: /admin
+Disallow: /admin/*
+
+# ============================================
+# BLOCKED - User Account Pages (Private Data)
+# ============================================
+Disallow: /user
+Disallow: /user/*
+
+# ============================================
+# BLOCKED - Authentication & Checkout
+# ============================================
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /checkout
+Disallow: /order-success
+Disallow: /auth/
+Disallow: /gateway-login
+
+# ============================================
+# SITEMAP LOCATION (CRITICAL FOR INDEXING)
+# ============================================
+# This tells Google where to find your dynamic sitemap
+Sitemap: https://www.rizara.in/sitemap.xml
+
+# ============================================
+# NOTES
+# ============================================
+# - Removed Crawl-delay (Google ignores it)
+# - Admin routes protected from search indexing
+# - User accounts protected (privacy + SEO)
+# - Sitemap proxied from backend automatically
+# ============================================
