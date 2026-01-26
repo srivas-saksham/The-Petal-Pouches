@@ -13,6 +13,7 @@ import OrdersFilters from '../../components/user/orders/OrdersFilters';
 import OrdersList from '../../components/user/orders/OrdersList';
 import OrdersPagination from '../../components/user/orders/OrdersPagination';
 import BuyAgainSidebar from '../../components/user/orders/BuyAgainSidebar';
+import SEO from '../../components/seo/SEO';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
@@ -161,6 +162,14 @@ const Orders = () => {
   });
 
   return (
+    <>
+    <SEO
+      title="My Orders"
+      description="Track and manage all your Rizara Luxe orders"
+      canonical="https://www.rizara.in/user/orders"
+      noindex={true}
+    />
+
     <OrdersLayout
       sidebar={<BuyAgainSidebar onReorder={handleReorder} />}
     >
@@ -196,6 +205,7 @@ const Orders = () => {
         />
       )}
     </OrdersLayout>
+    </>
   );
 };
 

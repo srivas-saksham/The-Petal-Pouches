@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import ProfileHeader from '../../components/user/profile/ProfileHeader';
 import ProfileInfoCard from '../../components/user/profile/ProfileInfoCard';
 import SecuritySettingsCard from '../../components/user/profile/SecuritySettingsCard';
+import SEO from '../../components/seo/SEO';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -91,6 +92,14 @@ export default function Profile() {
   };
 
   return (
+    <>
+    <SEO
+      title="My Profile"
+      description="Manage your account information and preferences"
+      canonical="https://www.rizara.in/user/profile"
+      noindex={true}
+    />
+
     <div className="mx-auto px-4">
       {/* Page Header */}
       <div className="mb-6">
@@ -165,5 +174,6 @@ export default function Profile() {
         </div>
       </div>
     </div>
+    </>
   );
 }

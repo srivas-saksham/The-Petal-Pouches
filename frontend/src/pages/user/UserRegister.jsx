@@ -7,6 +7,7 @@ import { useUserAuth } from '../../context/UserAuthContext';
 import { useToast } from '../../hooks/useToast';
 import { sendOTP, verifyOTP, resendOTP } from '../../services/userAuthService';
 import AuthPageTransition from '../../components/auth/AuthPageTransition';
+import SEO from '../../components/seo/SEO';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -257,6 +258,13 @@ export default function Register() {
 
   return (
     <>
+      <SEO
+        title="Create Your Account"
+        description="Join Rizara Luxe and start your luxury gifting journey. Create an account to enjoy exclusive benefits."
+        canonical="https://www.rizara.in/register"
+        noindex={true}
+      />
+
       <div className="h-screen flex overflow-hidden bg-gradient-to-br from-tpppeach via-white to-tpppeach/50">
         {/* Left Section - Image (60%) - Hidden on mobile */}
         <div className="hidden lg:flex lg:w-3/5 relative items-center justify-center p-8">

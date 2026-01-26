@@ -18,6 +18,7 @@ import DeliveryTimeline from '../components/order-success/DeliveryTimeline';
 import ShippingAddressCard from '../components/order-success/ShippingAddressCard';
 import PaymentDetailsCard from '../components/order-success/PaymentDetailsCard';
 import OrderActionsBar from '../components/order-success/OrderActionsBar';
+import SEO from '../components/seo/SEO';
 
 const OrderSuccess = () => {
   const { orderId } = useParams();
@@ -153,6 +154,14 @@ const OrderSuccess = () => {
   const estimatedDelivery = getEstimatedDeliveryDate();
 
   return (
+    <>
+    <SEO
+      title="Order Confirmed"
+      description="Your order has been successfully placed. Thank you for shopping with Rizara Luxe."
+      canonical={`https://www.rizara.in/order-success/${order.id}`}
+      noindex={true}
+    />
+
     <div 
       className="min-h-screen py-6 bg-slate-50 relative"
       style={{
@@ -256,6 +265,7 @@ const OrderSuccess = () => {
 
       </div>
     </div>
+    </>
   );
 };
 

@@ -68,6 +68,7 @@ C:\Projects_External\The Petal Pouches\backend\src\routes\products.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\reviews.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\shipments.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\shop.js
+C:\Projects_External\The Petal Pouches\backend\src\routes\sitemap.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\tagsRoutes.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\userAuth.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\users.js
@@ -155,6 +156,10 @@ C:\Projects_External\The Petal Pouches\docx\References\Logo References\Minimal W
 C:\Projects_External\The Petal Pouches\docx\References\Logo References\MInimal White.png
 C:\Projects_External\The Petal Pouches\docx\References\Logo References\Pouch with Name no subtitle.png
 C:\Projects_External\The Petal Pouches\docx\References\Logo References\Pouch with Name.png
+C:\Projects_External\The Petal Pouches\docx\References\Logo References\Rizara Infinity Logo No Text DARK Trans Short.png
+C:\Projects_External\The Petal Pouches\docx\References\Logo References\Rizara Infinity Logo No Text DARK Trans.png
+C:\Projects_External\The Petal Pouches\docx\References\Logo References\Rizara Infinity Logo No Text DARK.png
+C:\Projects_External\The Petal Pouches\docx\References\Logo References\Rizara Infinity Logo No Text Trans Short.png
 C:\Projects_External\The Petal Pouches\docx\References\Logo References\Rizara Infinity Logo No Text Trans.png
 C:\Projects_External\The Petal Pouches\docx\References\Logo References\Rizara Infinity Logo No Text.png
 C:\Projects_External\The Petal Pouches\docx\References\Logo References\Rizara Infinity Logo.png
@@ -255,7 +260,18 @@ C:\Projects_External\The Petal Pouches\frontend\public\assets\RZ_infinity.png
 C:\Projects_External\The Petal Pouches\frontend\public\assets\windmill_grey.png
 C:\Projects_External\The Petal Pouches\frontend\public\assets\windmill_saturated.png
 C:\Projects_External\The Petal Pouches\frontend\public\assets\Yatra_One Font.zip
+C:\Projects_External\The Petal Pouches\frontend\public\og\rizara-og-image.jpg
+C:\Projects_External\The Petal Pouches\frontend\public\og\rizara-og-imagev2.jpg
+C:\Projects_External\The Petal Pouches\frontend\public\apple-touch-icon.png
+C:\Projects_External\The Petal Pouches\frontend\public\favicon-96x96.png
+C:\Projects_External\The Petal Pouches\frontend\public\favicon.ico
+C:\Projects_External\The Petal Pouches\frontend\public\favicon.svg
+C:\Projects_External\The Petal Pouches\frontend\public\favicon.zip
+C:\Projects_External\The Petal Pouches\frontend\public\robots.txt
+C:\Projects_External\The Petal Pouches\frontend\public\site.webmanifest
 C:\Projects_External\The Petal Pouches\frontend\public\vite.svg
+C:\Projects_External\The Petal Pouches\frontend\public\web-app-manifest-192x192.png
+C:\Projects_External\The Petal Pouches\frontend\public\web-app-manifest-512x512.png
 C:\Projects_External\The Petal Pouches\frontend\src\assets\react.svg
 C:\Projects_External\The Petal Pouches\frontend\src\components\admin\bundles\AdminBundleCard.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\admin\bundles\BundleFormModal.jsx
@@ -349,6 +365,8 @@ C:\Projects_External\The Petal Pouches\frontend\src\components\checkout\CouponCa
 C:\Projects_External\The Petal Pouches\frontend\src\components\checkout\DeliveryDetailsCard.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\common\CommonHeader.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\common\SmartBundleSearch.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\components\faqs\faqData.js
+C:\Projects_External\The Petal Pouches\frontend\src\components\faqs\FAQHeader.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\home\GiftQuiz\QuizContainer.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\home\GiftQuiz\quizData.js
 C:\Projects_External\The Petal Pouches\frontend\src\components\home\GiftQuiz\QuizQuestion.jsx
@@ -463,6 +481,7 @@ C:\Projects_External\The Petal Pouches\frontend\src\pages\user\Wishlist.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\Admin.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\BundleDetailPage.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\Checkout.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\pages\FAQPage.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\GatewayLogin.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\Home.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\OrderSuccess.jsx
@@ -483,6 +502,7 @@ C:\Projects_External\The Petal Pouches\frontend\src\services\cartService.js
 C:\Projects_External\The Petal Pouches\frontend\src\services\categoryService.js
 C:\Projects_External\The Petal Pouches\frontend\src\services\checkoutService.js
 C:\Projects_External\The Petal Pouches\frontend\src\services\couponService.js
+C:\Projects_External\The Petal Pouches\frontend\src\services\faqService.js
 C:\Projects_External\The Petal Pouches\frontend\src\services\geocodingService.js
 C:\Projects_External\The Petal Pouches\frontend\src\services\orderService.js
 C:\Projects_External\The Petal Pouches\frontend\src\services\paymentService.js

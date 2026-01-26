@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Heart, Trash2, ShoppingBag, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import SEO from '../../components/seo/SEO';
 
 const Wishlist = () => {
   const [wishlist, setWishlist] = useState([
@@ -49,6 +50,12 @@ const Wishlist = () => {
   if (wishlist.length === 0) {
     return (
       <div className="space-y-6">
+        <SEO
+          title="My Wishlist"
+          description="Your saved jewelry and gift bundles"
+          canonical="https://www.rizara.in/user/wishlist"
+          noindex={true}
+        />
         <div>
           <h1 className="text-3xl font-bold text-tppslate flex items-center gap-2 mb-2">
             <Heart className="w-8 h-8 text-tpppink" />
@@ -75,6 +82,13 @@ const Wishlist = () => {
 
   return (
     <div className="space-y-6">
+      <SEO
+        title="My Wishlist"
+        description="Your saved jewelry and gift bundles"
+        canonical="https://www.rizara.in/user/wishlist"
+        noindex={true}
+      />
+
       <div>
         <h1 className="text-3xl font-bold text-tppslate flex items-center gap-2 mb-2">
           <Heart className="w-8 h-8 text-tpppink" />

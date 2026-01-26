@@ -8,6 +8,7 @@ import WhatsTheOccasion from '../components/home/WhatsTheOccasion';
 import GiftQuizModule from '../components/home/GiftQuizModule';
 import HomeFooter from '../components/home/HomeFooter';
 import '../styles/home.css';
+import SEO from '../components/seo/SEO';
 
 /**
  * Home Component - REDESIGNED
@@ -39,21 +40,29 @@ const Home = () => {
   }, []);
 
   return (
-    <HomeLayout>
-      
-      {/* 1. Hero Section with Curved Mask & Parallax */}
-      <HeroParallax />
+    <>
+      <SEO
+        title="Luxury Jewelry & Curated Gift Bundles"
+        description="Discover Rizara Luxe's handpicked collection of luxury jewelry and premium gift bundles. Crafted with elegance for unforgettable moments."
+        canonical="https://www.rizara.in/"
+        keywords="luxury jewelry, gift bundles, premium gifts, curated jewelry"
+      />
+      <HomeLayout>
+        
+        {/* 1. Hero Section with Curved Mask & Parallax */}
+        <HeroParallax />
 
-      {/* 2. Experience Gallery - 3 Featured Bundles */}
-      <ExperienceGallery />
-      <WhatsTheOccasion />
+        {/* 2. Experience Gallery - 3 Featured Bundles */}
+        <ExperienceGallery />
+        <WhatsTheOccasion />
 
-      {/* 3. Gift Quiz - Two Column Layout */}
-      <GiftQuizModule />
+        {/* 3. Gift Quiz - Two Column Layout */}
+        <GiftQuizModule />
 
-      <HomeFooter />
+        <HomeFooter />
 
-    </HomeLayout>
+      </HomeLayout>
+    </>
   );
 };
 

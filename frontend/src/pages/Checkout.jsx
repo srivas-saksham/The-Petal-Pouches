@@ -16,6 +16,7 @@ import bundleService from '../services/bundleService';
 import { getAddresses } from '../services/addressService';
 import { formatBundlePrice } from '../utils/bundleHelpers';
 import { getStoredAddressId, saveDeliveryData, getDeliveryData } from '../utils/deliveryStorage';
+import SEO from '../components/seo/SEO';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -696,6 +697,14 @@ const Checkout = () => {
   }
 
   return (
+    <>
+    <SEO
+      title="Checkout Now"
+      description="Complete your order securely"
+      canonical="https://www.rizara.in/checkout"
+      noindex={true}
+    />
+
     <div className="min-h-screen bg-gray-50"
       style={{
         backgroundImage: 'url(/assets/doodle_bg_pink.png)',
@@ -798,6 +807,7 @@ const Checkout = () => {
         onAddressSelect={handleAddressSelect}
       />
     </div>
+    </>
   );
 };
 

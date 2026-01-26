@@ -9,6 +9,7 @@ import { AddressesSkeleton } from '../../components/user/layout/userSkeletons';
 import AddressNotifications from '../../components/user/addresses/AddressNotifications';
 import AddressEmptyState from '../../components/user/addresses/AddressEmptyState';
 import AddressFormSidebar from '../../components/user/addresses/AddressFormSidebar';
+import SEO from '../../components/seo/SEO';
 
 /**
  * Addresses Page Component - Refactored with Component Structure
@@ -169,6 +170,14 @@ const Addresses = () => {
   }
 
   return (
+    <>
+    <SEO
+      title="My Addresses"
+      description="Manage your delivery addresses"
+      canonical="https://www.rizara.in/user/addresses"
+      noindex={true}
+    />
+
     <div className="max-w-7xl mx-auto px-3 md:px-4">
       {/* Header */}
       <div className="mb-4 md:mb-6">
@@ -274,6 +283,7 @@ const Addresses = () => {
           onSuccess={handleSidebarSuccess}
         />
     </div>
+    </>
   );
 };
 

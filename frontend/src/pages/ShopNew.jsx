@@ -12,6 +12,7 @@ import useBundleFilters from '../hooks/useBundleFilters';
 import shopService from '../services/shopService';
 import { getTagsWithCounts } from '../services/tagsService';
 import { useCart } from '../hooks/useCart';
+import SEO from '../components/seo/SEO';
 
 const BundleShop = () => {
   const [bundles, setBundles] = useState([]);
@@ -211,6 +212,13 @@ const BundleShop = () => {
     : [];
 
   return (
+    <>
+    <SEO
+      title="Shop Luxury Jewelry & Gift Bundles"
+      description="Explore Rizara Luxe's curated collection of luxury jewelry and premium gifting experiences. Find the perfect gift for any occasion."
+      canonical="https://www.rizara.in/shop"
+      keywords="buy luxury jewelry, shop gift bundles, premium jewelry online"
+    />
     <div 
       className="min-h-screen relative"
       style={{
@@ -474,6 +482,7 @@ const BundleShop = () => {
         }
       `}</style>
     </div>
+    </>
   );
 };
 

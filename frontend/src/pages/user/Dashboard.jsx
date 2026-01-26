@@ -8,6 +8,7 @@ import { useToast } from '../../hooks/useToast';
 import { getOrderStats } from '../../services/orderService';
 import RecentOrders from '../../components/user/dashboard/RecentOrders';
 import { DashboardStats } from '../../components/user/dashboard/StatsCard';
+import SEO from '../../components/seo/SEO';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -126,6 +127,14 @@ export default function Dashboard() {
   };
 
   return (
+    <>
+    <SEO
+      title="My Dashboard"
+      description="Manage your orders, addresses, and account settings"
+      canonical="https://www.rizara.in/user/dashboard"
+      noindex={true}
+    />
+
     <div className="mx-auto px-4">
       {/* Header */}
       <div className="mb-6">
@@ -205,5 +214,6 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
+    </>
   );
 }

@@ -13,6 +13,7 @@ import { addBundleToCart, updateCartItem, removeFromCart } from '../services/car
 import { useCart } from '../hooks/useCart';
 import { getDisplayRating, formatRating, formatTimeAgo } from '../utils/reviewHelpers';
 import shopService from '../services/shopService';
+import SEO from '../components/seo/SEO';
 
 /**
  * BundleDetailPage - UNIFIED for Products AND Bundles
@@ -31,7 +32,7 @@ const BundleDetailPage = () => {
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // Use bundle hook only for bundles
   const bundleHook = useBundleDetail(isProductView ? null : id);
   
@@ -305,73 +306,117 @@ const BundleDetailPage = () => {
   if (!item) return null;
 
   return (
-  <div className="min-h-screen"
-    style={{
-      backgroundImage: 'url(/assets/doodle_bg.png)',
-      backgroundRepeat: 'repeat',
-      backgroundSize: 'auto',
-    }}
-  >
-    <BundleHeader />
+    <>
+    {item && (
+      <SEO
+        title={item.title}
+        description={item.description || `Buy ${item.title} by Rizara Luxe. Premium jewelry bundle crafted for unforgettable moments.`}
+        canonical={`https://www.rizara.in/shop/bundles/${id}`}
+        image={item.images?.[0]?.image_url}
+        type="product"
+        keywords={item.tags?.join(', ')}
+      />
+    )}
+    
+    <div className="min-h-screen"
+      style={{
+        backgroundImage: 'url(/assets/doodle_bg.png)',
+        backgroundRepeat: 'repeat',
+        backgroundSize: 'auto',
+      }}
+    >
+      <BundleHeader />
 
-    {/* MOBILE: Single column | DESKTOP: 2-column with sidebar */}
-    <div className="max-w-9xl mx-auto md:px-6 md:py-6">
-      <div className="grid lg:grid-cols-[1fr_320px] gap-4 md:gap-12">
-        
-        {/* Main Content - Wrapper for mobile spacing */}
-        <div className="space-y-4 md:space-y-0">
+      {/* MOBILE: Single column | DESKTOP: 2-column with sidebar */}
+      <div className="max-w-9xl mx-auto md:px-6 md:py-6">
+        <div className="grid lg:grid-cols-[1fr_320px] gap-4 md:gap-12">
           
-          {/* CONTAINER 1: Product Details */}
-          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+          {/* Main Content - Wrapper for mobile spacing */}
+          <div className="space-y-4 md:space-y-0">
             
-            {/* Image + Details Section */}
-            <div className="grid md:grid-cols-1 lg:grid-cols-[45%_55%]">
-              <BundleImageGallery bundle={item} isOutOfStock={isOutOfStock} />
+            {/* CONTAINER 1: Product Details */}
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
               
-              <div className="p-3 md:p-6 md:border-l border-slate-200">
-                <BundleKeyDetails
-                  bundle={item}
-                  items={items}
-                  stockLimit={stockLimit}
-                  isOutOfStock={isOutOfStock}
-                  isLowStock={isLowStock}
-                  cartItem={cartItem}
-                  localQuantity={localQuantity}
-                  setLocalQuantity={setLocalQuantity}
-                  onAddToCart={handleAddToCart}
-                  onIncrement={cartItem ? handleCartIncrement : handleIncrement}
-                  onDecrement={cartItem ? handleCartDecrement : handleDecrement}
-                  adding={adding}
-                  updating={updating}
-                  showRemoveConfirm={showRemoveConfirm}
-                  onRemoveClick={handleRemoveClick}
-                  onConfirmRemove={handleConfirmRemove}
-                  onCancelRemove={handleCancelRemove}
-                  pendingQuantity={pendingQuantity}
-                  onQuantityChangeForDelivery={handleQuantityChangeForDelivery}
-                />
+              {/* Image + Details Section */}
+              <div className="grid md:grid-cols-1 lg:grid-cols-[45%_55%]">
+                <BundleImageGallery bundle={item} isOutOfStock={isOutOfStock} />
+                
+                <div className="p-3 md:p-6 md:border-l border-slate-200">
+                  <BundleKeyDetails
+                    bundle={item}
+                    items={items}
+                    stockLimit={stockLimit}
+                    isOutOfStock={isOutOfStock}
+                    isLowStock={isLowStock}
+                    cartItem={cartItem}
+                    localQuantity={localQuantity}
+                    setLocalQuantity={setLocalQuantity}
+                    onAddToCart={handleAddToCart}
+                    onIncrement={cartItem ? handleCartIncrement : handleIncrement}
+                    onDecrement={cartItem ? handleCartDecrement : handleDecrement}
+                    adding={adding}
+                    updating={updating}
+                    showRemoveConfirm={showRemoveConfirm}
+                    onRemoveClick={handleRemoveClick}
+                    onConfirmRemove={handleConfirmRemove}
+                    onCancelRemove={handleCancelRemove}
+                    pendingQuantity={pendingQuantity}
+                    onQuantityChangeForDelivery={handleQuantityChangeForDelivery}
+                  />
+                </div>
               </div>
+
+              {item.description && (
+                <>
+                  <div className="border-t border-slate-200"></div>
+                  
+                  <div className="p-3 md:p-6">
+                    <h2 className="text-base md:text-lg font-bold text-tppslate mb-2 md:mb-3">
+                      About This {itemType === 'product' ? 'Product' : 'Bundle'}
+                    </h2>
+                    <p className="text-xs md:text-sm text-slate-700 leading-relaxed">
+                      {item.description}
+                    </p>
+                  </div>
+                </>
+              )}
+
             </div>
 
-            {item.description && (
-              <>
-                <div className="border-t border-slate-200"></div>
-                
-                <div className="p-3 md:p-6">
-                  <h2 className="text-base md:text-lg font-bold text-tppslate mb-2 md:mb-3">
-                    About This {itemType === 'product' ? 'Product' : 'Bundle'}
-                  </h2>
-                  <p className="text-xs md:text-sm text-slate-700 leading-relaxed">
-                    {item.description}
-                  </p>
-                </div>
-              </>
-            )}
+            {/* CONTAINER 2: MOBILE ONLY - Delivery Section (separate container) */}
+            <div className="md:hidden bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+              <FloatingSidebar
+                bundle={item}
+                stockLimit={stockLimit}
+                isOutOfStock={isOutOfStock}
+                isLowStock={isLowStock}
+                cartItem={cartItem}
+                localQuantity={localQuantity}
+                setLocalQuantity={setLocalQuantity}
+                onAddToCart={handleAddToCart}
+                onIncrement={cartItem ? handleCartIncrement : handleIncrement}
+                onDecrement={cartItem ? handleCartDecrement : handleDecrement}
+                adding={adding}
+                updating={updating}
+                showRemoveConfirm={showRemoveConfirm}
+                onRemoveClick={handleRemoveClick}
+                onConfirmRemove={handleConfirmRemove}
+                onCancelRemove={handleCancelRemove}
+                pendingQuantity={pendingQuantity}
+                bundleWeight={currentBundleWeight}
+                pendingWeight={pendingWeight}
+              />
+            </div>
+
+            {/* CONTAINER 3: Reviews Section */}
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+              <BundleReviews bundle={item} />
+            </div>
 
           </div>
 
-          {/* CONTAINER 2: MOBILE ONLY - Delivery Section (separate container) */}
-          <div className="md:hidden bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+          {/* DESKTOP ONLY: Sidebar */}
+          <div className="hidden lg:block lg:relative lg:self-start">
             <FloatingSidebar
               bundle={item}
               stockLimit={stockLimit}
@@ -394,41 +439,10 @@ const BundleDetailPage = () => {
               pendingWeight={pendingWeight}
             />
           </div>
-
-          {/* CONTAINER 3: Reviews Section */}
-          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-            <BundleReviews bundle={item} />
-          </div>
-
-        </div>
-
-        {/* DESKTOP ONLY: Sidebar */}
-        <div className="hidden lg:block lg:relative lg:self-start">
-          <FloatingSidebar
-            bundle={item}
-            stockLimit={stockLimit}
-            isOutOfStock={isOutOfStock}
-            isLowStock={isLowStock}
-            cartItem={cartItem}
-            localQuantity={localQuantity}
-            setLocalQuantity={setLocalQuantity}
-            onAddToCart={handleAddToCart}
-            onIncrement={cartItem ? handleCartIncrement : handleIncrement}
-            onDecrement={cartItem ? handleCartDecrement : handleDecrement}
-            adding={adding}
-            updating={updating}
-            showRemoveConfirm={showRemoveConfirm}
-            onRemoveClick={handleRemoveClick}
-            onConfirmRemove={handleConfirmRemove}
-            onCancelRemove={handleCancelRemove}
-            pendingQuantity={pendingQuantity}
-            bundleWeight={currentBundleWeight}
-            pendingWeight={pendingWeight}
-          />
         </div>
       </div>
     </div>
-  </div>
+    </>
 );
 };
 

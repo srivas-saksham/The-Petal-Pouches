@@ -6,6 +6,7 @@ import { useAdminAuth } from '../../context/AdminAuthContext';
 import { useToast } from '../../hooks/useToast';
 import * as adminAuthService from '../../services/adminAuthService';
 import { Lock, Mail, ArrowRight, TriangleAlert, ShieldCheck } from 'lucide-react';
+import SEO from '../../components/seo/SEO';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -80,6 +81,10 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen flex overflow-x-hidden">
+      <SEO
+        title="Admin Login"
+        noindex={true}
+      />
       {/* Left Section - Image (60%) */}
       <div className="hidden lg:block lg:w-3/5 relative overflow-hidden">
         <img 

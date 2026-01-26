@@ -6,6 +6,7 @@ import { Mail, Lock, ArrowRight, AlertCircle, Chrome } from 'lucide-react';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useToast } from '../../hooks/useToast';
 import AuthPageTransition from '../../components/auth/AuthPageTransition';
+import SEO from '../../components/seo/SEO';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -96,6 +97,13 @@ export default function Login() {
 
   return (
     <>
+      <SEO
+        title="Login to Your Account"
+        description="Sign in to access your Rizara Luxe account, track orders, and manage your profile."
+        canonical="https://www.rizara.in/login"
+        noindex={true}
+      />
+      
       <div className="h-screen flex overflow-hidden bg-gradient-to-br from-tpppeach via-white to-tpppeach/50">
         {/* Left Section - Image (60%) - Hidden on mobile */}
         <div className="hidden lg:flex lg:w-3/5 relative items-center justify-center p-8">

@@ -3,6 +3,7 @@ import { ChevronDown, Search, Mail, Clock, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import FAQHeader from '../components/faqs/FAQHeader';
 import { getAllFAQs } from '../components/faqs/faqData';
+import SEO from '../components/seo/SEO';
 
 /**
  * FAQ Page Component
@@ -78,6 +79,12 @@ const FAQPage = () => {
 
   return (
     <div className="min-h-screen bg-tppslate/10">
+      <SEO
+        title="Frequently Asked Questions"
+        description="Find answers to common questions about Rizara Luxe products, shipping, returns, and our premium gifting experience."
+        canonical="https://www.rizara.in/faqs"
+      />
+
       {/* FAQ Header with CommonHeader and Sliding Search */}
       <FAQHeader 
         searchQuery={searchQuery}
