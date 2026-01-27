@@ -195,14 +195,19 @@ export function UserAuthProvider({ children }) {
   }, [API_URL]);
 
   // ✅ Login with Google OAuth
+  // ✅ Login with Google OAuth (PROD + LOCAL SAFE)
   const loginWithGoogle = useCallback(async () => {
     try {
-      // Redirect to Supabase Google OAuth
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const redirectUrl = `${window.location.origin}/auth/callback`;
-      
-      window.location.href = `${supabaseUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`;
-      
+
+      const redirectUrl =
+        import.meta.env.MODE === 'production'
+          ? 'https://www.rizara.in/auth/callback'
+          : 'http://localhost:5173/auth/callback';
+
+      window.location.href =
+        `${supabaseUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`;
+
       return { success: true };
     } catch (err) {
       const errorMsg = err.message || 'Google login error';
@@ -210,6 +215,7 @@ export function UserAuthProvider({ children }) {
       return { success: false, error: errorMsg };
     }
   }, []);
+
 
   const handleOAuthCallback = useCallback(async () => {
     try {
