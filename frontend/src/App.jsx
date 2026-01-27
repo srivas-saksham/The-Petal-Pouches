@@ -1,4 +1,4 @@
-// frontend/src/App.jsx - WITH HELMET PROVIDER PAGES TITLE
+// frontend/src/App.jsx - WITH HELMET PROVIDER PAGES TITLE + POLICY PAGES
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AdminAuthProvider } from './context/AdminAuthContext';
@@ -20,6 +20,13 @@ import Home from './pages/Home';
 import Shop from './pages/ShopNew';
 import BundleDetailPage from './pages/BundleDetailPage';
 import FAQPage from './pages/FAQPage';
+
+// Policy Pages
+import PrivacyPolicy from './pages/policies/PrivacyPolicy';
+import TermsConditions from './pages/policies/TermsConditions';
+import RefundPolicy from './pages/policies/RefundPolicy';
+import ShippingPolicy from './pages/policies/ShippingPolicy';
+import ContactUs from './pages/policies/ContactUs';
 
 // User/Customer Auth Pages
 import UserLogin from './pages/user/UserLogin';
@@ -47,7 +54,7 @@ function App() {
   return (
     <HelmetProvider>
       <BrowserRouter>
-      <ScrollManager />
+        <ScrollManager />
         <ToastProvider>
           <AdminAuthProvider>
             <UserAuthProvider>
@@ -64,6 +71,26 @@ function App() {
                     <Route path="/shop" element={<Shop />} />
                     <Route path="/shop/bundles/:id" element={<BundleDetailPage />} />
                     <Route path="/shop/products/:id" element={<BundleDetailPage />} />
+                    
+                    {/* FAQ Page */}
+                    <Route path="/faqs" element={<FAQPage />} />
+
+                    {/* ==================== POLICY PAGES (PUBLIC - NO AUTH REQUIRED) ==================== */}
+                    
+                    {/* Privacy Policy */}
+                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                    
+                    {/* Terms & Conditions */}
+                    <Route path="/terms-and-conditions" element={<TermsConditions />} />
+                    
+                    {/* Refund & Cancellation Policy */}
+                    <Route path="/refund-policy" element={<RefundPolicy />} />
+                    
+                    {/* Shipping & Delivery Policy */}
+                    <Route path="/shipping-policy" element={<ShippingPolicy />} />
+                    
+                    {/* Contact Us */}
+                    <Route path="/contact-us" element={<ContactUs />} />
                     
                     {/* ==================== USER/CUSTOMER AUTH ROUTES ==================== */}
                     
@@ -82,9 +109,6 @@ function App() {
                         </ProtectedCustomerRoute>
                       }
                     />
-                    
-                    {/* FAQ Page - ADD THIS ROUTE */}
-                    <Route path="/faqs" element={<FAQPage />} />
 
                     {/* ==================== ORDER SUCCESS ROUTE (Protected) ==================== */}
                     
