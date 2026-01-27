@@ -5,10 +5,17 @@ const RegistrationOTPTemplate = require('../templates/RegistrationOTPTemplate');
 const PasswordResetOTPTemplate = require('../templates/PasswordResetOTPTemplate');
 const EmailChangeOTPTemplate = require('../templates/EmailChangeOTPTemplate');
 const WelcomeEmailTemplate = require('../templates/WelcomeEmailTemplate');
+const OrderConfirmationTemplate = require('../templates/OrderConfirmationTemplate');
+const AdminOrderNotificationTemplate = require('../templates/AdminOrderNotificationTemplate');
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@rizarajewels.com';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'officialrizara@gmail.com';
 const BREVO_API_URL = 'api.brevo.com';
+
+// Environment check for subject prefix
+const isDev = process.env.NODE_ENV !== 'production';
+const subjectPrefix = isDev ? '[TEST] ' : '';
 
 /**
  * Send email via Brevo API
@@ -75,7 +82,7 @@ async function sendRegistrationOTP(email, otp, name) {
   
   return await sendEmail({
     to: email,
-    subject: 'Verify Your Email Address - Rizara Luxe',
+    subject: `${subjectPrefix}Verify Your Email Address - Rizara Luxe`,
     html
   });
 }
@@ -88,7 +95,7 @@ async function sendPasswordResetOTP(email, otp, name) {
   
   return await sendEmail({
     to: email,
-    subject: 'Password Reset Request - Rizara Luxe',
+    subject: `${subjectPrefix}Password Reset Request - Rizara Luxe`,
     html
   });
 }
@@ -101,7 +108,7 @@ async function sendEmailChangeOTP(email, otp, name) {
   
   return await sendEmail({
     to: email,
-    subject: 'Email Address Change Verification - Rizara Luxe',
+    subject: `${subjectPrefix}Email Address Change Verification - Rizara Luxe`,
     html
   });
 }
@@ -114,7 +121,38 @@ async function sendWelcomeEmail(email, name) {
   
   return await sendEmail({
     to: email,
-    subject: 'Welcome to Rizara Luxe',
+    subject: `${subjectPrefix}Welcome to Rizara Luxe`,
+    html
+  });
+}
+
+/**
+ * Send Order Confirmation Email to Customer
+ * @param {string} email - Customer email
+ * @param {string} name - Customer name
+ * @param {Object} order - Complete order object with items
+ */
+async function sendOrderConfirmation(email, name, order) {
+  const html = OrderConfirmationTemplate({ name, order });
+  
+  return await sendEmail({
+    to: email,
+    subject: `${subjectPrefix}Order Confirmation #${order.id} - Rizara Luxe`,
+    html
+  });
+}
+
+/**
+ * Send Order Notification Email to Admin
+ * @param {Object} order - Complete order object with items
+ * @param {Object} user - User information (name, email, phone)
+ */
+async function sendAdminOrderNotification(order, user) {
+  const html = AdminOrderNotificationTemplate({ order, user });
+  
+  return await sendEmail({
+    to: ADMIN_EMAIL,
+    subject: `${subjectPrefix}New Order Received #${order.id} - Rizara Luxe`,
     html
   });
 }
@@ -123,5 +161,7 @@ module.exports = {
   sendRegistrationOTP,
   sendPasswordResetOTP,
   sendEmailChangeOTP,
-  sendWelcomeEmail
+  sendWelcomeEmail,
+  sendOrderConfirmation,
+  sendAdminOrderNotification
 };

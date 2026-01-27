@@ -533,6 +533,53 @@ const PaymentController = {
         console.error('⚠️ Shipment creation failed:', shipmentError);
       }
 
+      // ===== STEP 12.5: SEND CONFIRMATION EMAILS ===== ⭐ NEW
+      try {
+        const emailService = require('../services/emailService');
+        
+        // Fetch complete order with all items
+        const completeOrder = await OrderModel.findById(order.id, userId);
+        
+        // Get user details for emails
+        const { data: userData, error: userError } = await supabase
+          .from('Users')
+          .select('name, email, phone')
+          .eq('id', userId)
+          .single();
+
+        if (!userError && userData) {
+          // Send customer confirmation email
+          try {
+            await emailService.sendOrderConfirmation(
+              userData.email,
+              userData.name,
+              completeOrder
+            );
+            console.log('✅ Order confirmation email sent to customer');
+          } catch (emailError) {
+            console.error('⚠️ Failed to send customer confirmation email:', emailError);
+          }
+
+          // Send admin notification email
+          try {
+            await emailService.sendAdminOrderNotification(
+              completeOrder,
+              {
+                name: userData.name,
+                email: userData.email,
+                phone: userData.phone || address.phone
+              }
+            );
+            console.log('✅ Order notification email sent to admin');
+          } catch (emailError) {
+            console.error('⚠️ Failed to send admin notification email:', emailError);
+          }
+        }
+      } catch (emailError) {
+        console.error('⚠️ Email sending error:', emailError);
+        // Don't fail order - emails are non-critical
+      }
+
       // ===== STEP 13: RETURN SUCCESS =====
       return res.status(200).json({
         success: true,
