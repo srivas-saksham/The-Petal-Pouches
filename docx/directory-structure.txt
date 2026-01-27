@@ -32,7 +32,6 @@ C:\Projects_External\The Petal Pouches\backend\src\cron\syncShipments.js
 C:\Projects_External\The Petal Pouches\backend\src\jobs\syncShipments.js
 C:\Projects_External\The Petal Pouches\backend\src\middleware\addressValidation.js
 C:\Projects_External\The Petal Pouches\backend\src\middleware\adminAuth.js
-C:\Projects_External\The Petal Pouches\backend\src\middleware\gateway.js
 C:\Projects_External\The Petal Pouches\backend\src\middleware\userAuth.js
 C:\Projects_External\The Petal Pouches\backend\src\middleware\validateShipmentEdit.js
 C:\Projects_External\The Petal Pouches\backend\src\models\addressModel.js
@@ -60,7 +59,6 @@ C:\Projects_External\The Petal Pouches\backend\src\routes\categories.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\coupons.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\cron.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\delhivery.js
-C:\Projects_External\The Petal Pouches\backend\src\routes\gateway.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\orders.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\otp.js
 C:\Projects_External\The Petal Pouches\backend\src\routes\payments.js
@@ -82,7 +80,9 @@ C:\Projects_External\The Petal Pouches\backend\src\services\emailService.js
 C:\Projects_External\The Petal Pouches\backend\src\services\notificationService.js
 C:\Projects_External\The Petal Pouches\backend\src\services\razorpayService.js
 C:\Projects_External\The Petal Pouches\backend\src\services\stockService.js
+C:\Projects_External\The Petal Pouches\backend\src\templates\AdminOrderNotificationTemplate.js
 C:\Projects_External\The Petal Pouches\backend\src\templates\EmailChangeOTPTemplate.js
+C:\Projects_External\The Petal Pouches\backend\src\templates\OrderConfirmationTemplate.js
 C:\Projects_External\The Petal Pouches\backend\src\templates\PasswordResetOTPTemplate.js
 C:\Projects_External\The Petal Pouches\backend\src\templates\RegistrationOTPTemplate.js
 C:\Projects_External\The Petal Pouches\backend\src\templates\WelcomeEmailTemplate.js
@@ -390,6 +390,7 @@ C:\Projects_External\The Petal Pouches\frontend\src\components\order-success\Suc
 C:\Projects_External\The Petal Pouches\frontend\src\components\orders\OrderTimeline.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\reactbits\CircularGallery.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\reactbits\Stepper.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\components\seo\SEO.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\shop\BundleCard.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\shop\BundleDetail.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\shop\BundleEmpty.jsx
@@ -436,7 +437,6 @@ C:\Projects_External\The Petal Pouches\frontend\src\components\user\profile\Prof
 C:\Projects_External\The Petal Pouches\frontend\src\components\user\profile\ProfileInfoCard.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\user\profile\SecuritySettingsCard.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\user\ProtectedCustomerRoute.jsx
-C:\Projects_External\The Petal Pouches\frontend\src\components\ProtectedByGateway.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\context\AdminAuthContext.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\context\CartContext.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\context\ToastContext.jsx
@@ -467,6 +467,11 @@ C:\Projects_External\The Petal Pouches\frontend\src\pages\admin\NotificationsPag
 C:\Projects_External\The Petal Pouches\frontend\src\pages\admin\ProductsPage.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\admin\SettingsPage.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\auth\OAuthCallback.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\pages\policies\ContactUs.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\pages\policies\PrivacyPolicy.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\pages\policies\RefundPolicy.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\pages\policies\ShippingPolicy.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\pages\policies\TermsConditions.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\user\Addresses.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\user\Dashboard.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\user\ForgotPassword.jsx
@@ -482,7 +487,6 @@ C:\Projects_External\The Petal Pouches\frontend\src\pages\Admin.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\BundleDetailPage.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\Checkout.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\FAQPage.jsx
-C:\Projects_External\The Petal Pouches\frontend\src\pages\GatewayLogin.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\Home.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\OrderSuccess.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\pages\ShopNew.jsx
@@ -523,7 +527,6 @@ C:\Projects_External\The Petal Pouches\frontend\src\utils\couponErrorMessages.js
 C:\Projects_External\The Petal Pouches\frontend\src\utils\couponHelpers.js
 C:\Projects_External\The Petal Pouches\frontend\src\utils\deliveryHelpers.js
 C:\Projects_External\The Petal Pouches\frontend\src\utils\deliveryStorage.js
-C:\Projects_External\The Petal Pouches\frontend\src\utils\gatewayAuth.js
 C:\Projects_External\The Petal Pouches\frontend\src\utils\geocodingHelpers.js
 C:\Projects_External\The Petal Pouches\frontend\src\utils\mockData.js
 C:\Projects_External\The Petal Pouches\frontend\src\utils\quizMatcher.js
