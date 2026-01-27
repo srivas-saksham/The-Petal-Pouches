@@ -5,7 +5,6 @@ import adminApi from './adminApi'; // ✅ Use the centralized adminApi instance
  * Admin Customer Service
  * Uses the shared adminApi instance which includes:
  * - Admin token from sessionStorage
- * - Gateway token from localStorage
  * - Proper error handling
  */
 export const adminCustomerService = {

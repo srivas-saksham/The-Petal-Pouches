@@ -66,7 +66,7 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Content-Type, Authorization, x-session-id, x-user-id, x-gateway-token'
+    'Content-Type, Authorization, x-session-id, x-user-id'
   );
   res.setHeader(
     'Access-Control-Allow-Methods',
@@ -112,13 +112,6 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // ============================================
-// 🔒 GATEWAY ROUTES (BEFORE GATEWAY MIDDLEWARE!)
-// ============================================
-// ⚠️ CRITICAL: This MUST come AFTER express.json() so req.body works
-// ⚠️ CRITICAL: This MUST come BEFORE gatewayMiddleware so route is accessible
-app.use('/api/gateway', require('./routes/gateway'));
-
-// ============================================
 // 🗺️ SITEMAP - SEO CRITICAL (PUBLIC ROUTE)
 // ============================================
 // ⚠️ MUST be BEFORE gatewayMiddleware to be publicly accessible
@@ -126,13 +119,6 @@ app.use('/api/gateway', require('./routes/gateway'));
 // Location: https://rizarabackend.vercel.app/sitemap.xml
 // Purpose: Dynamic sitemap generation from database
 app.use('/', require('./routes/sitemap'));
-
-// ============================================
-// 🔒 GATEWAY PROTECTION (OPTIONAL)
-// ============================================
-// ⚠️ CRITICAL: This MUST come AFTER gateway routes
-const { gatewayMiddleware } = require('./middleware/gateway');
-app.use(gatewayMiddleware);
 
 // ============================================
 // IMPORT AUTHENTICATION MIDDLEWARE
@@ -248,10 +234,6 @@ app.get('/', (req, res) => {
     shipping: 'Delhivery',
     architecture: 'Serverless Functions',
     documentation: {
-      gateway: {
-        verify: '/api/gateway/verify (PUBLIC)',
-        status: '/api/gateway/status (PUBLIC)'
-      },
       admin: {
         auth: '/api/admin/auth (PUBLIC)',
         products: '/api/admin/products (PROTECTED)',
@@ -343,7 +325,7 @@ app.use((req, res) => {
     success: false,
     message: `Route not found: ${req.method} ${req.path}`,
     availableResources: [
-      '/api/gateway', '/api/auth', '/api/otp', '/api/users', '/api/products',
+      '/api/auth', '/api/otp', '/api/users', '/api/products',
       '/api/cart', '/api/orders', '/api/payments', 
       '/api/coupons', '/api/webhooks'
     ]
@@ -371,7 +353,6 @@ if (require.main === module) {
     
     console.log('📍 Key Endpoints:');
     console.log(`   🌐 Health:     http://localhost:${PORT}/health`);
-    console.log(`   🔒 Gateway:    http://localhost:${PORT}/api/gateway/verify`);
     console.log(`   🛒 Products:   http://localhost:${PORT}/api/products`);
     console.log(`   🛍️ Cart:       http://localhost:${PORT}/api/cart`);
     console.log(`   🎟️ Coupons:    http://localhost:${PORT}/api/coupons`);

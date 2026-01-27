@@ -2,7 +2,6 @@
 // ⭐ FIXED: Proper token handling for both customer and admin
 
 import axios from 'axios';
-import { getGatewayHeaders } from '../utils/gatewayAuth';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -16,11 +15,7 @@ const api = axios.create({
 
 // Request interceptor
 api.interceptors.request.use(
-  (config) => {
-    // 🔒 GATEWAY: Add gateway headers to every request
-    const gatewayHeaders = getGatewayHeaders();
-    Object.assign(config.headers, gatewayHeaders);
-    
+  (config) => {    
     // ⭐ FIX: Check request URL instead of window.location
     const requestUrl = config.url || '';
     const isAdminRequest = requestUrl.includes('/admin/') || requestUrl.includes('/api/admin');
