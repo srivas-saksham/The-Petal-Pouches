@@ -156,11 +156,21 @@ class RazorpayService {
    * @returns {boolean} true if webhook is authentic
    */
   verifyWebhookSignature(signature, body) {
-    try {
-      if (!process.env.RAZORPAY_WEBHOOK_SECRET) {
-        console.warn('⚠️ [Razorpay] Webhook secret not configured - skipping verification');
-        return true; // Allow in development
+  try {
+    // Fail-closed in production, permissive in development
+    if (!process.env.RAZORPAY_WEBHOOK_SECRET) {
+      if (process.env.NODE_ENV === 'production') {
+        console.error('🚨 [Razorpay] CRITICAL: Webhook secret required in production - REJECTING');
+        return false;
       }
+      console.warn('⚠️ [Razorpay] [DEV ONLY] Webhook secret not configured - allowing');
+      return true;
+    }
+
+    if (!signature) {
+      console.error('🚨 [Razorpay] Missing webhook signature header');
+      return false;
+    }
 
       console.log(`🔐 [Razorpay] Verifying webhook signature`);
 

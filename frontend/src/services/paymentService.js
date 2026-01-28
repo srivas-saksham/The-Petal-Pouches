@@ -195,9 +195,9 @@ export const processPayment = async (orderData, callbacks = {}) => {
         amount: paymentOrderData.amount * 100, // Convert to paise
         currency: paymentOrderData.currency,
         order_id: paymentOrderData.razorpay_order_id,
-        name: 'The Petal Pouches',
+        name: 'Rizara Luxe',
         description: `Order Payment - ₹${paymentOrderData.amount}`, // ⭐ FIXED: No order_id reference
-        image: '/logo.png',
+        image: '/RZ_infinity.png',
         prefill: {
           name: paymentOrderData.customer.name,
           email: paymentOrderData.customer.email,

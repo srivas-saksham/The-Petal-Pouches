@@ -406,21 +406,37 @@ const PaymentController = {
       const order = await OrderModel.create(orderDataToCreate, orderItems);
       console.log(`✅ Order created after payment: ${order.id}`);
 
-      // ===== STEP 9: CREATE PAYMENT RECORD =====
+      // ===== STEP 9: CREATE PAYMENT RECORD (IDEMPOTENT) =====
       const PaymentModel = require('../models/paymentModel');
-      const paymentRecord = await PaymentModel.createPaymentRecord({
-        order_id: order.id,
-        user_id: userId,
-        provider: 'Razorpay',
-        payment_id: razorpay_payment_id,
-        amount: paymentDetails.amount_rupees || (totals.total - discount),
-        currency: paymentDetails.currency || 'INR',
-        status: paymentDetails.status || 'captured',
-        is_success: true
-      });
-      console.log('✅ Payment record created:', paymentRecord.id);
+      let paymentRecord;
+      try {
+        paymentRecord = await PaymentModel.createPaymentRecord({
+          order_id: order.id,
+          user_id: userId,
+          provider: 'Razorpay',
+          payment_id: razorpay_payment_id,
+          amount: paymentDetails.amount_rupees || (totals.total - discount),
+          currency: paymentDetails.currency || 'INR',
+          status: paymentDetails.status || 'captured',
+          is_success: true
+        });
+        console.log('✅ Payment record created:', paymentRecord.id);
+      } catch (paymentError) {
+        // Duplicate payment_id - fetch existing record
+        if (paymentError.code === '23505') {
+          console.log(`ℹ️ [Payment] Payment ${razorpay_payment_id} already recorded, fetching existing`);
+          paymentRecord = await PaymentModel.getByPaymentId(razorpay_payment_id);
+          if (!paymentRecord) {
+            throw new Error('Payment record creation failed and existing record not found');
+          }
+          console.log(`✅ [Payment] Using existing payment record: ${paymentRecord.id}`);
+        } else {
+          // Unexpected error - fail normally
+          throw paymentError;
+        }
+      }
 
-      // ===== STEP 9.5: RECORD COUPON USAGE ⭐ CRITICAL =====
+      // ===== STEP 9.5: RECORD COUPON USAGE (IDEMPOTENT) =====
       if (couponData && couponData.coupon_id && discount > 0) {
         try {
           console.log('🎟️ [Payment] Recording coupon usage for:', couponData.coupon_code);
@@ -432,34 +448,38 @@ const PaymentController = {
             discount_amount: discount,
             user_id: userId
           });
-
+          
           if (couponUsageResult.success) {
             console.log('✅ [Payment] Coupon usage recorded successfully');
             console.log('📝 [Payment] Application record:', couponUsageResult.application);
           } else {
             console.error('❌ [Payment] Coupon usage recording failed (but returned)');
           }
-
         } catch (couponError) {
-          console.error('❌❌❌ [Payment] CRITICAL: Failed to record coupon usage:', couponError);
-          console.error('🔍 [Payment] Error details:', {
-            message: couponError.message,
-            stack: couponError.stack,
-            couponId: couponData.coupon_id,
-            orderId: order.id
-          });
-          
-          // ⚠️ IMPORTANT: Don't fail the order, but log for manual reconciliation
-          // Store failed coupon data for manual processing
-          console.error('⚠️ [Payment] ORDER SUCCEEDED BUT COUPON NOT TRACKED - REQUIRES MANUAL REVIEW');
-          console.error('📋 [Payment] Manual fix data:', JSON.stringify({
-            order_id: order.id,
-            coupon_id: couponData.coupon_id,
-            coupon_code: couponData.coupon_code,
-            discount_amount: discount,
-            user_id: userId,
-            timestamp: new Date().toISOString()
-          }));
+          // Check if it's a duplicate key error (webhook already recorded it)
+          if (couponError.code === '23505' || couponError.message?.includes('duplicate key')) {
+            console.log(`ℹ️ [Payment] Coupon ${couponData.coupon_code} already recorded for order ${order.id}`);
+            console.log('✅ [Payment] Idempotent operation - continuing normally');
+            // This is fine - coupon was already recorded (possibly by webhook)
+          } else {
+            // Unexpected error - log for manual review but don't fail the order
+            console.error('❌❌❌ [Payment] CRITICAL: Failed to record coupon usage:', couponError);
+            console.error('🔍 [Payment] Error details:', {
+              message: couponError.message,
+              stack: couponError.stack,
+              couponId: couponData.coupon_id,
+              orderId: order.id
+            });
+            console.error('⚠️ [Payment] ORDER SUCCEEDED BUT COUPON NOT TRACKED - REQUIRES MANUAL REVIEW');
+            console.error('📋 [Payment] Manual fix data:', JSON.stringify({
+              order_id: order.id,
+              coupon_id: couponData.coupon_id,
+              coupon_code: couponData.coupon_code,
+              discount_amount: discount,
+              user_id: userId,
+              timestamp: new Date().toISOString()
+            }));
+          }
         }
       } else {
         console.log('ℹ️ [Payment] No coupon to record (coupon data or discount is zero)');
@@ -709,22 +729,20 @@ const PaymentController = {
   handlePaymentCaptured: async (payload) => {
     try {
       const { order_id, id: payment_id, amount, status } = payload;
-      
       console.log(`✅ [Webhook] Payment captured: ${payment_id}`);
 
       // Find order by Razorpay order ID
       const supabase = require('../config/supabaseClient');
       const { data: order, error } = await supabase
         .from('Orders')
-        .select('id, payment_status')
-        .eq('razorpay_order_id', order_id) // ⭐ FIXED: Use correct column
+        .select('id, payment_status, razorpay_payment_id')
+        .eq('razorpay_order_id', order_id)
         .single();
 
       if (error || !order) {
         console.error(`❌ [Webhook] Order not found for Razorpay order: ${order_id}`);
-        
-        // ⭐ LOG FOR MANUAL RECONCILIATION
-        console.error('🔍 [Webhook] Lost webhook data:', JSON.stringify({
+        console.error('🔍 [Webhook] This may be normal - webhook arrived before order creation');
+        console.error('📋 [Webhook] Webhook data for reconciliation:', JSON.stringify({
           event: 'payment.captured',
           razorpay_order_id: order_id,
           razorpay_payment_id: payment_id,
@@ -732,19 +750,32 @@ const PaymentController = {
           status,
           timestamp: new Date().toISOString()
         }));
-        
         return;
       }
 
-      // Update if not already paid
+      // Check if this payment_id is already linked
+      if (order.razorpay_payment_id === payment_id) {
+        console.log(`ℹ️ [Webhook] Payment ${payment_id} already linked to order ${order.id}`);
+      }
+
+      // Update payment status if not already paid
       if (order.payment_status !== 'paid') {
-        await OrderModel.updatePaymentStatus(order.id, 'paid', payment_id);
-        await OrderModel.updateStatus(order.id, 'confirmed');
-        console.log(`✅ [Webhook] Order ${order.id} marked as paid`);
+        try {
+          await OrderModel.updatePaymentStatus(order.id, 'paid', payment_id);
+          await OrderModel.updateStatus(order.id, 'confirmed');
+          console.log(`✅ [Webhook] Order ${order.id} marked as paid`);
+        } catch (updateError) {
+          // Check if it's a duplicate payment_id constraint violation
+          if (updateError.code === '23505') {
+            console.log(`ℹ️ [Webhook] Payment ${payment_id} already linked to another order - idempotent skip`);
+            console.log(`✅ [Webhook] Order ${order.id} payment status already handled`);
+          } else {
+            throw updateError;
+          }
+        }
       } else {
         console.log(`ℹ️ [Webhook] Order ${order.id} already paid, skipping update`);
       }
-
     } catch (error) {
       console.error('❌ [Webhook] Payment captured handler error:', error);
     }
