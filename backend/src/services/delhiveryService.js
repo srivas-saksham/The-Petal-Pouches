@@ -463,7 +463,7 @@ class DelhiveryService {
       const {
         originPincode = this.warehousePincode,
         mode = 'S', // 'S' for Surface, 'E' for Express
-        weight = 1000, // Weight in grams (default 1000g)
+        weight = 499, // Weight in grams (default 499g)
         paymentType = 'Pre-paid', // 'Pre-paid' or 'COD'
         shipmentStatus = 'Delivered' // Status of shipment
       } = options;
@@ -540,7 +540,7 @@ class DelhiveryService {
     } catch (error) {
       console.error('❌ [Delhivery] Cost calculation failed:', error.message);
       
-      return this._estimateShippingCost(options.mode || 'S', options.weight || 1000, options.paymentType || 'Pre-paid');
+      return this._estimateShippingCost(options.mode || 'S', options.weight || 499, options.paymentType || 'Pre-paid');
     }
   }
 
@@ -1141,7 +1141,7 @@ _mapDelhiveryStatus(delhiveryStatus) {
       console.log(`📦 [Delhivery] Starting full delivery check for: ${pincode}`);
 
       // ✅ ADD THESE LINES RIGHT AFTER THE ABOVE LOG:
-      const weight = options.weight || 1000;
+      const weight = options.weight || 499;
       console.log(`📦 [Delhivery] Using weight: ${weight}g (${weight/1000}kg)`);
 
       const serviceability = await this.checkPincodeServiceability(pincode);
@@ -1170,13 +1170,13 @@ _mapDelhiveryStatus(delhiveryStatus) {
         this.calculateShippingCost(pincode, { 
           ...options, 
           mode: 'S',
-          weight: weight || 1000,
+          weight: weight || 499,
           paymentType: options.paymentType || 'Pre-paid'
         }),
         this.calculateShippingCost(pincode, { 
           ...options, 
           mode: 'E',
-          weight: weight || 1000,
+          weight: weight || 499,
           paymentType: options.paymentType || 'Pre-paid'
         })
       ]);

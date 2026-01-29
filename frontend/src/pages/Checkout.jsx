@@ -42,7 +42,7 @@ const Checkout = () => {
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [pageInitialized, setPageInitialized] = useState(false);
-  const [totalCartWeight, setTotalCartWeight] = useState(1000);
+  const [totalCartWeight, setTotalCartWeight] = useState(499); // Default 499 grams
   const [pendingCartWeight, setPendingCartWeight] = useState(null);
   const deliveryDebounceTimerRef = useRef(null);
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -160,7 +160,7 @@ const Checkout = () => {
       if (!cartItems || cartItems.length === 0) {
         setLoading(false);
         setPageInitialized(true);
-        setTotalCartWeight(1000);
+        setTotalCartWeight(499);
         return;
       }
 
@@ -208,7 +208,7 @@ const Checkout = () => {
         
         // Calculate total weight
         const totalWeight = cartItems.reduce((sum, item) => {
-          return sum + (item.quantity * 1000);
+          return sum + (item.quantity * 499);
         }, 0);
         setTotalCartWeight(totalWeight);
         console.log(`📦 [Checkout] Total cart weight calculated: ${totalWeight}g (${totalWeight/1000}kg)`);
@@ -232,7 +232,7 @@ const Checkout = () => {
     }
 
     if (cartItems && cartItems.length > 0) {
-      const newWeight = cartItems.reduce((sum, item) => sum + (item.quantity * 1000), 0);
+      const newWeight = cartItems.reduce((sum, item) => sum + (item.quantity * 499), 0);
       
       if (newWeight !== totalCartWeight) {
         console.log(`📦 [Checkout] Weight changed: ${totalCartWeight}g → ${newWeight}g`);
@@ -337,7 +337,7 @@ const Checkout = () => {
     setIsRecalculating(true);
     
     // ⭐ NEW: Calculate new weight IMMEDIATELY before refresh
-    const newWeight = cartItems.reduce((sum, item) => sum + (item.quantity * 1000), 0);
+    const newWeight = cartItems.reduce((sum, item) => sum + (item.quantity * 499), 0);
     console.log('📦 [Checkout] Calculated new weight:', newWeight, 'grams');
     
     // ⭐ NEW: Update weight state IMMEDIATELY (don't wait for debounce)

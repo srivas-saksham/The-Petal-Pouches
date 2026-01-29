@@ -28,7 +28,7 @@ const DeliveryDetailsCard = ({
   onDeliveryUpdate,
   onOpenAddressModal,
   onDeliveryModeChange,
-  cartWeight = 1000,
+  cartWeight = 499,
   isRecalculating = false
 }) => {
   const [deliveryData, setDeliveryData] = useState(null);

@@ -166,7 +166,7 @@ const DelhiveryController = {
 
       const result = await delhiveryService.checkDelivery(pincode, {
         originPincode: originPin,
-        weight: parseInt(weight) || 1000 // ✅ ADD THIS LINE - Default 1kg
+        weight: parseInt(weight) || 499 // ✅ ADD THIS LINE - Default 499grams
       });
 
       return res.json({
