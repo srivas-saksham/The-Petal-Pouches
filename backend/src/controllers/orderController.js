@@ -223,7 +223,7 @@ const OrderController = {
           destination_city: address.city,
           destination_state: address.state,
           shipping_mode: deliveryMode === 'express' ? 'Express' : 'Surface',
-          weight_grams: totals.estimated_weight || 1000,
+          weight_grams: totals.estimated_weight || 499,
           order_total: totals.total,
           payment_mode: payment_method,
           dimensions_cm: {

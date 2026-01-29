@@ -24,7 +24,7 @@ const ShipmentModel = {
           order_id: orderId,
           status: 'pending_pickup',
           shipping_mode: shipmentData.shipping_mode || 'Surface',
-          weight_grams: shipmentData.weight_grams || 1000,
+          weight_grams: shipmentData.weight_grams || 499,
           destination_pincode: shipmentData.destination_pincode,
           destination_city: shipmentData.destination_city,
           destination_state: shipmentData.destination_state,

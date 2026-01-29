@@ -38,7 +38,7 @@ const calculateOrderTotals = (cartItems, deliveryMode = 'surface', expressCharge
   const total = subtotal + express_charge;
 
   const estimated_weight = cartItems.reduce((sum, item) => {
-    const itemWeight = item.weight || 1000;
+    const itemWeight = item.weight || 499;
     return sum + (itemWeight * item.quantity);
   }, 0);
 
