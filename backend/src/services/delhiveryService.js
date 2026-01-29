@@ -854,9 +854,9 @@ async createShipment(shipmentData) {
         
         // Package details
         weight: String(shipmentData.weight_grams),
-        shipment_width: String(shipmentData.dimensions_cm?.width || 25),
-        shipment_height: String(shipmentData.dimensions_cm?.height || 10),
-        shipment_length: String(shipmentData.dimensions_cm?.length || 30),
+        shipment_width: String(shipmentData.dimensions_cm?.width || 10),
+        shipment_height: String(shipmentData.dimensions_cm?.height || 3),
+        shipment_length: String(shipmentData.dimensions_cm?.length || 10),
         shipping_mode: shipmentData.shipping_mode,
         
         // Optional fields

@@ -546,7 +546,7 @@ const PaymentController = {
           weight_grams: 499,
           order_total: totals.total - discount, // ⭐ Use final total with discount
           payment_mode: 'Prepaid',
-          dimensions_cm: { length: 30, width: 25, height: 10 }
+          dimensions_cm: { length: 10, width: 10, height: 3 }
         });
         console.log('✅ Shipment created');
       } catch (shipmentError) {

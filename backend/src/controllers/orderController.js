@@ -227,9 +227,9 @@ const OrderController = {
           order_total: totals.total,
           payment_mode: payment_method,
           dimensions_cm: {
-            length: 30,
-            width: 25,
-            height: 10
+            length: 10,
+            width: 10,
+            height: 3
           }
         });
         console.log(`✅ Shipment created (pending_review): ${shipment.id}`);
