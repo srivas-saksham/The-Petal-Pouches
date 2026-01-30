@@ -5,6 +5,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { X, MapPin, Loader, GripVertical } from 'lucide-react';
 import { createAddress, updateAddress, validateAddress } from '../../../services/addressService';
 import AddressNotifications from './AddressNotifications';
+import AddressLocationModal from './AddressLocationModal';
+import geocodingService from '../../../services/geocodingService';
 
 /**
  * AddressFormSidebar Component
@@ -53,6 +55,7 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
 
   // Handle body scroll when sidebar opens/closes
   useEffect(() => {
@@ -245,6 +248,126 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
     }
   };
 
+  /**
+   * Handle GPS location selection from modal
+   * Auto-fills address form with detected location
+   */
+  const handleLocationSelect = async (locationData) => {
+    try {
+      console.log('📍 Location selected:', locationData);
+      console.log('🔍 Address components:', locationData.components);
+
+      // Extract address components from reverse geocoded data
+      const components = locationData.components || {};
+      const fullAddress = locationData.address || '';
+
+      // Parse the full address string to extract parts
+      // Format: "Sainik Nagar, Patel Nagar, West Delhi, Delhi, 110059, India"
+      const addressParts = fullAddress.split(',').map(part => part.trim());
+      
+      // Extract line1 (first 2 parts: "Sainik Nagar, Patel Nagar")
+      const line1 = addressParts.slice(0, 2).join(', ') || '';
+
+      // Detect state from multiple sources
+      let detectedState = '';
+      
+      // Method 1: Check components.state
+      if (components.state) {
+        detectedState = components.state;
+      } 
+      // Method 2: Check state_district
+      else if (components.state_district) {
+        detectedState = components.state_district;
+      }
+      // Method 3: For Delhi (which is both city and state/UT)
+      else if (components.city === 'Delhi' || addressParts.includes('Delhi')) {
+        detectedState = 'Delhi';
+      }
+      // Method 4: Check ISO code and map to state name
+      else if (components['ISO3166-2-lvl4']) {
+        const isoCode = components['ISO3166-2-lvl4'];
+        // Map ISO codes to state names (add more as needed)
+        const isoToState = {
+          'IN-DL': 'Delhi',
+          'IN-MH': 'Maharashtra',
+          'IN-KA': 'Karnataka',
+          'IN-TN': 'Tamil Nadu',
+          'IN-UP': 'Uttar Pradesh',
+          'IN-RJ': 'Rajasthan',
+          'IN-WB': 'West Bengal',
+          'IN-GJ': 'Gujarat',
+          'IN-TG': 'Telangana',
+          'IN-AP': 'Andhra Pradesh',
+          'IN-KL': 'Kerala',
+          'IN-MP': 'Madhya Pradesh',
+          'IN-HR': 'Haryana',
+          'IN-PB': 'Punjab',
+          'IN-BR': 'Bihar',
+          'IN-OR': 'Odisha',
+          'IN-JH': 'Jharkhand',
+          'IN-AS': 'Assam',
+          'IN-CT': 'Chhattisgarh',
+          'IN-UT': 'Uttarakhand',
+          'IN-HP': 'Himachal Pradesh',
+          'IN-JK': 'Jammu and Kashmir',
+          'IN-GA': 'Goa',
+          'IN-MN': 'Manipur',
+          'IN-TR': 'Tripura',
+          'IN-MZ': 'Mizoram',
+          'IN-NL': 'Nagaland',
+          'IN-SK': 'Sikkim',
+          'IN-AR': 'Arunachal Pradesh',
+          'IN-ML': 'Meghalaya',
+          'IN-PY': 'Puducherry',
+          'IN-CH': 'Chandigarh',
+          'IN-AN': 'Andaman and Nicobar Islands',
+          'IN-DN': 'Dadra and Nagar Haveli',
+          'IN-DD': 'Daman and Diu',
+          'IN-LD': 'Lakshadweep',
+          'IN-LA': 'Ladakh'
+        };
+        detectedState = isoToState[isoCode] || '';
+      }
+
+      console.log('🗺️ Detected state:', detectedState);
+
+      // Auto-fill form fields with detected address
+      setFormData((prev) => ({
+        ...prev,
+        // Fill line1 with neighbourhood + suburb
+        line1: line1 || components.neighbourhood || components.road || prev.line1,
+        
+        // Fill line2 with city_district if available
+        line2: components.city_district || components.suburb || prev.line2,
+        
+        // City - try multiple possible keys
+        city: components.city || components.town || components.village || components.municipality || prev.city,
+        
+        // State - use detected state
+        state: detectedState || prev.state,
+        
+        // Zip code - try multiple possible keys
+        zip_code: components.postcode || components.postal_code || components.zip_code || prev.zip_code,
+        
+        // Country - default to India
+        country: components.country || 'India'
+      }));
+
+      // Clear any previous errors
+      setErrors({});
+
+      // Show success notification
+      setSubmitSuccess(true);
+      setTimeout(() => setSubmitSuccess(false), 3000);
+
+      console.log('✅ Form auto-filled successfully');
+
+    } catch (error) {
+      console.error('❌ Error processing location:', error);
+      setSubmitError('Failed to auto-fill address from location');
+    }
+  };
+
   // Handle close
   const handleClose = () => {
     if (onClose) {
@@ -342,6 +465,42 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* GPS Location Button - NEW FEATURE */}
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={() => setShowLocationModal(true)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 
+                    bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700
+                    text-white rounded-lg font-medium transition-all shadow-sm hover:shadow-md
+                    border border-blue-400"
+                >
+                  <svg 
+                    className="w-5 h-5" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" 
+                    />
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" 
+                    />
+                  </svg>
+                  Use My Current Location
+                </button>
+                <p className="text-xs text-center text-tppslate/60 mt-2">
+                  Auto-fill address using your device's GPS
+                </p>
+              </div>
+
               {/* Address Line 1 */}
               <div>
                 <label htmlFor="line1" className="block text-sm font-medium text-tppslate mb-1">
@@ -548,6 +707,14 @@ const AddressFormSidebar = ({ isOpen, editingAddress, onClose, onSuccess }) => {
 
       {/* Resize cursor overlay when resizing */}
       {isResizing && <div className="fixed inset-0 z-[80] cursor-ew-resize" />}
+
+      {/* GPS Location Modal - NEW FEATURE */}
+      <AddressLocationModal
+        isOpen={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
+        onLocationSelect={handleLocationSelect}
+        reverseGeocodeFunc={geocodingService.reverseGeocode}
+      />
     </>
   );
 };
