@@ -135,6 +135,8 @@ const { verifyCustomerToken } = require('./middleware/userAuth');
 // --------------------------------------------
 app.use('/api/webhooks', require('./routes/webhooks'));
 
+app.use('/api/cron', require('./routes/cron'));
+
 // 1. ADMIN AUTHENTICATION (PUBLIC)
 // --------------------------------------------
 app.use('/api/admin/auth', require('./routes/adminAuth')); // ✅ Login/Register - NO auth
@@ -389,13 +391,6 @@ if (require.main === module) {
       }
     } catch (err) {
       console.log('⚠️  Could not verify Razorpay configuration:', err.message);
-    }
-    
-    // Start local cron job for development testing
-    if (process.env.NODE_ENV === 'development') {
-      console.log('\n🔄 Starting local cron job (development only)...');
-      const { startShipmentSyncJob } = require('./jobs/syncShipments');
-      startShipmentSyncJob();
     }
   });
 }
