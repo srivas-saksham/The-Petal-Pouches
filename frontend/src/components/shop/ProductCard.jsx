@@ -502,7 +502,7 @@ const ProductCard = ({ product, onQuickView }) => {
         
         {/* Title - Responsive text sizing */}
         <Link to={`/shop/products/${product.id}`}>
-          <h3 className="text-[11px] leading-tight md:text-sm md:leading-tight font-semibold text-tppslate line-clamp-2 mb-1 md:mb-2 hover:text-tpppink transition-colors min-h-[2rem] md:min-h-[2.5rem]">
+          <h3 className="text-[13px] leading-[1.3] md:text-sm md:leading-[1.4] font-semibold text-tppslate mb-1 md:mb-2 hover:text-tpppink transition-colors">
             {product.title}
           </h3>
         </Link>
@@ -563,7 +563,7 @@ const ProductCard = ({ product, onQuickView }) => {
             </>
           )}
         </div>
-
+        
         {/* Action Buttons - Responsive */}
         {!isInCart ? (
           <div className="flex gap-1 md:gap-2">
@@ -604,7 +604,7 @@ const ProductCard = ({ product, onQuickView }) => {
                 onClick={handleQuickView}
                 className="md:hidden flex items-center justify-center w-8 py-1.5 rounded-lg border border-tpppink text-tpppink hover:bg-tpppink/10 transition-colors"
               >
-                <Eye size={10} />
+                <Eye size={14} />
               </button>
             )}
           </div>

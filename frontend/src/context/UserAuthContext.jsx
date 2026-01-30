@@ -223,11 +223,12 @@ export function UserAuthProvider({ children }) {
       const params = new URLSearchParams(hash.substring(1));
       const accessToken = params.get('access_token');
 
+      console.log('🔵 [OAuth Callback] Access token:', accessToken?.substring(0, 20) + '...');
+
       if (!accessToken) {
         throw new Error('No access token received');
       }
 
-      // Exchange Supabase token for our JWT
       const response = await fetch(`${API_URL}/api/auth/oauth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -235,19 +236,22 @@ export function UserAuthProvider({ children }) {
       });
 
       const data = await response.json();
+      
+      console.log('🔵 [OAuth Callback] Response status:', response.status);
+      console.log('🔵 [OAuth Callback] Response data:', data);
 
       if (!response.ok) {
-        throw new Error(data.message || 'OAuth authentication failed');
+        throw new Error(data.message || data.error || 'OAuth authentication failed');
       }
 
       // ✅ NEW USER - Requires password setup
-      if (data.requiresPasswordSetup) {
-        return {
-          success: false,
-          requiresPasswordSetup: true,
-          tempUserData: data.tempUserData
-        };
-      }
+      // if (data.requiresPasswordSetup) {
+      //   return {
+      //     success: false,
+      //     requiresPasswordSetup: true,
+      //     tempUserData: data.tempUserData
+      //   };
+      // }
 
       // ✅ EXISTING USER - Complete login
       const { token: newToken, user: newUser } = data.data;

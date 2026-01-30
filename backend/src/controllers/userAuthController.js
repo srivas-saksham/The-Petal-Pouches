@@ -835,6 +835,9 @@ const UserAuthController = {
     try {
       const { accessToken } = req.body;
 
+      console.log('🔵 [Google OAuth] Request received');
+      console.log('Access Token present:', !!accessToken);
+
       if (!accessToken) {
         return res.status(400).json({
           success: false,
@@ -843,47 +846,100 @@ const UserAuthController = {
       }
 
       // Verify token with Supabase
+      console.log('🔵 [Google OAuth] Verifying token with Supabase...');
       const { data: { user }, error } = await supabase.auth.getUser(accessToken);
 
       if (error || !user) {
+        console.error('❌ [Google OAuth] Token verification failed:', error);
         return res.status(401).json({
           success: false,
-          message: 'Invalid Google token'
+          message: 'Invalid Google token',
+          error: error?.message // ✅ Add error details
         });
       }
 
+      console.log('✅ [Google OAuth] Token verified for:', user.email);
+
       // Check if user exists in database
+      console.log('🔵 [Google OAuth] Checking if user exists...');
       let { data: existingUser } = await supabase
         .from('Users')
         .select('*')
         .eq('email', user.email)
         .single();
 
-      // ✅ NEW USER - Require password setup
+      console.log('User exists:', !!existingUser);
+
+      // ✅ NEW USER - Auto-create account
       if (!existingUser) {
-        console.log(`[Google OAuth] New user detected: ${user.email} - Requires password setup`);
+        console.log(`🔵 [Google OAuth] Creating new user: ${user.email}`);
         
+        const currentTime = new Date().toISOString();
+        
+        const { data: newUser, error: createError } = await supabase
+          .from('Users')
+          .insert([{
+            name: user.user_metadata.full_name || user.email.split('@')[0],
+            email: user.email.toLowerCase(),
+            password_hash: null,
+            phone: null,
+            is_active: true,
+            email_verified: true,
+            last_login: currentTime
+          }])
+          .select('id, name, email, phone, created_at')
+          .single();
+
+        if (createError) {
+          console.error('❌ [Google OAuth] User creation failed:', createError);
+          throw createError; // ✅ This will be caught below
+        }
+
+        console.log('✅ [Google OAuth] New user created:', newUser.email);
+
+        // Generate JWT token
+        const token = jwt.sign(
+          { 
+            id: newUser.id, 
+            email: newUser.email, 
+            name: newUser.name,
+            email_verified: true
+          },
+          JWT_SECRET,
+          { expiresIn: '7d' }
+        );
+
+        // Send welcome email
+        try {
+          await emailService.sendWelcomeEmail(newUser.email, newUser.name);
+          console.log('✅ [Google OAuth] Welcome email sent');
+        } catch (emailError) {
+          console.error('⚠️ [Google OAuth] Welcome email failed:', emailError.message);
+          // Don't fail the whole process
+        }
+
         return res.json({
           success: true,
-          requiresPasswordSetup: true,
-          tempUserData: {
-            email: user.email,
-            name: user.user_metadata.full_name || user.email.split('@')[0],
-            email_verified: true
+          data: {
+            user: {
+              id: newUser.id,
+              name: newUser.name,
+              email: newUser.email,
+              email_verified: true
+            },
+            token
           }
         });
       }
 
-      // ✅ EXISTING USER - Login normally
-      console.log(`[Google OAuth] Existing user logged in: ${user.email}`);
+      // ✅ EXISTING USER
+      console.log(`✅ [Google OAuth] Existing user logged in: ${user.email}`);
 
-      // ✅ FIX: Update last_login timestamp for Google OAuth login
       await supabase
         .from('Users')
         .update({ last_login: new Date().toISOString() })
         .eq('id', existingUser.id);
 
-      // Generate JWT token
       const token = jwt.sign(
         { 
           id: existingUser.id, 
@@ -897,7 +953,6 @@ const UserAuthController = {
 
       res.json({
         success: true,
-        requiresPasswordSetup: false,
         data: {
           user: {
             id: existingUser.id,
@@ -910,12 +965,13 @@ const UserAuthController = {
       });
 
     } catch (error) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('Google OAuth error:', error);
-      }
+      console.error('❌ [Google OAuth] Error:', error);
+      console.error('Error stack:', error.stack); // ✅ Full stack trace
+      
       res.status(500).json({
         success: false,
-        message: 'OAuth authentication failed'
+        message: 'OAuth authentication failed',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined // ✅ Return error in dev
       });
     }
   },
