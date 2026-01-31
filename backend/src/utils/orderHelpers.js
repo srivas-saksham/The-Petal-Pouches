@@ -38,7 +38,17 @@ const calculateOrderTotals = (cartItems, deliveryMode = 'surface', expressCharge
   const total = subtotal + express_charge;
 
   const estimated_weight = cartItems.reduce((sum, item) => {
-    const itemWeight = item.weight || 499;
+    // ✅ FIXED: Use bundle weight for bundles, product weight for products
+    let itemWeight = 100; // Default fallback
+    
+    if (item.bundle_id) {
+      // This is a bundle - use bundle weight directly
+      itemWeight = item.bundle_weight || 100;
+    } else if (item.product_id) {
+      // This is a product - use product weight
+      itemWeight = item.product_weight || item.weight || 100;
+    }
+    
     return sum + (itemWeight * item.quantity);
   }, 0);
 

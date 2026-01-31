@@ -1,5 +1,6 @@
 // frontend/src/App.jsx - WITH HELMET PROVIDER PAGES TITLE + POLICY PAGES
 
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AdminAuthProvider } from './context/AdminAuthContext';
 import { UserAuthProvider } from './context/UserAuthContext';
@@ -51,6 +52,21 @@ function ScrollManager() {
 }
 
 function App() {
+  // Disable scroll on number inputs globally
+  useEffect(() => {
+    const handleWheel = (e) => {
+      if (document.activeElement.type === 'number') {
+        document.activeElement.blur();
+      }
+    };
+
+    document.addEventListener('wheel', handleWheel, { passive: true });
+
+    return () => {
+      document.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
+
   return (
     <HelmetProvider>
       <BrowserRouter>

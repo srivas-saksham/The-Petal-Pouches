@@ -59,7 +59,7 @@ const BundleDetailPage = () => {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const debounceTimerRef = useRef(null);
   
-  const [currentBundleWeight, setCurrentBundleWeight] = useState(1000);
+  const [currentBundleWeight, setCurrentBundleWeight] = useState(199);
   const [pendingWeight, setPendingWeight] = useState(null);
   const deliveryDebounceTimerRef = useRef(null);
 
@@ -94,6 +94,20 @@ const BundleDetailPage = () => {
       setError(bundleHook.error);
     }
   }, [id, isProductView, bundleHook.bundle, bundleHook.loading, bundleHook.error]);
+
+  // ✅ NEW: Initialize weight when item loads
+  useEffect(() => {
+    if (item) {
+      // Use bundle.weight or product.weight directly
+      const itemWeight = item.weight || 100;
+      const totalWeight = itemWeight * localQuantity;
+      
+      console.log(`📦 [BundleDetail] Item loaded: ${item.title}`);
+      console.log(`   Weight: ${itemWeight}g × ${localQuantity} = ${totalWeight}g`);
+      
+      setCurrentBundleWeight(totalWeight);
+    }
+  }, [item]); // Only run when item changes, not localQuantity
 
   const stockLimit = item?.stock_limit || item?.stock;
   const isLowStock = stockLimit && stockLimit > 0 && stockLimit < 5;
@@ -274,6 +288,20 @@ const BundleDetailPage = () => {
       }
     };
   }, []);
+
+  // ✅ NEW: Update weight when quantity changes
+  useEffect(() => {
+    if (!item) return;
+    
+    const itemWeight = item.weight || 100;
+    const totalWeight = itemWeight * localQuantity;
+    
+    console.log(`📦 [BundleDetail] Quantity changed: ${localQuantity} units`);
+    console.log(`   Total weight: ${totalWeight}g (${totalWeight/1000}kg)`);
+    
+    // Call the delivery update callback (with debounce)
+    handleQuantityChangeForDelivery(localQuantity, totalWeight);
+  }, [localQuantity, item, handleQuantityChangeForDelivery]);
 
   const handleSearch = (searchTerm) => {
     if (searchTerm) {

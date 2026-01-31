@@ -153,6 +153,32 @@ input{
   display: none;
 }
 
+/* Disable scroll wheel on number inputs */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield; /* Firefox */
+  appearance: textfield;
+}
+
+/* Prevent scroll wheel from changing number values */
+input[type='number'] {
+  pointer-events: auto;
+}
+
+input[type='number']:focus {
+  pointer-events: auto;
+}
+
+/* In index.css */
+input, textarea, select {
+  font-size: max(16px, 1rem); /* Always at least 16px on mobile */
+}
+
 /* 6) Typography Utilities */
 .text-heading {
   font-weight: 700;

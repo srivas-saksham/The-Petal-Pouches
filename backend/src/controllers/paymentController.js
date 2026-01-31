@@ -543,7 +543,7 @@ const PaymentController = {
           destination_city: address.city,
           destination_state: address.state,
           shipping_mode: deliveryMetadata.mode === 'express' ? 'Express' : 'Surface',
-          weight_grams: 499,
+          weight_grams: totals.estimated_weight || 99,
           order_total: totals.total - discount, // ⭐ Use final total with discount
           payment_mode: 'Prepaid',
           dimensions_cm: { length: 10, width: 10, height: 3 }

@@ -16,7 +16,7 @@ import BundleAddressModal from '../../bundle-detail/BundleAddressModal';
  * ✅ NOW USING: BundleAddressModal (bottom slide-up for both mobile & desktop)
  * ✅ PRESERVES: All existing functionality including localStorage persistence
  */
-const DeliverySection = ({ bundleWeight = 499, isRecalculating = false }) => {
+const DeliverySection = ({ bundleWeight = 99, isRecalculating = false }) => {
   const { isAuthenticated, user } = useUserAuth();
   
   // Address state

@@ -157,23 +157,28 @@ const DelhiveryController = {
         });
       }
 
-      console.log(`📦 Full delivery check: ${pincode}`);
-
-      // ✅ ADD THIS LOG
-      if (weight) {
-        console.log(`📦 Weight specified: ${weight}g (${weight/1000}kg)`);
+      // ✅ VALIDATE WEIGHT
+      const parsedWeight = parseInt(weight);
+      if (!weight || isNaN(parsedWeight) || parsedWeight <= 0) {
+        console.error(`❌ [Delhivery] Invalid weight: ${weight}`);
+        return res.status(400).json({
+          success: false,
+          message: 'Valid weight (in grams) is required'
+        });
       }
+
+      console.log(`📦 Full delivery check: ${pincode}`);
+      console.log(`📦 Weight: ${parsedWeight}g`);
 
       const result = await delhiveryService.checkDelivery(pincode, {
         originPincode: originPin,
-        weight: parseInt(weight) || 499 // ✅ ADD THIS LINE - Default 499grams
+        weight: parsedWeight  // ✅ Pass validated weight
       });
 
       return res.json({
         success: true,
         ...result
       });
-
     } catch (error) {
       console.error('❌ Delivery check error:', error);
       res.status(500).json({

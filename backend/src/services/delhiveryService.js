@@ -462,11 +462,17 @@ class DelhiveryService {
     try {
       const {
         originPincode = this.warehousePincode,
-        mode = 'S', // 'S' for Surface, 'E' for Express
-        weight = 499, // Weight in grams (default 499g)
-        paymentType = 'Pre-paid', // 'Pre-paid' or 'COD'
-        shipmentStatus = 'Delivered' // Status of shipment
+        mode = 'S',
+        weight,  // ✅ REMOVE DEFAULT - Make it required
+        paymentType = 'Pre-paid',
+        shipmentStatus = 'Delivered'
       } = options;
+      
+      // ✅ ADD VALIDATION
+      if (!weight || weight <= 0) {
+        console.error(`❌ [Delhivery] Invalid weight: ${weight}`);
+        throw new Error('Weight is required and must be positive');
+      }
 
       if (!this.apiToken) {
         console.warn('⚠️ [Delhivery] API token not configured for cost calculation');
@@ -1140,8 +1146,13 @@ _mapDelhiveryStatus(delhiveryStatus) {
     try {
       console.log(`📦 [Delhivery] Starting full delivery check for: ${pincode}`);
 
-      // ✅ ADD THESE LINES RIGHT AFTER THE ABOVE LOG:
-      const weight = options.weight || 499;
+      // ✅ VALIDATE WEIGHT FIRST
+      const weight = options.weight;
+      if (!weight || weight <= 0) {
+        console.error(`❌ [Delhivery] No valid weight provided: ${weight}`);
+        throw new Error('Weight must be provided');
+      }
+      
       console.log(`📦 [Delhivery] Using weight: ${weight}g (${weight/1000}kg)`);
 
       const serviceability = await this.checkPincodeServiceability(pincode);

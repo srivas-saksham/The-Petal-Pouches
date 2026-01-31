@@ -42,7 +42,7 @@ const Checkout = () => {
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [pageInitialized, setPageInitialized] = useState(false);
-  const [totalCartWeight, setTotalCartWeight] = useState(499); // Default 499 grams
+  const [totalCartWeight, setTotalCartWeight] = useState(99); // Default 99 grams
   const [pendingCartWeight, setPendingCartWeight] = useState(null);
   const deliveryDebounceTimerRef = useRef(null);
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -160,7 +160,7 @@ const Checkout = () => {
       if (!cartItems || cartItems.length === 0) {
         setLoading(false);
         setPageInitialized(true);
-        setTotalCartWeight(499);
+        setTotalCartWeight(99);
         return;
       }
 
@@ -185,6 +185,7 @@ const Checkout = () => {
                 img_url: item.image_url,
                 price: item.price,
                 stock: item.stock_limit,
+                weight: item.weight || 99,
                 items: [] // Products don't have sub-items
               }
             };
@@ -206,10 +207,8 @@ const Checkout = () => {
         setBundles(itemsMap); // Reusing 'bundles' state for both types
         console.log('✅ Item details fetched:', itemsMap);
         
-        // Calculate total weight
-        const totalWeight = cartItems.reduce((sum, item) => {
-          return sum + (item.quantity * 499);
-        }, 0);
+        // Calculate total weight using actual product/bundle weights
+        const totalWeight = calculateCartWeight(cartItems, itemsMap);
         setTotalCartWeight(totalWeight);
         console.log(`📦 [Checkout] Total cart weight calculated: ${totalWeight}g (${totalWeight/1000}kg)`);
         
@@ -225,34 +224,35 @@ const Checkout = () => {
     fetchItemDetails();
   }, [cartItems]);
 
-  // Trigger delivery refresh when weight updates
   useEffect(() => {
     if (!pageInitialized || Object.keys(bundles).length === 0) {
       return;
     }
 
     if (cartItems && cartItems.length > 0) {
-      const newWeight = cartItems.reduce((sum, item) => sum + (item.quantity * 499), 0);
+      const newWeight = calculateCartWeight(cartItems, bundles);
       
       if (newWeight !== totalCartWeight) {
         console.log(`📦 [Checkout] Weight changed: ${totalCartWeight}g → ${newWeight}g`);
         
-        // ⭐ UPDATE IMMEDIATELY - No debounce!
-        setTotalCartWeight(newWeight);
-        setPendingCartWeight(null);
-        
-        // ⭐ Clear delivery data immediately
-        if (selectedAddress?.zip_code) {
-          console.log('🔄 [Checkout] Triggering delivery recalculation...');
-          const currentStoredData = getDeliveryData() || {};
-          saveDeliveryData({
-            ...currentStoredData,
-            deliveryCheck: null,
-            timestamp: Date.now()
-          });
+        // ⭐ CRITICAL FIX: Validate weight is not using defaults
+        if (newWeight > 0 && newWeight !== 499 && newWeight !== 998) {
+          setTotalCartWeight(newWeight);
+          setPendingCartWeight(null);
           
-          // ⭐ Force DeliveryDetailsCard to recalculate
-          setDeliveryInfo(null);
+          if (selectedAddress?.zip_code) {
+            console.log('🔄 [Checkout] Triggering delivery recalculation...');
+            const currentStoredData = getDeliveryData() || {};
+            saveDeliveryData({
+              ...currentStoredData,
+              deliveryCheck: null,
+              timestamp: Date.now()
+            });
+            
+            setDeliveryInfo(null);
+          }
+        } else {
+          console.warn(`⚠️ [Checkout] Invalid weight detected: ${newWeight}g - NOT updating`);
         }
       }
     }
@@ -337,7 +337,7 @@ const Checkout = () => {
     setIsRecalculating(true);
     
     // ⭐ NEW: Calculate new weight IMMEDIATELY before refresh
-    const newWeight = cartItems.reduce((sum, item) => sum + (item.quantity * 499), 0);
+    const newWeight = calculateCartWeight(cartItems, bundles);
     console.log('📦 [Checkout] Calculated new weight:', newWeight, 'grams');
     
     // ⭐ NEW: Update weight state IMMEDIATELY (don't wait for debounce)
@@ -399,6 +399,37 @@ const Checkout = () => {
       deliveryCheck: updatedDeliveryData,
       timestamp: Date.now()
     });
+  }, []);
+
+  /**
+   * Calculate total cart weight
+   * - For bundles: use bundle.weight
+   * - For products: use product.weight
+   */
+  const calculateCartWeight = useCallback((items, bundlesData) => {
+    console.log('📊 [calculateCartWeight] Starting calculation:', {
+      itemCount: items.length,
+      bundlesDataKeys: Object.keys(bundlesData)
+    });
+    
+    return items.reduce((sum, item, index) => {
+      let itemWeight = 100; // Default fallback
+      
+      if (item.type === 'bundle' && item.bundle_id) {
+        const bundleData = bundlesData[item.bundle_id];
+        itemWeight = bundleData?.weight || 100;
+        console.log(`📦 [${index}] Bundle "${bundleData?.title}": ${itemWeight}g (source: ${bundleData?.weight ? 'DB' : 'default'})`);
+      } else if (item.type === 'product' && item.product_id) {
+        const productData = bundlesData[`product_${item.product_id}`];
+        itemWeight = productData?.weight || 100;
+        console.log(`📦 [${index}] Product "${productData?.title}": ${itemWeight}g (source: ${productData?.weight ? 'DB' : 'default'})`);
+      }
+      
+      const totalItemWeight = itemWeight * item.quantity;
+      console.log(`   Quantity: ${item.quantity} → Item Total: ${totalItemWeight}g`);
+      
+      return sum + totalItemWeight;
+    }, 0);
   }, []);
 
   const handleDeliveryModeChange = useCallback((modeData) => {

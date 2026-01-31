@@ -8,7 +8,7 @@ import TrustBadgesSection from './TrustBadgesSection';
  * FloatingSidebar - Unified Receipt-Style Sidebar
  * Clean, decision-support focused sidebar without price/cart duplication
  */
-const FloatingSidebar = ({ bundle, bundleWeight = 499, pendingWeight = null }) => {
+const FloatingSidebar = ({ bundle, bundleWeight = 199, pendingWeight = null }) => {
   // Extract items from bundle
   const items = bundle?.items || bundle?.Bundle_items || [];
 

@@ -148,7 +148,8 @@ const CartController = {
             img_url,
             price,
             is_active,
-            stock_limit
+            stock_limit,
+            weight
           ),
           Products (
             id,
@@ -156,7 +157,9 @@ const CartController = {
             description,
             img_url,
             price,
-            stock
+            stock,
+            weight,
+            sku
           )
         `)
         .eq('cart_id', cartId)
@@ -180,6 +183,7 @@ const CartController = {
             item_total: parseFloat(item.Bundles.price) * item.quantity,
             is_active: item.Bundles.is_active,
             stock_limit: item.Bundles.stock_limit,
+            weight: item.Bundles.weight || 199,
             type: 'bundle'
           };
         }
@@ -196,6 +200,7 @@ const CartController = {
             quantity: item.quantity,
             item_total: parseFloat(item.Products.price) * item.quantity,
             stock_limit: item.Products.stock,
+            weight: item.Products.weight || 99,
             type: 'product'
           };
         }

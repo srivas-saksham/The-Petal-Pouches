@@ -147,7 +147,8 @@ const CartModel = {
             price,
             img_url,
             description,
-            stock_limit
+            stock_limit,
+            weight
           ),
           Products(
             id,
@@ -156,7 +157,8 @@ const CartModel = {
             img_url,
             description,
             stock,
-            sku
+            sku,
+            weight
           )
         `)
         .eq('user_id', userId)
@@ -237,7 +239,8 @@ const CartModel = {
             variant_sku: primaryProduct?.sku || null,
             variant_attributes: {},
             stock: bundle.stock_limit || primaryProduct?.stock || 0,
-            weight: 0,
+            bundle_weight: bundle.weight || 199,  // ⭐ ADD: Bundle weight from Bundles table
+            weight: 0,  // Keep for backward compatibility
             
             item_total: bundle.price * cartItem.quantity,
             
@@ -281,7 +284,8 @@ const CartModel = {
           variant_sku: product.sku || null,
           variant_attributes: {},
           stock: product.stock || 0,
-          weight: 0,
+          product_weight: product.weight || 99,  // ⭐ ADD: Product weight from Products table
+          weight: 0,  // Keep for backward compatibility
           
           item_total: product.price * cartItem.quantity,
           
