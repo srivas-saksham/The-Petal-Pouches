@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import { AdminAuthProvider } from './context/AdminAuthContext';
 import { UserAuthProvider } from './context/UserAuthContext';
 import { CartProvider } from './context/CartContext';
@@ -192,6 +193,8 @@ function App() {
             </UserAuthProvider>
           </AdminAuthProvider>
         </ToastProvider>
+        {/* ⭐ Vercel Analytics */}
+        <Analytics />
       </BrowserRouter>
     </HelmetProvider>
   );
