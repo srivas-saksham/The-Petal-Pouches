@@ -153,6 +153,27 @@ const getProductStats = async (req, res) => {
       throw new Error('Failed to fetch statistics');
     }
 
+    // ✅ NEW: Calculate weight statistics
+    const { data: productsWithWeight, error: weightError } = await supabase
+      .from('Products')
+      .select('weight');
+
+    let totalWeight = 0;
+    let avgWeight = 0;
+    let productsWithWeightData = 0;
+
+    if (!weightError && productsWithWeight) {
+      const weights = productsWithWeight
+        .map(p => p.weight || 0)
+        .filter(w => w > 0);
+      
+      productsWithWeightData = weights.length;
+      totalWeight = weights.reduce((sum, w) => sum + w, 0);
+      avgWeight = productsWithWeightData > 0 
+        ? Math.round(totalWeight / productsWithWeightData)
+        : 0;
+    }
+
     res.status(200).json({
       success: true,
       data: {
@@ -166,9 +187,15 @@ const getProductStats = async (req, res) => {
         },
         stockPercentage: totalProducts > 0 
           ? Math.round((inStockCount / totalProducts) * 100)
-          : 0
+          : 0,
+        // ✅ NEW: Weight stats
+        weightStats: {
+          totalWeight,
+          avgWeight,
+          productsWithWeight: productsWithWeightData
+        }
       }
-    });
+    }); 
   } catch (error) {
     console.error('Get product stats error:', error);
     res.status(500).json({
@@ -189,7 +216,10 @@ const createProduct = async (req, res) => {
       category_id, 
       stock, 
       sku, 
-      has_variants, 
+      has_variants,
+      landing_cost,  // ✅ NEW
+      base_cost,     // ✅ NEW
+      weight,
       cost_price,
       tags,
       is_sellable
@@ -234,15 +264,19 @@ const createProduct = async (req, res) => {
       has_variants: has_variants === 'true' || has_variants === true || false,
       tags: parsedTags, // 🆕 NEW
       primary_tag: primaryTag,
-      is_sellable: is_sellable === 'false' || is_sellable === false ? false : true // 🔒 NEW: Default true
+      is_sellable: is_sellable === 'false' || is_sellable === false ? false : true, // 🔒 NEW: Default true
+      landing_cost: landing_cost ? parseInt(landing_cost) : 0,  // ✅ NEW
+      base_cost: base_cost ? parseInt(base_cost) : 0,            // ✅ NEW
+      weight: weight ? parseInt(weight) : 0                       // ✅ NEW
     };
 
-    if (cost_price) {
-      const pricingMetrics = calculateProductPricing(cost_price, price);
-      productData.cost_price = parseInt(cost_price);
+    if (base_cost && price) {
+      const pricingMetrics = calculateProductPricing(base_cost, price);
       productData.margin_percent = pricingMetrics.margin_percent;
       productData.markup_percent = pricingMetrics.markup_percent;
     }
+
+    productData.cost_price = productData.base_cost;
 
     if (category_id && category_id.trim() !== '') {
       productData.category_id = category_id;
@@ -365,7 +399,10 @@ const updateProduct = async (req, res) => {
       stock, 
       category_id, 
       sku, 
-      has_variants, 
+      has_variants,  
+      landing_cost,  // ✅ NEW
+      base_cost,     // ✅ NEW
+      weight,        // ✅ NEW
       cost_price,
       tags,
       is_sellable
@@ -374,7 +411,7 @@ const updateProduct = async (req, res) => {
     // Fetch existing product
     const { data: existingProduct, error: fetchError } = await supabase
       .from('Products')
-      .select('img_url, has_variants, cost_price, price')
+      .select('img_url, has_variants, landing_cost, base_cost, weight, cost_price, price')
       .eq('id', id)
       .single();
 
@@ -392,6 +429,21 @@ const updateProduct = async (req, res) => {
     if (price) updateData.price = parseInt(price);
     if (stock !== undefined) updateData.stock = parseInt(stock);
     if (sku) updateData.sku = sku;
+
+    // ✅ NEW: Handle landing_cost
+    if (landing_cost !== undefined) {
+      updateData.landing_cost = parseInt(landing_cost) || 0;
+    }
+
+    // ✅ NEW: Handle base_cost
+    if (base_cost !== undefined) {
+      updateData.base_cost = parseInt(base_cost) || 0;
+    }
+
+    // ✅ NEW: Handle weight
+    if (weight !== undefined) {
+      updateData.weight = parseInt(weight) || 0;
+    }
 
     // 🆕 NEW: Handle tags update
     if (tags !== undefined) {
@@ -413,19 +465,27 @@ const updateProduct = async (req, res) => {
       updateData.is_sellable = is_sellable === 'false' || is_sellable === false ? false : true;
     }
 
-// Handle cost_price and margins
-    if (cost_price !== undefined) {
-      const newCostPrice = parseInt(cost_price) || 0;
-      const currentPrice = price ? parseInt(price) : existingProduct.price;
+    // ✅ MODIFIED: Handle margins using base_cost
+    if (base_cost !== undefined && price !== undefined) {
+      const newBaseCost = parseInt(base_cost) || 0;
+      const currentPrice = parseInt(price);
       
-      const pricingMetrics = calculateProductPricing(newCostPrice, currentPrice);
-      updateData.cost_price = newCostPrice;
+      const pricingMetrics = calculateProductPricing(newBaseCost, currentPrice);
       updateData.margin_percent = pricingMetrics.margin_percent;
       updateData.markup_percent = pricingMetrics.markup_percent;
-    } else if (price && existingProduct.cost_price) {
-      const pricingMetrics = calculateProductPricing(existingProduct.cost_price, price);
+      
+      // Keep cost_price for backward compatibility
+      updateData.cost_price = newBaseCost;
+    } else if (price && existingProduct.base_cost) {
+      const pricingMetrics = calculateProductPricing(existingProduct.base_cost, price);
       updateData.margin_percent = pricingMetrics.margin_percent;
       updateData.markup_percent = pricingMetrics.markup_percent;
+    }
+    
+    // ✅ Handle old cost_price for backward compatibility
+    if (cost_price !== undefined && base_cost === undefined) {
+      updateData.base_cost = parseInt(cost_price) || 0;
+      updateData.cost_price = parseInt(cost_price) || 0;
     }
 
     // Handle has_variants change
@@ -798,20 +858,24 @@ const getInventoryAnalytics = async (req, res) => {
   try {
     const { data: products, error } = await supabase
       .from('Products')
-      .select('id, title, price, cost_price, margin_percent, stock, category_id, Categories(name)');
+      .select('id, title, price, landing_cost, base_cost, margin_percent, stock, category_id, Categories(name)'); // ✅ MODIFIED
 
     if (error) throw error;
 
-    // Calculate comprehensive metrics
-    const totalInvestment = products.reduce((sum, p) => 
-      sum + ((p.cost_price || 0) * (p.stock || 0)), 0
+    // ✅ MODIFIED: Calculate comprehensive metrics with new cost fields
+    const totalLandingCostInvestment = products.reduce((sum, p) => 
+      sum + ((p.landing_cost || 0) * (p.stock || 0)), 0
+    );
+
+    const totalBaseCostInvestment = products.reduce((sum, p) => 
+      sum + ((p.base_cost || 0) * (p.stock || 0)), 0
     );
 
     const potentialRevenue = products.reduce((sum, p) => 
       sum + ((p.price || 0) * (p.stock || 0)), 0
     );
 
-    const totalProfit = potentialRevenue - totalInvestment;
+    const totalProfit = potentialRevenue - totalBaseCostInvestment;
 
     const productsWithMargin = products.filter(p => p.margin_percent != null);
     const avgMargin = productsWithMargin.length > 0
@@ -827,15 +891,17 @@ const getInventoryAnalytics = async (req, res) => {
       const catName = p.Categories?.name || 'Uncategorized';
       if (!categoryMap[catName]) {
         categoryMap[catName] = {
-          investment: 0,
+          landingCostInvestment: 0,  // ✅ NEW
+          baseCostInvestment: 0,      // ✅ NEW
           revenue: 0,
           profit: 0,
           count: 0
         };
       }
-      categoryMap[catName].investment += (p.cost_price || 0) * (p.stock || 0);
+      categoryMap[catName].landingCostInvestment += (p.landing_cost || 0) * (p.stock || 0); // ✅ NEW
+      categoryMap[catName].baseCostInvestment += (p.base_cost || 0) * (p.stock || 0);       // ✅ NEW
       categoryMap[catName].revenue += (p.price || 0) * (p.stock || 0);
-      categoryMap[catName].profit += ((p.price || 0) - (p.cost_price || 0)) * (p.stock || 0);
+      categoryMap[catName].profit += ((p.price || 0) - (p.base_cost || 0)) * (p.stock || 0); // ✅ Use base_cost
       categoryMap[catName].count++;
     });
 
@@ -847,11 +913,20 @@ const getInventoryAnalytics = async (req, res) => {
       }))
       .sort((a, b) => b.profit - a.profit);
 
+    // ✅ NEW: Calculate base investment without delivery
+    // Assuming delivery charge is ₹70 per product unit
+    const DELIVERY_CHARGE_PER_UNIT = 70;
+    const totalUnits = products.reduce((sum, p) => sum + (p.stock || 0), 0);
+    const totalBaseInvestmentWithoutDelivery = totalBaseCostInvestment - (DELIVERY_CHARGE_PER_UNIT * totalUnits);
+
     res.status(200).json({
       success: true,
       data: {
         overview: {
-          totalInvestment,
+          totalLandingCostInvestment,
+          totalBaseCostInvestment,
+          totalBaseInvestmentWithoutDelivery,  // ✅ NEW
+          totalUnits,                          // ✅ NEW (for reference)
           potentialRevenue,
           totalProfit,
           profitMargin: potentialRevenue > 0 

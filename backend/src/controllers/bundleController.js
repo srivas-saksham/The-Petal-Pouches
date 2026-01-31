@@ -497,7 +497,7 @@ const getBundleDetails = async (req, res) => {
  */
 const createBundle = async (req, res) => {
   try {
-    const { title, description, price, stock_limit, items, tags } = req.body;
+    const { title, description, price, stock_limit, items, tags, weight } = req.body;
 
     // Validate required fields
     if (!title || !title.trim()) {
@@ -610,7 +610,8 @@ const createBundle = async (req, res) => {
       stock_limit: stock_limit ? parseInt(stock_limit) : null,
       tags: bundleTags.length > 0 ? bundleTags : [],
       primary_tag: primaryTag,
-      is_active: true
+      is_active: true,
+      weight: weight ? parseInt(weight) : 0 
     };
 
     console.log('💾 Creating bundle:', bundleData.title);
@@ -721,7 +722,7 @@ const createBundle = async (req, res) => {
 const updateBundle = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, price, stock_limit, items, tags, delete_image_ids } = req.body;
+    const { title, description, price, stock_limit, items, tags, delete_image_ids, weight } = req.body;
 
     // Check if bundle exists
     const { data: existingBundle, error: fetchError } = await supabase
@@ -746,6 +747,11 @@ const updateBundle = async (req, res) => {
     if (description !== undefined) updateData.description = description?.trim() || null;
     if (stock_limit !== undefined) updateData.stock_limit = stock_limit ? parseInt(stock_limit) : null;
 
+    // ✅ NEW: Handle weight
+    if (weight !== undefined) {
+      updateData.weight = parseInt(weight) || 0;
+    }
+    
     // ========================================
     // NEW: Handle image deletions
     // ========================================

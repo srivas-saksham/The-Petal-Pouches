@@ -156,20 +156,39 @@ export default function InventoryAnalytics() {
         <h2 className="text-lg font-semibold text-slate-900">Inventory & Profitability</h2>
       </div>
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Overview Cards - Row 1: Investment Breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
-          icon={DollarSign}
-          label="Total Investment"
-          value={formatCurrency(overview.totalInvestment)}
-          subValue={`In ${overview.totalProducts} products`}
+          icon={Package}
+          label="Landing Cost Investment"
+          value={formatCurrency(overview.totalLandingCostInvestment)}
+          subValue={`Products only • ${overview.totalProducts} items • ${overview.totalUnits || 0} units in stock`}
         />
         
+        <StatCard
+          icon={DollarSign}
+          label="Base Cost (w/o Delivery)"
+          value={formatCurrency(overview.totalBaseInvestmentWithoutDelivery)}
+          subValue={`With packaging • Saves ₹${formatCurrency(overview.totalBaseCostInvestment - overview.totalBaseInvestmentWithoutDelivery).replace('₹', '')} on delivery`}
+          variant="warning"
+        />
+        
+        <StatCard
+          icon={DollarSign}
+          label="Total Base Investment"
+          value={formatCurrency(overview.totalBaseCostInvestment)}
+          subValue={`Full cost • ₹70/unit delivery for ${overview.totalUnits || 0} units`}
+          variant="primary"
+        />
+      </div>
+
+      {/* Overview Cards - Row 2: Revenue & Profit */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
           icon={TrendingUp}
           label="Potential Revenue"
           value={formatCurrency(overview.potentialRevenue)}
-          subValue="If all stock sells"
+          subValue={`If ${overview.totalUnits || 0} units sell • ${overview.totalProducts} products`}
           variant="primary"
         />
         
@@ -177,7 +196,7 @@ export default function InventoryAnalytics() {
           icon={Package}
           label="Expected Profit"
           value={formatCurrency(overview.totalProfit)}
-          subValue={`${overview.profitMargin}% margin`}
+          subValue={`${overview.profitMargin}% margin • ₹${(overview.totalProfit / (overview.totalUnits || 1)).toFixed(0)}/unit avg`}
           variant="success"
         />
         
@@ -185,7 +204,7 @@ export default function InventoryAnalytics() {
           icon={Percent}
           label="Avg Margin"
           value={`${overview.avgMargin}%`}
-          subValue="Across all products"
+          subValue={`Across ${overview.totalProducts} products • Stock alerts: ${overview.lowStockCount} low, ${overview.outOfStockCount} out`}
           variant="warning"
         />
       </div>

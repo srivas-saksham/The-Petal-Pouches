@@ -6,8 +6,8 @@
  * Markup = ((Selling Price - Cost) / Cost) × 100
  */
 
-const calculateProductPricing = (costPrice, sellingPrice) => {
-  const cost = parseFloat(costPrice) || 0;
+const calculateProductPricing = (baseCost, sellingPrice) => {
+  const cost = parseFloat(baseCost) || 0;
   const price = parseFloat(sellingPrice) || 0;
 
   if (cost === 0 || price === 0) {

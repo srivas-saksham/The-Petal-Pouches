@@ -56,7 +56,7 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
   const [description, setDescription] = useState('');
   const [bundlePrice, setBundlePrice] = useState('');
   const [stockLimit, setStockLimit] = useState('');
-  
+  const [weight, setWeight] = useState(''); // ✅ NEW
   // Multiple images state (up to 5 images)
   const [images, setImages] = useState([]); // Array of { file, preview, id, is_primary }
   const [existingImages, setExistingImages] = useState([]); // From server
@@ -98,6 +98,7 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
         setDescription(bundle.description || '');
         setBundlePrice(bundle.price.toString());
         setStockLimit(bundle.stock_limit ? bundle.stock_limit.toString() : '');
+        setWeight(bundle.weight ? bundle.weight.toString() : ''); // ✅ NEW
 
         // Load existing images
         if (bundle.images && Array.isArray(bundle.images)) {
@@ -689,6 +690,13 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
         formData.append('stock_limit', ''); // Send empty to clear it
       }
       
+      // ✅ NEW: Add weight
+      if (weight && weight.trim() !== '') {
+        formData.append('weight', weight);
+      } else {
+        formData.append('weight', '0');
+      }
+
       // Tags as JSON array
       if (tags.length > 0) {
         formData.append('tags', JSON.stringify(tags));
@@ -1007,6 +1015,30 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
                 min="0"
                 className={`w-full px-3 lg:px-4 py-2 lg:py-2.5 border-2 rounded-lg text-xs lg:text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
                   errors.stockLimit && touched.stockLimit
+                    ? 'border-red-300 bg-red-50'
+                    : 'border-tpppink/30 hover:border-tpppink focus:border-tpppink bg-white hover:bg-tpppeach/10'
+                }`}
+              />
+            </InputWrapper>
+
+            {/* ✅ NEW: Weight Field */}
+            <InputWrapper 
+              label="Bundle Weight (grams)" 
+              name="weight" 
+              icon={Package}
+              error={errors.weight}
+              hint="Total weight of all items in the bundle"
+            >
+              <input
+                type="number"
+                id="weight"
+                name="weight"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                placeholder="Total bundle weight in grams"
+                min="0"
+                className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
+                  errors.weight
                     ? 'border-red-300 bg-red-50'
                     : 'border-tpppink/30 hover:border-tpppink focus:border-tpppink bg-white hover:bg-tpppeach/10'
                 }`}

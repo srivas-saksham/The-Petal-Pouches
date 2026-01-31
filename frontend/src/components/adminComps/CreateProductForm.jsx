@@ -52,6 +52,9 @@ const CreateProductForm = ({ onSuccess }) => {
     title: '',
     description: '',
     price: '',
+    landing_cost: '',  // ✅ NEW
+    base_cost: '',     // ✅ NEW
+    weight: '',        // ✅ NEW
     cost_price: '',
     stock: '',
     sku: '',
@@ -126,6 +129,32 @@ const CreateProductForm = ({ onSuccess }) => {
         if (formData.price && parseFloat(value) > parseFloat(formData.price)) {
           return 'Cost price cannot exceed selling price';
         }
+        return '';
+
+      case 'landing_cost':  // ✅ NEW
+        if (!value) return 'Landing cost is required';
+        if (isNaN(value) || parseFloat(value) < 0) return 'Landing cost must be 0 or greater';
+        if (parseFloat(value) > 1000000) return 'Landing cost seems unrealistic';
+        return '';
+      
+      case 'base_cost':  // ✅ NEW
+        if (!value) return 'Base cost is required';
+        if (isNaN(value) || parseFloat(value) < 0) return 'Base cost must be 0 or greater';
+        if (parseFloat(value) > 1000000) return 'Base cost seems unrealistic';
+        // Check if base_cost is greater than selling price
+        if (formData.price && parseFloat(value) > parseFloat(formData.price)) {
+          return 'Base cost cannot exceed selling price';
+        }
+        // Check if base_cost is less than landing_cost
+        if (formData.landing_cost && parseFloat(value) < parseFloat(formData.landing_cost)) {
+          return 'Base cost cannot be less than landing cost';
+        }
+        return '';
+      
+      case 'weight':  // ✅ NEW
+        if (!value) return 'Weight is required';
+        if (isNaN(value) || parseInt(value) < 0) return 'Weight must be 0 or greater';
+        if (parseInt(value) > 50000) return 'Weight seems unrealistic (max 50kg)';
         return '';
 
       case 'stock':
@@ -255,8 +284,9 @@ const CreateProductForm = ({ onSuccess }) => {
     });
   };
 
-  const calculateMargins = (costPrice, sellingPrice) => {
-    const cost = parseFloat(costPrice) || 0;
+  // ✅ MODIFIED: Now uses baseCost for margin calculations
+  const calculateMargins = (baseCost, sellingPrice) => {
+    const cost = parseFloat(baseCost) || 0;
     const price = parseFloat(sellingPrice) || 0;
     
     if (cost === 0 || price === 0) return { margin: 0, markup: 0, profit: 0 };
@@ -389,6 +419,9 @@ const CreateProductForm = ({ onSuccess }) => {
         title: formData.title.trim(),
         description: formData.description.trim(),
         price: formData.price,
+        landing_cost: formData.landing_cost,  // ✅ NEW
+        base_cost: formData.base_cost,        // ✅ NEW
+        weight: formData.weight,              // ✅ NEW
         cost_price: formData.cost_price,
         stock: formData.stock,
         sku: formData.sku.trim(),
@@ -605,32 +638,60 @@ const CreateProductForm = ({ onSuccess }) => {
                 />
               </InputWrapper>
             </div>
-            
-            {/* ✅ COST PRICE FIELD */}
+
+            {/* ✅ NEW: Landing Cost */}
             <InputWrapper 
-              label="Cost Price (Your Purchase Price)" 
-              name="cost_price" 
+              label="Landing Cost (Product Only)" 
+              name="landing_cost" 
               required 
               icon={DollarSign}
-              error={errors.cost_price}
-              hint="What you paid for this product (excluding your markup)"
+              error={errors.landing_cost}
+              hint="Cost of product only (no packaging/delivery)"
             >
               <input
                 type="number"
-                id="cost_price"
-                name="cost_price"
-                value={formData.cost_price}
+                id="landing_cost"
+                name="landing_cost"
+                value={formData.landing_cost}
+                onChange={handleInputChange}
+                onBlur={handleBlur}
+                placeholder="500"
+                min="0"
+                step="0.01"
+                className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
+                  errors.landing_cost && touched.landing_cost
+                    ? 'border-red-300 bg-red-50'
+                    : 'border-tpppink/30 hover:border-tpppink focus:border-tpppink bg-white hover:bg-tpppeach/10'
+                }`}
+                aria-invalid={errors.landing_cost && touched.landing_cost ? 'true' : 'false'}
+              />
+            </InputWrapper>
+
+            {/* ✅ NEW: Base Cost */}
+            <InputWrapper 
+              label="Base Cost (w/ Packaging + Delivery)" 
+              name="base_cost" 
+              required 
+              icon={DollarSign}
+              error={errors.base_cost}
+              hint="Total cost including packaging and delivery"
+            >
+              <input
+                type="number"
+                id="base_cost"
+                name="base_cost"
+                value={formData.base_cost}
                 onChange={handleInputChange}
                 onBlur={handleBlur}
                 placeholder="600"
                 min="0"
                 step="0.01"
                 className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
-                  errors.cost_price && touched.cost_price
+                  errors.base_cost && touched.base_cost
                     ? 'border-red-300 bg-red-50'
                     : 'border-tpppink/30 hover:border-tpppink focus:border-tpppink bg-white hover:bg-tpppeach/10'
                 }`}
-                aria-invalid={errors.cost_price && touched.cost_price ? 'true' : 'false'}
+                aria-invalid={errors.base_cost && touched.base_cost ? 'true' : 'false'}
               />
             </InputWrapper>
 
@@ -661,50 +722,65 @@ const CreateProductForm = ({ onSuccess }) => {
                 aria-invalid={errors.price && touched.price ? 'true' : 'false'}
               />
               
-              {/* ✅ REAL-TIME MARGIN DISPLAY */}
-              {formData.cost_price && formData.price && 
-              parseFloat(formData.cost_price) > 0 && 
+              {/* ✅ REAL-TIME MARGIN DISPLAY - Now uses base_cost */}
+              {formData.base_cost && formData.price && 
+              parseFloat(formData.base_cost) > 0 && 
               parseFloat(formData.price) > 0 && 
-              parseFloat(formData.cost_price) <= parseFloat(formData.price) && (
+              parseFloat(formData.base_cost) <= parseFloat(formData.price) && (
                 <div className="mt-3 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border-2 border-green-200 animate-slide-in">
+                  {/* ✅ NEW: Show cost breakdown */}
+                  <div className="mb-3 pb-3 border-b border-green-200">
+                    <div className="text-xs text-slate-600 mb-2 font-semibold">Cost Breakdown:</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-white/50 p-2 rounded">
+                        <div className="text-slate-600">Landing Cost:</div>
+                        <div className="font-bold text-slate-800">₹{formData.landing_cost || 0}</div>
+                      </div>
+                      <div className="bg-white/50 p-2 rounded">
+                        <div className="text-slate-600">Pkg + Delivery:</div>
+                        <div className="font-bold text-blue-600">₹{(parseFloat(formData.base_cost || 0) - parseFloat(formData.landing_cost || 0)).toFixed(2)}</div>
+                      </div>
+                    </div>
+                  </div>
+                  
                   <div className="grid grid-cols-3 gap-4 text-sm">
                     <div className="text-center">
                       <div className="text-xs text-slate-600 mb-1 font-medium">Margin</div>
                       <div className="text-xl font-bold text-green-600">
-                        {calculateMargins(formData.cost_price, formData.price).margin}%
+                        {calculateMargins(formData.base_cost, formData.price).margin}%
                       </div>
                       <div className="text-xs text-slate-500 mt-0.5">Profit/Price</div>
                     </div>
                     <div className="text-center">
                       <div className="text-xs text-slate-600 mb-1 font-medium">Markup</div>
                       <div className="text-xl font-bold text-blue-600">
-                        {calculateMargins(formData.cost_price, formData.price).markup}%
+                        {calculateMargins(formData.base_cost, formData.price).markup}%
                       </div>
-                      <div className="text-xs text-slate-500 mt-0.5">Profit/Cost</div>
+                      <div className="text-xs text-slate-500 mt-0.5">Profit/Base Cost</div>
                     </div>
                     <div className="text-center">
                       <div className="text-xs text-slate-600 mb-1 font-medium">Profit/Unit</div>
                       <div className="text-xl font-bold text-tppslate">
-                        ₹{calculateMargins(formData.cost_price, formData.price).profit}
+                        ₹{calculateMargins(formData.base_cost, formData.price).profit}
                       </div>
                       <div className="text-xs text-slate-500 mt-0.5">Per item</div>
                     </div>
                   </div>
                   <div className="mt-3 pt-3 border-t border-green-200 text-center">
                     <span className="text-xs text-slate-600">
-                      Total profit for {formData.stock || 0} units: <span className="font-bold text-tppslate">₹{((parseFloat(formData.price) - parseFloat(formData.cost_price)) * (parseInt(formData.stock) || 0)).toFixed(2)}</span>
+                      Total profit for {formData.stock || 0} units: <span className="font-bold text-tppslate">₹{((parseFloat(formData.price) - parseFloat(formData.base_cost)) * (parseInt(formData.stock) || 0)).toFixed(2)}</span>
                     </span>
                   </div>
                 </div>
               )}
               
-              {/* Warning if cost > price */}
-              {formData.cost_price && formData.price && 
-              parseFloat(formData.cost_price) > parseFloat(formData.price) && (
+              {/* Warning if base_cost > price */}
+              {formData.base_cost && formData.price && 
+              parseFloat(formData.base_cost) > parseFloat(formData.price) && (
                 <div className="mt-3 p-3 bg-red-50 border-2 border-red-200 rounded-lg animate-shake">
                   <p className="text-xs text-red-700 flex items-center gap-2">
                     <AlertCircle className="w-4 h-4" />
-                    <strong>Warning:</strong> Cost price (₹{formData.cost_price}) is higher than selling price (₹{formData.price}). You'll lose money!
+                    <strong>Warning:</strong> Base cost (₹{formData.base_cost}) is higher than selling price (₹{formData.price}). You'll lose money!
                   </p>
                 </div>
               )}
@@ -760,6 +836,33 @@ const CreateProductForm = ({ onSuccess }) => {
                     : 'border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5/40 focus:border-tpppink bg-white hover:bg-tpppeach/10'
                 }`}
                 aria-invalid={errors.sku && touched.sku ? 'true' : 'false'}
+              />
+            </InputWrapper>
+
+            {/* ✅ NEW: Weight */}
+            <InputWrapper 
+              label="Weight (in grams)" 
+              name="weight" 
+              required 
+              icon={Package}
+              error={errors.weight}
+              hint="Product weight for shipping calculation"
+            >
+              <input
+                type="number"
+                id="weight"
+                name="weight"
+                value={formData.weight}
+                onChange={handleInputChange}
+                onBlur={handleBlur}
+                placeholder="250"
+                min="0"
+                className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
+                  errors.weight && touched.weight
+                    ? 'border-red-300 bg-red-50'
+                    : 'border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5/40 focus:border-tpppink bg-white hover:bg-tpppeach/10'
+                }`}
+                aria-invalid={errors.weight && touched.weight ? 'true' : 'false'}
               />
             </InputWrapper>
 

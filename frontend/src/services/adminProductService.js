@@ -35,7 +35,23 @@ export const createProduct = async (productData) => {
     formData.append('title', productData.title);
     formData.append('description', productData.description);
     formData.append('price', productData.price);
-    formData.append('cost_price', productData.cost_price);
+    
+    // ✅ NEW: Append new cost fields
+    if (productData.landing_cost !== undefined) {
+      formData.append('landing_cost', productData.landing_cost);
+    }
+    if (productData.base_cost !== undefined) {
+      formData.append('base_cost', productData.base_cost);
+    }
+    if (productData.weight !== undefined) {
+      formData.append('weight', productData.weight);
+    }
+    
+    // Keep cost_price for backward compatibility (optional)
+    if (productData.cost_price !== undefined) {
+      formData.append('cost_price', productData.cost_price);
+    }
+    
     formData.append('stock', productData.stock);
     formData.append('sku', productData.sku);
     formData.append('has_variants', productData.has_variants);
@@ -92,7 +108,23 @@ export const updateProduct = async (productId, productData) => {
     if (productData.title) formData.append('title', productData.title);
     if (productData.description !== undefined) formData.append('description', productData.description);
     if (productData.price) formData.append('price', productData.price);
-    if (productData.cost_price !== undefined) formData.append('cost_price', productData.cost_price);
+    
+    // ✅ NEW: Append new cost fields
+    if (productData.landing_cost !== undefined) {
+      formData.append('landing_cost', productData.landing_cost);
+    }
+    if (productData.base_cost !== undefined) {
+      formData.append('base_cost', productData.base_cost);
+    }
+    if (productData.weight !== undefined) {
+      formData.append('weight', productData.weight);
+    }
+    
+    // Keep cost_price for backward compatibility
+    if (productData.cost_price !== undefined) {
+      formData.append('cost_price', productData.cost_price);
+    }
+    
     if (productData.stock !== undefined) formData.append('stock', productData.stock);
     if (productData.sku) formData.append('sku', productData.sku);
     if (productData.has_variants !== undefined) formData.append('has_variants', productData.has_variants);
