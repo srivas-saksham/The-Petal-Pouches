@@ -57,7 +57,6 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     landing_cost: '',  // ✅ NEW
     base_cost: '',     // ✅ NEW
     weight: '',        // ✅ NEW
-    cost_price: '',
     stock: '',
     sku: '',
     category_id: '',
@@ -184,16 +183,6 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         if (!value) return 'Price is required';
         if (isNaN(value) || parseFloat(value) <= 0) return 'Price must be greater than 0';
         if (parseFloat(value) > 1000000) return 'Price seems unrealistic';
-        return '';
-      
-      case 'cost_price':
-        if (!value) return 'Cost price is required';
-        if (isNaN(value) || parseFloat(value) < 0) return 'Cost price must be 0 or greater';
-        if (parseFloat(value) > 1000000) return 'Cost price seems unrealistic';
-        // Check if cost price is greater than selling price
-        if (formData.price && parseFloat(value) > parseFloat(formData.price)) {
-          return 'Cost price cannot exceed selling price';
-        }
         return '';
 
       case 'landing_cost':  // ✅ NEW
@@ -528,7 +517,9 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     setTouched({
       title: true,
       price: true,
-      cost_price: true,
+      landing_cost: true,  // ✅ ADD
+      base_cost: true,     // ✅ ADD
+      weight: true,        // ✅ ADD
       stock: true,
       sku: true,
       description: true
@@ -571,7 +562,6 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         landing_cost: formData.landing_cost,  // ✅ NEW
         base_cost: formData.base_cost,        // ✅ NEW
         weight: formData.weight,              // ✅ NEW
-        cost_price: formData.cost_price,
         stock: formData.stock,
         sku: formData.sku?.trim(),
         category_id: formData.category_id || '',
