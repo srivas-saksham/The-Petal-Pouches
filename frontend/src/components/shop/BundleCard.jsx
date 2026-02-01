@@ -100,7 +100,7 @@ const BundleCard = ({ bundle, onQuickView }) => {
   // Extract stock status from bundle
   const stockLimit = bundle.stock_limit;
   const isOutOfStock = stockLimit === 0 || stockLimit === null;
-  const isLowStock = !isOutOfStock && stockLimit && stockLimit < 5;
+  const isLowStock = !isOutOfStock && stockLimit && stockLimit <= 5;
   const isInStock = !isOutOfStock;
   
   // Get rating info (real or placeholder)

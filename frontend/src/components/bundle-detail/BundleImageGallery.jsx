@@ -254,7 +254,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
                 <img
                   src={image.img_url}
                   alt={`${bundle.title} - Image ${index + 1}`}
-                  className={`w-full h-full object-contain bg-white ${
+                  className={`w-full h-full object-cover bg-white ${
                     isOutOfStock ? 'grayscale opacity-60' : ''
                   }`}
                   onError={(e) => {
@@ -309,7 +309,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
           <img
             src={currentImage.img_url}
             alt={`${bundle.title} - Image ${selectedIndex + 1}`}
-            className={`w-full h-full object-contain bg-white transition-opacity duration-300 ${
+            className={`w-full h-full object-cover bg-white transition-opacity duration-300 ${
               isOutOfStock ? 'grayscale opacity-60' : ''
             } ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
             onLoad={() => setImageLoading(false)}

@@ -89,7 +89,7 @@ const ProductCard = ({ product, onQuickView }) => {
   // Stock status
   const stockLimit = product.stock;
   const isOutOfStock = stockLimit === 0;
-  const isLowStock = !isOutOfStock && stockLimit && stockLimit < 5;
+  const isLowStock = !isOutOfStock && stockLimit && stockLimit <= 5;
   const isInCart = localQuantity > 0;
   // Get rating info (real or placeholder) - pass product.id for deterministic generation
   const ratingInfo = getDisplayRating(product.reviews, product.average_rating, product.id);
