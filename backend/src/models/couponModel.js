@@ -17,6 +17,74 @@ const CouponModel = {
 
   // ==================== READ OPERATIONS ====================
 
+  // ==================== NEW: ENHANCED COUPON METHODS ====================
+
+  /**
+   * Get eligible products for a coupon
+   * @param {string} couponId - Coupon UUID
+   * @returns {Promise<Array>} Array of product UUIDs
+   */
+  async getEligibleProducts(couponId) {
+    try {
+      const { data, error } = await supabase
+        .from('Coupon_eligible_products')
+        .select('product_id')
+        .eq('coupon_id', couponId);
+
+      if (error) throw error;
+
+      return data.map(row => row.product_id);
+    } catch (error) {
+      console.error('[CouponModel] Get eligible products error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get eligible categories for a coupon
+   * @param {string} couponId - Coupon UUID
+   * @returns {Promise<Array>} Array of category UUIDs
+   */
+  async getEligibleCategories(couponId) {
+    try {
+      const { data, error } = await supabase
+        .from('Coupon_eligible_categories')
+        .select('category_id')
+        .eq('coupon_id', couponId);
+
+      if (error) throw error;
+
+      return data.map(row => row.category_id);
+    } catch (error) {
+      console.error('[CouponModel] Get eligible categories error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Check if user is a first-time customer (0 previous orders)
+   * @param {string} userId - User UUID
+   * @returns {Promise<number>} Order count
+   */
+  async checkFirstOrderEligibility(userId) {
+    try {
+      const { count, error } = await supabase
+        .from('Orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('payment_status', 'completed');
+
+      if (error) throw error;
+
+      return count || 0;
+    } catch (error) {
+      console.error('[CouponModel] Check first order error:', error);
+      throw error;
+    }
+  },
+
+  // ==================== END NEW METHODS ====================
+
   /**
    * Find coupon by code
    * @param {string} code - Coupon code (case-insensitive)
@@ -202,12 +270,14 @@ const CouponModel = {
 
   /**
    * Validate coupon against cart and user
+   * ⭐ ENHANCED: Now supports product-specific, BOGO, category-based validation
    * @param {string} code - Coupon code
    * @param {number} cartSubtotal - Cart subtotal
    * @param {string} userId - User UUID
+   * @param {Array} cartItems - Array of cart items (optional, required for advanced types)
    * @returns {Promise<Object>} Validation result with coupon and discount
    */
-  async validateCoupon(code, cartSubtotal, userId) {
+  async validateCoupon(code, cartSubtotal, userId, cartItems = []) {
     try {
       // Find coupon
       const coupon = await this.findByCode(code);
@@ -230,15 +300,16 @@ const CouponModel = {
         };
       }
 
-      // Check minimum order value
-      const minOrderCheck = checkMinimumOrderValue(coupon, cartSubtotal);
-      if (!minOrderCheck.valid) {
-        return {
-          valid: false,
-          reason: minOrderCheck.reason,
-          shortfall: minOrderCheck.shortfall,
-          code: 'MIN_ORDER_NOT_MET'
-        };
+      // ⭐ NEW: Check first-order-only restriction
+      if (coupon.first_order_only) {
+        const orderCount = await this.checkFirstOrderEligibility(userId);
+        if (orderCount > 0) {
+          return {
+            valid: false,
+            reason: 'This coupon is only valid for first-time customers',
+            code: 'FIRST_ORDER_ONLY'
+          };
+        }
       }
 
       // Check usage limit
@@ -261,11 +332,115 @@ const CouponModel = {
         };
       }
 
-      // Calculate discount
-      const discount = calculateDiscount(coupon, cartSubtotal);
+      // ⭐ NEW: Route validation based on coupon_type
+      let discount = 0;
+      
+      if (coupon.coupon_type === 'cart_wide') {
+        // Standard cart-wide coupon (existing logic)
+        const minOrderCheck = checkMinimumOrderValue(coupon, cartSubtotal);
+        if (!minOrderCheck.valid) {
+          return {
+            valid: false,
+            reason: minOrderCheck.reason,
+            shortfall: minOrderCheck.shortfall,
+            code: 'MIN_ORDER_NOT_MET'
+          };
+        }
+
+        discount = calculateDiscount(coupon, cartSubtotal);
+      } else {
+        // ⭐ NEW: Advanced coupon types require cartItems
+        if (!cartItems || cartItems.length === 0) {
+          return {
+            valid: false,
+            reason: 'Cart items required for this coupon type',
+            code: 'CART_ITEMS_REQUIRED'
+          };
+        }
+
+        // Load couponHelpers for advanced validation
+        const {
+          validateProductSpecificCoupon,
+          validateCategoryBasedCoupon,
+          validateBOGOCoupon,
+          calculateBOGODiscount,
+          calculateItemBasedDiscount
+        } = require('../utils/couponValidators');
+
+        if (coupon.coupon_type === 'product_specific' || coupon.coupon_type === 'bogo') {
+          // Get eligible products
+          const eligibleProductIds = await this.getEligibleProducts(coupon.id);
+          
+          const validation = validateProductSpecificCoupon(coupon, cartItems, eligibleProductIds);
+          if (!validation.valid) {
+            return {
+              valid: false,
+              reason: validation.reason,
+              code: 'NO_ELIGIBLE_ITEMS'
+            };
+          }
+
+          if (coupon.coupon_type === 'bogo') {
+            // BOGO validation and calculation
+            const bogoValidation = validateBOGOCoupon(coupon, validation.eligibleItems);
+            if (!bogoValidation.valid) {
+              return {
+                valid: false,
+                reason: bogoValidation.reason,
+                code: 'BOGO_NOT_MET'
+              };
+            }
+
+            discount = calculateBOGODiscount(
+              coupon,
+              validation.eligibleItems,
+              bogoValidation.sets,
+              bogoValidation.freeItems
+            );
+          } else {
+            // Product-specific discount
+            discount = calculateItemBasedDiscount(
+              coupon,
+              validation.eligibleItems,
+              coupon.max_discount_items
+            );
+          }
+        } else if (coupon.coupon_type === 'category_based') {
+          // Get eligible categories
+          const eligibleCategoryIds = await this.getEligibleCategories(coupon.id);
+          
+          // Note: This requires product data with category_id
+          // You'll need to fetch product details in the controller before calling this
+          const validation = validateCategoryBasedCoupon(coupon, cartItems, eligibleCategoryIds, {});
+          if (!validation.valid) {
+            return {
+              valid: false,
+              reason: validation.reason,
+              code: 'NO_ELIGIBLE_CATEGORIES'
+            };
+          }
+
+          discount = calculateItemBasedDiscount(
+            coupon,
+            validation.eligibleItems,
+            coupon.max_discount_items
+          );
+        }
+
+        // Check minimum order value for non-cart-wide coupons
+        const minOrderCheck = checkMinimumOrderValue(coupon, cartSubtotal);
+        if (!minOrderCheck.valid) {
+          return {
+            valid: false,
+            reason: minOrderCheck.reason,
+            shortfall: minOrderCheck.shortfall,
+            code: 'MIN_ORDER_NOT_MET'
+          };
+        }
+      }
 
       // All checks passed
-      console.log(`✅ Coupon "${code}" validated - Discount: ₹${discount}`);
+      console.log(`✅ Coupon "${code}" validated - Type: ${coupon.coupon_type}, Discount: ₹${discount}`);
 
       return {
         valid: true,
@@ -311,6 +486,7 @@ const CouponModel = {
 
   /**
    * Create new coupon (admin)
+   * ⭐ ENHANCED: Now supports product-specific, BOGO, category-based coupons
    * @param {Object} couponData - Coupon data
    * @returns {Promise<Object>} Created coupon
    */
@@ -319,7 +495,17 @@ const CouponModel = {
       const {
         code, description, discount_type, discount_value,
         min_order_value, max_discount, start_date, end_date,
-        usage_limit, usage_per_user
+        usage_limit, usage_per_user,
+        // ⭐ NEW FIELDS
+        coupon_type = 'cart_wide',
+        eligible_product_ids = [],
+        eligible_category_ids = [],
+        bogo_buy_quantity = null,
+        bogo_get_quantity = null,
+        bogo_discount_percent = 100,
+        max_discount_items = null,
+        first_order_only = false,
+        exclude_sale_items = false
       } = couponData;
 
       // Check if code already exists
@@ -328,7 +514,7 @@ const CouponModel = {
         throw new Error('COUPON_CODE_EXISTS');
       }
 
-      // ⭐ NEW: Calculate initial status based on dates
+      // Calculate initial status based on dates
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const startDate = new Date(start_date);
@@ -336,12 +522,13 @@ const CouponModel = {
 
       let initialStatus = 'inactive';
       if (startDate > today) {
-        initialStatus = 'scheduled'; // Future start date
+        initialStatus = 'scheduled';
       } else {
-        initialStatus = 'active'; // Can be active now
+        initialStatus = 'active';
       }
 
-      const { data, error } = await supabase
+      // ⭐ NEW: Create coupon with enhanced fields
+      const { data: coupon, error: couponError } = await supabase
         .from('Coupons')
         .insert([{
           code: code.trim().toUpperCase(),
@@ -352,19 +539,69 @@ const CouponModel = {
           max_discount,
           start_date,
           end_date,
-          status: initialStatus, // ⭐ NEW: Use calculated status
+          status: initialStatus,
           usage_limit,
           usage_per_user,
           usage_count: 0,
+          // ⭐ NEW FIELDS
+          coupon_type,
+          bogo_buy_quantity,
+          bogo_get_quantity,
+          bogo_discount_percent,
+          max_discount_items,
+          first_order_only,
+          exclude_sale_items,
           created_at: new Date().toISOString()
         }])
         .select()
         .single();
 
-      if (error) throw error;
+      if (couponError) throw couponError;
 
-      console.log(`✅ Coupon created: ${data.code} (Status: ${data.status})`);
-      return data;
+      // ⭐ NEW: Insert eligible products if product-specific or BOGO
+      if ((coupon_type === 'product_specific' || coupon_type === 'bogo') && eligible_product_ids.length > 0) {
+        const productRecords = eligible_product_ids.map(productId => ({
+          coupon_id: coupon.id,
+          product_id: productId
+        }));
+
+        const { error: productsError } = await supabase
+          .from('Coupon_eligible_products')
+          .insert(productRecords);
+
+        if (productsError) {
+          console.error('❌ Error inserting eligible products:', productsError);
+          // Rollback: Delete the coupon
+          await supabase.from('Coupons').delete().eq('id', coupon.id);
+          throw productsError;
+        }
+
+        console.log(`✅ Inserted ${eligible_product_ids.length} eligible products`);
+      }
+
+      // ⭐ NEW: Insert eligible categories if category-based
+      if (coupon_type === 'category_based' && eligible_category_ids.length > 0) {
+        const categoryRecords = eligible_category_ids.map(categoryId => ({
+          coupon_id: coupon.id,
+          category_id: categoryId
+        }));
+
+        const { error: categoriesError } = await supabase
+          .from('Coupon_eligible_categories')
+          .insert(categoryRecords);
+
+        if (categoriesError) {
+          console.error('❌ Error inserting eligible categories:', categoriesError);
+          // Rollback: Delete the coupon
+          await supabase.from('Coupons').delete().eq('id', coupon.id);
+          throw categoriesError;
+        }
+
+        console.log(`✅ Inserted ${eligible_category_ids.length} eligible categories`);
+      }
+
+      console.log(`✅ Coupon created: ${coupon.code} (Type: ${coupon.coupon_type}, Status: ${coupon.status})`);
+      return coupon;
 
     } catch (error) {
       console.error('[CouponModel] Create coupon error:', error);
@@ -413,6 +650,7 @@ const CouponModel = {
 
   /**
    * Update coupon (admin)
+   * ⭐ ENHANCED: Now supports updating eligible products/categories
    * @param {string} couponId - Coupon UUID
    * @param {Object} updates - Fields to update
    * @returns {Promise<Object>} Updated coupon
@@ -428,7 +666,7 @@ const CouponModel = {
         updates.code = updates.code.trim().toUpperCase();
       }
 
-      // ⭐ NEW: Handle status updates based on dates
+      // Handle status updates based on dates
       if (updates.start_date || updates.end_date) {
         const coupon = await this.findById(couponId);
         const today = new Date();
@@ -437,12 +675,20 @@ const CouponModel = {
         const startDate = new Date(updates.start_date || coupon.start_date);
         startDate.setHours(0, 0, 0, 0);
         
-        // If start date is in future, force scheduled
         if (startDate > today) {
           updates.status = 'scheduled';
         }
       }
 
+      // ⭐ NEW: Extract eligible products/categories from updates
+      const eligibleProductIds = updates.eligible_product_ids || null;
+      const eligibleCategoryIds = updates.eligible_category_ids || null;
+
+      // Remove these from updates object (not DB columns)
+      delete updates.eligible_product_ids;
+      delete updates.eligible_category_ids;
+
+      // Update main coupon record
       const { data, error } = await supabase
         .from('Coupons')
         .update(updates)
@@ -451,6 +697,60 @@ const CouponModel = {
         .single();
 
       if (error) throw error;
+
+      // ⭐ NEW: Update eligible products if provided
+      if (eligibleProductIds !== null) {
+        // Delete existing products
+        await supabase
+          .from('Coupon_eligible_products')
+          .delete()
+          .eq('coupon_id', couponId);
+
+        // Insert new products
+        if (eligibleProductIds.length > 0) {
+          const productRecords = eligibleProductIds.map(productId => ({
+            coupon_id: couponId,
+            product_id: productId
+          }));
+
+          const { error: productsError } = await supabase
+            .from('Coupon_eligible_products')
+            .insert(productRecords);
+
+          if (productsError) {
+            console.error('❌ Error updating eligible products:', productsError);
+          } else {
+            console.log(`✅ Updated ${eligibleProductIds.length} eligible products`);
+          }
+        }
+      }
+
+      // ⭐ NEW: Update eligible categories if provided
+      if (eligibleCategoryIds !== null) {
+        // Delete existing categories
+        await supabase
+          .from('Coupon_eligible_categories')
+          .delete()
+          .eq('coupon_id', couponId);
+
+        // Insert new categories
+        if (eligibleCategoryIds.length > 0) {
+          const categoryRecords = eligibleCategoryIds.map(categoryId => ({
+            coupon_id: couponId,
+            category_id: categoryId
+          }));
+
+          const { error: categoriesError } = await supabase
+            .from('Coupon_eligible_categories')
+            .insert(categoryRecords);
+
+          if (categoriesError) {
+            console.error('❌ Error updating eligible categories:', categoriesError);
+          } else {
+            console.log(`✅ Updated ${eligibleCategoryIds.length} eligible categories`);
+          }
+        }
+      }
 
       console.log(`✅ Coupon updated: ${data.code}`);
       return data;

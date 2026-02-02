@@ -8,17 +8,20 @@ import api from './api';
 
 /**
  * Validate coupon code
+ * ⭐ ENHANCED: Now passes cart_items for product-specific/BOGO validation
  * @param {string} code - Coupon code
  * @param {number} cartTotal - Current cart total
+ * @param {Array} cartItems - Cart items array (optional)
  * @returns {Promise<Object>} Validation result
  */
-export const validateCoupon = async (code, cartTotal) => {
+export const validateCoupon = async (code, cartTotal, cartItems = []) => {
   try {
-    console.log('🎟️ [CouponService] Validating:', code, 'Cart total:', cartTotal);
+    console.log('🎟️ [CouponService] Validating:', code, 'Cart total:', cartTotal, 'Items:', cartItems.length);
 
     const response = await api.post('/api/coupons/validate', {
       code: code.trim().toUpperCase(),
-      cart_total: cartTotal
+      cart_total: cartTotal,
+      cart_items: cartItems // ⭐ NEW: Pass cart items array
     });
 
     if (response.data.success) {
@@ -35,19 +38,19 @@ export const validateCoupon = async (code, cartTotal) => {
     };
 
   } catch (error) {
-    // ⭐ FIX: Don't log validation errors (400 = business logic, not system error)
+    // Don't log validation errors (400 = business logic, not system error)
     if (error.response?.status !== 400) {
       console.error('❌ [CouponService] Validation error:', error);
     }
 
-    // ⭐ FIX: Return exact error message from backend
+    // Return exact error message from backend
     const errorMessage = error.response?.data?.message || 'Unable to validate coupon. Please try again.';
     const errorCode = error.response?.data?.code;
     const shortfall = error.response?.data?.shortfall;
 
     return {
       success: false,
-      error: errorMessage, // ⭐ This now shows real backend error
+      error: errorMessage,
       code: errorCode,
       shortfall: shortfall
     };

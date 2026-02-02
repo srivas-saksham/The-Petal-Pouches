@@ -96,6 +96,7 @@ const AdminCouponController = {
 
   /**
    * Create new coupon
+   * ⭐ ENHANCED: Now supports product-specific, BOGO, category-based coupons
    * POST /api/admin/coupons
    */
   async createCoupon(req, res) {
@@ -142,10 +143,63 @@ const AdminCouponController = {
         });
       }
 
+      // ⭐ NEW: Validate coupon_type specific requirements
+      const couponType = couponData.coupon_type || 'cart_wide';
+
+      if (couponType === 'product_specific' || couponType === 'bogo') {
+        if (!couponData.eligible_product_ids || couponData.eligible_product_ids.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'At least one eligible product is required for this coupon type'
+          });
+        }
+      }
+
+      if (couponType === 'category_based') {
+        if (!couponData.eligible_category_ids || couponData.eligible_category_ids.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'At least one eligible category is required for this coupon type'
+          });
+        }
+      }
+
+      if (couponType === 'bogo') {
+        if (!couponData.bogo_buy_quantity || !couponData.bogo_get_quantity) {
+          return res.status(400).json({
+            success: false,
+            message: 'BOGO quantities (Buy X, Get Y) are required for BOGO coupons'
+          });
+        }
+
+        if (couponData.bogo_buy_quantity < 1 || couponData.bogo_get_quantity < 1) {
+          return res.status(400).json({
+            success: false,
+            message: 'BOGO quantities must be at least 1'
+          });
+        }
+
+        // Validate bogo_discount_percent (0-100)
+        if (couponData.bogo_discount_percent && (couponData.bogo_discount_percent < 0 || couponData.bogo_discount_percent > 100)) {
+          return res.status(400).json({
+            success: false,
+            message: 'BOGO discount percent must be between 0 and 100'
+          });
+        }
+      }
+
+      // ⭐ NEW: Validate max_discount_items if provided
+      if (couponData.max_discount_items && couponData.max_discount_items < 1) {
+        return res.status(400).json({
+          success: false,
+          message: 'Max discount items must be at least 1'
+        });
+      }
+
       // Create coupon
       const coupon = await CouponModel.create(couponData);
 
-      console.log(`✅ [AdminCoupon] Coupon created: ${coupon.code}`);
+      console.log(`✅ [AdminCoupon] Coupon created: ${coupon.code} (Type: ${coupon.coupon_type})`);
 
       return res.status(201).json({
         success: true,
@@ -175,6 +229,7 @@ const AdminCouponController = {
 
   /**
    * Update existing coupon
+   * ⭐ ENHANCED: Now supports updating eligible products/categories
    * PUT /api/admin/coupons/:id
    */
   async updateCoupon(req, res) {
@@ -204,10 +259,69 @@ const AdminCouponController = {
         }
       }
 
+      // ⭐ NEW: Validate coupon_type specific updates
+      const couponType = updates.coupon_type || existing.coupon_type;
+
+      if (couponType === 'product_specific' || couponType === 'bogo') {
+        // Only validate if eligible_product_ids is being updated
+        if (updates.hasOwnProperty('eligible_product_ids')) {
+          if (!updates.eligible_product_ids || updates.eligible_product_ids.length === 0) {
+            return res.status(400).json({
+              success: false,
+              message: 'At least one eligible product is required for this coupon type'
+            });
+          }
+        }
+      }
+
+      if (couponType === 'category_based') {
+        // Only validate if eligible_category_ids is being updated
+        if (updates.hasOwnProperty('eligible_category_ids')) {
+          if (!updates.eligible_category_ids || updates.eligible_category_ids.length === 0) {
+            return res.status(400).json({
+              success: false,
+              message: 'At least one eligible category is required for this coupon type'
+            });
+          }
+        }
+      }
+
+      if (couponType === 'bogo') {
+        // Validate BOGO quantities if provided
+        if (updates.bogo_buy_quantity && updates.bogo_buy_quantity < 1) {
+          return res.status(400).json({
+            success: false,
+            message: 'BOGO buy quantity must be at least 1'
+          });
+        }
+
+        if (updates.bogo_get_quantity && updates.bogo_get_quantity < 1) {
+          return res.status(400).json({
+            success: false,
+            message: 'BOGO get quantity must be at least 1'
+          });
+        }
+
+        if (updates.bogo_discount_percent && (updates.bogo_discount_percent < 0 || updates.bogo_discount_percent > 100)) {
+          return res.status(400).json({
+            success: false,
+            message: 'BOGO discount percent must be between 0 and 100'
+          });
+        }
+      }
+
+      // ⭐ NEW: Validate max_discount_items if provided
+      if (updates.max_discount_items && updates.max_discount_items < 1) {
+        return res.status(400).json({
+          success: false,
+          message: 'Max discount items must be at least 1'
+        });
+      }
+
       // Update coupon
       const coupon = await CouponModel.update(id, updates);
 
-      console.log(`✅ [AdminCoupon] Coupon updated: ${coupon.code}`);
+      console.log(`✅ [AdminCoupon] Coupon updated: ${coupon.code} (Type: ${coupon.coupon_type})`);
 
       return res.status(200).json({
         success: true,
@@ -361,6 +475,53 @@ const AdminCouponController = {
       return res.status(500).json({
         success: false,
         message: 'Failed to fetch coupon stats',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  },
+
+  /**
+   * Get eligible products and categories for a coupon
+   * ⭐ NEW ENDPOINT
+   * GET /api/admin/coupons/:id/eligible-items
+   */
+  async getEligibleItems(req, res) {
+    try {
+      const { id } = req.params;
+
+      console.log(`🔍 [AdminCoupon] Fetching eligible items: ${id}`);
+
+      // Check if coupon exists
+      const coupon = await CouponModel.findById(id);
+      if (!coupon) {
+        return res.status(404).json({
+          success: false,
+          message: 'Coupon not found'
+        });
+      }
+
+      // Get eligible products and categories
+      const eligibleProducts = await CouponModel.getEligibleProducts(id);
+      const eligibleCategories = await CouponModel.getEligibleCategories(id);
+
+      console.log(`✅ [AdminCoupon] Found ${eligibleProducts.length} products, ${eligibleCategories.length} categories`);
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          coupon_id: id,
+          coupon_type: coupon.coupon_type,
+          eligible_products: eligibleProducts,
+          eligible_categories: eligibleCategories
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ [AdminCoupon] Get eligible items error:', error);
+      
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch eligible items',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }

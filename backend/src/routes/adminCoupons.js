@@ -22,5 +22,6 @@ router.put('/:id', AdminCouponController.updateCoupon);
 router.delete('/:id', AdminCouponController.deleteCoupon);
 router.patch('/:id/toggle', AdminCouponController.toggleActive);
 router.get('/:id/stats', AdminCouponController.getCouponStats);
+router.get('/:id/eligible-items', AdminCouponController.getEligibleItems);
 
 module.exports = router;

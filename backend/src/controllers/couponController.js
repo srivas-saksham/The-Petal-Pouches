@@ -13,13 +13,14 @@ const CouponController = {
 
   /**
    * Validate coupon code
+   * ⭐ ENHANCED: Now passes cartItems for product-specific/BOGO validation
    * POST /api/coupons/validate
-   * @body { code: string, cart_total: number }
+   * @body { code: string, cart_total: number, cart_items: Array }
    */
   async validateCoupon(req, res) {
     try {
       const userId = req.user?.id;
-      const { code, cart_total } = req.body;
+      const { code, cart_total, cart_items = [] } = req.body; // ⭐ NEW: Extract cart_items
 
       console.log(`🎟️ [Coupon] Validating: ${code} for user: ${userId}`);
 
@@ -58,28 +59,29 @@ const CouponController = {
         });
       }
 
-      // Validate coupon against cart and user
+      // ⭐ NEW: Validate coupon against cart, user, AND cart items
       const validation = await CouponModel.validateCoupon(
         formatCheck.code,
         cart_total,
-        userId
+        userId,
+        cart_items // ⭐ NEW: Pass cart items array
       );
 
       if (!validation.valid) {
         console.log(`❌ [Coupon] Validation failed: ${validation.reason}`);
         
-        // ⭐ FIX: Return detailed error with proper status code
         return res.status(400).json({
           success: false,
-          message: validation.reason, // ⭐ This is the detailed message
+          message: validation.reason,
           code: validation.code,
           shortfall: validation.shortfall || null
         });
       }
 
       // Coupon is valid
-      console.log(`✅ [Coupon] Valid - Discount: ₹${validation.discount}`);
+      console.log(`✅ [Coupon] Valid - Type: ${validation.coupon.coupon_type || 'cart_wide'}, Discount: ₹${validation.discount}`);
 
+      // ⭐ NEW: Include coupon_type in response
       return res.status(200).json({
         success: true,
         message: 'Coupon applied successfully',
@@ -89,7 +91,8 @@ const CouponController = {
             code: validation.coupon.code,
             description: validation.coupon.description,
             discount_type: validation.coupon.discount_type,
-            discount_value: validation.coupon.discount_value
+            discount_value: validation.coupon.discount_value,
+            coupon_type: validation.coupon.coupon_type || 'cart_wide' // ⭐ NEW
           },
           discount: validation.discount,
           savings_text: `You saved ₹${validation.discount}`
@@ -99,7 +102,6 @@ const CouponController = {
     } catch (error) {
       console.error('❌ [Coupon] Validate error:', error);
       
-      // ⭐ FIX: Better error message
       return res.status(500).json({
         success: false,
         message: error.message || 'Unable to validate coupon. Please try again.',
@@ -228,20 +230,22 @@ const CouponController = {
 
   /**
    * Apply coupon to order (called internally by payment controller)
-   * Not exposed as API endpoint
+   * ⭐ ENHANCED: Now accepts and passes cartItems
    * @param {string} code - Coupon code
    * @param {number} cartSubtotal - Cart subtotal
    * @param {string} userId - User UUID
+   * @param {Array} cartItems - Cart items array (optional)
    * @returns {Promise<Object>} Validation result
    */
-  async applyCouponToOrder(code, cartSubtotal, userId) {
+  async applyCouponToOrder(code, cartSubtotal, userId, cartItems = []) {
     try {
       console.log(`🎟️ [Coupon] Applying to order: ${code}`);
 
       const validation = await CouponModel.validateCoupon(
         code.trim().toUpperCase(),
         cartSubtotal,
-        userId
+        userId,
+        cartItems // ⭐ NEW: Pass cart items
       );
 
       if (!validation.valid) {

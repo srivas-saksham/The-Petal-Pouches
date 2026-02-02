@@ -116,10 +116,22 @@ const PaymentController = {
         try {
           console.log('🎟️ [Payment] Validating coupon:', coupon_code);
           
+          // ⭐ FIX: Prepare cart items for coupon validation
+          const couponCartItems = cartData.items.map(item => ({
+            type: item.bundle_id ? 'bundle' : 'product',
+            bundle_id: item.bundle_id || null,
+            product_id: item.product_id || null,
+            quantity: item.quantity,
+            price: item.price
+          }));
+
+          console.log('📦 [Payment] Cart items for coupon:', couponCartItems);
+          
           const couponResult = await CouponController.applyCouponToOrder(
             coupon_code,
-            totals.subtotal, // Use subtotal for coupon validation
-            userId
+            totals.subtotal,
+            userId,
+            couponCartItems // ⭐ FIX: Pass cart items array
           );
 
           if (couponResult.success) {
@@ -321,10 +333,20 @@ const PaymentController = {
         try {
           console.log('🎟️ [Payment] Revalidating coupon:', order_data.coupon_code);
           
+          // ⭐ FIX: Prepare cart items for revalidation
+          const couponCartItems = cartData.items.map(item => ({
+            type: item.bundle_id ? 'bundle' : 'product',
+            bundle_id: item.bundle_id || null,
+            product_id: item.product_id || null,
+            quantity: item.quantity,
+            price: item.price
+          }));
+          
           const couponResult = await CouponController.applyCouponToOrder(
             order_data.coupon_code,
             totals.subtotal,
-            userId
+            userId,
+            couponCartItems // ⭐ FIX: Pass cart items array
           );
 
           if (couponResult.success) {

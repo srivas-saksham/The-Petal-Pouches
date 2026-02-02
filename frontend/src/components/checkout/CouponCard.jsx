@@ -21,6 +21,7 @@ import {
 
 const CouponCard = ({ 
   cartTotal = 0,
+  cartItems = [],
   onCouponApply,
   onCouponRemove,
   appliedCoupon = null,
@@ -69,7 +70,7 @@ const CouponCard = ({
 
   /**
    * Apply coupon code
-   * ⭐ UPDATED: Refreshes coupon list after successful application
+   * ⭐ UPDATED: Now passes cartItems to validation
    */
   const handleApplyCoupon = async () => {
     // Clear previous error
@@ -91,7 +92,8 @@ const CouponCard = ({
     setValidating(true);
 
     try {
-      const result = await validateCoupon(couponInput, cartTotal);
+      // ⭐ NEW: Pass cartItems to validateCoupon
+      const result = await validateCoupon(couponInput, cartTotal, cartItems);
 
       if (result.success) {
         // Coupon is valid - notify parent
@@ -99,7 +101,8 @@ const CouponCard = ({
           code: result.data.coupon.code,
           discount: result.data.discount,
           description: result.data.coupon.description,
-          savings_text: result.data.savings_text
+          savings_text: result.data.savings_text,
+          coupon_type: result.data.coupon.coupon_type || 'cart_wide' // ⭐ NEW: Include type
         };
 
         if (onCouponApply) {
@@ -110,7 +113,7 @@ const CouponCard = ({
         setCouponInput('');
         setError(null);
 
-        // ⭐ Refresh available coupons list
+        // Refresh available coupons list
         fetchAvailableCoupons();
 
         console.log('✅ Coupon applied:', couponData);
@@ -146,70 +149,71 @@ const CouponCard = ({
   };
 
   /**
- * Apply coupon from available list
- * ⭐ UPDATED: Directly validates coupon without relying on state update
- */
-const handleApplyCouponFromList = async (coupon) => {
-  // Check if unlocked
-  if (!isCouponUnlocked(coupon, cartTotal)) {
-    setError(`Add ₹${Math.ceil(coupon.unlock_amount)} more to unlock this coupon`);
-    setShowAvailableCoupons(false);
-    return;
-  }
-
-  // Set input for visual feedback
-  setCouponInput(coupon.code);
-  setShowAvailableCoupons(false);
-  setError(null);
-  
-  // Check cart total
-  if (cartTotal <= 0) {
-    setError('Cart is empty');
-    return;
-  }
-
-  setValidating(true);
-
-  try {
-    // ⭐ Directly use coupon.code instead of waiting for state update
-    const result = await validateCoupon(coupon.code, cartTotal);
-
-    if (result.success) {
-      // Coupon is valid - notify parent
-      const couponData = {
-        code: result.data.coupon.code,
-        discount: result.data.discount,
-        description: result.data.coupon.description,
-        savings_text: result.data.savings_text
-      };
-
-      if (onCouponApply) {
-        onCouponApply(couponData);
-      }
-
-      // Clear input
-      setCouponInput('');
-      setError(null);
-
-      // Refresh available coupons list
-      fetchAvailableCoupons();
-
-      console.log('✅ Coupon applied:', couponData);
-    } else {
-      // Show error
-      const errorMessage = result.code 
-        ? getCouponErrorMessage(result.code, { shortfall: result.shortfall })
-        : result.error;
-      
-      setError(errorMessage);
+   * Apply coupon from available list
+   * ⭐ UPDATED: Directly validates coupon with cartItems
+   */
+  const handleApplyCouponFromList = async (coupon) => {
+    // Check if unlocked
+    if (!isCouponUnlocked(coupon, cartTotal)) {
+      setError(`Add ₹${Math.ceil(coupon.unlock_amount)} more to unlock this coupon`);
+      setShowAvailableCoupons(false);
+      return;
     }
-  } catch (err) {
-    console.error('Coupon validation error:', err);
-    setError('Failed to validate coupon. Please try again.');
-  } finally {
-    setValidating(false);
-  }
-};
+
+    // Set input for visual feedback
+    setCouponInput(coupon.code);
+    setShowAvailableCoupons(false);
+    setError(null);
+    
+    // Check cart total
+    if (cartTotal <= 0) {
+      setError('Cart is empty');
+      return;
+    }
+
+    setValidating(true);
+
+    try {
+      // ⭐ NEW: Pass cartItems to validateCoupon
+      const result = await validateCoupon(coupon.code, cartTotal, cartItems);
+
+      if (result.success) {
+        // Coupon is valid - notify parent
+        const couponData = {
+          code: result.data.coupon.code,
+          discount: result.data.discount,
+          description: result.data.coupon.description,
+          savings_text: result.data.savings_text,
+          coupon_type: result.data.coupon.coupon_type || 'cart_wide' // ⭐ NEW: Include type
+        };
+
+        if (onCouponApply) {
+          onCouponApply(couponData);
+        }
+
+        // Clear input
+        setCouponInput('');
+        setError(null);
+
+        // Refresh available coupons list
+        fetchAvailableCoupons();
+
+        console.log('✅ Coupon applied:', couponData);
+      } else {
+        // Show error
+        const errorMessage = result.code 
+          ? getCouponErrorMessage(result.code, { shortfall: result.shortfall })
+          : result.error;
+        
+        setError(errorMessage);
+      }
+    } catch (err) {
+      console.error('Coupon validation error:', err);
+      setError('Failed to validate coupon. Please try again.');
+    } finally {
+      setValidating(false);
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">

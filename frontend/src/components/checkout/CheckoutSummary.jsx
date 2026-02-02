@@ -225,6 +225,7 @@ const CheckoutSummary = ({
       {/* Coupon Card */}
       <CouponCard 
         cartTotal={subtotal}
+        cartItems={cartItems}
         onCouponApply={onCouponApply}
         onCouponRemove={onCouponRemove}
         appliedCoupon={appliedCoupon}

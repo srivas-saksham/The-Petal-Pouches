@@ -9,6 +9,12 @@ import { useState, useEffect } from 'react';
 import { X, Loader, Tag, Percent, DollarSign, Calendar, Users, Lock, AlertCircle, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { createCoupon, updateCoupon } from '../../../services/adminCouponService';
 
+// ⭐ NEW IMPORTS - Add after existing imports
+import CouponTypeSelector from './CouponTypeSelector';
+import ProductSelector from './ProductSelector';
+import CategorySelector from './CategorySelector';
+import BOGOConfigFields from './BOGOConfigFields';
+
 export default function CouponFormModal({ isOpen, coupon = null, onClose, onSuccess }) {
   const isEditMode = !!coupon;
 
@@ -45,24 +51,72 @@ export default function CouponFormModal({ isOpen, coupon = null, onClose, onSucc
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
+  // ⭐ NEW STATE FIELDS for enhanced coupon types
+  const [couponType, setCouponType] = useState('cart_wide');
+  const [eligibleProductIds, setEligibleProductIds] = useState([]);
+  const [eligibleCategoryIds, setEligibleCategoryIds] = useState([]);
+  const [bogoBuyQuantity, setBogoBuyQuantity] = useState(3);
+  const [bogoGetQuantity, setBogoGetQuantity] = useState(2);
+  const [bogoDiscountPercent, setBogoDiscountPercent] = useState(100);
+  const [maxDiscountItems, setMaxDiscountItems] = useState(null);
+  const [firstOrderOnly, setFirstOrderOnly] = useState(false);
+  const [excludeSaleItems, setExcludeSaleItems] = useState(false);
+
   // ==================== LOAD COUPON DATA ====================
   useEffect(() => {
-    if (isEditMode && coupon) {
+    if (coupon) {
       setFormData({
         code: coupon.code || '',
         description: coupon.description || '',
         discount_type: coupon.discount_type || 'Percent',
-        discount_value: coupon.discount_value?.toString() || '',
-        min_order_value: coupon.min_order_value?.toString() || '',
-        max_discount: coupon.max_discount?.toString() || '',
+        discount_value: coupon.discount_value || '',
+        min_order_value: coupon.min_order_value || '',
+        max_discount: coupon.max_discount || '',
         start_date: coupon.start_date ? coupon.start_date.split('T')[0] : '',
         end_date: coupon.end_date ? coupon.end_date.split('T')[0] : '',
-        status: coupon.status || 'inactive', // ⭐ Changed from is_active
-        usage_limit: coupon.usage_limit?.toString() || '',
-        usage_per_user: coupon.usage_per_user?.toString() || '1'
+        status: coupon.status || 'inactive',
+        usage_limit: coupon.usage_limit || '',
+        usage_per_user: coupon.usage_per_user || '1'
       });
+      
+      // ⭐ NEW: Load enhanced coupon fields
+      setCouponType(coupon.coupon_type || 'cart_wide');
+      setBogoBuyQuantity(coupon.bogo_buy_quantity || 3);
+      setBogoGetQuantity(coupon.bogo_get_quantity || 2);
+      setBogoDiscountPercent(coupon.bogo_discount_percent || 100);
+      setMaxDiscountItems(coupon.max_discount_items || null);
+      setFirstOrderOnly(coupon.first_order_only || false);
+      setExcludeSaleItems(coupon.exclude_sale_items || false);
+
+      // ⭐ NEW: Fetch eligible products/categories if editing
+      if (coupon.id && (coupon.coupon_type === 'product_specific' || 
+          coupon.coupon_type === 'bogo' || 
+          coupon.coupon_type === 'category_based')) {
+        fetchEligibleItems(coupon.id);
+      }
     }
-  }, [isEditMode, coupon]);
+  }, [coupon]);
+
+  // ⭐ NEW: Fetch eligible items for editing
+  const fetchEligibleItems = async (couponId) => {
+    try {
+      const response = await fetch(`/api/admin/coupons/${couponId}/eligible-items`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setEligibleProductIds(data.data.eligible_products || []);
+          setEligibleCategoryIds(data.data.eligible_categories || []);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching eligible items:', error);
+    }
+  };
 
   // ==================== PREVENT BODY SCROLL ====================
   useEffect(() => {
@@ -202,6 +256,35 @@ export default function CouponFormModal({ isOpen, coupon = null, onClose, onSucc
       newErrors.usage_per_user = 'Must be at least 1';
     }
 
+    // ⭐ NEW: Validate coupon type specific requirements
+    if (couponType === 'product_specific' || couponType === 'bogo') {
+      if (eligibleProductIds.length === 0) {
+        newErrors.eligibleProducts = 'At least one product must be selected';
+      }
+    }
+
+    if (couponType === 'category_based') {
+      if (eligibleCategoryIds.length === 0) {
+        newErrors.eligibleCategories = 'At least one category must be selected';
+      }
+    }
+
+    if (couponType === 'bogo') {
+      if (!bogoBuyQuantity || bogoBuyQuantity < 1) {
+        newErrors.bogoBuyQuantity = 'Buy quantity must be at least 1';
+      }
+      if (!bogoGetQuantity || bogoGetQuantity < 1) {
+        newErrors.bogoGetQuantity = 'Get quantity must be at least 1';
+      }
+      if (bogoDiscountPercent < 0 || bogoDiscountPercent > 100) {
+        newErrors.bogoDiscountPercent = 'Discount percent must be between 0 and 100';
+      }
+    }
+
+    if (maxDiscountItems && maxDiscountItems < 1) {
+      newErrors.maxDiscountItems = 'Max discount items must be at least 1';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -226,9 +309,24 @@ export default function CouponFormModal({ isOpen, coupon = null, onClose, onSucc
         max_discount: formData.max_discount ? parseFloat(formData.max_discount) : null,
         start_date: formData.start_date,
         end_date: formData.end_date,
-        status: formData.status, // ⭐ Changed from is_active
+        status: formData.status,
         usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null,
-        usage_per_user: parseInt(formData.usage_per_user)
+        usage_per_user: parseInt(formData.usage_per_user),
+        
+        // ⭐ NEW: Include enhanced fields
+        coupon_type: couponType,
+        eligible_product_ids: (couponType === 'product_specific' || couponType === 'bogo') 
+          ? eligibleProductIds 
+          : [],
+        eligible_category_ids: couponType === 'category_based' 
+          ? eligibleCategoryIds 
+          : [],
+        bogo_buy_quantity: couponType === 'bogo' ? parseInt(bogoBuyQuantity) : null,
+        bogo_get_quantity: couponType === 'bogo' ? parseInt(bogoGetQuantity) : null,
+        bogo_discount_percent: couponType === 'bogo' ? parseInt(bogoDiscountPercent) : 100,
+        max_discount_items: maxDiscountItems ? parseInt(maxDiscountItems) : null,
+        first_order_only: firstOrderOnly,
+        exclude_sale_items: excludeSaleItems
       };
 
       let result;
@@ -655,6 +753,172 @@ export default function CouponFormModal({ isOpen, coupon = null, onClose, onSucc
 
           {/* Status Section - Conditional */}
           {renderStatusSection()}
+          
+          {/* ========================================
+              ⭐ NEW: COUPON TYPE SELECTOR
+              ======================================== */}
+          <div className="pt-6 border-t-2 border-slate-200">
+            <CouponTypeSelector
+              value={couponType}
+              onChange={(newType) => {
+                setCouponType(newType);
+                // Reset type-specific fields when changing type
+                if (newType !== 'product_specific' && newType !== 'bogo') {
+                  setEligibleProductIds([]);
+                }
+                if (newType !== 'category_based') {
+                  setEligibleCategoryIds([]);
+                }
+                if (newType !== 'bogo') {
+                  setBogoBuyQuantity(3);
+                  setBogoGetQuantity(2);
+                  setBogoDiscountPercent(100);
+                }
+              }}
+              disabled={submitting}
+            />
+          </div>
+
+          {/* ========================================
+              ⭐ NEW: PRODUCT SELECTOR (for product_specific & bogo)
+              ======================================== */}
+          {(couponType === 'product_specific' || couponType === 'bogo') && (
+            <div>
+              <ProductSelector
+                selectedProductIds={eligibleProductIds}
+                onChange={setEligibleProductIds}
+                disabled={submitting}
+              />
+              {errors.eligibleProducts && (
+                <p className="mt-2 text-xs text-red-600 font-semibold">
+                  {errors.eligibleProducts}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ========================================
+              ⭐ NEW: CATEGORY SELECTOR (for category_based)
+              ======================================== */}
+          {couponType === 'category_based' && (
+            <div>
+              <CategorySelector
+                selectedCategoryIds={eligibleCategoryIds}
+                onChange={setEligibleCategoryIds}
+                disabled={submitting}
+              />
+              {errors.eligibleCategories && (
+                <p className="mt-2 text-xs text-red-600 font-semibold">
+                  {errors.eligibleCategories}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ========================================
+              ⭐ NEW: BOGO CONFIGURATION (for bogo type)
+              ======================================== */}
+          {couponType === 'bogo' && (
+            <div>
+              <BOGOConfigFields
+                buyQuantity={bogoBuyQuantity}
+                getQuantity={bogoGetQuantity}
+                discountPercent={bogoDiscountPercent}
+                onBuyQuantityChange={setBogoBuyQuantity}
+                onGetQuantityChange={setBogoGetQuantity}
+                onDiscountPercentChange={setBogoDiscountPercent}
+                disabled={submitting}
+              />
+              {(errors.bogoBuyQuantity || errors.bogoGetQuantity || errors.bogoDiscountPercent) && (
+                <div className="mt-2 space-y-1">
+                  {errors.bogoBuyQuantity && (
+                    <p className="text-xs text-red-600 font-semibold">{errors.bogoBuyQuantity}</p>
+                  )}
+                  {errors.bogoGetQuantity && (
+                    <p className="text-xs text-red-600 font-semibold">{errors.bogoGetQuantity}</p>
+                  )}
+                  {errors.bogoDiscountPercent && (
+                    <p className="text-xs text-red-600 font-semibold">{errors.bogoDiscountPercent}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========================================
+              ⭐ NEW: ADVANCED OPTIONS
+              ======================================== */}
+          <div className="pt-6 border-t-2 border-slate-200">
+            <h3 className="text-sm font-bold text-slate-800 mb-4">
+              Advanced Options
+            </h3>
+
+            {/* Max Discount Items */}
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-tppslate mb-2">
+                Max Discount Items (Optional)
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={maxDiscountItems || ''}
+                onChange={(e) => setMaxDiscountItems(e.target.value ? parseInt(e.target.value) : null)}
+                disabled={submitting}
+                className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent disabled:bg-slate-50 disabled:text-slate-500 text-sm"
+                placeholder="Leave empty for no limit"
+              />
+              <p className="text-xs text-slate-600 mt-1">
+                Limit discount to maximum number of items (most expensive items first)
+              </p>
+              {errors.maxDiscountItems && (
+                <p className="mt-1 text-xs text-red-600 font-semibold">
+                  {errors.maxDiscountItems}
+                </p>
+              )}
+            </div>
+
+            {/* First Order Only Checkbox */}
+            <div className="mb-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={firstOrderOnly}
+                  onChange={(e) => setFirstOrderOnly(e.target.checked)}
+                  disabled={submitting}
+                  className="w-4 h-4 mt-0.5 text-tpppink focus:ring-tpppink border-slate-300 rounded"
+                />
+                <div className="flex-1">
+                  <span className="text-sm font-semibold text-slate-800">
+                    First Order Only
+                  </span>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    This coupon can only be used by customers placing their first order
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {/* Exclude Sale Items Checkbox */}
+            <div className="mb-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={excludeSaleItems}
+                  onChange={(e) => setExcludeSaleItems(e.target.checked)}
+                  disabled={submitting}
+                  className="w-4 h-4 mt-0.5 text-tpppink focus:ring-tpppink border-slate-300 rounded"
+                />
+                <div className="flex-1">
+                  <span className="text-sm font-semibold text-slate-800">
+                    Exclude Sale Items
+                  </span>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Items already on sale will not be eligible for this coupon
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
         </form>
 
         {/* Footer */}
