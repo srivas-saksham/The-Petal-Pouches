@@ -1,7 +1,7 @@
 // frontend/src/components/bundle-detail/BundleAddressModal.jsx
 // NEW COMPONENT - Bottom slide-up modal for bundle detail page ONLY
 // Slides from bottom-right corner for BOTH mobile and desktop
-// Max height: 80vh for ALL devices
+// Max height: 80dvh for ALL devices
 
 import React, { useEffect, useState } from 'react';
 import { X, MapPin, Loader } from 'lucide-react';
@@ -14,7 +14,7 @@ import AddressNotifications from '../user/addresses/AddressNotifications';
  * 
  * Features:
  * - ✅ Slides from bottom-right corner (both mobile & desktop)
- * - ✅ Max height: 80vh
+ * - ✅ Max height: 80dvh
  * - ✅ Rounded top corners
  * - ✅ Form validation
  * - ✅ Success/Error notifications
@@ -199,7 +199,7 @@ const BundleAddressModal = ({ isOpen, onClose, onSuccess }) => {
       <div
         className={`fixed right-0 bottom-0 bg-white shadow-2xl z-[110]
           flex flex-col will-change-transform rounded-t-2xl
-          w-full sm:w-[520px] h-[80vh]
+          w-full sm:w-[520px] h-[80dvh]
           transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
           ${isAnimating ? 'translate-y-0' : 'translate-y-full'}`}
         role="dialog"
