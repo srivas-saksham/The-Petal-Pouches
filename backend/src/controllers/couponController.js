@@ -115,7 +115,7 @@ const CouponController = {
 
   /**
    * Get all active coupons with unlock status
-   * ⭐ UPDATED: Now filters based on user's usage and sorts by min_order_value
+   * ⭐ ENHANCED: Now includes eligible_product_ids and eligible_category_ids
    * GET /api/coupons/active
    * @query { cart_total?: number }
    */
@@ -123,21 +123,52 @@ const CouponController = {
     try {
       const { cart_total } = req.query;
       const cartSubtotal = cart_total ? parseFloat(cart_total) : null;
-      const userId = req.user?.id || null; // ⭐ Extract userId (optional - for guest users)
+      const userId = req.user?.id || null;
 
       console.log(`📋 [Coupon] Fetching active coupons for user: ${userId || 'guest'} (cart: ₹${cartSubtotal || 0})`);
 
-      // ⭐ Pass userId to model for filtering
       const coupons = await CouponModel.getActiveCoupons({ 
         cartSubtotal,
-        userId // ⭐ NEW: Pass userId for user-specific filtering
+        userId
       });
+
+      // ⭐ NEW: Fetch eligible items for each coupon
+      const couponsWithEligibleItems = await Promise.all(
+        coupons.map(async (coupon) => {
+          let eligible_product_ids = [];
+          let eligible_category_ids = [];
+
+          // Fetch eligible products for product_specific and bogo coupons
+          if (coupon.coupon_type === 'product_specific' || coupon.coupon_type === 'bogo') {
+            try {
+              eligible_product_ids = await CouponModel.getEligibleProducts(coupon.id);
+            } catch (err) {
+              console.error(`Error fetching eligible products for coupon ${coupon.id}:`, err);
+            }
+          }
+
+          // Fetch eligible categories for category_based coupons
+          if (coupon.coupon_type === 'category_based') {
+            try {
+              eligible_category_ids = await CouponModel.getEligibleCategories(coupon.id);
+            } catch (err) {
+              console.error(`Error fetching eligible categories for coupon ${coupon.id}:`, err);
+            }
+          }
+
+          return {
+            ...coupon,
+            eligible_product_ids,
+            eligible_category_ids
+          };
+        })
+      );
 
       // Separate unlocked and locked coupons
       const unlocked = [];
       const locked = [];
 
-      coupons.forEach(coupon => {
+      couponsWithEligibleItems.forEach(coupon => {
         if (!coupon.min_order_value || (cartSubtotal && cartSubtotal >= coupon.min_order_value)) {
           unlocked.push(coupon);
         } else {
@@ -145,15 +176,15 @@ const CouponController = {
         }
       });
 
-      console.log(`✅ [Coupon] Found ${coupons.length} active coupons (${unlocked.length} unlocked, ${locked.length} locked)`);
+      console.log(`✅ [Coupon] Found ${couponsWithEligibleItems.length} active coupons (${unlocked.length} unlocked, ${locked.length} locked)`);
 
       return res.status(200).json({
         success: true,
         data: {
-          all_coupons: coupons,
+          all_coupons: couponsWithEligibleItems,
           unlocked_coupons: unlocked,
           locked_coupons: locked,
-          total: coupons.length
+          total: couponsWithEligibleItems.length
         }
       });
 

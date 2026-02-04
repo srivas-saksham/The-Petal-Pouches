@@ -88,33 +88,47 @@ export default function CouponFormModal({ isOpen, coupon = null, onClose, onSucc
       setFirstOrderOnly(coupon.first_order_only || false);
       setExcludeSaleItems(coupon.exclude_sale_items || false);
 
-      // ⭐ NEW: Fetch eligible products/categories if editing
-      if (coupon.id && (coupon.coupon_type === 'product_specific' || 
-          coupon.coupon_type === 'bogo' || 
-          coupon.coupon_type === 'category_based')) {
-        fetchEligibleItems(coupon.id);
+      // ⭐ FIXED: Fetch eligible products/categories for all relevant types
+      if (coupon.id && (
+        coupon.coupon_type === 'product_specific' || 
+        coupon.coupon_type === 'bogo' || 
+        coupon.coupon_type === 'category_based'
+      )) {
+        fetchEligibleItems(coupon);
+      } else {
+        // Reset if not using these types
+        setEligibleProductIds([]);
+        setEligibleCategoryIds([]);
       }
+    } else {
+      // Reset all states for create mode
+      setEligibleProductIds([]);
+      setEligibleCategoryIds([]);
     }
   }, [coupon]);
 
-  // ⭐ NEW: Fetch eligible items for editing
-  const fetchEligibleItems = async (couponId) => {
+  // ⭐ FIXED: Fetch eligible items using the service
+  const fetchEligibleItems = async (couponData) => {
     try {
-      const response = await fetch(`/api/admin/coupons/${couponId}/eligible-items`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-        }
-      });
+      console.log('🔍 [CouponFormModal] Fetching eligible items for:', couponData.id);
+      
+      const result = await import('../../../services/adminCouponService').then(module => 
+        module.getEligibleItems(couponData.id)
+      );
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setEligibleProductIds(data.data.eligible_products || []);
-          setEligibleCategoryIds(data.data.eligible_categories || []);
-        }
+      if (result.success && result.data) {
+        // Set the eligible IDs from the fetched data
+        setEligibleProductIds(result.data.eligible_products || []);
+        setEligibleCategoryIds(result.data.eligible_categories || []);
+        console.log('✅ [CouponFormModal] Loaded eligible items:', {
+          products: result.data.eligible_products?.length || 0,
+          categories: result.data.eligible_categories?.length || 0
+        });
+      } else {
+        console.warn('⚠️ [CouponFormModal] Failed to fetch eligible items:', result.error);
       }
     } catch (error) {
-      console.error('Error fetching eligible items:', error);
+      console.error('❌ [CouponFormModal] Error fetching eligible items:', error);
     }
   };
 

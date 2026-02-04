@@ -29,7 +29,6 @@ C:\Projects_External\The Petal Pouches\backend\src\controllers\userProfileContro
 C:\Projects_External\The Petal Pouches\backend\src\controllers\variantController.js
 C:\Projects_External\The Petal Pouches\backend\src\controllers\wishlistController.js
 C:\Projects_External\The Petal Pouches\backend\src\cron\syncShipments.js
-C:\Projects_External\The Petal Pouches\backend\src\jobs\syncShipments.js
 C:\Projects_External\The Petal Pouches\backend\src\middleware\addressValidation.js
 C:\Projects_External\The Petal Pouches\backend\src\middleware\adminAuth.js
 C:\Projects_External\The Petal Pouches\backend\src\middleware\userAuth.js
@@ -88,6 +87,7 @@ C:\Projects_External\The Petal Pouches\backend\src\templates\RegistrationOTPTemp
 C:\Projects_External\The Petal Pouches\backend\src\templates\WelcomeEmailTemplate.js
 C:\Projects_External\The Petal Pouches\backend\src\utils\cloudinaryHelpers.js
 C:\Projects_External\The Petal Pouches\backend\src\utils\couponHelpers.js
+C:\Projects_External\The Petal Pouches\backend\src\utils\couponValidators.js
 C:\Projects_External\The Petal Pouches\backend\src\utils\orderHelpers.js
 C:\Projects_External\The Petal Pouches\backend\src\utils\otpGenerator.js
 C:\Projects_External\The Petal Pouches\backend\src\utils\productHelpers.js
@@ -276,7 +276,11 @@ C:\Projects_External\The Petal Pouches\frontend\src\assets\react.svg
 C:\Projects_External\The Petal Pouches\frontend\src\components\admin\bundles\AdminBundleCard.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\admin\bundles\BundleFormModal.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\admin\coupons\AdminCouponCard.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\components\admin\coupons\BOGOConfigFields.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\components\admin\coupons\CategorySelector.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\admin\coupons\CouponFormModal.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\components\admin\coupons\CouponTypeSelector.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\components\admin\coupons\ProductSelector.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\admin\customers\AdminCustomerCard.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\admin\customers\AdminCustomersFilters.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\admin\customers\AdminCustomersList.jsx
@@ -411,6 +415,7 @@ C:\Projects_External\The Petal Pouches\frontend\src\components\user\addresses\Ad
 C:\Projects_External\The Petal Pouches\frontend\src\components\user\addresses\AddressForm.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\user\addresses\AddressFormSidebar.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\user\addresses\AddressList.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\components\user\addresses\AddressLocationModal.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\user\addresses\AddressNotifications.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\user\dashboard\QuickActions.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\user\dashboard\RecentOrders.jsx

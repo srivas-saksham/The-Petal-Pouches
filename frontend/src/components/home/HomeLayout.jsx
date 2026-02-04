@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Mail, MapPin, Phone, Instagram, Facebook, Twitter } from 'lucide-react';
 import CommonHeader from '../common/CommonHeader';
-
+import CouponMarquee from '../common/CouponMarquee';
 /**
  * HomeLayout Component
  * 
@@ -44,6 +44,8 @@ const HomeLayout = ({ children }) => {
       {/* New CommonHeader */}
       <CommonHeader />
 
+      {/* ⭐ NEW: Coupon Marquee - Shows below header */}
+      <CouponMarquee />
       {/* Main Content */}
       <main>
         {children}

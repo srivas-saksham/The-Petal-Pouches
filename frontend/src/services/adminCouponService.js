@@ -81,6 +81,39 @@ export const getCouponById = async (id) => {
 };
 
 /**
+ * Get eligible products and categories for a coupon
+ * @param {string} id - Coupon ID
+ * @returns {Promise<Object>} Eligible items data
+ */
+export const getEligibleItems = async (id) => {
+  try {
+    console.log('🔍 [AdminCouponService] Fetching eligible items:', id);
+
+    const response = await adminApi.get(`/api/admin/coupons/${id}/eligible-items`);
+
+    if (response.data.success) {
+      console.log('✅ [AdminCouponService] Eligible items fetched:', response.data.data);
+      return {
+        success: true,
+        data: response.data.data
+      };
+    }
+
+    return {
+      success: false,
+      error: response.data.message || 'Failed to fetch eligible items'
+    };
+
+  } catch (error) {
+    console.error('❌ [AdminCouponService] Fetch eligible items error:', error);
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to fetch eligible items'
+    };
+  }
+};
+
+/**
  * Create new coupon
  * @param {Object} couponData - Coupon data
  * @returns {Promise<Object>} Created coupon
@@ -256,5 +289,6 @@ export default {
   updateCoupon,
   deleteCoupon,
   toggleCouponStatus,
-  getCouponStats
+  getCouponStats,
+  getEligibleItems 
 };

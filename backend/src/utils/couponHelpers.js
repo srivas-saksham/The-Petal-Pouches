@@ -118,6 +118,7 @@ const checkUsageLimit = (coupon) => {
 
 /**
  * Format coupon for API response
+ * ⭐ FIXED: Now includes all enhanced coupon fields
  * @param {Object} coupon - Raw coupon from database
  * @param {number} cartSubtotal - Current cart subtotal (optional)
  * @returns {Object} Formatted coupon data
@@ -133,13 +134,22 @@ const formatCouponResponse = (coupon, cartSubtotal = null) => {
     max_discount: coupon.max_discount,
     start_date: coupon.start_date,
     end_date: coupon.end_date,
-    is_active: coupon.is_active,
+    status: coupon.status, // ⭐ FIXED: Use status instead of is_active
     usage_limit: coupon.usage_limit,
     usage_per_user: coupon.usage_per_user,
     usage_count: coupon.usage_count || 0,
     remaining_uses: coupon.usage_limit 
       ? Math.max(0, coupon.usage_limit - (coupon.usage_count || 0))
-      : null
+      : null,
+    
+    // ⭐ NEW: Enhanced coupon fields
+    coupon_type: coupon.coupon_type || 'cart_wide',
+    bogo_buy_quantity: coupon.bogo_buy_quantity,
+    bogo_get_quantity: coupon.bogo_get_quantity,
+    bogo_discount_percent: coupon.bogo_discount_percent,
+    max_discount_items: coupon.max_discount_items,
+    first_order_only: coupon.first_order_only || false,
+    exclude_sale_items: coupon.exclude_sale_items || false
   };
 
   // Add calculated discount if cart subtotal provided
