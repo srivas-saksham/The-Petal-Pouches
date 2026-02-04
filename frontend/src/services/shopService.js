@@ -518,6 +518,41 @@ const shopService = {
   },
 
   /**
+   * Get tags with counts filtered by item type
+   * @param {string} type - Item type ('all' | 'products' | 'bundles')
+   * @param {Object} filterContext - Additional filter context
+   * @returns {Promise<Object>} Tags with counts
+   */
+  getTagsByType: async (type = 'all', filterContext = {}) => {
+    try {
+      const params = new URLSearchParams();
+      
+      params.append('type', type);
+      if (filterContext.tags) params.append('tags', filterContext.tags);
+      if (filterContext.search) params.append('search', filterContext.search);
+      if (filterContext.min_price) params.append('min_price', filterContext.min_price);
+      if (filterContext.max_price) params.append('max_price', filterContext.max_price);
+      if (filterContext.in_stock) params.append('in_stock', filterContext.in_stock);
+
+      const response = await shopAPI.get(`/api/tags/with-counts?${params.toString()}`);
+      
+      return {
+        success: true,
+        data: response.data.data || [],
+        context: response.data.context || {}
+      };
+    } catch (error) {
+      console.error('❌ Get tags by type error:', error);
+      return {
+        success: false,
+        data: [],
+        context: {},
+        error: error.response?.data?.message || 'Failed to fetch tags'
+      };
+    }
+  },
+
+  /**
    * Get single item by type and ID
    * @param {string} type - Item type ('product' or 'bundle')
    * @param {string} id - Item ID

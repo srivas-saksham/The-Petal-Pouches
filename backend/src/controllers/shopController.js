@@ -51,10 +51,6 @@ const ShopController = {
           .eq('is_sellable', true);
 
         // Filters
-        if (search && search.trim()) {
-          productQuery = productQuery.ilike('title', `%${search.trim()}%`);
-        }
-
         if (min_price) {
           productQuery = productQuery.gte('price', parseInt(min_price));
         }
@@ -67,7 +63,7 @@ const ShopController = {
           productQuery = productQuery.gt('stock', 0);
         }
 
-        // 🆕 NEW: Add tag filtering for products
+        // 🆕 Tag filtering (AND logic - must have ALL selected tags)
         if (tags && tags.trim()) {
           const tagArray = tags.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
           console.log(`🏷️ Filtering products by tags:`, tagArray);
@@ -85,14 +81,44 @@ const ShopController = {
 
         if (productError) throw productError;
 
+        // ✅ ENHANCED: Post-fetch filtering for search (title + tags)
+        let filteredProducts = products || [];
+        
+        if (search && search.trim()) {
+          const searchTerm = search.trim().toLowerCase();
+          const searchWords = searchTerm.split(/\s+/).filter(w => w.length > 0);
+          
+          filteredProducts = filteredProducts.filter(product => {
+            const title = (product.title || '').toLowerCase();
+            const description = (product.description || '').toLowerCase();
+            
+            // Match in title or description
+            if (title.includes(searchTerm) || description.includes(searchTerm)) {
+              return true;
+            }
+            
+            // Match in tags - normalize tags safely
+            const productTags = Array.isArray(product.tags) 
+              ? product.tags.map(t => String(t).toLowerCase().trim())
+              : [];
+            
+            // Check if any search word matches any tag (partial match)
+            return searchWords.some(word => 
+              productTags.some(tag => tag.includes(word) || word.includes(tag))
+            );
+          });
+          
+          console.log(`🔍 Products after search filtering: ${filteredProducts.length}/${products.length} (term: "${searchTerm}")`);
+        }
+
         allItems = allItems.concat(
-          (products || []).map(p => {
+          filteredProducts.map(p => {
             // Find primary image for backward compatibility
             const primaryImage = p.Product_images?.find(img => img.is_primary);
             
             return {
               ...p,
-              img_url: primaryImage ? primaryImage.img_url : p.img_url, // Keep backward compatibility
+              img_url: primaryImage ? primaryImage.img_url : p.img_url,
               item_type: 'product',
               stock_limit: p.stock,
               original_price: p.price,
@@ -102,7 +128,7 @@ const ShopController = {
           })
         );
 
-        totalCount += productCount || 0;
+        totalCount += filteredProducts.length; // Use filtered count
       }
 
       // Fetch Bundles
@@ -126,10 +152,6 @@ const ShopController = {
           .eq('is_active', true);
 
         // Filters
-        if (search && search.trim()) {
-          bundleQuery = bundleQuery.ilike('title', `%${search.trim()}%`);
-        }
-
         if (min_price) {
           bundleQuery = bundleQuery.gte('price', parseInt(min_price));
         }
@@ -143,7 +165,7 @@ const ShopController = {
           bundleQuery = bundleQuery.gt('stock_limit', 0);
         }
 
-        // Tag filtering
+        // Tag filtering (AND logic)
         if (tags && tags.trim()) {
           const tagArray = tags.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
           tagArray.forEach(tag => {
@@ -159,9 +181,39 @@ const ShopController = {
 
         if (bundleError) throw bundleError;
 
+        // ✅ ENHANCED: Post-fetch filtering for search (title + tags)
+        let filteredBundles = bundles || [];
+        
+        if (search && search.trim()) {
+          const searchTerm = search.trim().toLowerCase();
+          const searchWords = searchTerm.split(/\s+/).filter(w => w.length > 0);
+          
+          filteredBundles = filteredBundles.filter(bundle => {
+            const title = (bundle.title || '').toLowerCase();
+            const description = (bundle.description || '').toLowerCase();
+            
+            // Match in title or description
+            if (title.includes(searchTerm) || description.includes(searchTerm)) {
+              return true;
+            }
+            
+            // Match in tags - normalize tags safely
+            const bundleTags = Array.isArray(bundle.tags) 
+              ? bundle.tags.map(t => String(t).toLowerCase().trim())
+              : [];
+            
+            // Check if any search word matches any tag (partial match)
+            return searchWords.some(word => 
+              bundleTags.some(tag => tag.includes(word) || word.includes(tag))
+            );
+          });
+          
+          console.log(`🔍 Bundles after search filtering: ${filteredBundles.length}/${bundles.length} (term: "${searchTerm}")`);
+        }
+
         // 🆕 NEW: Fetch Bundle_images for each bundle
         const bundlesWithImages = await Promise.all(
-          (bundles || []).map(async (bundle) => {
+          filteredBundles.map(async (bundle) => {
             // Fetch images for this bundle
             const { data: images } = await supabase
               .from('Bundle_images')
@@ -184,10 +236,10 @@ const ShopController = {
         );
 
         allItems = allItems.concat(bundlesWithImages);
-        totalCount += bundleCount || 0;
+        totalCount += filteredBundles.length; // Use filtered count
       }
 
-      // Sort combined results
+      // ✅ FIX: Sort combined results BEFORE pagination
       allItems.sort((a, b) => {
         if (sort === 'price') {
           return order === 'asc' ? a.price - b.price : b.price - a.price;
@@ -200,9 +252,14 @@ const ShopController = {
         return 0;
       });
 
-      // Pagination
+      // ✅ FIX: Recalculate totalCount from allItems after filtering
+      totalCount = allItems.length;
+
+      // ✅ FIX: Pagination AFTER sorting and counting
       const paginatedItems = allItems.slice(from, to + 1);
       const totalPages = Math.ceil(totalCount / limitNum);
+
+      console.log(`✅ Returning ${paginatedItems.length} items (page ${pageNum}/${totalPages}, total: ${totalCount})`);
 
       res.status(200).json({
         success: true,

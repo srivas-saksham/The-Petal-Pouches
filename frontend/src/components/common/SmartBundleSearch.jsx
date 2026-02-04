@@ -3,11 +3,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, Package, ChevronRight, Tag } from 'lucide-react';
 
 /**
- * SmartBundleSearch Component - FIXED VERSION
+ * SmartBundleSearch Component - ENHANCED VERSION
  * 
  * FEATURES:
  * - Real-time search with debouncing (300ms)
  * - Smart tag matching - breaks search into words and matches against tags
+ * - Searches BOTH products AND bundles (type filtering supported)
  * - Handles tags as BOTH arrays and strings (robust)
  * - Compact dropdown with top 5-6 results
  * - Pagination within dropdown (next 5 results)
@@ -19,12 +20,14 @@ import { Search, X, Package, ChevronRight, Tag } from 'lucide-react';
  * 
  * @param {string} placeholder - Search input placeholder
  * @param {string} className - Additional CSS classes
+ * @param {string} searchType - 'all' | 'products' | 'bundles' (default: 'all')
  * @param {Function} onResultClick - Optional callback when result is clicked
  * @param {Function} onNavigate - Navigation function (receives path)
  */
 const SmartBundleSearch = ({ 
-  placeholder = "Search bundles...", 
+  placeholder = "Search products and bundles...", 
   className = "",
+  searchType = "all", // ✅ NEW: Support type filtering
   onResultClick,
   onNavigate
 }) => {
@@ -100,8 +103,7 @@ const SmartBundleSearch = ({
   }, []);
 
   /**
-   * ✅ FIXED: Smart search function with tag matching
-   * Breaks query into words and searches both title/description and tags
+   * ✅ ENHANCED: Smart search with product + bundle support
    */
   const performSmartSearch = async (searchQuery) => {
     if (!searchQuery || searchQuery.trim().length < 2) {
@@ -116,7 +118,6 @@ const SmartBundleSearch = ({
     setIsOpen(true);
 
     try {
-      // Break query into individual words for tag matching
       const queryWords = searchQuery
         .toLowerCase()
         .split(/\s+/)
@@ -125,11 +126,18 @@ const SmartBundleSearch = ({
       console.log('🔍 Smart Search initiated:', {
         originalQuery: searchQuery,
         queryWords,
+        searchType
       });
 
-      // Fetch bundles from API
+      // ✅ NEW: Use shop service to search all items
+      const params = {
+        search: searchQuery,
+        limit: 50,
+        type: searchType // 'all', 'products', or 'bundles'
+      };
+
       const response = await fetch(
-        `${API_URL}/api/bundles?search=${encodeURIComponent(searchQuery)}&limit=50&active=true`
+        `${API_URL}/api/shop/items?${new URLSearchParams(params)}`
       );
       
       if (!response.ok) {
@@ -137,53 +145,58 @@ const SmartBundleSearch = ({
       }
 
       const data = await response.json();
-      const allBundles = data.data || [];
+      const allItems = data.data || [];
 
-      // ✅ FIXED: Smart matching with robust tag handling
-      const scoredBundles = allBundles.map(bundle => {
+      // ✅ Smart matching with robust tag handling (works for both products & bundles)
+      const scoredItems = allItems.map(item => {
         let score = 0;
         
-        // Normalize tags using the fixed function
-        const bundleTags = normalizeTags(bundle.tags);
-        const bundleTitle = (bundle.title || '').toLowerCase();
-        const bundleDescription = (bundle.description || '').toLowerCase();
+        const itemTags = normalizeTags(item.tags);
+        const itemTitle = (item.title || '').toLowerCase();
+        const itemDescription = (item.description || '').toLowerCase();
 
-        // Direct matches in title/description (score: 100)
-        if (bundleTitle.includes(searchQuery.toLowerCase())) {
+        // Direct title match (highest score)
+        if (itemTitle.includes(searchQuery.toLowerCase())) {
           score += 100;
         }
-        if (bundleDescription.includes(searchQuery.toLowerCase())) {
+        
+        // Description match
+        if (itemDescription.includes(searchQuery.toLowerCase())) {
           score += 50;
         }
 
-        // Tag matches (score: 10 per matching word)
+        // Tag matches
         queryWords.forEach(word => {
-          bundleTags.forEach(tag => {
+          itemTags.forEach(tag => {
             if (tag.includes(word) || word.includes(tag)) {
               score += 10;
             }
           });
         });
 
-        return { ...bundle, searchScore: score };
+        return { ...item, searchScore: score };
       });
 
-      // Sort by score (highest first) and filter bundles with score > 0
-      const matchedBundles = scoredBundles
-        .filter(b => b.searchScore > 0)
+      const matchedItems = scoredItems
+        .filter(item => item.searchScore > 0)
         .sort((a, b) => b.searchScore - a.searchScore);
 
       console.log('✅ Smart Search results:', {
-        totalMatched: matchedBundles.length,
-        topScores: matchedBundles.slice(0, 5).map(b => ({
-          title: b.title,
-          score: b.searchScore,
-          tags: normalizeTags(b.tags),
-        })),
+        totalMatched: matchedItems.length,
+        types: {
+          products: matchedItems.filter(i => i.item_type === 'product').length,
+          bundles: matchedItems.filter(i => i.item_type === 'bundle').length
+        },
+        topScores: matchedItems.slice(0, 5).map(i => ({
+          title: i.title,
+          type: i.item_type,
+          score: i.searchScore,
+          tags: normalizeTags(i.tags)
+        }))
       });
 
-      setResults(matchedBundles);
-      setTotalResults(matchedBundles.length);
+      setResults(matchedItems);
+      setTotalResults(matchedItems.length);
       setCurrentPage(0);
     } catch (err) {
       console.error('❌ Search error:', err);
@@ -236,17 +249,22 @@ const SmartBundleSearch = ({
   };
 
   /**
-   * Handle result click
+   * Handle result click - route to product or bundle
    */
-  const handleResultClick = (bundle) => {
+  const handleResultClick = (item) => {
     setIsOpen(false);
     setQuery('');
     
     if (onResultClick) {
-      onResultClick(bundle);
+      onResultClick(item);
     }
     
-    navigate(`/shop/bundles/${bundle.id}`);
+    // ✅ NEW: Route based on item type
+    const path = item.item_type === 'bundle' 
+      ? `/shop/bundles/${item.id}`
+      : `/shop/products/${item.id}`;
+    
+    navigate(path);
   };
 
   /**
@@ -378,7 +396,7 @@ const SmartBundleSearch = ({
           {!loading && !error && results.length === 0 && query.trim().length >= 2 && (
             <div className="p-6 text-center">
               <Package className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-              <p className="text-sm text-slate-600 font-medium">No bundles found</p>
+              <p className="text-sm text-slate-600 font-medium">No products found</p>
               <p className="text-xs text-slate-500 mt-1">Try different keywords or tags</p>
             </div>
           )}
@@ -387,41 +405,48 @@ const SmartBundleSearch = ({
           {!loading && !error && currentResults.length > 0 && (
             <>
               <div className="max-h-80 overflow-y-auto">
-                {currentResults.map((bundle) => {
-                  const matchingTags = getMatchingTags(bundle);
+                {currentResults.map((item) => {
+                  const matchingTags = getMatchingTags(item);
+                  const isBundle = item.item_type === 'bundle';
                   
                   return (
                     <button
-                      key={bundle.id}
-                      onClick={() => handleResultClick(bundle)}
+                      key={item.id}
+                      onClick={() => handleResultClick(item)}
                       className="w-full px-4 py-3 hover:bg-slate-50 transition-all text-left border-b border-slate-100 last:border-b-0 group"
                     >
                       <div className="flex gap-3">
-                        {/* Bundle Image */}
-                        <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
+                        {/* Item Image */}
+                        <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 relative">
                           <img
-                            src={bundle.img_url || '/placeholder-bundle.png'}
-                            alt={bundle.title}
+                            src={item.img_url || '/placeholder-product.png'}
+                            alt={item.title}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              e.target.src = '/placeholder-bundle.png';
+                              e.target.src = '/placeholder-product.png';
                             }}
                           />
+                          {/* ✅ NEW: Type badge */}
+                          {isBundle && (
+                            <span className="absolute top-1 right-1 bg-tpppink text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                              BUNDLE
+                            </span>
+                          )}
                         </div>
 
-                        {/* Bundle Info */}
+                        {/* Item Info */}
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-semibold text-slate-900 group-hover:text-tpppink transition-colors line-clamp-1 mb-1">
-                            {bundle.title}
+                            {item.title}
                           </h4>
                           
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-sm font-bold text-tpppink">
-                              {formatPrice(bundle.price)}
+                              {formatPrice(item.price)}
                             </span>
-                            {bundle.discount_percent > 0 && (
+                            {isBundle && item.discount_percent > 0 && (
                               <span className="text-xs text-green-600 font-medium">
-                                {bundle.discount_percent}% OFF
+                                {item.discount_percent}% OFF
                               </span>
                             )}
                           </div>
