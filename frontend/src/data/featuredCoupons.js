@@ -6,7 +6,7 @@
  * HOW TO ADD A NEW COUPON:
  * 1. Add a new object to the FEATURED_COUPONS array
  * 2. Set active: true to enable
- * 3. Configure modal content and buttons
+ * 3. Configure navigation target (category/tags)
  * 4. Deploy - changes reflect immediately
  */
 
@@ -16,7 +16,7 @@ export const FEATURED_COUPONS = [
     code: 'RING-BUY3GET2',
     marquee_text: 'Buy 3 Rings Get 2 FREE! Use code: RING-BUY3GET2 - Shop Now',
     
-    // Modal Configuration
+    // Modal Configuration (kept for backwards compatibility, used for navigation)
     modal: {
       title: 'Exclusive Ring Offer!',
       subtitle: 'Buy 3 Rings, Get 2 Absolutely FREE',
@@ -39,7 +39,7 @@ export const FEATURED_COUPONS = [
       
       code_display: 'RING-BUY3GET2',
       
-      // Action buttons configuration
+      // Action buttons configuration - used for navigation
       buttons: {
         primary: {
           text: 'Browse All Products',
@@ -51,7 +51,7 @@ export const FEATURED_COUPONS = [
           action: 'category',
           path: '/shop',
           params: {
-            category: 'rings',
+            tags: 'ring',  // Changed from 'category' to 'tags' for correct URL format
             applyCoupon: 'RING-BUY3GET2'
           }
         }
@@ -109,7 +109,7 @@ export const FEATURED_COUPONS = [
           action: 'category',
           path: '/shop',
           params: {
-            category: 'pouches',
+            tags: 'pouch',  // Changed from 'category' to 'tags' for correct URL format
             applyCoupon: 'SUMMER30'
           }
         }

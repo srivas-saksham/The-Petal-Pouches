@@ -82,18 +82,18 @@ const ExperienceGallery = () => {
   useEffect(() => {
     // ✅ CUSTOM TEXT FOR EACH IMAGE - EDIT THESE!
     const customTexts = [
-      'Romantic Evening',           // img1
-      'Birthday Celebration',       // img2
-      'Self Care Essentials',       // img3
-      'Anniversary Special',        // img4
-      'Corporate Gift Set',         // img5
-      'Festival Delight',           // img6
-      'Wellness & Spa',             // img7
-      'New Parents Care',           // img8
-      'Graduation Gift',            // img9
-      'Thank You Bundle',           // img10
-      // Add more custom texts as needed
+      'Golden Devotion',        // img1 – intimate necklace on skin, quiet romance
+      'Heirloom Promise',      // img2 – heart ring, candlelight, emotional warmth
+      'Serene Indulgence',     // img3 – ring with tea, slow luxury, self-love
+      'Ethereal Bond',         // img4 – gemstone necklace, softness & grace
+      'Tempted Eternity',      // img5 – snake + gold, desire, power, mystery
+      'Blossom Vow',           // img6 – floral ring, love in bloom
+      'Whispered Legacy',     // img7 – sculptural pendant, timeless craftsmanship
+      'Petal Reverie',        // img8 – romantic flatlay, poetic affection
+      'Sacred Adornment',     // img9 – minimal ring, ritualistic love
+      'Velvet Promise',       // img10 – soft fabric, luxury commitment
     ];
+
 
     // Load images from public/assets/exp_gallery
     const loadGalleryImages = async () => {
