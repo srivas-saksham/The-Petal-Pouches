@@ -1,18 +1,30 @@
-// frontend/src/components/checkout/CheckoutForm.jsx
+// frontend/src/components/bundle-detail/CheckoutForm.jsx
+// NEW COMPONENT - Bottom slide-up modal for bundle detail page ONLY
+// Slides from bottom-right corner for BOTH mobile and desktop
+// Max height: 80dvh for ALL devices
 
-import React, { useState, useEffect } from 'react';
-import { Plus, X, MapPin, CheckCircle, Loader, AlertCircle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, MapPin, Loader } from 'lucide-react';
 import { createAddress, validateAddress } from '../../services/addressService';
+import AddressNotifications from '../user/addresses/AddressNotifications';
 
 /**
- * CheckoutForm Component - MODAL ONLY
- * Just provides the modal - no card UI
- * Parent controls when to show modal via showModal prop
+ * CheckoutForm Component
+ * Dedicated modal for adding addresses in bundle detail page
+ * 
+ * Features:
+ * - ✅ Slides from bottom-right corner (both mobile & desktop)
+ * - ✅ Max height: 80dvh
+ * - ✅ Rounded top corners
+ * - ✅ Form validation
+ * - ✅ Success/Error notifications
  */
-const CheckoutForm = ({ onAddressSelect, showModal, onCloseModal }) => {
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [submitError, setSubmitError] = useState(null);
+const CheckoutForm = ({ showModal, onCloseModal, onAddressSelect }) => {
+  // Animation state
+  const [shouldRender, setShouldRender] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  // Form state
   const [formData, setFormData] = useState({
     line1: '',
     line2: '',
@@ -20,41 +32,95 @@ const CheckoutForm = ({ onAddressSelect, showModal, onCloseModal }) => {
     state: '',
     country: 'India',
     zip_code: '',
-    phone: '',
     landmark: '',
-    address_type: 'home',
+    phone: '',
     is_default: false
   });
 
-  /**
-   * Handle input change
-   */
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // Handle body scroll when modal is open
+  useEffect(() => {
+    if (showModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showModal]);
+
+  // Handle render and animation state
+  useEffect(() => {
+    if (showModal) {
+      // Reset form
+      setFormData({
+        line1: '',
+        line2: '',
+        city: '',
+        state: '',
+        country: 'India',
+        zip_code: '',
+        landmark: '',
+        phone: '',
+        is_default: false
+      });
+
+      // Clear previous states
+      setErrors({});
+      setSubmitError(null);
+      setSubmitSuccess(false);
+
+      // Start rendering
+      setShouldRender(true);
+
+      // Trigger animation
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsAnimating(true);
+        });
+      });
+    } else {
+      // Start closing animation
+      setIsAnimating(false);
+      // Remove from DOM after animation completes
+      const timer = setTimeout(() => {
+        setShouldRender(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [showModal]);
+
+  // Handle input change
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
 
     // Clear error for this field
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
         [name]: null
       }));
     }
   };
 
-  /**
-   * Validate form
-   */
+  // Validate form
   const validateForm = () => {
     const validation = validateAddress(formData);
-    
+
     if (!validation.isValid) {
       const newErrors = {};
-      validation.errors.forEach(error => {
+      validation.errors.forEach((error) => {
         const field = error.toLowerCase().split(' ')[0];
         newErrors[field] = error;
       });
@@ -65,11 +131,13 @@ const CheckoutForm = ({ onAddressSelect, showModal, onCloseModal }) => {
     return true;
   };
 
-  const handleAddAddress = async (e) => {
+  // Handle form submit
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Clear previous messages
     setSubmitError(null);
+    setSubmitSuccess(false);
 
     // Validate
     if (!validateForm()) {
@@ -77,298 +145,318 @@ const CheckoutForm = ({ onAddressSelect, showModal, onCloseModal }) => {
       return;
     }
 
-    setSaving(true);
     try {
-      const result = await createAddress(formData);
-      if (result.success) {
-        // Pass new address to parent
-        if (onAddressSelect) {
-          onAddressSelect(result.data);
+      setLoading(true);
+
+      const response = await createAddress(formData);
+
+      if (response.success) {
+        setSubmitSuccess(true);
+
+        // ⭐ CRITICAL: Call success callback IMMEDIATELY with the new address
+        // This must happen BEFORE closing the modal
+        if (onAddressSelect && response.data) {
+          console.log('✅ [CheckoutForm] New address created:', response.data);
+          onAddressSelect(response.data);
         }
-        
-        // Reset form
-        setFormData({
-          line1: '',
-          line2: '',
-          city: '',
-          state: '',
-          country: 'India',
-          zip_code: '',
-          phone: '',
-          landmark: '',
-          address_type: 'home',
-          is_default: false
-        });
-        
-        // Close modal
-        if (onCloseModal) {
-          onCloseModal();
-        }
+
+        // Close modal after short delay to show success message
+        // ⭐ ALTERNATIVE: Force component refresh instead of page reload
+        setTimeout(() => {
+          if (onCloseModal) {
+            onCloseModal();
+          }
+          
+          // Trigger a state change to force re-fetch
+          if (onAddressSelect) {
+            console.log('🔄 [CheckoutForm] Triggering address refresh...');
+            onAddressSelect(response.data);
+            // Force addresses to be re-fetched by parent
+            window.dispatchEvent(new Event('addressesUpdated'));
+          }
+        }, 1000);
       } else {
-        setSubmitError(result.error || 'Failed to save address');
+        setSubmitError(response.error || 'Failed to save address');
       }
     } catch (error) {
-      console.error('Failed to add address:', error);
       setSubmitError('An error occurred. Please try again.');
+      console.error('Address form error:', error);
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
-  if (!showModal) return null;
+  // Handle close
+  const handleClose = () => {
+    if (onCloseModal) {
+      onCloseModal();
+    }
+  };
+
+  // Don't render if not should render
+  if (!shouldRender) return null;
 
   return (
     <>
-      {/* Modal Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/50 z-50"
-        onClick={() => !saving && onCloseModal && onCloseModal()}
+      {/* Backdrop with fade-in */}
+      <div
+        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] will-change-opacity
+          transition-opacity duration-200 ${isAnimating ? 'opacity-100' : 'opacity-0'}`}
+        onClick={handleClose}
+        aria-hidden="true"
       />
-      
-      {/* Modal Content */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-          {/* Modal Header */}
-          <div className="bg-gradient-to-r from-tppslate to-tppslate/90 px-6 py-4 flex items-center justify-between rounded-t-lg">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Plus size={20} />
-              Add New Address
-            </h3>
-            <button
-              onClick={() => !saving && onCloseModal && onCloseModal()}
-              className="text-white hover:bg-white/20 rounded-full p-1 transition-colors"
-              disabled={saving}
-            >
-              <X size={20} />
-            </button>
+
+      {/* Modal - Slides from bottom-right corner for BOTH mobile & desktop */}
+      <div
+        className={`fixed right-0 bottom-0 bg-white shadow-2xl z-[110]
+          flex flex-col will-change-transform rounded-t-2xl
+          w-full sm:w-[520px] h-[80dvh]
+          transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
+          ${isAnimating ? 'translate-y-0' : 'translate-y-full'}`}
+        role="dialog"
+        aria-label="Add new address"
+        aria-modal="true"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white flex-shrink-0 rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-tpppink to-tpppeach rounded-lg flex items-center justify-center shadow-md">
+              <MapPin size={20} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-tppslate">
+                Add New Address
+              </h2>
+              <p className="text-xs text-tppslate/60">
+                Add a new delivery address
+              </p>
+            </div>
           </div>
 
-          {/* Error Message */}
-          {submitError && (
-            <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-              <p className="text-sm text-red-800">{submitError}</p>
-            </div>
-          )}
+          {/* Close Button */}
+          <button
+            onClick={handleClose}
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            aria-label="Close form"
+          >
+            <X size={20} className="text-slate-600" />
+          </button>
+        </div>
 
-          {/* Modal Body - Scrollable */}
-          <form onSubmit={handleAddAddress} className="flex-1 overflow-y-auto p-6">
-            <div className="space-y-4">
-              {/* Address Type */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Address Type *
-                </label>
-                <select
-                  name="address_type"
-                  value={formData.address_type}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
-                  disabled={saving}
-                >
-                  <option value="home">Home</option>
-                  <option value="work">Work</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
+        {/* Form Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto bg-tppslate/10">
+          <div className="p-6">
+            {/* Notifications */}
+            <AddressNotifications
+              success={submitSuccess ? 'Address added successfully!' : null}
+              error={submitError}
+              onDismissSuccess={() => setSubmitSuccess(false)}
+              onDismissError={() => setSubmitError(null)}
+            />
 
-              {/* Street Address */}
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Address Line 1 */}
               <div>
-                <label htmlFor="line1" className="block text-sm font-semibold text-slate-700 mb-2">
-                  Street Address *
+                <label htmlFor="line1" className="block text-sm font-medium text-tppslate mb-1">
+                  Address Line 1 <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   id="line1"
                   name="line1"
-                  placeholder="House no., Building name, Street"
                   value={formData.line1}
                   onChange={handleChange}
-                  className={`w-full px-3 py-2.5 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent ${
-                    errors.line1 ? 'border-red-300' : 'border-slate-200'
+                  placeholder="House/Flat No., Building Name"
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
+                    errors.line1 ? 'border-red-300' : 'border-tppslate/30'
                   }`}
-                  required
-                  disabled={saving}
                 />
-                {errors.line1 && (
-                  <p className="mt-1 text-xs text-red-600">{errors.line1}</p>
-                )}
+                {errors.line1 && <p className="mt-1 text-xs text-red-600">{errors.line1}</p>}
               </div>
 
-              {/* Apartment/Suite */}
+              {/* Address Line 2 */}
               <div>
-                <label htmlFor="line2" className="block text-sm font-semibold text-slate-700 mb-2">
-                  Apartment, Suite, etc.
+                <label htmlFor="line2" className="block text-sm font-medium text-tppslate mb-1">
+                  Address Line 2
                 </label>
                 <input
                   type="text"
                   id="line2"
                   name="line2"
-                  placeholder="Apartment, suite, unit, floor (optional)"
                   value={formData.line2}
                   onChange={handleChange}
-                  className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
-                  disabled={saving}
+                  placeholder="Street Name, Area"
+                  className="w-full px-4 py-2 border border-tppslate/30 rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors"
                 />
               </div>
 
               {/* Landmark */}
               <div>
-                <label htmlFor="landmark" className="block text-sm font-semibold text-slate-700 mb-2">
+                <label htmlFor="landmark" className="block text-sm font-medium text-tppslate mb-1">
                   Landmark
                 </label>
                 <input
                   type="text"
                   id="landmark"
                   name="landmark"
-                  placeholder="Nearby landmark (optional)"
                   value={formData.landmark}
                   onChange={handleChange}
-                  className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent"
-                  disabled={saving}
+                  placeholder="Near famous landmark"
+                  className="w-full px-4 py-2 border border-tppslate/30 rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors"
                 />
               </div>
 
-              {/* City & State */}
+              {/* City and State */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="city" className="block text-sm font-semibold text-slate-700 mb-2">
-                    City *
+                  <label htmlFor="city" className="block text-sm font-medium text-tppslate mb-1">
+                    City <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     id="city"
                     name="city"
-                    placeholder="City"
                     value={formData.city}
                     onChange={handleChange}
-                    className={`w-full px-3 py-2.5 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent ${
-                      errors.city ? 'border-red-300' : 'border-slate-200'
+                    placeholder="City"
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
+                      errors.city ? 'border-red-300' : 'border-tppslate/30'
                     }`}
-                    required
-                    disabled={saving}
                   />
-                  {errors.city && (
-                    <p className="mt-1 text-xs text-red-600">{errors.city}</p>
-                  )}
+                  {errors.city && <p className="mt-1 text-xs text-red-600">{errors.city}</p>}
                 </div>
 
                 <div>
-                  <label htmlFor="state" className="block text-sm font-semibold text-slate-700 mb-2">
-                    State *
+                  <label htmlFor="state" className="block text-sm font-medium text-tppslate mb-1">
+                    State <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     id="state"
                     name="state"
-                    placeholder="State"
                     value={formData.state}
                     onChange={handleChange}
-                    className={`w-full px-3 py-2.5 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent ${
-                      errors.state ? 'border-red-300' : 'border-slate-200'
+                    placeholder="State"
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
+                      errors.state ? 'border-red-300' : 'border-tppslate/30'
                     }`}
-                    required
-                    disabled={saving}
                   />
-                  {errors.state && (
-                    <p className="mt-1 text-xs text-red-600">{errors.state}</p>
-                  )}
+                  {errors.state && <p className="mt-1 text-xs text-red-600">{errors.state}</p>}
                 </div>
               </div>
 
-              {/* PIN Code */}
-              <div>
-                <label htmlFor="zip_code" className="block text-sm font-semibold text-slate-700 mb-2">
-                  PIN Code *
-                </label>
-                <input
-                  type="text"
-                  id="zip_code"
-                  name="zip_code"
-                  placeholder="6-digit PIN code"
-                  value={formData.zip_code}
-                  onChange={handleChange}
-                  className={`w-full px-3 py-2.5 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent ${
-                    errors.zip_code || errors.postal ? 'border-red-300' : 'border-slate-200'
-                  }`}
-                  required
-                  maxLength={6}
-                  disabled={saving}
-                />
-                {(errors.zip_code || errors.postal) && (
-                  <p className="mt-1 text-xs text-red-600">{errors.zip_code || errors.postal}</p>
-                )}
+              {/* Zip Code and Country */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="zip_code" className="block text-sm font-medium text-tppslate mb-1">
+                    Postal Code <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="zip_code"
+                    name="zip_code"
+                    value={formData.zip_code}
+                    onChange={handleChange}
+                    placeholder="110001"
+                    maxLength="6"
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
+                      errors.zip_code || errors.postal ? 'border-red-300' : 'border-tppslate/30'
+                    }`}
+                  />
+                  {(errors.zip_code || errors.postal) && (
+                    <p className="mt-1 text-xs text-red-600">{errors.zip_code || errors.postal}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="country" className="block text-sm font-medium text-tppslate mb-1">
+                    Country <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="country"
+                    name="country"
+                    value={formData.country}
+                    onChange={handleChange}
+                    placeholder="India"
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
+                      errors.country ? 'border-red-300' : 'border-tppslate/30'
+                    }`}
+                  />
+                  {errors.country && <p className="mt-1 text-xs text-red-600">{errors.country}</p>}
+                </div>
               </div>
 
-              {/* Phone */}
+              {/* Phone Number */}
               <div>
-                <label htmlFor="phone" className="block text-sm font-semibold text-slate-700 mb-2">
-                  Phone Number
+                <label htmlFor="phone" className="block text-sm font-medium text-tppslate mb-1">
+                  Phone Number <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
                   id="phone"
                   name="phone"
-                  placeholder="10-digit phone number (optional)"
                   value={formData.phone}
                   onChange={handleChange}
+                  placeholder="10-digit mobile number"
                   maxLength="10"
-                  className={`w-full px-3 py-2.5 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink focus:border-transparent ${
-                    errors.phone ? 'border-red-300' : 'border-slate-200'
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
+                    errors.phone ? 'border-red-300' : 'border-tppslate/30'
                   }`}
-                  disabled={saving}
                 />
-                {errors.phone && (
-                  <p className="mt-1 text-xs text-red-600">{errors.phone}</p>
-                )}
+                {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone}</p>}
               </div>
 
               {/* Set as Default */}
-              <div className="flex items-center gap-2 p-4 bg-slate-50 rounded-lg">
+              <div className="flex items-center gap-2 p-4 bg-tppslate/5 rounded-lg">
                 <input
                   type="checkbox"
                   id="is_default"
                   name="is_default"
                   checked={formData.is_default}
                   onChange={handleChange}
-                  className="w-4 h-4 text-tpppink border-slate-300 rounded focus:ring-tpppink"
+                  className="w-4 h-4 text-tpppink border-tppslate/30 rounded focus:ring-tpppink"
                 />
-                <label htmlFor="is_default" className="text-sm text-slate-700 cursor-pointer">
+                <label htmlFor="is_default" className="text-sm text-tppslate cursor-pointer">
                   Set as default address
                 </label>
               </div>
-            </div>
-          </form>
-
-          {/* Modal Footer */}
-          <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex gap-3 rounded-b-lg">
-            <button
-              type="button"
-              onClick={() => !saving && onCloseModal && onCloseModal()}
-              className="flex-1 px-4 py-2.5 border-2 border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-100 transition-colors disabled:opacity-50"
-              disabled={saving}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              onClick={handleAddAddress}
-              className="flex-1 px-4 py-2.5 bg-tpppink text-white rounded-lg font-semibold hover:bg-tpppink/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              disabled={saving}
-            >
-              {saving ? (
-                <>
-                  <Loader size={18} className="animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <CheckCircle size={18} />
-                  Save Address
-                </>
-              )}
-            </button>
+            </form>
           </div>
+        </div>
+
+        {/* Footer - Action Buttons */}
+        <div className="border-t border-slate-200 bg-white flex-shrink-0 p-4 space-y-2">
+          {/* Submit Button */}
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full py-3.5 bg-tpppink hover:bg-tpppink/90 text-white rounded-lg
+              font-semibold transition-all shadow-md hover:shadow-lg
+              flex items-center justify-center gap-2 disabled:bg-tppslate/30 
+              disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <>
+                <Loader className="w-4 h-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save Address'
+            )}
+          </button>
+
+          {/* Cancel Button */}
+          <button
+            onClick={handleClose}
+            disabled={loading}
+            className="w-full py-3 border-2 border-slate-200 hover:border-slate-300 
+              text-slate-700 rounded-lg font-medium transition-all hover:bg-slate-50
+              disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </>

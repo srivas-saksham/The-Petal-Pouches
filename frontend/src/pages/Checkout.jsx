@@ -274,6 +274,18 @@ const Checkout = () => {
     };
   }, []);
 
+  // Listen for address updates
+  useEffect(() => {
+    const handleAddressUpdate = () => {
+      console.log('🔄 [Checkout] Addresses updated event received');
+      // Reset initialLoadComplete to trigger re-fetch
+      setInitialLoadComplete(false);
+    };
+
+    window.addEventListener('addressesUpdated', handleAddressUpdate);
+    return () => window.removeEventListener('addressesUpdated', handleAddressUpdate);
+  }, []);
+
   // Track when cart totals actually update (clears recalculating flag)
   useEffect(() => {
     if (!isRecalculating) return;
@@ -351,12 +363,22 @@ const Checkout = () => {
 
   const handleAddressSelect = async (address) => {
     console.log('📍 [Checkout] Address selected:', address);
+    
+    // ⭐ CRITICAL: Set the address FIRST
     setSelectedAddress(address);
     
+    // ⭐ Then refresh the addresses list
     try {
       const result = await getAddresses();
       if (result.success) {
         setAddresses(result.data);
+        console.log('✅ [Checkout] Addresses refreshed after selection');
+        
+        // ⭐ Verify the address is in the list
+        const addressExists = result.data.find(a => a.id === address.id);
+        if (!addressExists) {
+          console.warn('⚠️ [Checkout] New address not found in refreshed list, keeping selection anyway');
+        }
       }
     } catch (err) {
       console.error('❌ Error refreshing addresses:', err);
