@@ -23,7 +23,6 @@ export default function OAuthCallback() {
         
         if (result.success) {
           // ✅ Existing user - redirect
-          toast.success('Welcome back!');
           navigate('/user/dashboard');
         } else if (result.requiresPasswordSetup) {
           // ✅ New user - show password modal
