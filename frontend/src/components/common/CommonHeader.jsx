@@ -1,8 +1,8 @@
 // frontend/src/components/common/CommonHeader.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, User, Search, X, ChevronDown, Package } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ShoppingCart, User, Search, X, ChevronDown, Package, Gem, CircleDot, Sparkles, TrendingUp, Shield } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useCart } from '../../hooks/useCart';
 import { useCartSidebar } from '../../hooks/useCartSidebar';
@@ -20,7 +20,7 @@ const CommonHeader = () => {
   const [showCategories, setShowCategories] = useState(false);
   const searchRef = useRef(null);
   const categoriesRef = useRef(null);
-  const categoriesRefMobile = useRef(null); // ADD THIS NEW REF
+  const categoriesRefMobile = useRef(null);
 
   // Close search when clicking outside
   useEffect(() => {
@@ -74,16 +74,41 @@ const CommonHeader = () => {
 
   const cartCount = cartTotals?.item_count || 0;
 
-  // Categories data
+  // Enhanced Categories data with icons
   const categories = [
-    { name: 'Premium Pendants', path: '/shop?tags=pendant' },
-    { name: 'Signature Rings', path: '/shop?tags=ring' },
-    { name: 'Korean Earrings', path: '/shop?tags=earings' },
-    { name: 'All Anti Tarnish', path: '/shop?tags=anti-tarnish' },
-    { name: 'Best Sellers', path: '/shop/category/best-sellers' },
+    { 
+      name: 'Premium Pendants', 
+      path: '/shop?tags=pendant',
+      icon: Gem,
+      description: 'Elegant neck pieces'
+    },
+    { 
+      name: 'Signature Rings', 
+      path: '/shop?tags=ring',
+      icon: CircleDot,
+      description: 'Statement & stackable'
+    },
+    { 
+      name: 'Korean Earrings', 
+      path: '/shop?tags=earings',
+      icon: Sparkles,
+      description: 'Trendy & minimalist'
+    },
+    { 
+      name: 'All Anti Tarnish', 
+      path: '/shop?tags=anti-tarnish',
+      icon: Shield,
+      description: 'Long-lasting quality'
+    },
+    { 
+      name: 'Best Sellers', 
+      path: '/shop/category/best-sellers',
+      icon: TrendingUp,
+      description: 'Customer favorites'
+    },
   ];
 
-  // ⭐ ENHANCED: Check if current path matches or belongs to a section
+  // Check if current path matches or belongs to a section
   const isActiveSection = (section) => {
     const path = location.pathname;
     
@@ -92,7 +117,6 @@ const CommonHeader = () => {
         return path === '/';
       
       case '/shop':
-        // Shop is active for: /shop, /shop/*, /checkout, /cart, bundle pages, category pages
         return (
           path === '/shop' ||
           path.startsWith('/shop/') ||
@@ -112,7 +136,7 @@ const CommonHeader = () => {
     }
   };
 
-  // ⭐ NEW: Get active section for underline animation
+  // Get active section for underline animation
   const getActiveSection = () => {
     if (isActiveSection('/')) return 'home';
     if (isActiveSection('/shop')) return 'shop';
@@ -199,28 +223,107 @@ const CommonHeader = () => {
                 className="font-inter flex items-center gap-1.5 text-sm font-semibold text-tppslate hover:text-tpppink transition-colors"
               >
                 <span>Categories</span>
-                <ChevronDown 
-                  size={14} 
-                  className={`transition-transform ${showCategories ? 'rotate-180' : ''}`}
-                />
+                <motion.div
+                  animate={{ rotate: showCategories ? 180 : 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                >
+                  <ChevronDown size={14} />
+                </motion.div>
               </button>
 
-              {showCategories && (
-                <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg py-1 animate-in fade-in slide-in-from-top-2 duration-200 z-50">
-                  {categories.map((category) => (
-                    <button
-                      key={category.name}
-                      onClick={() => {
-                        setShowCategories(false);
-                        navigate(category.path);
-                      }}
-                      className="w-full text-left block px-4 py-2 text-sm font-medium text-tppslate hover:bg-tpppeach hover:text-tpppink transition-colors"
+              <AnimatePresence>
+                {showCategories && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                    transition={{ 
+                      duration: 0.2, 
+                      ease: [0.4, 0, 0.2, 1]
+                    }}
+                    className="fixed left-1/2 -translate-x-1/2 top-20 w-[600px] bg-white backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden z-50"
+                  >
+                    {/* Categories Grid - 2 Columns */}
+                    <div className="p-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        {categories.map((category, index) => {
+                          const Icon = category.icon;
+                          return (
+                            <motion.button
+                              key={category.name}
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ 
+                                delay: index * 0.04,
+                                duration: 0.3,
+                                ease: "easeOut"
+                              }}
+                              onClick={() => {
+                                setShowCategories(false);
+                                navigate(category.path);
+                              }}
+                              className="group w-full flex items-center gap-4 px-4 py-4 rounded-xl hover:bg-tpppink/5 transition-all duration-200"
+                            >
+                              {/* Icon */}
+                              <motion.div
+                                whileHover={{ scale: 1.1, rotate: 5 }}
+                                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                                className="flex-shrink-0"
+                              >
+                                <Icon 
+                                  size={22} 
+                                  className="text-tpppink"
+                                  strokeWidth={2}
+                                />
+                              </motion.div>
+
+                              {/* Text Content */}
+                              <div className="flex-1 text-left">
+                                <div className="font-semibold text-sm text-tppslate group-hover:text-tpppink transition-colors duration-200">
+                                  {category.name}
+                                </div>
+                                <div className="text-xs text-tppslate/60 mt-0.5">
+                                  {category.description}
+                                </div>
+                              </div>
+
+                              {/* Arrow */}
+                              <motion.div
+                                initial={{ x: -4, opacity: 0 }}
+                                whileHover={{ x: 0, opacity: 1 }}
+                                transition={{ duration: 0.2 }}
+                              >
+                                <ChevronDown 
+                                  size={16} 
+                                  className="-rotate-90 text-tpppink/40 group-hover:text-tpppink transition-colors" 
+                                />
+                              </motion.div>
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* View All Footer */}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.15 }}
+                      className="py-3 px-4"
                     >
-                      {category.name}
-                    </button>
-                  ))}
-                </div>
-              )}
+                      <button
+                        onClick={() => {
+                          setShowCategories(false);
+                          navigate('/shop');
+                        }}
+                        className="w-full px-5 py-2.5 text-center text-sm font-semibold text-tpppink hover:bg-tpppink/5 rounded-xl transition-all duration-200"
+                      >
+                        View All Products →
+                      </button>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <Link
@@ -431,35 +534,109 @@ const CommonHeader = () => {
               Shop
             </Link>
 
-            {/* Categories Dropdown - Mobile */}
+            {/* Categories Dropdown - MOBILE */}
             <div className="relative" ref={categoriesRefMobile}>
               <button
                 onClick={() => setShowCategories(!showCategories)}
                 className="font-inter flex items-center gap-1.5 text-sm font-semibold text-tppslate hover:text-tpppink transition-colors"
               >
                 <span>Categories</span>
-                <ChevronDown 
-                  size={14} 
-                  className={`transition-transform ${showCategories ? 'rotate-180' : ''}`}
-                />
+                <motion.div
+                  animate={{ rotate: showCategories ? 180 : 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                >
+                  <ChevronDown size={14} />
+                </motion.div>
               </button>
 
-              {showCategories && (
-                <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg py-1 animate-in fade-in slide-in-from-top-2 duration-200 z-50">
-                  {categories.map((category) => (
-                    <button
-                      key={category.name}
-                      onClick={() => {
-                        setShowCategories(false);
-                        navigate(category.path);
-                      }}
-                      className="w-full text-left block px-4 py-2 text-sm font-medium text-tppslate hover:bg-tpppeach hover:text-tpppink transition-colors"
+              <AnimatePresence>
+                {showCategories && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                    transition={{ 
+                      duration: 0.2, 
+                      ease: [0.4, 0, 0.2, 1]
+                    }}
+                    className="fixed left-0 right-0 top-[7.5rem] w-full bg-white/95 backdrop-blur-xl shadow-2xl overflow-hidden z-50"
+                  >
+                    {/* Categories List - Single Column with 3-part layout */}
+                    <div className="py-3 px-3">
+                      {categories.map((category, index) => {
+                        const Icon = category.icon;
+                        return (
+                          <motion.button
+                            key={category.name}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ 
+                              delay: index * 0.04,
+                              duration: 0.3,
+                              ease: "easeOut"
+                            }}
+                            onClick={() => {
+                              setShowCategories(false);
+                              navigate(category.path);
+                            }}
+                            className="group w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-tpppink/5 transition-all duration-200 mb-1"
+                          >
+                            {/* Col 1: Icon */}
+                            <motion.div
+                              whileHover={{ scale: 1.1, rotate: 5 }}
+                              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                              className="flex-shrink-0"
+                            >
+                              <Icon 
+                                size={20} 
+                                className="text-tpppink"
+                                strokeWidth={2}
+                              />
+                            </motion.div>
+
+                            {/* Col 2: Title + Subtitle (Stacked) */}
+                            <div className="flex-1 text-left">
+                              <div className="font-semibold text-sm text-tppslate group-hover:text-tpppink transition-colors duration-200 leading-tight">
+                                {category.name}
+                              </div>
+                              <div className="text-xs text-tppslate/60 mt-0.5 leading-tight">
+                                {category.description}
+                              </div>
+                            </div>
+
+                            {/* Col 3: Arrow */}
+                            <div className="flex-shrink-0">
+                              <ChevronDown 
+                                size={14} 
+                                className="-rotate-90 text-tpppink group-hover:translate-x-0.5 transition-transform duration-200" 
+                              />
+                            </div>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+
+                    {/* View All Footer */}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.15 }}
+                      className="py-3 px-3"
                     >
-                      {category.name}
-                    </button>
-                  ))}
-                </div>
-              )}
+                      <button
+                        onClick={() => {
+                          setShowCategories(false);
+                          navigate('/shop');
+                        }}
+                        className="w-full px-4 py-2.5 text-center text-sm font-semibold text-tpppink hover:bg-tpppink/5 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+                      >
+                        View All Products
+                        <ChevronDown size={14} className="-rotate-90" />
+                      </button>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <Link
