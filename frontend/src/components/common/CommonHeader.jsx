@@ -20,6 +20,7 @@ const CommonHeader = () => {
   const [showCategories, setShowCategories] = useState(false);
   const searchRef = useRef(null);
   const categoriesRef = useRef(null);
+  const categoriesRefMobile = useRef(null); // ADD THIS NEW REF
 
   // Close search when clicking outside
   useEffect(() => {
@@ -40,7 +41,12 @@ const CommonHeader = () => {
   // Close categories dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (categoriesRef.current && !categoriesRef.current.contains(event.target)) {
+      if (
+        categoriesRef.current && 
+        !categoriesRef.current.contains(event.target) &&
+        categoriesRefMobile.current &&
+        !categoriesRefMobile.current.contains(event.target)
+      ) {
         setShowCategories(false);
       }
     };
@@ -70,10 +76,10 @@ const CommonHeader = () => {
 
   // Categories data
   const categories = [
-    { name: 'Pouches', path: '/shop/category/pouches' },
-    { name: 'Accessories', path: '/shop/category/accessories' },
-    { name: 'Gift Sets', path: '/shop/category/gift-sets' },
-    { name: 'New Arrivals', path: '/shop/category/new-arrivals' },
+    { name: 'Premium Pendants', path: '/shop?tags=pendant' },
+    { name: 'Signature Rings', path: '/shop?tags=ring' },
+    { name: 'Korean Earrings', path: '/shop?tags=earings' },
+    { name: 'All Anti Tarnish', path: '/shop?tags=anti-tarnish' },
     { name: 'Best Sellers', path: '/shop/category/best-sellers' },
   ];
 
@@ -186,7 +192,7 @@ const CommonHeader = () => {
               Shop
             </Link>
 
-            {/* Categories Dropdown */}
+            {/* Categories Dropdown - DESKTOP */}
             <div className="relative" ref={categoriesRef}>
               <button
                 onClick={() => setShowCategories(!showCategories)}
@@ -202,14 +208,16 @@ const CommonHeader = () => {
               {showCategories && (
                 <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg py-1 animate-in fade-in slide-in-from-top-2 duration-200 z-50">
                   {categories.map((category) => (
-                    <Link
+                    <button
                       key={category.name}
-                      to={category.path}
-                      onClick={() => setShowCategories(false)}
-                      className="block px-4 py-2 text-sm font-medium text-tppslate hover:bg-tpppeach hover:text-tpppink transition-colors"
+                      onClick={() => {
+                        setShowCategories(false);
+                        navigate(category.path);
+                      }}
+                      className="w-full text-left block px-4 py-2 text-sm font-medium text-tppslate hover:bg-tpppeach hover:text-tpppink transition-colors"
                     >
                       {category.name}
-                    </Link>
+                    </button>
                   ))}
                 </div>
               )}
@@ -424,7 +432,7 @@ const CommonHeader = () => {
             </Link>
 
             {/* Categories Dropdown - Mobile */}
-            <div className="relative" ref={categoriesRef}>
+            <div className="relative" ref={categoriesRefMobile}>
               <button
                 onClick={() => setShowCategories(!showCategories)}
                 className="font-inter flex items-center gap-1.5 text-sm font-semibold text-tppslate hover:text-tpppink transition-colors"
@@ -439,14 +447,16 @@ const CommonHeader = () => {
               {showCategories && (
                 <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg py-1 animate-in fade-in slide-in-from-top-2 duration-200 z-50">
                   {categories.map((category) => (
-                    <Link
+                    <button
                       key={category.name}
-                      to={category.path}
-                      onClick={() => setShowCategories(false)}
-                      className="block px-4 py-2 text-sm font-medium text-tppslate hover:bg-tpppeach hover:text-tpppink transition-colors"
+                      onClick={() => {
+                        setShowCategories(false);
+                        navigate(category.path);
+                      }}
+                      className="w-full text-left block px-4 py-2 text-sm font-medium text-tppslate hover:bg-tpppeach hover:text-tpppink transition-colors"
                     >
                       {category.name}
-                    </Link>
+                    </button>
                   ))}
                 </div>
               )}

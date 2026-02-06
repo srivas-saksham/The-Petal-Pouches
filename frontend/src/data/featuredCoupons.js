@@ -71,6 +71,63 @@ export const FEATURED_COUPONS = [
     end_date: null    // null = no expiry, or '2025-12-31'
   },
   
+  {
+    id: 'earing-bogo-2026',
+    code: 'EARING-BUY2GET1',
+    marquee_text: 'Buy 2 Earings Get 1 FREE! Use code: EARING-BUY2GET1 - Shop Now',
+    
+    modal: {
+      title: 'Exclusive Earing Offer!',
+      subtitle: 'Buy 2 Earings, Get 1 at 100% OFF',
+      description: 'Add any 2 earings to your cart and get 1 additional earing completely free! The discount applies automatically at checkout when you use the coupon code.',
+      
+      highlights: [
+        'Pick any 2 earings from our collection',
+        'Get 1 more earing for FREE',
+        'Mix and match any designs',
+        'Valid until February 14, 2026'
+      ],
+      
+      terms: [
+        'Valid on earings category only',
+        'Minimum 2 earings required in cart',
+        'Free earing will be the lowest-priced item',
+        'Cannot be combined with other offers',
+        'Maximum 5 uses per user',
+        'Limited to 100 total uses'
+      ],
+      
+      code_display: 'EARING-BUY2GET1',
+      
+      buttons: {
+        primary: {
+          text: 'Browse All Products',
+          action: 'shop',
+          path: '/shop'
+        },
+        secondary: {
+          text: 'Show Only Earings',
+          action: 'category',
+          path: '/shop',
+          params: {
+            tags: 'earing',
+            applyCoupon: 'EARING-BUY2GET1'
+          }
+        }
+      }
+    },
+    
+    theme: {
+      bg: 'bg-tpppink',
+      text: 'text-white',
+      accent: 'bg-white/10'
+    },
+    
+    active: true,
+    start_date: '2026-02-01',
+    end_date: '2026-02-14'
+  },
+  
   // EXAMPLE: Add more coupons below
   {
     id: 'summer-sale-2024',

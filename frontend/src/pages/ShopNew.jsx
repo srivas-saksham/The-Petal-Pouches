@@ -1,6 +1,7 @@
 // frontend/src/pages/ShopNew.jsx - CLEANED UP VERSION
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import MixedShopGrid from '../components/shop/MixedShopGrid';
@@ -22,6 +23,7 @@ const BundleShop = () => {
   const [availableTags, setAvailableTags] = useState([]);
   const [tagsLoading, setTagsLoading] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [searchParams] = useSearchParams();
 
   // ⭐ SCROLL HIDE/SHOW STATE
   const [isFiltersBarVisible, setIsFiltersBarVisible] = useState(true);
@@ -81,6 +83,31 @@ const BundleShop = () => {
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
+
+  // ⭐ NEW: Handle URL parameters on mount and when URL changes
+  const isSyncingFromURL = useRef(false);
+
+  useEffect(() => {
+    const tagsParam = searchParams.get('tags') || '';
+    const applyCouponParam = searchParams.get('applyCoupon');
+    
+    // Prevent infinite loop: only sync if tags actually changed AND we're not already syncing
+    if (tagsParam !== filters.tags && !isSyncingFromURL.current) {
+      console.log('🔗 Applying tags from URL:', tagsParam);
+      isSyncingFromURL.current = true;
+      setTags(tagsParam);
+      
+      // Reset the flag after a short delay
+      setTimeout(() => {
+        isSyncingFromURL.current = false;
+      }, 100);
+    }
+    
+    // Handle coupon application from URL (if needed)
+    if (applyCouponParam) {
+      console.log('🎟️ Coupon code from URL:', applyCouponParam);
+    }
+  }, [searchParams.get('tags'), filters.tags, setTags]);
 
   // Fetch tags with counts
   useEffect(() => {
