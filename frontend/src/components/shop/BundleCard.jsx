@@ -526,7 +526,7 @@ const BundleCard = ({ bundle, onQuickView }) => {
         
         {/* Title - Responsive text sizing */}
         <Link to={`/shop/bundles/${bundle.id}`}>
-          <h3 className="text-[11px] leading-[1.3] md:text-sm md:leading-[1.4] font-semibold text-tppslate mb-1 md:mb-2 hover:text-tpppink transition-colors">
+          <h3 className="text-[13px] leading-[1.3] md:text-sm md:leading-[1.4] font-semibold text-tppslate mb-1 md:mb-2 hover:text-tpppink transition-colors">
             {bundle.title}
           </h3>
         </Link>

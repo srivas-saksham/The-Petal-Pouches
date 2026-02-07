@@ -69,7 +69,7 @@ const BundleKeyDetails = ({
       {/* 2. DESCRIPTION (without heading) */}
       {bundle.description && (
         <div>
-          <p className="text-md text-slate-700 leading-relaxed">
+          <p className="text-md text-slate-700 leading-relaxed whitespace-pre-line">
             {bundle.description}
           </p>
         </div>
@@ -293,69 +293,71 @@ const BundleKeyDetails = ({
       </div>
 
       {/* 5. ANIMATED PRODUCTS DROPDOWN */}
-      <div className="border-t border-slate-200 pt-4">
-        <button
-          onClick={() => setProductsExpanded(!productsExpanded)}
-          className="w-full flex items-center justify-between text-xs font-bold text-tppslate mb-3 uppercase tracking-wide hover:text-tpppink transition-colors"
-        >
-          <span className="flex items-center gap-2">
-            <Package size={14} />
-            Products Included ({items.length})
-          </span>
-          <div className={`transition-transform duration-300 ${productsExpanded ? 'rotate-180' : 'rotate-0'}`}>
-            <ChevronDown size={16} />
-          </div>
-        </button>
-        
-        <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out ${
-            productsExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
-          }`}
-        >
-          <div className="space-y-2">
-            {items.length > 0 ? (
-              items.map((item, index) => {
-                const product = item.Products || item.product;
-                const variant = item.Product_variants || item.variant;
-                const imageUrl = variant?.img_url || product?.img_url || '/placeholder-product.png';
-                const title = product?.title || 'Unknown Product';
+      {items.length > 0 && (
+        <div className="border-t border-slate-200 pt-4">
+          <button
+            onClick={() => setProductsExpanded(!productsExpanded)}
+            className="w-full flex items-center justify-between text-xs font-bold text-tppslate mb-3 uppercase tracking-wide hover:text-tpppink transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Package size={14} />
+              Products Included ({items.length})
+            </span>
+            <div className={`transition-transform duration-300 ${productsExpanded ? 'rotate-180' : 'rotate-0'}`}>
+              <ChevronDown size={16} />
+            </div>
+          </button>
+          
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${
+              productsExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+            }`}
+          >
+            <div className="space-y-2">
+              {items.length > 0 ? (
+                items.map((item, index) => {
+                  const product = item.Products || item.product;
+                  const variant = item.Product_variants || item.variant;
+                  const imageUrl = variant?.img_url || product?.img_url || '/placeholder-product.png';
+                  const title = product?.title || 'Unknown Product';
 
-                return (
-                  <div
-                    key={item.id || index}
-                    className="flex items-center gap-3 p-2 bg-slate-50 rounded-lg border border-slate-200 hover:border-tpppink/30 transition-all duration-200 hover:shadow-sm"
-                    style={{
-                      animation: productsExpanded ? `slideIn 0.3s ease-out ${index * 0.05}s both` : 'none'
-                    }}
-                  >
-                    <div className="w-12 h-12 rounded-md overflow-hidden bg-white border border-slate-200 flex-shrink-0">
-                      <img
-                        src={imageUrl}
-                        alt={title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => e.target.src = '/placeholder-product.png'}
-                      />
+                  return (
+                    <div
+                      key={item.id || index}
+                      className="flex items-center gap-3 p-2 bg-slate-50 rounded-lg border border-slate-200 hover:border-tpppink/30 transition-all duration-200 hover:shadow-sm"
+                      style={{
+                        animation: productsExpanded ? `slideIn 0.3s ease-out ${index * 0.05}s both` : 'none'
+                      }}
+                    >
+                      <div className="w-12 h-12 rounded-md overflow-hidden bg-white border border-slate-200 flex-shrink-0">
+                        <img
+                          src={imageUrl}
+                          alt={title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => e.target.src = '/placeholder-product.png'}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-tppslate line-clamp-2">
+                          {title}
+                        </p>
+                      </div>
+                      <div className="bg-tpppink/10 text-tpppink px-2 py-0.5 rounded text-xs font-bold border border-tpppink/20">
+                        ×{item.quantity}
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-tppslate line-clamp-2">
-                        {title}
-                      </p>
-                    </div>
-                    <div className="bg-tpppink/10 text-tpppink px-2 py-0.5 rounded text-xs font-bold border border-tpppink/20">
-                      ×{item.quantity}
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="text-center py-4">
-                <Package size={24} className="mx-auto mb-1 text-slate-300" />
-                <p className="text-xs text-slate-500">No products</p>
-              </div>
-            )}
+                  );
+                })
+              ) : (
+                <div className="text-center py-4">
+                  <Package size={24} className="mx-auto mb-1 text-slate-300" />
+                  <p className="text-xs text-slate-500">No products</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Add keyframe animation for slide in effect */}
       <style jsx>{`
