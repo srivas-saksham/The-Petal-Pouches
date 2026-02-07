@@ -57,6 +57,7 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
   const [bundlePrice, setBundlePrice] = useState('');
   const [stockLimit, setStockLimit] = useState('');
   const [weight, setWeight] = useState(''); // ✅ NEW
+  const [costPrice, setCostPrice] = useState(''); // ✅ NEW
   // Multiple images state (up to 5 images)
   const [images, setImages] = useState([]); // Array of { file, preview, id, is_primary }
   const [existingImages, setExistingImages] = useState([]); // From server
@@ -99,6 +100,7 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
         setBundlePrice(bundle.price.toString());
         setStockLimit(bundle.stock_limit ? bundle.stock_limit.toString() : '');
         setWeight(bundle.weight ? bundle.weight.toString() : ''); // ✅ NEW
+        setCostPrice(bundle.cost_price ? bundle.cost_price.toString() : ''); // ✅ NEW
 
         // Load existing images
         if (bundle.images && Array.isArray(bundle.images)) {
@@ -142,6 +144,15 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
         if (value.trim().length > 200) return 'Title must be less than 200 characters';
         return '';
       
+      case 'costPrice':
+        if (value && (isNaN(value) || parseInt(value) < 0)) return 'Cost price must be 0 or greater';
+        if (value && parseInt(value) > 1000000) return 'Cost price seems unrealistic';
+        // Check if cost_price exceeds selling price
+        if (value && bundlePrice && parseInt(value) > parseInt(bundlePrice)) {
+          return 'Cost price cannot exceed selling price';
+        }
+        return '';
+
       case 'bundlePrice':
         if (!value) return 'Bundle price is required';
         if (isNaN(value) || parseFloat(value) <= 0) return 'Price must be greater than 0';
@@ -298,6 +309,10 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
       case 'stockLimit':
         setStockLimit(value);
         break;
+      case 'costPrice':
+        setCostPrice(value);
+        break;
+      
     }
     
     if (errors[fieldName]) {
@@ -697,6 +712,13 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
         formData.append('weight', '0');
       }
 
+      // ✅ NEW: Add cost_price
+      if (costPrice && costPrice.trim() !== '') {
+        formData.append('cost_price', costPrice);
+      } else {
+        formData.append('cost_price', '0');
+      }
+
       // Tags as JSON array
       if (tags.length > 0) {
         formData.append('tags', JSON.stringify(tags));
@@ -852,10 +874,14 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
           });
 
           try {
-            // ⭐ CHANGED: Use adminApi.post()
             const uploadResponse = await adminApi.post(
               `/api/bundles/admin/${bundleId}/images`,
-              imageFormData
+              imageFormData,
+              {
+                headers: {
+                  'Content-Type': 'multipart/form-data',  // ✅ SAME AS PRODUCTS
+                },
+              }
             );
 
             const uploadData = uploadResponse.data;
@@ -1386,6 +1412,33 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
             <div className="text-2xl font-bold text-tppslate">₹{originalPrice.toFixed(2)}</div>
           </div>
 
+          {/* ✅ NEW: Cost Price */}
+          <InputWrapper 
+            label="Cost Price (Total Bundle Cost)" 
+            name="costPrice" 
+            icon={DollarSign}
+            error={errors.costPrice}
+            hint="Total cost of all items in this bundle (for profit tracking)"
+          >
+            <input
+              type="number"
+              id="costPrice"
+              name="costPrice"
+              value={costPrice}
+              onChange={(e) => handleInputChange(e, 'costPrice')}
+              onBlur={(e) => handleBlur('costPrice', e.target.value)}
+              placeholder="450"
+              min="0"
+              step="0.01"
+              className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tppslate/20 ${
+                errors.costPrice && touched.costPrice
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-tpppink/30 hover:border-tpppink focus:border-tpppink bg-white hover:bg-tpppeach/10'
+              }`}
+              aria-invalid={errors.costPrice && touched.costPrice ? 'true' : 'false'}
+            />
+          </InputWrapper>
+
           {/* Bundle Price */}
           <InputWrapper 
             label="Bundle Price" 
@@ -1455,6 +1508,82 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ✅ NEW: Profit Analysis */}
+          {bundlePrice && costPrice && parseInt(bundlePrice) > 0 && parseInt(costPrice) > 0 && (
+            <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border-2 border-green-200 animate-slide-in">
+              <div className="mb-3 pb-3 border-b border-green-200">
+                <div className="text-xs text-slate-600 mb-2 font-semibold">Profit Analysis:</div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-white/50 p-2 rounded">
+                    <div className="text-slate-600">Cost Price:</div>
+                    <div className="font-bold text-slate-800">₹{costPrice}</div>
+                  </div>
+                  <div className="bg-white/50 p-2 rounded">
+                    <div className="text-slate-600">Selling Price:</div>
+                    <div className="font-bold text-blue-600">₹{bundlePrice}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div className="text-center">
+                  <div className="text-xs text-slate-600 mb-1 font-medium">Margin</div>
+                  <div className="text-xl font-bold text-green-600">
+                    {(() => {
+                      const cost = parseFloat(costPrice);
+                      const price = parseFloat(bundlePrice);
+                      const profit = price - cost;
+                      const margin = price > 0 ? ((profit / price) * 100).toFixed(1) : 0;
+                      return `${margin}%`;
+                    })()}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-0.5">Profit/Price</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-slate-600 mb-1 font-medium">Markup</div>
+                  <div className="text-xl font-bold text-blue-600">
+                    {(() => {
+                      const cost = parseFloat(costPrice);
+                      const price = parseFloat(bundlePrice);
+                      const profit = price - cost;
+                      const markup = cost > 0 ? ((profit / cost) * 100).toFixed(1) : 0;
+                      return `${markup}%`;
+                    })()}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-0.5">Profit/Cost</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-slate-600 mb-1 font-medium">Profit/Unit</div>
+                  <div className="text-xl font-bold text-tppslate">
+                    ₹{(parseFloat(bundlePrice) - parseFloat(costPrice)).toFixed(2)}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-0.5">Per bundle</div>
+                </div>
+              </div>
+              
+              {stockLimit && parseInt(stockLimit) > 0 && (
+                <div className="mt-3 pt-3 border-t border-green-200 text-center">
+                  <span className="text-xs text-slate-600">
+                    Total profit for {stockLimit} units: 
+                    <span className="font-bold text-tppslate ml-1">
+                      ₹{((parseFloat(bundlePrice) - parseFloat(costPrice)) * parseInt(stockLimit)).toFixed(2)}
+                    </span>
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Warning if cost_price > price */}
+          {costPrice && bundlePrice && parseInt(costPrice) > parseInt(bundlePrice) && (
+            <div className="mt-3 p-3 bg-red-50 border-2 border-red-200 rounded-lg animate-shake">
+              <p className="text-xs text-red-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                <strong>Warning:</strong> Cost price (₹{costPrice}) is higher than selling price (₹{bundlePrice}). You'll lose money!
+              </p>
             </div>
           )}
         </div>
