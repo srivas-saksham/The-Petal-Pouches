@@ -51,7 +51,7 @@ export const FEATURED_COUPONS = [
           action: 'category',
           path: '/shop',
           params: {
-            tags: 'ring',  // Changed from 'category' to 'tags' for correct URL format
+            tags: 'ring',
             applyCoupon: 'RING-BUY3GET2'
           }
         }
@@ -67,31 +67,88 @@ export const FEATURED_COUPONS = [
     
     // Scheduling (optional)
     active: true,
-    start_date: null, // null = always active, or '2025-01-01'
-    end_date: null    // null = no expiry, or '2025-12-31'
+    start_date: '2026-02-01',
+    end_date: '2026-02-28'
+  },
+  
+  {
+    id: 'ring-buy2get1-2026',
+    code: 'RING-BUY2GET1',
+    marquee_text: 'Buy 2 Rings Get 1 FREE! Use code: RING-BUY2GET1 - Shop Now',
+    
+    modal: {
+      title: 'Exclusive Ring Offer!',
+      subtitle: 'Buy 2 Rings, Get 1 at 100% OFF',
+      description: 'Add any 2 rings to your cart and get 1 additional ring completely free! The discount applies automatically at checkout when you use the coupon code.',
+      
+      highlights: [
+        'Pick any 2 rings from our collection',
+        'Get 1 more ring for FREE',
+        'Mix and match any designs',
+        'Valid until February 28, 2026'
+      ],
+      
+      terms: [
+        'Valid on rings category only',
+        'Minimum 2 rings required in cart',
+        'Free ring will be the lowest-priced item',
+        'Cannot be combined with other offers',
+        'Maximum 5 uses per user',
+        'Limited to 100 total uses'
+      ],
+      
+      code_display: 'RING-BUY2GET1',
+      
+      buttons: {
+        primary: {
+          text: 'Browse All Products',
+          action: 'shop',
+          path: '/shop'
+        },
+        secondary: {
+          text: 'Show Only Rings',
+          action: 'category',
+          path: '/shop',
+          params: {
+            tags: 'ring',
+            applyCoupon: 'RING-BUY2GET1'
+          }
+        }
+      }
+    },
+    
+    theme: {
+      bg: 'bg-tpppink',
+      text: 'text-white',
+      accent: 'bg-white/10'
+    },
+    
+    active: true,
+    start_date: '2026-02-01',
+    end_date: '2026-02-28'
   },
   
   {
     id: 'earing-bogo-2026',
     code: 'EARING-BUY2GET1',
-    marquee_text: 'Buy 2 Earings Get 1 FREE! Use code: EARING-BUY2GET1 - Shop Now',
+    marquee_text: 'Buy 2 Earrings Get 1 FREE! Use code: EARING-BUY2GET1 - Shop Now',
     
     modal: {
-      title: 'Exclusive Earing Offer!',
-      subtitle: 'Buy 2 Earings, Get 1 at 100% OFF',
-      description: 'Add any 2 earings to your cart and get 1 additional earing completely free! The discount applies automatically at checkout when you use the coupon code.',
+      title: 'Exclusive Earring Offer!',
+      subtitle: 'Buy 2 Earrings, Get 1 at 100% OFF',
+      description: 'Add any 2 earrings to your cart and get 1 additional earring completely free! The discount applies automatically at checkout when you use the coupon code.',
       
       highlights: [
-        'Pick any 2 earings from our collection',
-        'Get 1 more earing for FREE',
+        'Pick any 2 earrings from our collection',
+        'Get 1 more earring for FREE',
         'Mix and match any designs',
-        'Valid until February 14, 2026'
+        'Valid until February 28, 2026'
       ],
       
       terms: [
-        'Valid on earings category only',
-        'Minimum 2 earings required in cart',
-        'Free earing will be the lowest-priced item',
+        'Valid on earrings category only',
+        'Minimum 2 earrings required in cart',
+        'Free earring will be the lowest-priced item',
         'Cannot be combined with other offers',
         'Maximum 5 uses per user',
         'Limited to 100 total uses'
@@ -106,11 +163,11 @@ export const FEATURED_COUPONS = [
           path: '/shop'
         },
         secondary: {
-          text: 'Show Only Earings',
+          text: 'Show Only Earrings',
           action: 'category',
           path: '/shop',
           params: {
-            tags: 'earing',
+            tags: 'earings',
             applyCoupon: 'EARING-BUY2GET1'
           }
         }
@@ -125,7 +182,64 @@ export const FEATURED_COUPONS = [
     
     active: true,
     start_date: '2026-02-01',
-    end_date: '2026-02-14'
+    end_date: '2026-02-28'
+  },
+  
+  {
+    id: 'earing-buy3get2-2026',
+    code: 'EARING-BUY3GET2',
+    marquee_text: 'Buy 3 Earrings Get 2 FREE! Use code: EARING-BUY3GET2 - Shop Now',
+    
+    modal: {
+      title: 'Exclusive Earring Offer!',
+      subtitle: 'Buy 3 Earrings & Get 2 @ 100% OFF',
+      description: 'Add any 3 earrings to your cart and get 2 additional earrings completely free! The discount applies automatically at checkout when you use the coupon code.',
+      
+      highlights: [
+        'Pick any 3 earrings from our collection',
+        'Get 2 more earrings for FREE',
+        'Mix and match any designs',
+        'Valid until February 28, 2026'
+      ],
+      
+      terms: [
+        'Valid on earrings category only',
+        'Minimum 3 earrings required in cart',
+        'Free earrings will be the 2 lowest-priced items',
+        'Cannot be combined with other offers',
+        'Maximum 5 uses per user',
+        'Limited to 100 total uses'
+      ],
+      
+      code_display: 'EARING-BUY3GET2',
+      
+      buttons: {
+        primary: {
+          text: 'Browse All Products',
+          action: 'shop',
+          path: '/shop'
+        },
+        secondary: {
+          text: 'Show Only Earrings',
+          action: 'category',
+          path: '/shop',
+          params: {
+            tags: 'earings',
+            applyCoupon: 'EARING-BUY3GET2'
+          }
+        }
+      }
+    },
+    
+    theme: {
+      bg: 'bg-tpppink',
+      text: 'text-white',
+      accent: 'bg-white/10'
+    },
+    
+    active: true,
+    start_date: '2026-02-01',
+    end_date: '2026-02-28'
   },
   
   // EXAMPLE: Add more coupons below
@@ -166,7 +280,7 @@ export const FEATURED_COUPONS = [
           action: 'category',
           path: '/shop',
           params: {
-            tags: 'pouch',  // Changed from 'category' to 'tags' for correct URL format
+            tags: 'pouch',
             applyCoupon: 'SUMMER30'
           }
         }
