@@ -245,25 +245,25 @@ export default function ForgotPassword() {
           {/* Right Section - Dynamic Content Based on Step */}
           <div className="w-full flex flex-col p-4 sm:p-6">
             {/* Back to Shop/Home Links & Sign Up Link - FIXED AT TOP */}
-            <div className="mb-4 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-2">
+            <div className="mb-4 flex items-center justify-between gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <Link
                   to="/"
-                  className="text-sm text-tppslate/60 hover:text-tpppink font-medium transition-colors inline-flex items-center gap-1"
+                  className="text-sm sm:text-sm text-tppslate/60 hover:text-tpppink font-medium transition-colors inline-flex items-center gap-1"
                 >
                   ← Home
                 </Link>
                 <div className="w-1 h-1 rounded-full bg-tppslate/50" />
                 <Link
                   to="/shop"
-                  className="text-sm text-tppslate/60 hover:text-tpppink font-medium transition-colors"
+                  className="text-sm sm:text-sm text-tppslate/60 hover:text-tpppink font-medium transition-colors"
                 >
                   Shop
                 </Link>
               </div>
               <Link
                 to="/login"
-                className="text-sm text-tpppink hover:text-tpppink/80 font-semibold transition-colors"
+                className="text-sm sm:text-sm text-tpppink hover:text-tpppink/80 font-semibold transition-colors whitespace-nowrap flex-shrink-0"
               >
                 Back to Login
               </Link>

@@ -8,6 +8,7 @@ import { useToast } from '../../hooks/useToast';
 import { sendOTP, verifyOTP, resendOTP } from '../../services/userAuthService';
 import AuthPageTransition from '../../components/auth/AuthPageTransition';
 import SEO from '../../components/seo/SEO';
+import { FcGoogle } from 'react-icons/fc';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -279,30 +280,33 @@ export default function Register() {
         {/* Right Section - Register Form (40%) - Proper Container */}
         <div className="w-full flex flex-col p-6 sm:p-8">
           {/* Back to Shop/Home Links & Sign Up Link - FIXED AT TOP */}
-          <div className="mb-4 flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-2">
+          <div className="mb-4 flex items-center justify-between gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <Link
                 to="/"
-                className="text-sm text-tppslate/60 hover:text-tpppink font-medium transition-colors inline-flex items-center gap-1"
+                className="text-sm sm:text-sm text-tppslate/60 hover:text-tpppink font-medium transition-colors inline-flex items-center gap-1"
               >
                 ← Home
               </Link>
               <div className="w-1 h-1 rounded-full bg-tppslate/50" />
               <Link
                 to="/shop"
-                className="text-sm text-tppslate/60 hover:text-tpppink font-medium transition-colors"
+                className="text-sm sm:text-sm text-tppslate/60 hover:text-tpppink font-medium transition-colors"
               >
                 Shop
               </Link>
             </div>
-            <p className="text-sm text-tppslate/60">
-              <Link to="/login" className="hover:text-tpppink transition-colors">
+            <div className="text-sm sm:text-sm text-tppslate/60 flex flex-col sm:block text-right flex-shrink-0">
+              <span className="whitespace-nowrap">
                 Already Registered?{' '}
-              </Link>
-              <Link to="/login" className="text-tpppink hover:text-tpppink/80 font-semibold transition-colors">
+              </span>
+              <Link
+                to="/login"
+                className="text-tpppink hover:text-tpppink/80 font-semibold transition-colors whitespace-nowrap"
+              >
                 Sign in
               </Link>
-            </p>
+            </div>
           </div>
 
           {/* Centered Content Container */}
@@ -325,7 +329,7 @@ export default function Register() {
                   disabled={loading}
                   className="w-full py-3 px-4 border-2 border-tppslate/20 rounded-xl text-tppslate font-medium hover:border-tpppink hover:bg-tpppeach/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                 >
-                  <Chrome className="w-5 h-5 text-tpppink" />
+                  <FcGoogle className="w-5 h-5" />
                   <span>Continue with Google</span>
                 </button>
               </div>
