@@ -141,7 +141,7 @@ const HomeFooter = () => {
               </li>
               <li>
                 <Link 
-                  to="/returns" 
+                  to="/refund-policy" 
                   className="text-white/70 hover:text-tpppink transition-colors text-sm inline-flex items-center gap-2 group"
                 >
                   <span className="w-0 group-hover:w-2 h-0.5 bg-tpppink transition-all duration-300"></span>
@@ -150,7 +150,7 @@ const HomeFooter = () => {
               </li>
               <li>
                 <Link 
-                  to="/shipping" 
+                  to="/shipping-policy" 
                   className="text-white/70 hover:text-tpppink transition-colors text-sm inline-flex items-center gap-2 group"
                 >
                   <span className="w-0 group-hover:w-2 h-0.5 bg-tpppink transition-all duration-300"></span>
@@ -159,7 +159,7 @@ const HomeFooter = () => {
               </li>
               <li>
                 <Link 
-                  to="/contact" 
+                  to="/contact-us" 
                   className="text-white/70 hover:text-tpppink transition-colors text-sm inline-flex items-center gap-2 group"
                 >
                   <span className="w-0 group-hover:w-2 h-0.5 bg-tpppink transition-all duration-300"></span>
@@ -195,7 +195,7 @@ const HomeFooter = () => {
                   <div className="p-2 bg-tpppink/20 rounded-lg group-hover:bg-tpppink/30 transition-colors">
                     <Phone size={16} className="text-tpppink" />
                   </div>
-                  <span className="pt-1.5">+91 98765 43210</span>
+                  <span className="pt-1.5">+91 92177 91695</span>
                 </a>
               </li>
               <li>
@@ -230,7 +230,7 @@ const HomeFooter = () => {
                 >
                   <Facebook size={18} />
                 </a>
-                <a
+                {/* <a
                   href="https://twitter.com"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -238,7 +238,7 @@ const HomeFooter = () => {
                   title="Twitter"
                 >
                   <Twitter size={18} />
-                </a>
+                </a> */}
               </div>
             </div>
           </div>
@@ -271,19 +271,19 @@ const HomeFooter = () => {
             </p>
             <div className="flex items-center gap-6">
               <Link 
-                to="/privacy" 
+                to="/privacy-policy" 
                 className="text-white/60 hover:text-tpppink transition-colors text-xs lg:text-sm"
               >
                 Privacy Policy
               </Link>
               <Link 
-                to="/terms" 
+                to="/terms-and-conditions" 
                 className="text-white/60 hover:text-tpppink transition-colors text-xs lg:text-sm"
               >
                 Terms of Service
               </Link>
               <Link 
-                to="/refund" 
+                to="/refund-policy" 
                 className="text-white/60 hover:text-tpppink transition-colors text-xs lg:text-sm"
               >
                 Refund Policy
