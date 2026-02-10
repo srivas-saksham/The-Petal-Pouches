@@ -16,10 +16,79 @@ import SEO from '../components/seo/SEO';
  * - Contact support section
  * - Centralized FAQ data from faqData.js
  * - Load More functionality (shows 5 FAQs at a time)
+ * - Interactive Grid Background (same as ExperienceGallery)
  */
 
 // Get FAQ data from centralized source
 const faqData = { categories: getAllFAQs() };
+
+// Interactive Grid Background Component (from ExperienceGallery)
+const GridBackground = ({ gridSize = 40, opacity = 0.05, mousePos }) => {
+  const [gridDimensions, setGridDimensions] = useState({ rows: 0, cols: 0 });
+  const containerRef = React.useRef(null);
+
+  useEffect(() => {
+    const updateGridDimensions = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const cols = Math.ceil(rect.width / gridSize);
+        const rows = Math.ceil(rect.height / gridSize);
+        setGridDimensions({ rows, cols });
+      }
+    };
+
+    updateGridDimensions();
+    window.addEventListener('resize', updateGridDimensions);
+    return () => window.removeEventListener('resize', updateGridDimensions);
+  }, [gridSize]);
+
+  const getHoveredCell = () => {
+    if (!mousePos || !containerRef.current) return null;
+    
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = mousePos.x - rect.left;
+    const y = mousePos.y - rect.top;
+    const col = Math.floor(x / gridSize);
+    const row = Math.floor(y / gridSize);
+    
+    if (col >= 0 && col < gridDimensions.cols && row >= 0 && row < gridDimensions.rows) {
+      return { row, col };
+    }
+    return null;
+  };
+
+  const hoveredCell = getHoveredCell();
+
+  return (
+    <div
+      ref={containerRef}
+      className="absolute inset-0 overflow-hidden pointer-events-none"
+      style={{ zIndex: 1 }}
+    >
+      {Array.from({ length: gridDimensions.rows }).map((_, row) =>
+        Array.from({ length: gridDimensions.cols }).map((_, col) => {
+          const isHovered = hoveredCell && hoveredCell.row === row && hoveredCell.col === col;
+          
+          return (
+            <div
+              key={`${row}-${col}`}
+              className="absolute border border-tpppink"
+              style={{
+                left: `${col * gridSize}px`,
+                top: `${row * gridSize}px`,
+                width: `${gridSize}px`,
+                height: `${gridSize}px`,
+                opacity: isHovered ? 0.6 : opacity,
+                backgroundColor: isHovered ? '#d9566ab7' : 'transparent',
+                transition: 'all 0.0s ease',
+              }}
+            />
+          );
+        })
+      )}
+    </div>
+  );
+};
 
 const FAQPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,6 +96,7 @@ const FAQPage = () => {
   const [openFAQs, setOpenFAQs] = useState([]);
   const [filteredFAQs, setFilteredFAQs] = useState([]);
   const [displayedCount, setDisplayedCount] = useState(5);
+  const [mousePos, setMousePos] = useState(null);
 
   // Filter FAQs based on search and category
   useEffect(() => {
@@ -77,21 +147,35 @@ const FAQPage = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
+  // Handle mouse movement for grid background
+  const handleMouseMove = (e) => {
+    setMousePos({ x: e.clientX, y: e.clientY });
+  };
+
   return (
-    <div className="min-h-screen bg-tppslate/10">
+    <div 
+      className="min-h-screen bg-gradient-to-b from-white via-pink-50/30 to-white relative overflow-hidden"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => setMousePos(null)}
+    >
       <SEO
         title="Frequently Asked Questions"
         description="Find answers to common questions about Rizara Luxe products, shipping, returns, and our premium gifting experience."
         canonical="https://www.rizara.in/faqs"
       />
 
-      {/* FAQ Header with CommonHeader and Sliding Search */}
-      <FAQHeader 
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-      />
+      {/* Interactive Grid Background */}
+      <GridBackground gridSize={45} opacity={0.12} mousePos={mousePos} />
 
-      <div className="max-w-6xl mx-auto px-4 py-8 md:py-12">
+      {/* FAQ Header with CommonHeader and Sliding Search */}
+      <div className="relative z-10">
+        <FAQHeader 
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
+      </div>
+
+      <div className="relative z-10 max-w-6xl mx-auto px-4 py-8 md:py-12">
         
         {/* Category Filter Tabs */}
         <motion.div
