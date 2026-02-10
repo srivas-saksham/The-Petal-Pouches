@@ -33,7 +33,7 @@ const useBundleFilters = () => {
     in_stock: searchParams.get('in_stock') || '',
     tags: searchParams.get('tags') || '', // tags as comma-separated string
     page: parseInt(searchParams.get('page') || '1'),
-    limit: 16
+    limit: 32
   });
 
   /**
@@ -238,7 +238,7 @@ const useBundleFilters = () => {
       in_stock: '',
       tags: '', // Reset tags too
       page: 1,
-      limit: 16
+      limit: 32
     });
     setItemTypeState('all'); // 🆕 NEW: Reset item type
   }, []);

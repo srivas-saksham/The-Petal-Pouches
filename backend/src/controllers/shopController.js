@@ -14,7 +14,7 @@ const ShopController = {
     try {
       const {
         page = 1,
-        limit = 20,
+        limit = 32,
         type = 'all', // all | products | bundles
         sort = 'created_at',
         order = 'desc',
@@ -268,6 +268,7 @@ const ShopController = {
           totalCount,
           totalPages,
           currentPage: pageNum,
+          perPage: limitNum,
           limit: limitNum,
           hasMore: pageNum < totalPages,
           type
