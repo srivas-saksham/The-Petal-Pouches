@@ -36,10 +36,57 @@ const useBundleFilters = () => {
     limit: 32
   });
 
+  // ⭐ NEW: Sync URL params to state when URL changes externally
+  useEffect(() => {
+    const urlTags = searchParams.get('tags') || '';
+    const urlType = searchParams.get('type') || 'all';
+    const urlSearch = searchParams.get('search') || '';
+    const urlMinPrice = searchParams.get('min_price') || '';
+    const urlMaxPrice = searchParams.get('max_price') || '';
+    const urlInStock = searchParams.get('in_stock') || '';
+    const urlSort = searchParams.get('sort') || 'created_at';
+    const urlPage = parseInt(searchParams.get('page') || '1');
+
+    setFilters(prev => {
+      // Only update if values actually changed
+      const hasChanges = 
+        prev.tags !== urlTags ||
+        prev.search !== urlSearch ||
+        prev.min_price !== urlMinPrice ||
+        prev.max_price !== urlMaxPrice ||
+        prev.in_stock !== urlInStock ||
+        prev.sort !== urlSort ||
+        prev.page !== urlPage;
+
+      if (hasChanges) {
+        console.log('🔗 [URL → State] Syncing from URL:', { urlTags, urlType });
+        return {
+          ...prev,
+          tags: urlTags,
+          search: urlSearch,
+          min_price: urlMinPrice,
+          max_price: urlMaxPrice,
+          in_stock: urlInStock,
+          sort: urlSort,
+          page: urlPage,
+        };
+      }
+      return prev;
+    });
+
+    // Sync item type
+    if (itemType !== urlType) {
+      console.log('🔗 [URL → State] Syncing type:', urlType);
+      setItemTypeState(urlType);
+    }
+  }, [searchParams]); // React to URL changes
+
   /**
-   * Update URL when filters change
+   * ⭐ FIXED: Update URL when filters change (State → URL)
+   * Uses debouncing to prevent sync loops
    */
   useEffect(() => {
+    // Create params from current state
     const params = new URLSearchParams();
     
     if (filters.search) params.set('search', filters.search);
@@ -49,10 +96,17 @@ const useBundleFilters = () => {
     if (filters.in_stock) params.set('in_stock', filters.in_stock);
     if (filters.tags) params.set('tags', filters.tags);
     if (filters.page > 1) params.set('page', filters.page);
-    if (itemType && itemType !== 'all') params.set('type', itemType); // 🆕 NEW: Add type to URL
+    if (itemType && itemType !== 'all') params.set('type', itemType);
     
-    setSearchParams(params, { replace: true });
-  }, [filters, itemType, setSearchParams]); // 🆕 NEW: Add itemType to dependencies
+    // Only update if params actually changed
+    const newParamsString = params.toString();
+    const currentParamsString = searchParams.toString();
+    
+    if (newParamsString !== currentParamsString) {
+      console.log('🔄 [State → URL] Syncing to URL:', { tags: filters.tags, type: itemType });
+      setSearchParams(params, { replace: true });
+    }
+  }, [filters, itemType]); // Don't include setSearchParams/searchParams to prevent loops
 
   /**
    * Update search query
