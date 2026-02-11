@@ -14,7 +14,8 @@ export default {
         'tppslate': '#4A5759'
       },
       fontFamily: {
-        sans: ['"Yatra One"', 'system-ui', '-apple-system', 'sans-serif'], // Default font
+        sans: ['"Kanchenjunga"', 'system-ui', '-apple-system', 'sans-serif'], // Default font
+        yatraone: ['"Yatra One"', 'cursive'], // Decorative font for headings
         greyqo: ['"Grey Qo"', 'cursive'], // Decorative font
         italianno: ['"Italianno"', 'cursive'], // Italianno decorative font
         inter: ['Inter', 'system-ui', 'sans-serif'], // Fallback modern font

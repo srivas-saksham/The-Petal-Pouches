@@ -172,7 +172,7 @@ export default function UserSidebar({ isOpen, onClose }) {
                 Rizara
               </h1>
 
-              <span className="absolute -right-1 bottom-1 uppercase text-[10px] tracking-[0.35em] font-light text-white pointer-events-none">
+              <span className="font-yatraone absolute -right-1 bottom-1 uppercase text-[10px] tracking-[0.35em] font-light text-white pointer-events-none">
                 Luxe
               </span>
             </div>
