@@ -7,11 +7,29 @@ import { apiRequest } from './api';
 
 /**
  * Get all products (ADMIN - includes inactive)
+ * ✅ FIXED: Preserves metadata for pagination
  */
 export const getProducts = async (params = {}) => {
-  return apiRequest(() => 
-    adminApi.get('/api/products', { params })
-  );
+  try {
+    const response = await adminApi.get('/api/products', { params });
+    
+    // Backend returns: { success: true, data: [...], metadata: {...} }
+    const { success, data, metadata } = response.data;
+    
+    return {
+      success: success || false,
+      data: data || [],
+      metadata: metadata || null
+    };
+  } catch (error) {
+    console.error('Get products error:', error);
+    return {
+      success: false,
+      data: [],
+      metadata: null,
+      error: error.response?.data?.message || error.message || 'Failed to fetch products'
+    };
+  }
 };
 
 /**

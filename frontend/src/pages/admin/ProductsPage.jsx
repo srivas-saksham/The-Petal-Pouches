@@ -66,7 +66,7 @@ export default function ProductsPage() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [metadata, setMetadata] = useState(null);
-  const itemsPerPage = 20;
+  const itemsPerPage = 16;
 
   // Fetch data on mount and when filters change
   useEffect(() => {
@@ -143,21 +143,15 @@ export default function ProductsPage() {
     const result = await getProducts(params);
     
     if (result.success) {
-      // ✅ FIXED: Handle both response formats
-      // If result.data is already an array, use it directly
-      // Otherwise check for result.data.data (nested structure from backend)
-      const productsData = Array.isArray(result.data) 
-        ? result.data 
-        : result.data.data || [];
-      
-      const metadataData = Array.isArray(result.data)
-        ? null
-        : result.data.metadata || null;
+      // ✅ Extract products and metadata from new service structure
+      const productsData = Array.isArray(result.data) ? result.data : [];
+      const metadataData = result.metadata || null;
       
       setProducts(productsData);
       setMetadata(metadataData);
       
       console.log('✅ Products loaded:', productsData.length);
+      console.log('✅ Metadata:', metadataData);
     } else {
       toast.error(result.error || 'Failed to load products');
       setProducts([]);
@@ -383,6 +377,11 @@ export default function ProductsPage() {
             onManageVariants={handleManageVariants}
             currentSort={filters.sort}
             onSortChange={handleSortChange}
+            // ✅ NEW: Pass pagination props
+            currentPage={currentPage}
+            metadata={metadata}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
           />
         ) : (
           <ProductsGrid
@@ -398,12 +397,14 @@ export default function ProductsPage() {
         )}
       </div>
 
+      {/* ✅ DELETE the old separate pagination section if it still exists */}
+
       {/* Pagination */}
       {!loading && metadata && metadata.totalPages > 1 && (
         <div className="flex justify-center">
           <Pagination
             currentPage={currentPage}
-            totalItems={metadata.totalCount}
+            totalItems={metadata.total}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}
           />

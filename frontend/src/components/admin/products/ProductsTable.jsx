@@ -2,10 +2,12 @@
 /**
  * Products Table - Uses ProductRow components in vertical stack (like bundles)
  * No traditional table, just stacked horizontal cards
+ * ✅ Now includes inline pagination in the select all bar
  */
 
 import ProductRow from './ProductRow';
 import { Package } from 'lucide-react';
+import Pagination from '../ui/Pagination';
 
 export default function ProductsTable({
   products = [],
@@ -19,6 +21,11 @@ export default function ProductsTable({
   onManageVariants,
   currentSort = 'created_at',
   onSortChange,
+  // ✅ NEW: Pagination props
+  currentPage,
+  metadata,
+  itemsPerPage,
+  onPageChange,
 }) {
   const allSelected = products.length > 0 && selectedIds.length === products.length;
   const someSelected = selectedIds.length > 0 && !allSelected;
@@ -63,28 +70,41 @@ export default function ProductsTable({
 
   return (
     <div className="space-y-3 p-4">
-      {/* Select All Header */}
+      {/* ✅ Select All Header with Pagination */}
       {products.length > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
-          <input
-            type="checkbox"
-            checked={allSelected}
-            ref={(input) => {
-              if (input) {
-                input.indeterminate = someSelected;
+        <div className="flex items-center justify-between gap-3 px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+          {/* Left: Select All Checkbox */}
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              ref={(input) => {
+                if (input) {
+                  input.indeterminate = someSelected;
+                }
+              }}
+              onChange={(e) => onSelectAll(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-tpppeach focus:ring-tpppeach focus:ring-offset-0 cursor-pointer checked:bg-tpppeach checked:border-tpppeach hover:border-tpppink transition-colors"
+            />
+            <span className="text-sm font-medium text-slate-700">
+              {allSelected 
+                ? `All ${products.length} products selected` 
+                : someSelected 
+                ? `${selectedIds.length} of ${products.length} products selected`
+                : `Select all ${products.length} products`
               }
-            }}
-            onChange={(e) => onSelectAll(e.target.checked)}
-            className="w-4 h-4 rounded border-gray-300 text-tpppeach focus:ring-tpppeach focus:ring-offset-0 cursor-pointer checked:bg-tpppeach checked:border-tpppeach hover:border-tpppink transition-colors"
-          />
-          <span className="text-sm font-medium text-slate-700">
-            {allSelected 
-              ? `All ${products.length} products selected` 
-              : someSelected 
-              ? `${selectedIds.length} of ${products.length} products selected`
-              : `Select all ${products.length} products`
-            }
-          </span>
+            </span>
+          </div>
+
+          {/* Right: Pagination */}
+          {metadata && metadata.totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={metadata.total}
+              itemsPerPage={itemsPerPage}
+              onPageChange={onPageChange}
+            />
+          )}
         </div>
       )}
 

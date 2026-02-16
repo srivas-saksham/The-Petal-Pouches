@@ -1,16 +1,15 @@
-// frontend/src/components/home/GiftQuiz/QuizContainer.jsx - WITH DEBUG SUPPORT
+// frontend/src/components/home/GiftQuiz/QuizContainer.jsx - RANDOM PRODUCTS FIX
 
 import React, { useState } from 'react';
 import Stepper, { Step } from '../../reactbits/Stepper';
 import QuizQuestion from './QuizQuestion';
 import QuizResults from './QuizResults';
 import { QUIZ_QUESTIONS, validateAnswers } from './quizData';
-import { rankResults } from '../../../utils/quizMatcher';
 import { fetchQuizMatches, saveQuizResults } from '../../../services/quizService';
 
 /**
- * QuizContainer - WITH DEBUG SUPPORT
- * NOW PASSES quizAnswers TO QuizResults FOR DEBUG DISPLAY
+ * QuizContainer - WITH RANDOM PRODUCTS SUPPORT
+ * Modified to handle random product display without complex matching
  */
 const QuizContainer = ({ onAddToCart, compact = false }) => {
   const [quizAnswers, setQuizAnswers] = useState({});
@@ -52,11 +51,18 @@ const QuizContainer = ({ onAddToCart, compact = false }) => {
     try {
       const response = await fetchQuizMatches(quizAnswers);
       
+      console.log('📦 Quiz Service Response:', response);
+      
       if (response.success && response.data.length > 0) {
-        const ranked = rankResults(response.data, quizAnswers);
-        setRankedResults(ranked);
-        await saveQuizResults(quizAnswers, ranked.allResults);
+        // Create simple ranked results for random products
+        const simpleRankedResults = createSimpleRankedResults(response.data, quizAnswers);
+        
+        console.log('✅ Ranked Results Created:', simpleRankedResults);
+        
+        setRankedResults(simpleRankedResults);
+        await saveQuizResults(quizAnswers, simpleRankedResults.allResults);
       } else {
+        console.warn('⚠️ No items returned from quiz service');
         setRankedResults({
           perfectMatches: [],
           goodAlternatives: [],
@@ -66,7 +72,7 @@ const QuizContainer = ({ onAddToCart, compact = false }) => {
         });
       }
     } catch (error) {
-      console.error('Error processing quiz:', error);
+      console.error('❌ Error processing quiz:', error);
       setRankedResults({
         perfectMatches: [],
         goodAlternatives: [],
@@ -110,8 +116,8 @@ const QuizContainer = ({ onAddToCart, compact = false }) => {
           onRestart={handleRestart}
           onAddToCart={handleAddToCart}
           onViewDetails={handleViewDetails}
-          quizAnswers={quizAnswers}  // ✅ PASS QUIZ ANSWERS FOR DEBUG
-          showDebug={true}  // ✅ ENABLE DEBUG MODE (set to false to hide)
+          quizAnswers={quizAnswers}
+          showDebug={true}
         />
       </div>
     );
@@ -153,5 +159,109 @@ const QuizContainer = ({ onAddToCart, compact = false }) => {
     </div>
   );
 };
+
+/**
+ * Create simple ranked results for random products
+ * Assigns dummy scores and reasons to display products properly
+ */
+function createSimpleRankedResults(items, quizAnswers) {
+  console.log(`🎯 Creating ranked results for ${items.length} random items`);
+  
+  // Check stock status for each item
+  const itemsWithStock = items.map(item => {
+    const isProduct = item.stock !== undefined && item.stock_limit === undefined;
+    const isInStock = isProduct 
+      ? (item.stock > 0)
+      : (item.stock_limit === null || item.stock_sold < item.stock_limit);
+    
+    return { ...item, isInStock };
+  });
+  
+  // Create match objects with dummy scores
+  const matchedItems = itemsWithStock.map((item, index) => {
+    // Assign scores from 100 down (so they look like good matches)
+    const score = 100 - (index * 10);
+    
+    // Create simple match reasons based on quiz answers
+    const matchReasons = createMatchReasons(item, quizAnswers, score);
+    
+    return {
+      item,
+      score,
+      matchReasons,
+      isInStock: item.isInStock
+    };
+  });
+  
+  // Split items: all go to perfectMatches for now
+  const allResults = matchedItems;
+  const perfectMatches = matchedItems;
+  const goodAlternatives = [];
+  const okayOptions = [];
+  
+  console.log('✅ Results breakdown:', {
+    perfectMatches: perfectMatches.length,
+    goodAlternatives: goodAlternatives.length,
+    okayOptions: okayOptions.length,
+    total: allResults.length
+  });
+  
+  return {
+    perfectMatches,
+    goodAlternatives,
+    okayOptions,
+    allResults,
+    totalMatches: allResults.length
+  };
+}
+
+/**
+ * Create match reasons for display
+ */
+function createMatchReasons(item, quizAnswers, score) {
+  const reasons = [];
+  
+  // Reason 1: Budget match
+  if (quizAnswers.budget && quizAnswers.budget.priceRange) {
+    const [minPrice, maxPrice] = quizAnswers.budget.priceRange;
+    if (item.price >= minPrice && item.price <= maxPrice) {
+      reasons.push({
+        label: `Within your ${quizAnswers.budget.label} budget`,
+        points: 50
+      });
+    } else {
+      reasons.push({
+        label: `Premium option at ₹${item.price}`,
+        points: 20
+      });
+    }
+  }
+  
+  // Reason 2: Occasion
+  if (quizAnswers.occasion) {
+    reasons.push({
+      label: `Perfect for ${quizAnswers.occasion.label}`,
+      points: 30
+    });
+  }
+  
+  // Reason 3: Recipient
+  if (quizAnswers.recipient) {
+    reasons.push({
+      label: `Great choice for ${quizAnswers.recipient.label}`,
+      points: 20
+    });
+  }
+  
+  // If no reasons, add a generic one
+  if (reasons.length === 0) {
+    reasons.push({
+      label: 'Carefully curated for her',
+      points: score
+    });
+  }
+  
+  return reasons;
+}
 
 export default QuizContainer;

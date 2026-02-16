@@ -706,7 +706,7 @@ const getAllProducts = async (req, res) => {
       search,
       sort = 'created_at',
       page = 1,
-      limit = 20,
+      limit = 16,
       in_stock,
       has_variants,
       stock_level,

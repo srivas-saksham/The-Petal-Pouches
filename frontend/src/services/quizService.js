@@ -1,22 +1,31 @@
-// frontend/src/services/quizService.js - FIXED TO MATCH SHOP LOGIC
+// frontend/src/services/quizService.js - RANDOM PRODUCTS VERSION
 
 import api, { apiRequest } from './api';
 
 /**
- * Fetch items matching quiz criteria
- * @param {Object} quizAnswers - User's quiz answers
+ * Fetch random items (5-8) regardless of quiz answers
+ * @param {Object} quizAnswers - User's quiz answers (ignored for now)
  * @returns {Promise<Object>} - { success, data: [items], error }
  */
 export const fetchQuizMatches = async (quizAnswers) => {
   try {
-    console.log('🎯 Fetching quiz matches with answers:', quizAnswers);
+    console.log('🎯 Fetching random quiz matches (5-8 items)...');
+    console.log('📝 Quiz answers (not used currently):', quizAnswers);
     
-    // Build query parameters EXACTLY like the shop does
-    const params = buildShopStyleParams(quizAnswers);
+    // Generate random count between 5-8
+    const randomCount = Math.floor(Math.random() * 4) + 5; // 5, 6, 7, or 8
     
-    console.log('🔧 Built Query Params (Shop-Style):', params);
+    console.log(`🎲 Randomly selected to show ${randomCount} items`);
     
-    // Fetch using shop service (which already works!)
+    // Build simple params to fetch all items
+    const params = {
+      type: 'all', // Both products and bundles
+      page: 1,
+      limit: 100, // Fetch plenty to randomize from
+      sort: 'created_at',
+      order: 'desc'
+    };
+    
     console.log('📡 Fetching from shop API...');
     
     const response = await apiRequest(() => 
@@ -25,106 +34,60 @@ export const fetchQuizMatches = async (quizAnswers) => {
     
     console.log('📦 Shop Response:', response);
     
-    const items = response.success ? response.data : [];
+    const allItems = response.success ? response.data : [];
     
-    console.log(`✅ Found ${items.length} total items`);
+    console.log(`✅ Fetched ${allItems.length} total items from shop`);
     
-    if (items.length > 0) {
-      console.log('📦 Sample Item:', items[0]);
+    if (allItems.length === 0) {
+      console.warn('⚠️ No items available in shop');
+      return {
+        success: true,
+        data: [],
+        metadata: { totalItems: 0 }
+      };
+    }
+    
+    // Shuffle and pick random items
+    const shuffledItems = shuffleArray([...allItems]);
+    const randomItems = shuffledItems.slice(0, Math.min(randomCount, shuffledItems.length));
+    
+    console.log(`🎯 Selected ${randomItems.length} random items`);
+    
+    if (randomItems.length > 0) {
+      console.log('📦 Sample Item:', randomItems[0]);
     }
     
     return {
       success: true,
-      data: items,
-      metadata: response.metadata || {
-        totalItems: items.length
+      data: randomItems,
+      metadata: {
+        totalItems: randomItems.length,
+        randomCount: randomCount,
+        availableItems: allItems.length
       }
     };
     
   } catch (error) {
-    console.error('❌ Error fetching quiz matches:', error);
+    console.error('❌ Error fetching random items:', error);
     return {
       success: false,
       data: [],
-      error: error.message || 'Failed to fetch matches'
+      error: error.message || 'Failed to fetch items'
     };
   }
 };
 
 /**
- * Build API query parameters EXACTLY like ShopNew.jsx does
- * This matches the working shop component's approach
+ * Fisher-Yates shuffle algorithm
+ * Returns a new shuffled array
  */
-function buildShopStyleParams(quizAnswers) {
-  const params = {
-    type: 'all', // Fetch both products and bundles
-    page: 1,
-    limit: 50, // Get plenty of items for matching
-    sort: 'created_at',
-    order: 'desc'
-  };
-  
-  console.log('🏗️ Building shop-style params...');
-  
-  // 1. PRICE RANGE (Budget filter)
-  if (quizAnswers.budget && quizAnswers.budget.priceRange) {
-    const [minPrice, maxPrice] = quizAnswers.budget.priceRange;
-    params.min_price = minPrice;
-    params.max_price = maxPrice * 1.2; // Allow 20% above budget
-    console.log('  ✅ Price range:', minPrice, '-', maxPrice * 1.2);
+function shuffleArray(array) {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-  
-  // 2. TAGS (Combine ALL tags just like shop does)
-  const allTags = collectAllTags(quizAnswers);
-  
-  if (allTags.length > 0) {
-    // ✅ KEY FIX: Join tags with commas EXACTLY like shop does
-    params.tags = allTags.join(',');
-    console.log('  ✅ Tags (comma-separated):', params.tags);
-  } else {
-    console.warn('  ⚠️ No tags collected!');
-  }
-  
-  // 3. STOCK FILTER (optional - ensure we get available items)
-  // params.in_stock = 'true'; // Uncomment to only show in-stock items
-  
-  console.log('📤 Final shop-style params:', params);
-  
-  return params;
-}
-
-/**
- * Collect ALL relevant tags from quiz answers
- * Include primary tag, recipient tags, and style tags
- */
-function collectAllTags(quizAnswers) {
-  const tags = [];
-  
-  console.log('🔍 Collecting all tags from quiz answers...');
-  
-  // 1. Primary tag from occasion (highest priority)
-  if (quizAnswers.occasion && quizAnswers.occasion.primaryTag) {
-    tags.push(quizAnswers.occasion.primaryTag);
-    console.log('  ✅ Primary tag:', quizAnswers.occasion.primaryTag);
-  }
-  
-  // 2. Recipient tags
-  if (quizAnswers.recipient && quizAnswers.recipient.tags) {
-    tags.push(...quizAnswers.recipient.tags);
-    console.log('  ✅ Recipient tags:', quizAnswers.recipient.tags);
-  }
-  
-  // 3. Style tags
-  if (quizAnswers.style && quizAnswers.style.tags) {
-    tags.push(...quizAnswers.style.tags);
-    console.log('  ✅ Style tags:', quizAnswers.style.tags);
-  }
-  
-  // Remove duplicates and lowercase
-  const uniqueTags = [...new Set(tags.map(tag => tag.toLowerCase()))];
-  console.log('  ✅ Unique tags:', uniqueTags);
-  
-  return uniqueTags;
+  return shuffled;
 }
 
 /**
@@ -134,7 +97,7 @@ export const saveQuizResults = async (quizAnswers, matchedItems) => {
   try {
     console.log('📊 Quiz completed:', {
       answers: quizAnswers,
-      topMatches: matchedItems.slice(0, 3).map(m => m.item.id)
+      randomItemsShown: matchedItems.slice(0, 3).map(m => m.item.id)
     });
     
     return { success: true };

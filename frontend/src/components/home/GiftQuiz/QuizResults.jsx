@@ -1,4 +1,4 @@
-// frontend/src/components/home/GiftQuiz/QuizResults.jsx - WITH DEBUG INFO
+// frontend/src/components/home/GiftQuiz/QuizResults.jsx - WITH RANDOM PRODUCTS
 
 import React from 'react';
 import { motion } from 'framer-motion';
@@ -6,12 +6,7 @@ import { Sparkles, Heart, ShoppingBag, RotateCcw, Package } from 'lucide-react';
 import { getMatchQuality } from '../../../utils/quizMatcher';
 
 /**
- * Quiz Results Component - WITH DEBUG TAG DISPLAY
- * 
- * NEW FEATURES:
- * ✅ Debug section showing user's quiz preferences
- * ✅ Shows primary tag, recipient tags, and style tags
- * ✅ All existing functionality preserved
+ * Quiz Results Component - SHOWING RANDOM PRODUCTS
  */
 const QuizResults = ({ 
   rankedResults, 
@@ -19,8 +14,8 @@ const QuizResults = ({
   onAddToCart, 
   onViewDetails,
   loading = false,
-  quizAnswers = null, // ADDED: For debug info
-  showDebug = true // ADDED: Toggle debug display
+  quizAnswers = null,
+  showDebug = true
 }) => {
   
   if (loading) {
@@ -33,7 +28,7 @@ const QuizResults = ({
         >
           <Sparkles size={64} className="text-tpppink" />
         </motion.div>
-        <p className="text-tppslate/60 text-sm">Finding your perfect gifts...</p>
+        <p className="text-tppslate/60 text-sm">Finding perfect gifts for you...</p>
       </div>
     );
   }
@@ -48,17 +43,17 @@ const QuizResults = ({
           <Package size={40} className="text-tppslate/40" />
         </div>
         <h3 className="text-2xl font-bold text-tppslate mb-2">
-          No Perfect Matches Found
+          No Products Available
         </h3>
         <p className="text-sm text-tppslate/60 mb-8 max-w-sm mx-auto">
-          Try adjusting your preferences or budget to see more options
+          Please check back later for new arrivals
         </p>
         <button
           onClick={onRestart}
           className="px-6 py-2.5 bg-tpppink text-white rounded-full text-sm font-medium flex items-center gap-2 mx-auto hover:bg-tpppink/90 transition shadow-sm"
         >
           <RotateCcw size={16} />
-          Retake Quiz
+          Try Again
         </button>
       </div>
     );
@@ -77,14 +72,14 @@ const QuizResults = ({
           <Sparkles size={32} className="text-white" />
         </motion.div>
         <h2 className="text-3xl md:text-4xl font-bold text-tppslate">
-          Your Perfect Matches!
+          Handpicked Gifts For Her!
         </h2>
         <p className="text-sm text-tppslate/60">
-          We found {totalMatches} gift{totalMatches !== 1 ? 's' : ''} tailored just for her
+          We've selected {totalMatches} beautiful gift{totalMatches !== 1 ? 's' : ''} based on your preferences
         </p>
       </div>
 
-      {/* DEBUG INFO - Shows quiz answers and matching tags */}
+      {/* DEBUG INFO - Shows quiz answers */}
       {showDebug && quizAnswers && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -94,9 +89,9 @@ const QuizResults = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-tpppink rounded-full animate-pulse"></div>
-              <h3 className="text-sm font-bold text-tppslate">Debug: Your Matching Preferences</h3>
+              <h3 className="text-sm font-bold text-tppslate">Debug: Your Quiz Preferences</h3>
             </div>
-            <span className="text-xs text-tppslate/40 font-mono">Quiz Answers</span>
+            <span className="text-xs text-tppslate/40 font-mono">Random Selection Mode</span>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
@@ -164,8 +159,8 @@ const QuizResults = ({
 
           <div className="pt-2 border-t border-tppslate/10">
             <div className="text-[10px] text-tppslate/50 space-y-0.5">
-              <div>• Items are matched against: <span className="font-mono text-tpppink">primary_tag</span> (occasion) and <span className="font-mono text-tppmint">tags</span> (recipient + style)</div>
-              <div>• Scoring: Primary match +100pts, Recipient tags +20pts each, Style tags +15pts each, Budget +50pts</div>
+              <div>• Currently showing random products (5-8 items) for testing purposes</div>
+              <div>• Quiz-based matching will be implemented in the next phase</div>
             </div>
           </div>
         </motion.div>
@@ -174,8 +169,8 @@ const QuizResults = ({
       {/* Perfect Matches Section */}
       {perfectMatches.length > 0 && (
         <ResultsSection
-          title="Perfect Matches"
-          subtitle="These gifts scored highest based on your answers"
+          title="Your Selected Gifts"
+          subtitle="Beautiful options curated for her"
           icon={<Heart size={20} className="text-tpppink" />}
           items={perfectMatches}
           onAddToCart={onAddToCart}
@@ -187,8 +182,8 @@ const QuizResults = ({
       {/* Good Alternatives Section */}
       {goodAlternatives.length > 0 && (
         <ResultsSection
-          title="Great Alternatives"
-          subtitle="Also wonderful options to consider"
+          title="More Great Options"
+          subtitle="Additional thoughtful choices"
           icon={<Sparkles size={20} className="text-tpppeach" />}
           items={goodAlternatives}
           onAddToCart={onAddToCart}
@@ -204,7 +199,7 @@ const QuizResults = ({
           className="px-6 py-2.5 border-2 border-tppslate/20 text-tppslate rounded-full text-sm font-medium flex items-center gap-2 justify-center hover:border-tpppink hover:text-tpppink transition"
         >
           <RotateCcw size={16} />
-          Retake Quiz
+          Try Again
         </button>
         
         <button
