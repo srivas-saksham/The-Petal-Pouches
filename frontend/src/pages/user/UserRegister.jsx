@@ -266,7 +266,7 @@ export default function Register() {
         noindex={true}
       />
 
-      <div className="h-screen flex overflow-hidden bg-gradient-to-br from-tpppeach via-white to-tpppeach/50">
+      <div className="h-[100dvh] flex overflow-hidden bg-gradient-to-br from-tpppeach via-white to-tpppeach/50">
         {/* Left Section - Image (60%) - Hidden on mobile */}
         <div className="hidden lg:flex lg:w-3/5 relative items-center justify-center p-8">
           <img
@@ -332,6 +332,24 @@ export default function Register() {
                   <FcGoogle className="w-5 h-5" />
                   <span>Continue with Google</span>
                 </button>
+
+                {/* Terms notice for third-party login */}
+                <p className="mt-3 text-[11px] sm:text-xs text-center text-tppslate/60 leading-snug">
+                  By continuing with <span className='font-bold'>Google</span>, you agree to our{' '}
+                  <Link
+                    to="/terms-and-conditions"
+                    className="text-tpppink font-medium hover:text-tpppink/80 transition-colors"
+                  >
+                    Terms & Conditions
+                  </Link>
+                  {' '}and{' '}
+                  <Link
+                    to="/privacy-policy"
+                    className="text-tpppink font-medium hover:text-tpppink/80 transition-colors"
+                  >
+                    Privacy Policy
+                  </Link>.
+                </p>
               </div>
 
               {/* Divider */}
@@ -457,9 +475,9 @@ export default function Register() {
                   />
                   <label htmlFor="terms" className="text-xs text-tppslate/80 cursor-pointer leading-tight">
                     I agree to the{' '}
-                    <Link to="/terms" className="text-tpppink hover:text-tpppink/80 font-semibold">Terms</Link>
+                    <Link to="/terms-and-conditions" className="text-tpppink hover:text-tpppink/80 font-semibold">Terms</Link>
                     {' '}and{' '}
-                    <Link to="/privacy" className="text-tpppink hover:text-tpppink/80 font-semibold">Privacy Policy</Link>
+                    <Link to="/privacy-policy" className="text-tpppink hover:text-tpppink/80 font-semibold">Privacy Policy</Link>
                   </label>
                 </div>
 

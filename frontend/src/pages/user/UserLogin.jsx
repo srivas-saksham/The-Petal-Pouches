@@ -171,6 +171,24 @@ export default function Login() {
                   <FcGoogle className="w-5 h-5" />
                   <span>Continue with Google</span>
                 </button>
+                
+                {/* Terms notice for third-party login */}
+                <p className="mt-3 text-[11px] sm:text-xs text-center text-tppslate/60 leading-snug">
+                  By continuing with <span className='font-bold'>Google</span>, you agree to our{' '}
+                  <Link
+                    to="/terms-and-conditions"
+                    className="text-tpppink font-medium hover:text-tpppink/80 transition-colors"
+                  >
+                    Terms & Conditions
+                  </Link>
+                  {' '}and{' '}
+                  <Link
+                    to="/privacy-policy"
+                    className="text-tpppink font-medium hover:text-tpppink/80 transition-colors"
+                  >
+                    Privacy Policy
+                  </Link>.
+                </p>
               </div>
 
               {/* Divider */}
