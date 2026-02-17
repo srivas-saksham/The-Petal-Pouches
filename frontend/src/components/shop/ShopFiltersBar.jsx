@@ -1,7 +1,7 @@
 // frontend/src/components/shop/ShopFiltersBar.jsx - MOBILE OPTIMIZED WITH FRAMER MOTION
 
 import React, { useState } from 'react';
-import { LayoutGrid, Grid3x2, Grid3x3, ChevronDown, ChevronUp, Package, Box, Filter, X } from 'lucide-react';
+import { LayoutGrid, Grid3x2, Grid3x3, ChevronDown, ChevronUp, Package, Box, Filter, X, Signature, PackageOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 /**
@@ -68,7 +68,7 @@ const ShopFiltersBar = ({
               {/* Tab Buttons */}
               <button
                 onClick={() => onTypeChange('all')}
-                className={`relative z-10 flex-1 px-2 py-1.5 rounded text-[10px] font-bold transition-colors duration-200 active:scale-95 ${
+                className={`relative z-10 flex-1 px-2 py-1.5 rounded text-[11px] font-bold transition-colors duration-200 active:scale-95 ${
                   itemType === 'all'
                     ? 'text-white'
                     : 'text-slate-600'
@@ -78,23 +78,23 @@ const ShopFiltersBar = ({
               </button>
               <button
                 onClick={() => onTypeChange('products')}
-                className={`relative z-10 flex-1 px-2 py-1.5 rounded text-[10px] font-bold transition-colors duration-200 active:scale-95 ${
+                className={`relative z-10 flex-1 px-2 py-1.5 rounded text-[11px] font-bold transition-colors duration-200 active:scale-95 ${
                   itemType === 'products'
                     ? 'text-white'
                     : 'text-slate-600'
                 }`}
               >
-                PRODUCTS
+                SIGNATURES
               </button>
               <button
                 onClick={() => onTypeChange('bundles')}
-                className={`relative z-10 flex-1 px-2 py-1.5 rounded text-[10px] font-bold transition-colors duration-200 active:scale-95 ${
+                className={`relative z-10 flex-1 px-2 py-1.5 rounded text-[11px] font-bold transition-colors duration-200 active:scale-95 ${
                   itemType === 'bundles'
                     ? 'text-white'
                     : 'text-slate-600'
                 }`}
               >
-                BUNDLES
+                HAMPERS
               </button>
             </div>
           )}
@@ -255,8 +255,8 @@ const ShopFiltersBar = ({
                     }}
                   />
                 )}
-                <Package size={14} className="relative z-10" />
-                <span className="relative z-10">Products</span>
+                <Signature size={14} className="relative z-10" />
+                <span className="relative z-10">Signatures</span>
               </button>
               <button
                 onClick={() => onTypeChange('bundles')}
@@ -279,8 +279,8 @@ const ShopFiltersBar = ({
                     }}
                   />
                 )}
-                <Package size={14} className="relative z-10" />
-                <span className="relative z-10">Bundles</span>
+                <PackageOpen size={14} className="relative z-10" />
+                <span className="relative z-10">Hampers</span>
               </button>
             </div>
           )}

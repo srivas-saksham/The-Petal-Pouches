@@ -377,9 +377,7 @@ const BundleCard = ({ bundle, onQuickView }) => {
                   <img
                     src={image.img_url}
                     alt={`${bundle.title} - Image ${index + 1}`}
-                    className={`w-full h-full object-cover ${
-                      isOutOfStock ? 'grayscale opacity-60' : ''
-                    }`}
+                    className="w-full h-full object-cover"
                     onError={(e) => {
                       e.target.src = '/placeholder-bundle.png';
                     }}
@@ -407,9 +405,9 @@ const BundleCard = ({ bundle, onQuickView }) => {
               key={`${bundle.id}-${currentImageIndex}`}
               src={currentImage.img_url}
               alt={`${bundle.title} - Image ${currentImageIndex + 1}`}
-              className={`w-full h-full object-cover transition-all duration-300 ${
+              className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${
                 imageLoaded ? 'opacity-100' : 'opacity-0'
-              } ${isOutOfStock ? 'grayscale opacity-60' : 'group-hover:scale-105'}`}
+              }`}
               onLoad={() => setImageLoaded(true)}
               onError={(e) => {
                 e.target.src = '/placeholder-bundle.png';
@@ -424,7 +422,7 @@ const BundleCard = ({ bundle, onQuickView }) => {
           )}
 
           {/* Navigation Arrows - DESKTOP ONLY: Show on hover */}
-          {hasMultipleImages && !isOutOfStock && (
+          {hasMultipleImages && (
             <>
               {/* Left Arrow */}
               <button
