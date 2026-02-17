@@ -166,52 +166,39 @@ const QuizContainer = ({ onAddToCart, compact = false }) => {
  */
 function createSimpleRankedResults(items, quizAnswers) {
   console.log(`🎯 Creating ranked results for ${items.length} random items`);
-  
-  // Check stock status for each item
-  const itemsWithStock = items.map(item => {
-    const isProduct = item.stock !== undefined && item.stock_limit === undefined;
-    const isInStock = isProduct 
-      ? (item.stock > 0)
-      : (item.stock_limit === null || item.stock_sold < item.stock_limit);
-    
-    return { ...item, isInStock };
-  });
-  
-  // Create match objects with dummy scores
-  const matchedItems = itemsWithStock.map((item, index) => {
-    // Assign scores from 100 down (so they look like good matches)
+
+  const matchedItems = items.map((item, index) => {
+    // Use item_type set by shopController — most reliable differentiator
+    const isBundle = item.item_type === 'bundle';
+
+    let isInStock;
+    if (isBundle) {
+      // Bundle: null = unlimited = in stock, 0 = out of stock, >0 = in stock
+      isInStock = item.stock_limit === null || item.stock_limit > 0;
+    } else {
+      // Product: stock_limit was set to p.stock by shopController
+      // also check raw stock field as fallback
+      const stockValue = item.stock_limit ?? item.stock ?? 0;
+      isInStock = stockValue > 0;
+    }
+
     const score = 100 - (index * 10);
-    
-    // Create simple match reasons based on quiz answers
     const matchReasons = createMatchReasons(item, quizAnswers, score);
-    
+
     return {
       item,
       score,
       matchReasons,
-      isInStock: item.isInStock
+      isInStock
     };
   });
-  
-  // Split items: all go to perfectMatches for now
-  const allResults = matchedItems;
-  const perfectMatches = matchedItems;
-  const goodAlternatives = [];
-  const okayOptions = [];
-  
-  console.log('✅ Results breakdown:', {
-    perfectMatches: perfectMatches.length,
-    goodAlternatives: goodAlternatives.length,
-    okayOptions: okayOptions.length,
-    total: allResults.length
-  });
-  
+
   return {
-    perfectMatches,
-    goodAlternatives,
-    okayOptions,
-    allResults,
-    totalMatches: allResults.length
+    perfectMatches: matchedItems,
+    goodAlternatives: [],
+    okayOptions: [],
+    allResults: matchedItems,
+    totalMatches: matchedItems.length
   };
 }
 

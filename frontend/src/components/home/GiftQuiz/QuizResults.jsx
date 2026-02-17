@@ -1,58 +1,73 @@
-// frontend/src/components/home/GiftQuiz/QuizResults.jsx - WITH RANDOM PRODUCTS
+// frontend/src/components/home/GiftQuiz/QuizResults.jsx
 
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Heart, ShoppingBag, RotateCcw, Package } from 'lucide-react';
 import { getMatchQuality } from '../../../utils/quizMatcher';
 
-/**
- * Quiz Results Component - SHOWING RANDOM PRODUCTS
- */
-const QuizResults = ({ 
-  rankedResults, 
-  onRestart, 
-  onAddToCart, 
+// ─── Image helper ────────────────────────────────────────────
+
+function getPrimaryImage(item) {
+  const bundleImgs = item?.Bundle_images;
+  if (Array.isArray(bundleImgs) && bundleImgs.length > 0) {
+    const primary = bundleImgs.find(i => i.is_primary) || bundleImgs[0];
+    if (primary?.img_url) return primary.img_url;
+  }
+  const productImgs = item?.Product_images;
+  if (Array.isArray(productImgs) && productImgs.length > 0) {
+    const primary = productImgs.find(i => i.is_primary) || productImgs[0];
+    if (primary?.img_url) return primary.img_url;
+  }
+  return item?.img_url || 'https://placehold.co/400x400/FFF0F3/D9566A?text=Gift';
+}
+
+// ─── Main Component ──────────────────────────────────────────
+
+const QuizResults = ({
+  rankedResults,
+  onRestart,
+  onAddToCart,
   onViewDetails,
   loading = false,
-  quizAnswers = null,
-  showDebug = true
 }) => {
-  
+
   if (loading) {
     return (
-      <div className="text-center py-16">
+      <div className="text-center py-20 space-y-4">
         <motion.div
           animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          className="w-16 h-16 mx-auto mb-4"
+          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+          className="w-12 h-12 mx-auto"
         >
-          <Sparkles size={64} className="text-tpppink" />
+          <Sparkles size={48} className="text-tpppink" />
         </motion.div>
-        <p className="text-tppslate/60 text-sm">Finding perfect gifts for you...</p>
+        <p className="text-sm text-tppslate/50 font-light tracking-wide">
+          Finding perfect gifts for you...
+        </p>
       </div>
     );
   }
 
-  const { perfectMatches, goodAlternatives, totalMatches } = rankedResults;
-  const hasResults = totalMatches > 0;
+  const { perfectMatches = [], goodAlternatives = [], totalMatches = 0 } = rankedResults ?? {};
+  const allItems = [...perfectMatches, ...goodAlternatives];
 
-  if (!hasResults) {
+  if (!allItems.length) {
     return (
-      <div className="text-center py-16">
-        <div className="w-20 h-20 mx-auto mb-4 bg-tpppeach/20 rounded-full flex items-center justify-center">
-          <Package size={40} className="text-tppslate/40" />
+      <div className="text-center py-20 space-y-4">
+        <div className="w-16 h-16 mx-auto bg-tpppeach/20 rounded-full flex items-center justify-center">
+          <Package size={32} className="text-tppslate/30" />
         </div>
-        <h3 className="text-2xl font-bold text-tppslate mb-2">
-          No Products Available
-        </h3>
-        <p className="text-sm text-tppslate/60 mb-8 max-w-sm mx-auto">
-          Please check back later for new arrivals
+        <p className="text-base font-semibold text-tppslate">No products found</p>
+        <p className="text-sm text-tppslate/40 font-light max-w-xs mx-auto">
+          Check back soon — new arrivals are on the way.
         </p>
         <button
           onClick={onRestart}
-          className="px-6 py-2.5 bg-tpppink text-white rounded-full text-sm font-medium flex items-center gap-2 mx-auto hover:bg-tpppink/90 transition shadow-sm"
+          className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-tpppink
+                     text-white rounded-full text-sm font-medium
+                     hover:bg-tpppink/90 transition shadow-sm"
         >
-          <RotateCcw size={16} />
+          <RotateCcw size={14} />
           Try Again
         </button>
       </div>
@@ -60,153 +75,59 @@ const QuizResults = ({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+
       {/* Header */}
-      <div className="text-center space-y-3">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", bounce: 0.5 }}
-          className="w-16 h-16 mx-auto bg-gradient-to-br from-tpppink to-tpppeach rounded-full flex items-center justify-center shadow-lg"
-        >
-          <Sparkles size={32} className="text-white" />
-        </motion.div>
-        <h2 className="text-3xl md:text-4xl font-bold text-tppslate">
-          Handpicked Gifts For Her!
-        </h2>
-        <p className="text-sm text-tppslate/60">
-          We've selected {totalMatches} beautiful gift{totalMatches !== 1 ? 's' : ''} based on your preferences
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center space-y-1.5"
+      >
+        <div className="w-11 h-11 mx-auto bg-gradient-to-br from-tpppink to-tpppeach
+                        rounded-full flex items-center justify-center shadow-md">
+          <Sparkles size={20} className="text-white" />
+        </div>
+        <h2 className="text-2xl font-bold text-tppslate">Handpicked For Her</h2>
+        <p className="text-xs text-tppslate/45 font-light">
+          {totalMatches} curated gift{totalMatches !== 1 ? 's' : ''} based on your answers
         </p>
+      </motion.div>
+
+      {/* Grid */}
+      <div
+        className="grid grid-cols-1 sm:grid-cols-2 gap-3
+                   max-h-[32rem] overflow-y-auto pr-0.5
+                   scrollbar-thin scrollbar-thumb-tppslate/10 scrollbar-track-transparent"
+      >
+        {allItems.map((matchedItem, index) => (
+          <ResultCard
+            key={matchedItem.item?.id ?? index}
+            matchedItem={matchedItem}
+            index={index}
+            onAddToCart={onAddToCart}
+            onViewDetails={onViewDetails}
+          />
+        ))}
       </div>
 
-      {/* DEBUG INFO - Shows quiz answers */}
-      {showDebug && quizAnswers && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-tppslate/5 to-tpppeach/5 border border-tppslate/10 rounded-xl p-4 space-y-3"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-tpppink rounded-full animate-pulse"></div>
-              <h3 className="text-sm font-bold text-tppslate">Debug: Your Quiz Preferences</h3>
-            </div>
-            <span className="text-xs text-tppslate/40 font-mono">Random Selection Mode</span>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-            {/* Occasion */}
-            {quizAnswers.occasion && (
-              <div className="bg-white rounded-lg p-3 border border-tppslate/10 space-y-1.5">
-                <div className="font-semibold text-tppslate/70 text-[10px] uppercase tracking-wide">Occasion</div>
-                <div className="font-bold text-tppslate">{quizAnswers.occasion.label}</div>
-                <div className="flex items-center gap-1">
-                  <span className="text-tppslate/50">Primary Tag:</span>
-                  <span className="px-2 py-0.5 bg-tpppink/10 text-tpppink rounded-full font-mono text-[10px]">
-                    {quizAnswers.occasion.primaryTag}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Recipient */}
-            {quizAnswers.recipient && (
-              <div className="bg-white rounded-lg p-3 border border-tppslate/10 space-y-1.5">
-                <div className="font-semibold text-tppslate/70 text-[10px] uppercase tracking-wide">Recipient</div>
-                <div className="font-bold text-tppslate">{quizAnswers.recipient.label}</div>
-                {quizAnswers.recipient.tags && quizAnswers.recipient.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {quizAnswers.recipient.tags.map((tag, idx) => (
-                      <span key={idx} className="px-2 py-0.5 bg-tppmint/10 text-tppmint rounded-full font-mono text-[10px]">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Style */}
-            {quizAnswers.style && (
-              <div className="bg-white rounded-lg p-3 border border-tppslate/10 space-y-1.5">
-                <div className="font-semibold text-tppslate/70 text-[10px] uppercase tracking-wide">Style</div>
-                <div className="font-bold text-tppslate">{quizAnswers.style.label}</div>
-                {quizAnswers.style.tags && quizAnswers.style.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {quizAnswers.style.tags.map((tag, idx) => (
-                      <span key={idx} className="px-2 py-0.5 bg-tpppeach/10 text-tpppeach rounded-full font-mono text-[10px]">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Budget */}
-            {quizAnswers.budget && (
-              <div className="bg-white rounded-lg p-3 border border-tppslate/10 space-y-1.5">
-                <div className="font-semibold text-tppslate/70 text-[10px] uppercase tracking-wide">Budget</div>
-                <div className="font-bold text-tppslate">{quizAnswers.budget.label}</div>
-                {quizAnswers.budget.priceRange && (
-                  <div className="text-tppslate/60">
-                    ₹{quizAnswers.budget.priceRange[0]} - ₹{quizAnswers.budget.priceRange[1]}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="pt-2 border-t border-tppslate/10">
-            <div className="text-[10px] text-tppslate/50 space-y-0.5">
-              <div>• Currently showing random products (5-8 items) for testing purposes</div>
-              <div>• Quiz-based matching will be implemented in the next phase</div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Perfect Matches Section */}
-      {perfectMatches.length > 0 && (
-        <ResultsSection
-          title="Your Selected Gifts"
-          subtitle="Beautiful options curated for her"
-          icon={<Heart size={20} className="text-tpppink" />}
-          items={perfectMatches}
-          onAddToCart={onAddToCart}
-          onViewDetails={onViewDetails}
-          showDebug={showDebug}
-        />
-      )}
-
-      {/* Good Alternatives Section */}
-      {goodAlternatives.length > 0 && (
-        <ResultsSection
-          title="More Great Options"
-          subtitle="Additional thoughtful choices"
-          icon={<Sparkles size={20} className="text-tpppeach" />}
-          items={goodAlternatives}
-          onAddToCart={onAddToCart}
-          onViewDetails={onViewDetails}
-          showDebug={showDebug}
-        />
-      )}
-
-      {/* Actions */}
-      <div className="flex flex-col sm:flex-row gap-3 justify-center pt-6">
+      {/* Footer actions */}
+      <div className="flex flex-col sm:flex-row gap-2.5 justify-center pt-1">
         <button
           onClick={onRestart}
-          className="px-6 py-2.5 border-2 border-tppslate/20 text-tppslate rounded-full text-sm font-medium flex items-center gap-2 justify-center hover:border-tpppink hover:text-tpppink transition"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5
+                     border border-tppslate/20 text-tppslate/60 rounded-full
+                     text-sm font-medium hover:border-tpppink hover:text-tpppink transition"
         >
-          <RotateCcw size={16} />
-          Try Again
+          <RotateCcw size={14} />
+          Retake Quiz
         </button>
-        
         <button
-          onClick={() => window.location.href = '/shop'}
-          className="px-6 py-2.5 bg-tpppink text-white rounded-full text-sm font-medium flex items-center gap-2 justify-center hover:bg-tpppink/90 transition shadow-sm"
+          onClick={() => (window.location.href = '/shop')}
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5
+                     bg-tpppink text-white rounded-full text-sm font-medium
+                     hover:bg-tpppink/90 transition shadow-sm"
         >
-          <ShoppingBag size={16} />
+          <ShoppingBag size={14} />
           Browse All Gifts
         </button>
       </div>
@@ -214,167 +135,113 @@ const QuizResults = ({
   );
 };
 
-/**
- * Results Section Component
- */
-const ResultsSection = ({ title, subtitle, icon, items, onAddToCart, onViewDetails, showDebug }) => {
-  return (
-    <div className="space-y-4">
-      {/* Section Header */}
-      <div className="flex items-center gap-2.5">
-        {icon}
-        <div>
-          <h3 className="text-lg font-bold text-tppslate">{title}</h3>
-          <p className="text-xs text-tppslate/60">{subtitle}</p>
-        </div>
-      </div>
+// ─── Result Card ─────────────────────────────────────────────
 
-      {/* Items Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[28rem] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-tppslate/20 scrollbar-track-transparent">
-        {items.map((matchedItem, index) => (
-          <ResultCard
-            key={matchedItem.item.id}
-            matchedItem={matchedItem}
-            index={index}
-            onAddToCart={onAddToCart}
-            onViewDetails={onViewDetails}
-            showDebug={showDebug}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
-
-/**
- * Individual Result Card - WITH DEBUG TAG INFO
- */
-const ResultCard = ({ matchedItem, index, onAddToCart, onViewDetails, showDebug }) => {
+const ResultCard = ({ matchedItem, index, onAddToCart, onViewDetails }) => {
   const { item, score, matchReasons, isInStock } = matchedItem;
-  const matchQuality = getMatchQuality(score);
-  
-  // Determine if it's a product or bundle
-  const isProduct = item.stock !== undefined && item.stock_limit === undefined;
-  
-  // Get primary image
-  const primaryImage = item.images?.[0]?.img_url || item.img_url || 'https://placehold.co/300x300/FFB5A0/FFF?text=Gift';
+  // isInStock computed correctly in QuizContainer using item_type + stock fields
 
-  // Color mapping for match quality badges
-  const badgeColors = {
-    'tppmint': 'bg-tppmint',
-    'tpppeach': 'bg-tpppeach', 
-    'tpppink': 'bg-tpppink',
-    'green-500': 'bg-green-500'
-  };
+  const isProduct = item.item_type === 'product';
+  const image = getPrimaryImage(item);
+  const matchQuality = getMatchQuality(score);
+
+  const displayReasons = (matchReasons ?? [])
+    .filter(r => r.type !== 'warning' && r.type !== 'info')
+    .slice(0, 2);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.08 }}
-      className="bg-white rounded-xl border border-tppslate/10 overflow-hidden hover:shadow-lg transition-all duration-300"
+      transition={{ delay: index * 0.06, duration: 0.3 }}
+      className="bg-white rounded-2xl border border-tppslate/8 overflow-hidden
+                 hover:shadow-md transition-all duration-300 group"
     >
       {/* Image */}
-      <div className="relative aspect-[4/3] bg-gradient-to-br from-pink-50/80 to-tpppeach/30 overflow-hidden">
+      <div className="relative aspect-[4/3] bg-gradient-to-br from-pink-50 to-tpppeach/20 overflow-hidden">
         <img
-          src={primaryImage}
+          src={image}
           alt={item.title}
-          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+          className="w-full h-full object-cover group-hover:scale-[1.03]
+                     transition-transform duration-300"
+          onError={e => {
+            e.target.src = 'https://placehold.co/400x300/FFF0F3/D9566A?text=Gift';
+          }}
         />
-        
-        {/* Match Score Badge */}
-        <div className={`absolute top-3 right-3 px-2.5 py-1 ${badgeColors[matchQuality.color] || 'bg-tppmint'} rounded-full shadow-md`}>
-          <span className="text-xs font-bold text-white">
-            {matchQuality.emoji} {matchQuality.label}
-          </span>
-        </div>
 
-        {/* Stock Badge */}
+        {/* Match quality badge */}
+        <span className="absolute top-2.5 right-2.5 px-2.5 py-1
+                         bg-white/90 backdrop-blur-sm rounded-full shadow-sm
+                         text-[10px] font-semibold text-tppslate tracking-wide">
+          {matchQuality.label}
+        </span>
+
+        {/* Out of stock overlay */}
         {!isInStock && (
-          <div className="absolute top-3 left-3 px-2.5 py-1 bg-red-500 rounded-full shadow-md">
-            <span className="text-xs font-bold text-white">Out of Stock</span>
+          <div className="absolute inset-0 bg-white/55 flex items-center justify-center">
+            <span className="px-3 py-1 bg-tppslate/75 text-white
+                             text-xs font-medium rounded-full">
+              Out of Stock
+            </span>
           </div>
         )}
       </div>
 
-      {/* Content */}
-      <div className="p-4 space-y-3">
+      {/* Body */}
+      <div className="p-3.5 space-y-2.5">
+
         {/* Title */}
-        <h4 className="font-bold text-tppslate line-clamp-2 text-base leading-tight">
+        <h4 className="font-semibold text-tppslate text-sm leading-snug line-clamp-2">
           {item.title}
         </h4>
 
-        {/* DEBUG: Item Tags */}
-        {showDebug && item.tags && item.tags.length > 0 && (
-          <div className="bg-tppslate/5 rounded-lg p-2 space-y-1">
-            <div className="text-[9px] font-semibold text-tppslate/50 uppercase tracking-wide">Item Tags</div>
-            <div className="flex flex-wrap gap-1">
-              {item.primary_tag && (
-                <span className="px-1.5 py-0.5 bg-tpppink/20 text-tpppink rounded text-[9px] font-mono border border-tpppink/30">
-                  {item.primary_tag} (primary)
-                </span>
-              )}
-              {item.tags.map((tag, idx) => (
-                <span key={idx} className="px-1.5 py-0.5 bg-tppslate/10 text-tppslate/70 rounded text-[9px] font-mono">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Match Reasons */}
-        <div className="space-y-1.5">
-          {matchReasons.slice(0, 2).map((reason, i) => (
-            <div key={i} className="flex items-start gap-2 text-xs text-tppslate/70">
-              <span className="text-tppmint mt-0.5 flex-shrink-0">✓</span>
-              <span className="leading-relaxed">{reason.label}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* DEBUG: Score Breakdown */}
-        {showDebug && (
-          <div className="bg-tppmint/5 rounded-lg p-2 space-y-1">
-            <div className="text-[9px] font-semibold text-tppslate/50 uppercase tracking-wide">Score: {score} pts</div>
-            <div className="space-y-0.5">
-              {matchReasons.map((reason, idx) => (
-                <div key={idx} className="flex justify-between text-[9px] text-tppslate/60">
-                  <span>{reason.label}</span>
-                  <span className="font-mono text-tppmint">+{reason.points}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* Match reasons */}
+        {displayReasons.length > 0 && (
+          <ul className="space-y-1">
+            {displayReasons.map((reason, i) => (
+              <li key={i} className="flex items-start gap-1.5 text-[11px] text-tppslate/55 font-light">
+                <Heart size={9} className="text-tpppink mt-0.5 flex-shrink-0" />
+                {reason.label}
+              </li>
+            ))}
+          </ul>
         )}
 
         {/* Price */}
-        <div className="flex items-baseline gap-2 pt-1">
-          {item.original_price && item.original_price > item.price && (
-            <span className="text-sm text-tppslate/40 line-through">
+        <div className="flex items-baseline gap-1.5">
+          {item.original_price > item.price && (
+            <span className="text-xs text-tppslate/30 line-through">
               ₹{item.original_price}
             </span>
           )}
-          <span className="text-xl font-bold text-tpppink">
-            ₹{item.price}
-          </span>
+          <span className="text-lg font-bold text-tpppink">₹{item.price}</span>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-2 pt-2">
+        {/* CTAs */}
+        <div className="flex gap-2 pt-0.5">
           <button
             onClick={() => onViewDetails(item, isProduct)}
-            className="flex-1 px-3 py-2 border-2 border-tppslate/15 text-tppslate rounded-lg text-sm font-medium hover:border-tpppink hover:text-tpppink transition-all"
+            className="flex-1 py-2 border border-tppslate/15 text-tppslate/60 rounded-xl
+                       text-xs font-medium hover:border-tpppink hover:text-tpppink transition"
           >
-            Details
+            View Details
           </button>
-          
-          {isInStock && (
+
+          {isInStock ? (
             <button
               onClick={() => onAddToCart(item, isProduct)}
-              className="flex-1 px-3 py-2 bg-tpppink text-white rounded-lg text-sm font-medium hover:bg-tpppink/90 transition-all shadow-sm"
+              className="flex-1 py-2 bg-tpppink text-white rounded-xl text-xs font-medium
+                         hover:bg-tpppink/90 transition shadow-sm"
             >
               Add to Cart
+            </button>
+          ) : (
+            <button
+              disabled
+              className="flex-1 py-2 bg-tppslate/8 text-tppslate/25 rounded-xl
+                         text-xs font-medium cursor-not-allowed"
+            >
+              Sold Out
             </button>
           )}
         </div>

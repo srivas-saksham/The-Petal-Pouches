@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 
 const HomeFooter = () => {
   return (
-    <footer className="bg-tppslate text-white mt-20 relative overflow-hidden">
+    <footer className="bg-tppslate text-white relative overflow-hidden">
       {/* Decorative Elements */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute top-0 right-0 w-96 h-96 bg-tpppink rounded-full blur-3xl"></div>
