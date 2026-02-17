@@ -35,6 +35,7 @@ export const loginAdmin = async (email, password) => {
 
     // ✅ Store token in sessionStorage (cleared on browser close)
     sessionStorage.setItem('admin_token', response.data.data.token);
+    sessionStorage.setItem('admin_token_expires_at', response.data.data.expiresAt);
     
     // ✅ Store admin info in localStorage (persists for "Welcome back" message)
     localStorage.setItem('admin_name', response.data.data.admin.name);
@@ -75,6 +76,7 @@ export const verifyAdminPassword = async (password) => {
 
     // ✅ Store new session token
     sessionStorage.setItem('admin_token', response.data.data.token);
+    sessionStorage.setItem('admin_token_expires_at', response.data.data.expiresAt);
 
     return {
       success: true,
@@ -171,10 +173,42 @@ export const getStoredAdminData = () => {
 };
 
 /**
+ * ✅ NEW: Extend admin session by 15 minutes
+ */
+export const extendAdminSession = async () => {
+  try {
+    const response = await adminApi.post('/api/admin/auth/extend');
+
+    sessionStorage.setItem('admin_token', response.data.data.token);
+    sessionStorage.setItem('admin_token_expires_at', response.data.data.expiresAt);
+
+    return {
+      success: true,
+      expiresAt: response.data.data.expiresAt,
+      expiresInSeconds: response.data.data.expiresInSeconds
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.message || 'Failed to extend session'
+    };
+  }
+};
+
+/**
+ * ✅ NEW: Get token expiry unix timestamp from sessionStorage
+ */
+export const getTokenExpiresAt = () => {
+  const val = sessionStorage.getItem('admin_token_expires_at');
+  return val ? parseInt(val) : null;
+};
+
+/**
  * ✅ Clear all admin data (use on full logout)
  */
 export const clearAllAdminData = () => {
   sessionStorage.removeItem('admin_token');
+  sessionStorage.removeItem('admin_token_expires_at');
   localStorage.removeItem('admin_name');
   localStorage.removeItem('admin_email');
   localStorage.removeItem('admin_id');
@@ -190,5 +224,7 @@ export default {
   isAdminAuthenticated,
   hasAdminData,
   getStoredAdminData,
-  clearAllAdminData
+  clearAllAdminData,
+  extendAdminSession,   // ✅ NEW
+  getTokenExpiresAt     // ✅ NEW
 };

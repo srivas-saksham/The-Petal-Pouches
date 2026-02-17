@@ -9,7 +9,9 @@ export function AdminAuthProvider({ children }) {
   const [admin, setAdmin] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [requiresReauth, setRequiresReauth] = useState(false); // ✅ NEW: Re-auth state
+  const [requiresReauth, setRequiresReauth] = useState(false); // ✅ Re-auth state
+  const [sessionExpiresAt, setSessionExpiresAt] = useState(null);   // ✅ NEW: unix timestamp
+  const [sessionSecondsLeft, setSessionSecondsLeft] = useState(null); // ✅ NEW: countdown
 
   // Check auth on mount
   useEffect(() => {
@@ -30,6 +32,9 @@ export function AdminAuthProvider({ children }) {
         const storedAdmin = adminAuthService.getStoredAdminData();
         setAdmin(storedAdmin);
         setRequiresReauth(false);
+        // ✅ Restore countdown from sessionStorage on page refresh
+        const savedExpiry = adminAuthService.getTokenExpiresAt();isAuthenticated: !!admin && !requiresReauth
+        if (savedExpiry) setSessionExpiresAt(savedExpiry);
       } 
       // ✅ Check if admin data exists but no active session (requires re-auth)
       else if (adminAuthService.hasAdminData()) {
@@ -60,7 +65,8 @@ export function AdminAuthProvider({ children }) {
       if (result.success) {
         setAdmin(result.data.admin);
         setRequiresReauth(false);
-        localStorage.removeItem('explicit_logout'); // ✅ Clear logout flag ONLY on successful fresh login
+        if (result.data.expiresAt) setSessionExpiresAt(result.data.expiresAt); // ✅ NEW
+        localStorage.removeItem('explicit_logout');
         setLoading(false);
         return { success: true };
       } else {
@@ -86,7 +92,8 @@ export function AdminAuthProvider({ children }) {
       if (result.success) {
         setAdmin(result.data.admin);
         setRequiresReauth(false);
-        localStorage.removeItem('explicit_logout'); // ✅ Clear logout flag on successful re-auth too
+        if (result.data.expiresAt) setSessionExpiresAt(result.data.expiresAt); // ✅ NEW
+        localStorage.removeItem('explicit_logout');
         setLoading(false);
         return { success: true };
       } else {
@@ -99,6 +106,35 @@ export function AdminAuthProvider({ children }) {
       setLoading(false);
       return { success: false, error: 'Password verification failed' };
     }
+  };
+
+  // ✅ NEW: Countdown timer — ticks every 10 seconds
+  useEffect(() => {
+    if (!sessionExpiresAt) return;
+
+    const tick = () => {
+      const secondsLeft = sessionExpiresAt - Math.floor(Date.now() / 1000);
+      if (secondsLeft <= 0) {
+        setSessionSecondsLeft(0);
+        completeLogout();
+        return;
+      }
+      setSessionSecondsLeft(secondsLeft);
+    };
+
+    tick(); // run immediately
+    const interval = setInterval(tick, 10000);
+    return () => clearInterval(interval);
+  }, [sessionExpiresAt]);
+
+  // ✅ NEW: Extend session by 15 minutes
+  const extendSession = async () => {
+    const result = await adminAuthService.extendAdminSession();
+    if (result.success) {
+      setSessionExpiresAt(result.expiresAt);
+      setSessionSecondsLeft(result.expiresInSeconds);
+    }
+    return result;
   };
 
   // Logout
@@ -134,11 +170,14 @@ export function AdminAuthProvider({ children }) {
     admin,
     loading,
     error,
-    requiresReauth, // ✅ NEW: Expose re-auth state
+    requiresReauth,
+    sessionSecondsLeft,   // ✅ NEW
+    sessionExpiresAt,     // ✅ NEW
     login,
     reAuthenticate, // ✅ NEW: Expose re-auth function
     logout,
-    completeLogout, // ✅ NEW: Expose complete logout
+    completeLogout,
+    extendSession,
     isAuthenticated: !!admin && !requiresReauth // ✅ Updated: Only authenticated if no re-auth needed
   };
 

@@ -23,7 +23,7 @@ const decodeToken = (token) => {
 };
 
 export default function TopBar({ onMenuClick }) {
-  const { logout, admin } = useAdminAuth();
+  const { logout, admin, sessionSecondsLeft, extendSession } = useAdminAuth();
   const navigate = useNavigate();
   
   const [showNotifications, setShowNotifications] = useState(false);
@@ -35,13 +35,60 @@ export default function TopBar({ onMenuClick }) {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
-  // ✅ NEW: Token countdown states
-  const [timeRemaining, setTimeRemaining] = useState(null);
-  const [showExpiryWarning, setShowExpiryWarning] = useState(false);
   
   const notifRef = useRef(null);
   const userMenuRef = useRef(null);
   const searchRef = useRef(null);
+
+  const [isExtending, setIsExtending] = useState(false);
+  const [extendError, setExtendError] = useState('');
+  const [localSecondsLeft, setLocalSecondsLeft] = useState(null);
+
+  // ✅ Local 1-second ticker reading directly from sessionStorage
+  useEffect(() => {
+    const tick = () => {
+      const expiresAt = sessionStorage.getItem('admin_token_expires_at');
+      if (!expiresAt) { setLocalSecondsLeft(null); return; }
+      const secondsLeft = parseInt(expiresAt) - Math.floor(Date.now() / 1000);
+      if (secondsLeft <= 0) {
+        setLocalSecondsLeft(0);
+        logout();
+        navigate('/admin/login', { state: { message: 'Your session has expired. Please log in again.' } });
+        return;
+      }
+      setLocalSecondsLeft(secondsLeft);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ✅ Always show mm:ss countdown
+  const formatSecondsLeft = (seconds) => {
+    if (!seconds || seconds <= 0) return '0:00';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  // ✅ Timer color based on seconds left
+  const getTimerColor = (seconds) => {
+    if (!seconds) return 'text-tppslate';
+    if (seconds <= 60) return 'text-red-600 animate-pulse';
+    if (seconds <= 300) return 'text-orange-500';
+    return 'text-tppslate';
+  };
+
+  // ✅ Handle extend button click
+  const handleExtendSession = async () => {
+    setIsExtending(true);
+    setExtendError('');
+    const result = await extendSession();
+    if (!result.success) {
+      setExtendError(result.error || 'Failed to extend session');
+    }
+    setIsExtending(false);
+  };
 
   const notifications = [
     { id: 1, text: 'New order received', time: '5 min ago', unread: true },
@@ -60,44 +107,6 @@ export default function TopBar({ onMenuClick }) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
     }
     return name.slice(0, 2).toUpperCase();
-  };
-
-  // ✅ NEW: Calculate time remaining from JWT token
-  const calculateTimeRemaining = () => {
-    try {
-      const token = sessionStorage.getItem('admin_token');
-      if (!token) {
-        setTimeRemaining(null);
-        return;
-      }
-
-      const decoded = decodeToken(token);
-      if (!decoded || !decoded.exp) {
-        setTimeRemaining(null);
-        return;
-      }
-
-      const expirationTime = decoded.exp * 1000; // Convert to milliseconds
-      const currentTime = Date.now();
-      const remaining = expirationTime - currentTime;
-
-      if (remaining <= 0) {
-        setTimeRemaining(0);
-        // Token expired - trigger logout
-        handleTokenExpiry();
-        return;
-      }
-
-      setTimeRemaining(remaining);
-
-      // Show warning when less than 5 minutes remaining
-      if (remaining < 5 * 60 * 1000 && remaining > 0 && !showExpiryWarning) {
-        setShowExpiryWarning(true);
-      }
-    } catch (error) {
-      console.error('Error calculating time remaining:', error);
-      setTimeRemaining(null);
-    }
   };
 
   // ✅ NEW: Handle token expiry
@@ -119,31 +128,6 @@ export default function TopBar({ onMenuClick }) {
     
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
-
-  // ✅ NEW: Get warning color based on time remaining
-  const getTimerColor = () => {
-    if (!timeRemaining) return 'text-tppslate';
-    
-    const minutes = Math.floor(timeRemaining / 60000);
-    
-    if (minutes <= 2) return 'text-red-600 animate-pulse';
-    if (minutes <= 5) return 'text-tppslate';
-    if (minutes <= 10) return 'text-tppslate';
-    return 'text-tppslate';
-  };
-
-  // ✅ NEW: Token countdown effect
-  useEffect(() => {
-    // Initial calculation
-    calculateTimeRemaining();
-
-    // Update every second
-    const interval = setInterval(() => {
-      calculateTimeRemaining();
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   // Handle logout
   const handleLogout = async () => {
@@ -503,23 +487,39 @@ export default function TopBar({ onMenuClick }) {
 
           {/* Right Section */}
           <div className="flex items-center gap-3">
-            {/* ✅ NEW: Session Timer */}
-            {timeRemaining !== null && (
-              <div 
-                className={`hidden sm:flex items-center gap-2 px-3 py-1 rounded-lg border-2 transition-all ml-2 ${
-                  timeRemaining <= 2 * 60 * 1000 
-                    ? 'bg-red-50 border-red-200'
-                    : 'bg-slate-50 border-slate-200'
-                }`}
-                title="Session expires in"
-              >
-                <div className="flex items-center flex-col">
-                  <span className={`font-inter text-lg font-bold tabular-nums ${getTimerColor()}`}>
-                    {formatTimeRemaining(timeRemaining)}
-                  </span>
-                </div>
-                {timeRemaining <= 5 * 60 * 1000 && (
+            {/* ✅ Session Timer + Extend Button */}
+            {localSecondsLeft !== null && (
+              <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 transition-all ml-2 ${
+                localSecondsLeft <= 60
+                  ? 'bg-red-50 border-red-200'
+                  : localSecondsLeft <= 300
+                  ? 'bg-orange-50 border-orange-200'
+                  : 'bg-slate-50 border-slate-200'
+              }`}>
+                <Clock className="w-4 h-4 text-tppslate/50" />
+                <span className={`font-inter text-lg font-bold tabular-nums ${getTimerColor(localSecondsLeft)}`}>
+                  {formatSecondsLeft(localSecondsLeft)}
+                </span>
+                {localSecondsLeft <= 300 && (
                   <AlertCircle className="w-4 h-4 text-orange-500" />
+                )}
+                {localSecondsLeft <= 300 && (
+                  <button
+                    onClick={handleExtendSession}
+                    disabled={isExtending}
+                    title={extendError || '+15 minutes'}
+                    className={`ml-1 px-2 py-0.5 text-xs font-semibold rounded border-2 transition-all ${
+                      extendError
+                        ? 'border-red-300 text-red-500 bg-red-50'
+                        : 'border-tpppink/50 text-tpppink hover:bg-tpppink/10 hover:border-tpppink'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    {isExtending ? (
+                      <span className="flex items-center gap-1">
+                        <span className="w-3 h-3 border-2 border-tpppink border-t-transparent rounded-full animate-spin inline-block" />
+                      </span>
+                    ) : '+15 min'}
+                  </button>
                 )}
               </div>
             )}
@@ -657,29 +657,6 @@ export default function TopBar({ onMenuClick }) {
           </div>
         </div>
       </div>
-
-      {/* ✅ NEW: Session Expiry Warning Banner */}
-      {showExpiryWarning && timeRemaining > 0 && timeRemaining <= 5 * 60 * 1000 && (
-        <div className="bg-orange-50 border-t-2 border-orange-200 px-4 py-2">
-          <div className="flex items-center justify-between max-w-7xl mx-auto">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-orange-600" />
-              <p className="text-sm text-orange-900">
-                <span className="font-semibold">Session expiring soon!</span> Your session will expire in{' '}
-                <span className="font-bold">{formatTimeRemaining(timeRemaining)}</span>. 
-                Save your work to avoid losing changes.
-              </p>
-            </div>
-            <button
-              onClick={() => setShowExpiryWarning(false)}
-              className="text-orange-600 hover:text-orange-800 transition-colors"
-              aria-label="Dismiss warning"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      )}
     </header>
   );
 }

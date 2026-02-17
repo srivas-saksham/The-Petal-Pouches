@@ -8,12 +8,14 @@ const {
   getCurrentAdmin,
   logoutAdmin,
   refreshToken,
-  verifyAdminPassword
+  verifyAdminPassword,
+  extendAdminToken 
 } = require('../controllers/adminAuthController');
 const { 
   verifyAdminToken, 
   rateLimitLogin, 
-  securityHeaders 
+  securityHeaders,
+  verifyAdminTokenWithGrace
 } = require('../middleware/adminAuth');
 
 // ✅ Apply security headers to all admin routes
@@ -28,5 +30,6 @@ router.post('/refresh', refreshToken);
 // ✅ Protected routes
 router.get('/me', verifyAdminToken, getCurrentAdmin);
 router.post('/logout', verifyAdminToken, logoutAdmin);
+router.post('/extend', verifyAdminTokenWithGrace, extendAdminToken);
 
 module.exports = router;

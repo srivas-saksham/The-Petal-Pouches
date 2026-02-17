@@ -10,6 +10,11 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
   throw new Error('❌ CRITICAL: JWT_SECRET must be set and at least 32 characters');
 }
 
+// ✅ SESSION EXTENSION CONSTANTS
+const MAX_SESSION_SECONDS = 4 * 60 * 60; // 4 hours hard cap
+const EXTEND_SECONDS = 15 * 60;           // 15 minutes per click
+const GRACE_PERIOD_SECONDS = 2 * 60;      // allow extend if expired < 2 min ago
+
 // ✅ INPUT SANITIZATION
 const sanitizeInput = (str) => {
   if (typeof str !== 'string') return str;
@@ -176,6 +181,8 @@ const loginAdmin = async (req, res) => {
       { expiresIn: '30m' }
     );
 
+    const expiresAt = Math.floor(Date.now() / 1000) + (30 * 60);
+
     await supabase
       .from('admin_users')
       .update({ last_login: new Date().toISOString() })
@@ -186,6 +193,7 @@ const loginAdmin = async (req, res) => {
       message: 'Login successful',
       data: {
         token,
+        expiresAt,
         admin: {
           id: admin.id,
           email: admin.email,
@@ -269,6 +277,8 @@ const verifyAdminPassword = async (req, res) => {
       { expiresIn: '30m' }
     );
 
+    const expiresAt = Math.floor(Date.now() / 1000) + (30 * 60);
+
     await supabase
       .from('admin_users')
       .update({ 
@@ -281,6 +291,7 @@ const verifyAdminPassword = async (req, res) => {
       message: 'Identity verified successfully',
       data: {
         token,
+        expiresAt,
         admin: {
           id: admin.id,
           email: admin.email,
@@ -403,11 +414,99 @@ const refreshToken = async (req, res) => {
   }
 };
 
+/**
+ * Extend Admin Session by 15 minutes
+ * POST /api/admin/auth/extend
+ */
+const extendAdminToken = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'No token provided' });
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    // Decode even if expired (grace period check happens in middleware,
+    // but we double-check here for safety)
+    const decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true });
+
+    const now = Math.floor(Date.now() / 1000);
+
+    // Reject if expired more than GRACE_PERIOD_SECONDS ago
+    if (decoded.exp && (now - decoded.exp) > GRACE_PERIOD_SECONDS) {
+      return res.status(401).json({
+        success: false,
+        message: 'Session expired. Please log in again.',
+        code: 'TOKEN_EXPIRED'
+      });
+    }
+
+    // Verify admin still exists and is active in DB
+    const { data: admin, error } = await supabase
+      .from('admin_users')
+      .select('*')
+      .eq('id', decoded.id)
+      .single();
+
+    if (error || !admin) {
+      return res.status(401).json({ success: false, message: 'Admin not found' });
+    }
+
+    if (!admin.is_active) {
+      return res.status(403).json({ success: false, message: 'Admin account deactivated' });
+    }
+
+    // Calculate new expiry: current exp + 15 min, capped at MAX_SESSION_SECONDS from now
+    const newExpiryUnix = Math.min(
+      decoded.exp + EXTEND_SECONDS,
+      now + MAX_SESSION_SECONDS
+    );
+
+    const dynamicExpiresIn = newExpiryUnix - now;
+
+    if (dynamicExpiresIn <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum session length reached'
+      });
+    }
+
+    const newToken = jwt.sign(
+      {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        role: admin.role,
+        permissions: admin.permissions
+      },
+      JWT_SECRET,
+      { expiresIn: dynamicExpiresIn }
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        token: newToken,
+        expiresAt: newExpiryUnix,
+        expiresInSeconds: dynamicExpiresIn
+      }
+    });
+
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Extend token error:', error);
+    }
+    res.status(401).json({ success: false, message: 'Token extension failed' });
+  }
+};
+
 module.exports = {
   registerAdmin,
   loginAdmin,
   verifyAdminPassword,
   getCurrentAdmin,
   logoutAdmin,
-  refreshToken
+  refreshToken,
+  extendAdminToken 
 };

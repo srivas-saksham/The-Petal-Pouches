@@ -220,11 +220,75 @@ const securityHeaders = (req, res, next) => {
   next();
 };
 
+/**
+ * ✅ NEW: Verify admin token with grace period (for /extend route)
+ * Allows tokens expired within GRACE_PERIOD_SECONDS (120s)
+ */
+const verifyAdminTokenWithGrace = (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    // Decode even if expired
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { ignoreExpiration: true });
+
+    const now = Math.floor(Date.now() / 1000);
+    const GRACE_PERIOD_SECONDS = 2 * 60; // 120 seconds
+
+    // If expired, only allow within grace period
+    if (decoded.exp && decoded.exp < now) {
+      const expiredSecondsAgo = now - decoded.exp;
+      if (expiredSecondsAgo > GRACE_PERIOD_SECONDS) {
+        return res.status(401).json({
+          success: false,
+          message: 'Session expired. Please log in again.',
+          code: 'TOKEN_EXPIRED'
+        });
+      }
+    }
+
+    req.admin = decoded;
+    console.log(`[Admin Activity] ${decoded.email} accessed ${req.method} ${req.originalUrl}`);
+    next();
+
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token',
+        code: 'INVALID_TOKEN'
+      });
+    }
+
+    console.error('Token verification error (grace):', error);
+    res.status(401).json({
+      success: false,
+      message: 'Authentication failed'
+    });
+  }
+};
+
 module.exports = {
   verifyAdminToken,
   requireRole,
   requirePermission,
   rateLimitLogin,
   clearRateLimit, // ✅ NEW: Export rate limiter
-  securityHeaders  // ✅ NEW: Export security headers
+  securityHeaders,
+  verifyAdminTokenWithGrace
 };
