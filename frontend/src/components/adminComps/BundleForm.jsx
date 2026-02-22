@@ -58,6 +58,7 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
   const [stockLimit, setStockLimit] = useState('');
   const [weight, setWeight] = useState(''); // ✅ NEW
   const [costPrice, setCostPrice] = useState(''); // ✅ NEW
+  const [gender, setGender] = useState('women'); // ✅ GENDER
   // Multiple images state (up to 5 images)
   const [images, setImages] = useState([]); // Array of { file, preview, id, is_primary }
   const [existingImages, setExistingImages] = useState([]); // From server
@@ -101,6 +102,7 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
         setStockLimit(bundle.stock_limit ? bundle.stock_limit.toString() : '');
         setWeight(bundle.weight ? bundle.weight.toString() : ''); // ✅ NEW
         setCostPrice(bundle.cost_price ? bundle.cost_price.toString() : ''); // ✅ NEW
+        setGender(bundle.gender || 'women'); // ✅ GENDER
 
         // Load existing images
         if (bundle.images && Array.isArray(bundle.images)) {
@@ -719,6 +721,9 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
         formData.append('cost_price', '0');
       }
 
+      // ✅ GENDER
+      formData.append('gender', gender);
+
       // Tags as JSON array
       if (tags.length > 0) {
         formData.append('tags', JSON.stringify(tags));
@@ -1046,6 +1051,30 @@ export default function BundleForm({ bundleId, onSuccess, onCancel }) {
                 }`}
               />
             </InputWrapper>
+
+            {/* ✅ GENDER SELECTOR */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-tppslate">
+                <Tag className="w-4 h-4 text-tppslate/60" />
+                Gender
+              </label>
+              <div className="flex gap-2">
+                {['women', 'men', 'neutral'].map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setGender(g)}
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold border-2 capitalize transition-all ${
+                      gender === g
+                        ? 'bg-tppslate text-white border-tppslate'
+                        : 'bg-white text-tppslate border-tpppink/30 hover:border-tpppink'
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* ✅ NEW: Weight Field */}
             <InputWrapper 

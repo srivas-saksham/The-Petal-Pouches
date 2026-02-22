@@ -60,7 +60,8 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
     stock: '',
     sku: '',
     category_id: '',
-    is_sellable: true 
+    is_sellable: true,
+    gender: 'women' 
   });
   const [images, setImages] = useState([]); // New images: { file, preview, id, is_primary }
   const [existingImages, setExistingImages] = useState([]); // From server: { id, img_url, is_primary, display_order }
@@ -115,7 +116,8 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         stock: product.stock || '',
         sku: product.sku || '',
         category_id: product.category_id || '',
-        is_sellable: product.is_sellable !== undefined ? product.is_sellable : true
+        is_sellable: product.is_sellable !== undefined ? product.is_sellable : true,
+        gender: product.gender || 'women'
       });
       
       // ✅ NEW: Load existing images
@@ -569,7 +571,8 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
         images: images.map(img => img.file), // New images
         delete_image_ids: imagesToDelete, // Images to delete
         tags: tags,
-        is_sellable: formData.is_sellable
+        is_sellable: formData.is_sellable,
+        gender: formData.gender
       };
 
       // ✅ NEW: Handle primary image change for existing images
@@ -1235,6 +1238,30 @@ const UpdateProductForm = ({ productId, onSuccess, onCancel }) => {
               {formData.description.length}/2000 characters
             </p>
           </InputWrapper>
+        </div>
+
+        {/* ✅ GENDER SELECTOR */}
+        <div className="bg-white rounded-lg p-5 border-2 border-tpppink/30 hover:border-tpppink hover:bg-tpppink/5 transition-all duration-200">
+          <h3 className="text-base font-bold text-tppslate mb-4 flex items-center gap-2">
+            <Tag className="w-5 h-5" />
+            Gender
+          </h3>
+          <div className="flex gap-3">
+            {['women', 'men', 'neutral'].map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, gender: g }))}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-semibold border-2 capitalize transition-all ${
+                  formData.gender === g
+                    ? 'bg-tppslate text-white border-tppslate'
+                    : 'bg-white text-tppslate border-tpppink/30 hover:border-tpppink'
+                }`}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* 🔒 NEW: Sellable Toggle */}

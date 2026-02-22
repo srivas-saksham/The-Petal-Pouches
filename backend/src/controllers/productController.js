@@ -222,7 +222,8 @@ const createProduct = async (req, res) => {
       weight,
       cost_price,
       tags,
-      is_sellable
+      is_sellable,
+      gender
     } = req.body;
 
     // ✅ CHANGED: Support both 'images' array and 'image' single file
@@ -267,7 +268,8 @@ const createProduct = async (req, res) => {
       is_sellable: is_sellable === 'false' || is_sellable === false ? false : true, // 🔒 NEW: Default true
       landing_cost: landing_cost ? parseInt(landing_cost) : 0,  // ✅ NEW
       base_cost: base_cost ? parseInt(base_cost) : 0,            // ✅ NEW
-      weight: weight ? parseInt(weight) : 0                       // ✅ NEW
+      weight: weight ? parseInt(weight) : 0,
+      gender: gender || 'women'
     };
 
     if (base_cost && price) {
@@ -405,7 +407,8 @@ const updateProduct = async (req, res) => {
       weight,        // ✅ NEW
       cost_price,
       tags,
-      is_sellable
+      is_sellable,
+      gender
     } = req.body;
 
     // Fetch existing product
@@ -463,6 +466,11 @@ const updateProduct = async (req, res) => {
     // 🔒 NEW: Handle is_sellable update
     if (is_sellable !== undefined) {
       updateData.is_sellable = is_sellable === 'false' || is_sellable === false ? false : true;
+    }
+
+    // ✅ GENDER
+    if (gender !== undefined) {
+      updateData.gender = gender;
     }
 
     // ✅ MODIFIED: Handle margins using base_cost
