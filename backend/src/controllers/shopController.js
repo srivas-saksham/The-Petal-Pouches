@@ -22,7 +22,8 @@ const ShopController = {
         min_price = '',
         max_price = '',
         in_stock = '',
-        tags = ''
+        tags = '',
+        gender = ''
       } = req.query;
 
       console.log('📥 Get shop items request:', { type, page, limit, sort, search, tags });
@@ -49,6 +50,13 @@ const ShopController = {
             )
           `, { count: 'exact' })
           .eq('is_sellable', true);
+
+          // Gender filter: show gender-specific + neutral items
+          if (gender === 'men') {
+            productQuery = productQuery.or('gender.eq.men,gender.eq.neutral,gender.is.null');
+          } else if (gender === 'women') {
+            productQuery = productQuery.or('gender.eq.women,gender.eq.neutral,gender.is.null');
+          }
 
         // Filters
         if (min_price) {
@@ -150,6 +158,13 @@ const ShopController = {
             )
           `, { count: 'exact' })
           .eq('is_active', true);
+
+          // Gender filter: show gender-specific + neutral items
+          if (gender === 'men') {
+            bundleQuery = bundleQuery.or('gender.eq.men,gender.eq.neutral,gender.is.null');
+          } else if (gender === 'women') {
+            bundleQuery = bundleQuery.or('gender.eq.women,gender.eq.neutral,gender.is.null');
+          }
 
         // Filters
         if (min_price) {

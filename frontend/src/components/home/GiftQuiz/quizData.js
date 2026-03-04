@@ -16,7 +16,7 @@ export const QUIZ_QUESTIONS = [
     subtitle: "Let's start with the celebration",
     type: 'single-choice',
     required: true,
-    weight: 10, // Highest weight - primary filter
+    weight: 10,
     options: [
       { 
         value: 'birthday', 
@@ -124,8 +124,8 @@ export const QUIZ_QUESTIONS = [
   // ===========================
   {
     id: 'style',
-    question: "What's her style vibe?",
-    subtitle: "Choose the aesthetic that suits her best",
+    question: "What's their style vibe?",
+    subtitle: "Choose the aesthetic that suits them best",
     type: 'single-choice',
     required: true,
     weight: 7,
@@ -181,30 +181,30 @@ export const QUIZ_QUESTIONS = [
     options: [
       { 
         value: 'budget-friendly', 
-        label: 'Under ₹1,000', 
+        label: 'Under ₹200', 
         icon: '💰',
-        priceRange: [0, 1000],
+        priceRange: [0, 200],
         description: 'Thoughtful gifts on a budget'
       },
       { 
         value: 'moderate', 
-        label: '₹1,000 - ₹2,500', 
+        label: '₹200 - ₹500', 
         icon: '💵',
-        priceRange: [1000, 2500],
+        priceRange: [200, 500],
         description: 'Quality gifts at fair prices'
       },
       { 
         value: 'premium', 
-        label: '₹2,500 - ₹5,000', 
+        label: '₹500 - ₹1,000', 
         icon: '💳',
-        priceRange: [2500, 5000],
+        priceRange: [500, 1000],
         description: 'Premium curated experiences'
       },
       { 
         value: 'luxury', 
-        label: 'Above ₹5,000', 
+        label: 'Above ₹1,000', 
         icon: '💎',
-        priceRange: [5000, 999999],
+        priceRange: [1000, 3000],
         description: 'Luxury gift collections'
       },
     ]

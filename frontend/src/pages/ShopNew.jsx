@@ -14,6 +14,7 @@ import shopService from '../services/shopService';
 import { getTagsWithCounts } from '../services/tagsService';
 import { useCart } from '../hooks/useCart';
 import SEO from '../components/seo/SEO';
+import { useBrand } from '../context/BrandContext';
 
 const BundleShop = () => {
   const [bundles, setBundles] = useState([]);
@@ -35,6 +36,7 @@ const BundleShop = () => {
   });
   
   const { cartItems, refreshCart } = useCart();
+  const { brandMode } = useBrand();
 
   const {
     filters,
@@ -95,7 +97,8 @@ const BundleShop = () => {
           min_price: filters.min_price || '',
           max_price: filters.max_price || '',
           in_stock: filters.in_stock || '',
-          type: itemType || 'all'
+          type: itemType || 'all',
+          gender: brandMode === 'masculine' ? 'men' : 'women',
         };
 
         const response = await getTagsWithCounts(filterContext);
@@ -114,7 +117,7 @@ const BundleShop = () => {
     };
 
     fetchTags();
-  }, [filters.search, filters.min_price, filters.max_price, filters.in_stock, filters.tags, itemType]);
+  }, [filters.search, filters.min_price, filters.max_price, filters.in_stock, filters.tags, itemType, brandMode]);
 
   // Fetch bundles/products
   useEffect(() => {
@@ -223,17 +226,16 @@ const BundleShop = () => {
     />
     <div 
       className="min-h-screen relative"
-      style={{
+      style={brandMode === 'feminine' ? {
         backgroundImage: 'url(/assets/doodle_bg.png)',
         backgroundRepeat: 'repeat',
         backgroundSize: 'auto',
-      }}
+      } : {}}
     >
-      <div className="absolute inset-0 bg-white/30"></div>
+      <div className={`absolute inset-0 ${brandMode === 'feminine' ? 'bg-white/30' : 'bg-tppdarkgray'}`}></div>
 
       <div className="relative z-10">
         
-        {/* HEADER */}
         <CommonHeader
           filters={filters}
           onSearchChange={handleSearchChange}
@@ -246,7 +248,6 @@ const BundleShop = () => {
           onLayoutChange={handleLayoutChange}
         />
 
-        {/* ⭐ UNIFIED FILTERS BAR (Mobile + Desktop) - WITH SCROLL HIDE/SHOW */}
         <div
           className={`sticky md:top-16 top-28 z-30 transition-transform duration-300 ease-in-out ${
             isFiltersBarVisible ? 'translate-y-0' : '-translate-y-full'
@@ -266,10 +267,8 @@ const BundleShop = () => {
           />
         </div>
 
-        {/* CONTENT AREA */}
         <div className="flex">
           
-          {/* BUNDLES GRID */}
           <div className="flex-1 px-3 py-3 lg:px-6 lg:py-6">
             <MixedShopGrid 
               items={bundles} 
@@ -280,9 +279,8 @@ const BundleShop = () => {
               layoutMode={layoutMode}
             />
 
-            {/* Empty State */}
             {!loading && bundles.length === 0 && hasActiveFilters() && (
-              <div className="bg-white rounded-lg border-2 border-slate-200 shadow-sm">
+              <div className="bg-white dark:bg-tppdarkgray rounded-lg border-2 border-slate-200 dark:border-tppdarkwhite/10 shadow-sm">
                 <BundleEmpty
                   message="No items match your filters"
                   showReset={true}
@@ -291,30 +289,25 @@ const BundleShop = () => {
               </div>
             )}
 
-            {/* PAGINATION */}
             {!loading && metadata && metadata.totalPages > 1 && (
               <div className="mt-4 lg:mt-6">
-                <div className="bg-white/95 backdrop-blur-sm rounded-lg border-2 border-slate-200 shadow-sm p-3 lg:p-4">
+                <div className="bg-white/95 dark:bg-tppdarkgray/95 backdrop-blur-sm rounded-lg border-2 border-slate-200 dark:border-tppdarkwhite/10 shadow-sm p-3 lg:p-4">
                   <div className="flex items-center justify-between gap-2 lg:gap-4">
                     
-                    {/* Page Info */}
-                    <div className="text-xs lg:text-sm text-slate-600">
-                      Page <span className="font-semibold text-slate-900">{filters.page}</span> of{' '}
-                      <span className="font-semibold text-slate-900">{metadata.totalPages}</span>
+                    <div className="text-xs lg:text-sm text-slate-600 dark:text-tppdarkwhite/60">
+                      Page <span className="font-semibold text-slate-900 dark:text-tppdarkwhite">{filters.page}</span> of{' '}
+                      <span className="font-semibold text-slate-900 dark:text-tppdarkwhite">{metadata.totalPages}</span>
                     </div>
 
-                    {/* Pagination Controls */}
                     <div className="flex items-center gap-1 lg:gap-2">
-                      {/* Previous Button */}
                       <button
                         onClick={() => setPage(filters.page - 1)}
                         disabled={filters.page <= 1}
-                        className="p-1.5 lg:p-2 border-2 border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-slate-700"
+                        className="p-1.5 lg:p-2 border-2 border-slate-200 dark:border-tppdarkwhite/10 rounded-lg hover:bg-slate-50 dark:hover:bg-tppdarkwhite/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-slate-700 dark:text-tppdarkwhite"
                       >
                         <ChevronLeft size={16} />
                       </button>
                       
-                      {/* Page Numbers - Desktop Only */}
                       <div className="hidden md:flex items-center gap-1">
                         {[...Array(metadata.totalPages)].map((_, i) => {
                           const page = i + 1;
@@ -329,8 +322,8 @@ const BundleShop = () => {
                                 onClick={() => setPage(page)}
                                 className={`min-w-[32px] lg:min-w-[40px] h-8 lg:h-10 px-2 lg:px-3 text-xs lg:text-sm font-semibold border-2 rounded-lg transition-all ${
                                   page === filters.page
-                                    ? 'bg-tpppink text-white border-tpppink shadow-sm'
-                                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                                    ? 'bg-tpppink dark:bg-tppdarkwhite text-white dark:text-tppdark border-tpppink dark:border-tppdarkwhite shadow-sm'
+                                    : 'border-slate-200 dark:border-tppdarkwhite/10 text-slate-700 dark:text-tppdarkwhite hover:bg-slate-50 dark:hover:bg-tppdarkwhite/5'
                                 }`}
                                 aria-label={`Go to page ${page}`}
                                 aria-current={page === filters.page ? 'page' : undefined}
@@ -338,12 +331,9 @@ const BundleShop = () => {
                                 {page}
                               </button>
                             );
-                          } else if (
-                            page === filters.page - 2 ||
-                            page === filters.page + 2
-                          ) {
+                          } else if (page === filters.page - 2 || page === filters.page + 2) {
                             return (
-                              <span key={page} className="px-1 text-slate-400 text-xs" aria-hidden="true">
+                              <span key={page} className="px-1 text-slate-400 dark:text-tppdarkwhite/30 text-xs" aria-hidden="true">
                                 ···
                               </span>
                             );
@@ -352,11 +342,10 @@ const BundleShop = () => {
                         })}
                       </div>
 
-                      {/* Next Button */}
                       <button
                         onClick={() => setPage(filters.page + 1)}
                         disabled={filters.page >= metadata.totalPages}
-                        className="p-1.5 lg:p-2 border-2 border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-slate-700"
+                        className="p-1.5 lg:p-2 border-2 border-slate-200 dark:border-tppdarkwhite/10 rounded-lg hover:bg-slate-50 dark:hover:bg-tppdarkwhite/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-slate-700 dark:text-tppdarkwhite"
                       >
                         <ChevronRight size={16} />
                       </button>
@@ -367,7 +356,6 @@ const BundleShop = () => {
             )}
           </div>
 
-          {/* ⭐ DESKTOP: Sidebar Filters */}
           <div className="hidden lg:block flex-shrink-0 py-6 pr-6">
             <SidebarFilters
               filters={{
@@ -390,11 +378,10 @@ const BundleShop = () => {
         </div>
       </div>
 
-      {/* ⭐ MOBILE: Framer Motion Filter Sidebar */}
+      {/* MOBILE: Framer Motion Filter Sidebar */}
       <AnimatePresence>
         {showMobileFilters && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -404,20 +391,18 @@ const BundleShop = () => {
               onClick={() => setShowMobileFilters(false)}
             />
 
-            {/* Sidebar */}
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="lg:hidden fixed top-0 right-0 bottom-0 w-[85vw] max-w-sm bg-white z-50 shadow-2xl overflow-hidden flex flex-col"
+              className="lg:hidden fixed top-0 right-0 bottom-0 w-[85vw] max-w-sm bg-white dark:bg-tppdarkgray z-50 shadow-2xl overflow-hidden flex flex-col"
             >
-              {/* Header */}
-              <div className="bg-gradient-to-r from-tpppeach to-white border-b-2 border-tpppink/20 px-4 py-3 flex items-center justify-between flex-shrink-0">
+              <div className="bg-gradient-to-r from-tpppeach dark:from-tppdark to-white dark:to-tppdarkgray border-b-2 border-tpppink/20 dark:border-tppdarkwhite/10 px-4 py-3 flex items-center justify-between flex-shrink-0">
                 <div>
-                  <h2 className="text-sm font-bold text-tpppink uppercase">Filters</h2>
+                  <h2 className="text-sm font-bold text-tpppink dark:text-tppdarkwhite uppercase">Filters</h2>
                   {metadata?.totalCount !== undefined && (
-                    <p className="text-[10px] text-slate-500">{metadata.totalCount} results</p>
+                    <p className="text-[10px] text-slate-500 dark:text-tppdarkwhite/40">{metadata.totalCount} results</p>
                   )}
                 </div>
                 
@@ -425,21 +410,20 @@ const BundleShop = () => {
                   {hasActiveFilters() && (
                     <button
                       onClick={resetFilters}
-                      className="text-[10px] font-bold text-tpppink hover:text-white hover:bg-tpppink px-2 py-1 rounded border border-tpppink transition-all active:scale-95"
+                      className="text-[10px] font-bold text-tpppink dark:text-tppdarkwhite hover:text-white dark:hover:text-tppdark hover:bg-tpppink dark:hover:bg-tppdarkwhite px-2 py-1 rounded border border-tpppink dark:border-tppdarkwhite transition-all active:scale-95"
                     >
                       Clear All
                     </button>
                   )}
                   <button
                     onClick={() => setShowMobileFilters(false)}
-                    className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors active:scale-95"
+                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-tppdarkwhite/10 rounded-lg transition-colors active:scale-95"
                   >
-                    <X size={20} className="text-slate-600" />
+                    <X size={20} className="text-slate-600 dark:text-tppdarkwhite" />
                   </button>
                 </div>
               </div>
 
-              {/* Scrollable Filters */}
               <div className="flex-1 overflow-y-auto">
                 <SidebarFilters
                   filters={{
@@ -460,11 +444,10 @@ const BundleShop = () => {
                 />
               </div>
 
-              {/* Apply Button */}
-              <div className="border-t border-slate-200 p-3 flex-shrink-0">
+              <div className="border-t border-slate-200 dark:border-tppdarkwhite/10 p-3 flex-shrink-0">
                 <button
                   onClick={() => setShowMobileFilters(false)}
-                  className="w-full bg-tpppink text-white py-2.5 rounded-lg font-bold text-sm active:scale-95 transition-transform shadow-sm"
+                  className="w-full bg-tpppink dark:bg-tppdarkwhite text-white dark:text-tppdark py-2.5 rounded-lg font-bold text-sm active:scale-95 transition-transform shadow-sm"
                 >
                   Apply Filters
                 </button>
@@ -475,13 +458,8 @@ const BundleShop = () => {
       </AnimatePresence>
 
       <style jsx>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
     </div>
     </>

@@ -12,48 +12,35 @@ export default function TermsConditions() {
         noindex={false}
       />
 
-      <div className="min-h-screen bg-gray-50 py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
-        {/* Back to Home Link */}
+      <div className="min-h-screen bg-gray-50 dark:bg-tppdark py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto mb-4">
-          <Link 
-            to="/" 
-            className="inline-flex items-center text-tpppink hover:text-pink-700 font-medium transition-colors"
-          >
-            <svg 
-              className="w-5 h-5 mr-2" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M10 19l-7-7m0 0l7-7m-7 7h18" 
-              />
+          <Link to="/" className="inline-flex items-center text-tpppink dark:text-tppdarkwhite hover:text-pink-700 dark:hover:text-tppdarkwhite/80 font-medium transition-colors">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             Back to Home
           </Link>
         </div>
 
-        <div className="max-w-4xl mx-auto bg-white shadow-sm rounded-lg p-6 sm:p-8 md:p-12">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Terms & Conditions</h1>
-          <p className="text-sm text-gray-500 mb-6 sm:mb-8">Last updated: January 2026</p>
+        <div className="max-w-4xl mx-auto bg-white dark:bg-tppdarkgray shadow-sm rounded-lg p-6 sm:p-8 md:p-12">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-tppdarkwhite mb-2">Terms & Conditions</h1>
+          <p className="text-sm text-gray-500 dark:text-tppdarkwhite/40 mb-6 sm:mb-8">Last updated: January 2026</p>
 
-          <div className="space-y-6 sm:space-y-8 text-gray-700">
+          <div className="space-y-6 sm:space-y-8 text-gray-700 dark:text-tppdarkwhite/70">
+
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">1. Agreement to Terms</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">1. Agreement to Terms</h2>
               <p className="leading-relaxed text-sm sm:text-base">
-                By accessing and using <strong>Rizara Luxe</strong> website (<strong>www.rizara.in</strong>), 
-                you agree to be bound by these Terms and Conditions. If you do not agree with any part of these terms, 
+                By accessing and using <strong>Rizara Luxe</strong> website (<strong>www.rizara.in</strong>),
+                you agree to be bound by these Terms and Conditions. If you do not agree with any part of these terms,
                 you must not use our website or services.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">2. Business Information</h2>
-              <div className="bg-gray-50 p-4 rounded-lg text-sm sm:text-base">
-                <p><strong>Brand Name:</strong> Rizara Luxe</p>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">2. Business Information</h2>
+              <div className="bg-gray-50 dark:bg-tppdark p-4 rounded-lg text-sm sm:text-base border border-gray-200 dark:border-tppdarkwhite/10">
+                <p className="text-gray-900 dark:text-tppdarkwhite"><strong>Brand Name:</strong> Rizara Luxe</p>
                 <p className="mt-1"><strong>Website:</strong> <span className="break-all">www.rizara.in</span></p>
                 <p className="mt-1"><strong>Business Type:</strong> Luxury Jewelry & Gifting</p>
                 <p className="mt-1"><strong>Country:</strong> India</p>
@@ -61,9 +48,9 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">3. Products and Services</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">3. Products and Services</h2>
               <p className="leading-relaxed mb-3 text-sm sm:text-base">
-                Rizara Luxe offers luxury jewelry and curated gift bundles. All product descriptions, images, 
+                Rizara Luxe offers luxury jewelry and curated gift bundles. All product descriptions, images,
                 and specifications are provided for informational purposes and may vary slightly from the actual product.
               </p>
               <ul className="list-disc pl-5 sm:pl-6 space-y-2 text-sm sm:text-base">
@@ -75,7 +62,7 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">4. Account Registration</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">4. Account Registration</h2>
               <p className="leading-relaxed mb-3 text-sm sm:text-base">To make a purchase, you may need to create an account. You agree to:</p>
               <ul className="list-disc pl-5 sm:pl-6 space-y-2 text-sm sm:text-base">
                 <li>Provide accurate and complete information</li>
@@ -86,7 +73,7 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">5. Orders and Payments</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">5. Orders and Payments</h2>
               <p className="leading-relaxed mb-3 text-sm sm:text-base">
                 All payments are processed securely through <strong>Razorpay</strong>. By placing an order, you agree that:
               </p>
@@ -100,35 +87,36 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">6. Shipping and Delivery</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">6. Shipping and Delivery</h2>
               <p className="leading-relaxed mb-3 text-sm sm:text-base">
                 Shipping and delivery terms are governed by our Shipping Policy. Key points include:
               </p>
               <ul className="list-disc pl-5 sm:pl-6 space-y-2 text-sm sm:text-base">
                 <li>We ship across India using trusted courier partners</li>
-                <li>Free shipping on orders above ₹1,000</li>
-                <li>Standard shipping charge of ₹99 for orders below ₹1,000</li>
+                <li>Free shipping on orders above ₹499</li>
+                <li>Standard shipping charge of ₹99</li>
                 <li>Delivery timelines vary by location (3-14 business days)</li>
-                <li>Please refer to our <a href="/shipping-policy" className="text-pink-600 hover:underline">Shipping Policy</a> for complete details</li>
+                <li>Please refer to our <a href="/shipping-policy" className="text-pink-600 dark:text-tppdarkwhite hover:underline">Shipping Policy</a> for complete details</li>
               </ul>
             </section>
 
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">7. Returns and Refunds</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">7. Returns and Refunds</h2>
               <p className="leading-relaxed mb-3 text-sm sm:text-base">
                 Our return and refund policy allows for returns within 7 days of delivery under specific conditions:
               </p>
               <ul className="list-disc pl-5 sm:pl-6 space-y-2 text-sm sm:text-base">
                 <li>Returns accepted for damaged, defective, or incorrect items</li>
                 <li>Customized/personalized items cannot be returned</li>
-                <li>Shipping charges (₹99) are non-refundable except for defective/wrong items</li>
+                <li>Shipping charges (₹99) are non-refundable</li>
                 <li>Refunds processed within 5-7 business days after approval</li>
-                <li>Please refer to our <a href="/refund-policy" className="text-pink-600 hover:underline">Refund Policy</a> for complete details</li>
+                <li>We strictly enforce our return only with <span className="text-pink-600 dark:text-tppdarkwhite">proper proof video at the time of unboxing</span>.</li>
+                <li>Please refer to our <a href="/refund-policy" className="text-pink-600 dark:text-tppdarkwhite hover:underline">Refund Policy</a> for complete details</li>
               </ul>
             </section>
 
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">8. Pricing and Availability</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">8. Pricing and Availability</h2>
               <p className="leading-relaxed text-sm sm:text-base">
                 We make every effort to display accurate prices and product availability. However, we reserve the right to:
               </p>
@@ -141,9 +129,9 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">9. Intellectual Property</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">9. Intellectual Property</h2>
               <p className="leading-relaxed text-sm sm:text-base">
-                All content on Rizara Luxe website, including text, images, logos, designs, and graphics, 
+                All content on Rizara Luxe website, including text, images, logos, designs, and graphics,
                 is the property of Rizara Luxe and protected by Indian copyright laws. You may not:
               </p>
               <ul className="list-disc pl-5 sm:pl-6 space-y-2 mt-3 text-sm sm:text-base">
@@ -154,7 +142,7 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">10. User Conduct</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">10. User Conduct</h2>
               <p className="leading-relaxed mb-3 text-sm sm:text-base">You agree not to:</p>
               <ul className="list-disc pl-5 sm:pl-6 space-y-2 text-sm sm:text-base">
                 <li>Use the website for any unlawful purpose</li>
@@ -167,16 +155,16 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">11. Privacy and Data Protection</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">11. Privacy and Data Protection</h2>
               <p className="leading-relaxed text-sm sm:text-base">
-                We are committed to protecting your privacy. Your use of our website is also governed by our <a href="/privacy-policy" className="text-pink-600 hover:underline">Privacy Policy</a>, which explains how we collect, use, and protect your personal information. By using our services, you consent to our data practices as described in the Privacy Policy.
+                We are committed to protecting your privacy. Your use of our website is also governed by our <a href="/privacy-policy" className="text-pink-600 dark:text-tppdarkwhite hover:underline">Privacy Policy</a>, which explains how we collect, use, and protect your personal information. By using our services, you consent to our data practices as described in the Privacy Policy.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">12. Limitation of Liability</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">12. Limitation of Liability</h2>
               <p className="leading-relaxed text-sm sm:text-base">
-                To the maximum extent permitted by law, Rizara Luxe shall not be liable for any indirect, 
+                To the maximum extent permitted by law, Rizara Luxe shall not be liable for any indirect,
                 incidental, special, or consequential damages arising from:
               </p>
               <ul className="list-disc pl-5 sm:pl-6 space-y-2 mt-3 text-sm sm:text-base">
@@ -189,46 +177,47 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">13. Force Majeure</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">13. Force Majeure</h2>
               <p className="leading-relaxed text-sm sm:text-base">
                 Rizara Luxe shall not be held liable for any failure or delay in performance due to circumstances beyond our reasonable control, including but not limited to natural disasters, acts of government, war, terrorism, labor strikes, internet failures, or courier service disruptions.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">14. Severability</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">14. Severability</h2>
               <p className="leading-relaxed text-sm sm:text-base">
                 If any provision of these Terms and Conditions is found to be invalid or unenforceable, the remaining provisions shall continue in full force and effect.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">15. Governing Law</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">15. Governing Law</h2>
               <p className="leading-relaxed text-sm sm:text-base">
-                These Terms and Conditions are governed by the laws of <strong>India</strong>. 
+                These Terms and Conditions are governed by the laws of <strong>India</strong>.
                 Any disputes shall be subject to the exclusive jurisdiction of the courts in India.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">16. Changes to Terms</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">16. Changes to Terms</h2>
               <p className="leading-relaxed text-sm sm:text-base">
-                We reserve the right to modify these Terms and Conditions at any time. Changes will be effective 
+                We reserve the right to modify these Terms and Conditions at any time. Changes will be effective
                 immediately upon posting. Your continued use of the website constitutes acceptance of the updated terms. We encourage you to review this page periodically.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">17. Contact Information</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-tppdarkwhite mb-3 sm:mb-4">17. Contact Information</h2>
               <p className="leading-relaxed mb-3 text-sm sm:text-base">
                 For questions about these Terms and Conditions, please contact us:
               </p>
-              <div className="bg-gray-50 p-4 rounded-lg text-sm sm:text-base">
-                <p className="font-semibold">Rizara Luxe</p>
-                <p className="mt-1">Email: <a href="mailto:officialrizara@gmail.com" className="text-pink-600 hover:underline break-all">officialrizara@gmail.com</a></p>
-                <p className="mt-1">Website: <a href="https://www.rizara.in" className="text-pink-600 hover:underline break-all">www.rizara.in</a></p>
+              <div className="bg-gray-50 dark:bg-tppdark p-4 rounded-lg text-sm sm:text-base border border-gray-200 dark:border-tppdarkwhite/10">
+                <p className="font-semibold text-gray-900 dark:text-tppdarkwhite">Rizara Luxe</p>
+                <p className="mt-1">Email: <a href="mailto:officialrizara@gmail.com" className="text-pink-600 dark:text-tppdarkwhite hover:underline break-all">officialrizara@gmail.com</a></p>
+                <p className="mt-1">Website: <a href="https://www.rizara.in" className="text-pink-600 dark:text-tppdarkwhite hover:underline break-all">www.rizara.in</a></p>
               </div>
             </section>
+
           </div>
         </div>
       </div>

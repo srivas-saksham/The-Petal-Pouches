@@ -59,15 +59,26 @@ body {
   line-height: 1.5;
 }
 
-/* Text Selection Styling */
+/* Text Selection Styling — default (feminine) */
 ::selection {
-  background-color: var(--admin-pink); /* or any color you prefer */
-  color: white; /* text color when selected */
+  background-color: var(--admin-pink);
+  color: white;
 }
 
 ::-moz-selection {
   background-color: var(--admin-pink);
   color: white;
+}
+
+/* Text Selection Styling — masculine mode */
+.brand-masculine ::selection {
+  background-color: white;
+  color: black;
+}
+
+.brand-masculine ::-moz-selection {
+  background-color: white;
+  color: black;
 }
 
 * {

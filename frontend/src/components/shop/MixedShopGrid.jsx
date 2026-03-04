@@ -68,11 +68,11 @@ const MixedShopGrid = ({
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg border border-tppgrey shadow-sm p-3 lg:p-6">
+      <div className="bg-white dark:bg-tppdarkgray rounded-lg border border-tppgrey dark:border-tppdarkwhite/10 shadow-sm p-3 lg:p-6">
         <div className="text-center py-8 lg:py-12">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 lg:p-6 max-w-md mx-auto">
-            <p className="text-red-800 font-medium mb-2 text-sm lg:text-base">Failed to load items</p>
-            <p className="text-red-600 text-xs lg:text-sm">{error}</p>
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4 lg:p-6 max-w-md mx-auto">
+            <p className="text-red-800 dark:text-red-400 font-medium mb-2 text-sm lg:text-base">Failed to load items</p>
+            <p className="text-red-600 dark:text-red-400/80 text-xs lg:text-sm">{error}</p>
           </div>
         </div>
       </div>
@@ -81,7 +81,7 @@ const MixedShopGrid = ({
 
   if (!items || items.length === 0) {
     return (
-      <div className="bg-white rounded-lg border border-tppgrey shadow-sm p-3 lg:p-6">
+      <div className="bg-white dark:bg-tppdarkgray rounded-lg border border-tppgrey dark:border-tppdarkwhite/10 shadow-sm p-3 lg:p-6">
         <BundleEmpty />
       </div>
     );
@@ -89,7 +89,6 @@ const MixedShopGrid = ({
 
   return (
     <>
-      {/* ⭐ MOBILE: No wrapper padding, transparent background */}
       <div className="bg-transparent">
         <div className={getGridClasses()}>
           {items.map((item) => {
@@ -116,7 +115,6 @@ const MixedShopGrid = ({
         </div>
       </div>
 
-      {/* Unified QuickView Modal */}
       <ItemQuickView
         item={quickViewItem}
         itemType={quickViewType}

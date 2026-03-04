@@ -17,12 +17,14 @@ import { getAddresses } from '../services/addressService';
 import { formatBundlePrice } from '../utils/bundleHelpers';
 import { getStoredAddressId, saveDeliveryData, getDeliveryData } from '../utils/deliveryStorage';
 import SEO from '../components/seo/SEO';
+import { useBrand } from '../context/BrandContext';
 
 const Checkout = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const { user, isAuthenticated } = useUserAuth();
   const { cartItems, cartTotals, loading: cartLoading, refreshCart } = useCart();
+  const { brandMode } = useBrand();
   
   const { 
     initiatePayment, 
@@ -740,10 +742,10 @@ const Checkout = () => {
 
   if (!pageInitialized && (cartLoading || loading)) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-tppdark flex items-center justify-center">
         <div className="text-center">
-          <Loader className="w-12 h-12 text-tpppink animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 font-medium">Loading checkout...</p>
+          <Loader className="w-12 h-12 text-tpppink dark:text-tppdarkwhite animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-tppdarkwhite/70 font-medium">Loading checkout...</p>
         </div>
       </div>
     );
@@ -758,24 +760,24 @@ const Checkout = () => {
       noindex={true}
     />
 
-    <div className="min-h-screen bg-gray-50"
+    <div className="min-h-screen bg-gray-50 dark:bg-tppdark"
       style={{
-        backgroundImage: 'url(/assets/doodle_bg_pink.png)',
+        backgroundImage: brandMode === 'feminine' ? 'url(/assets/doodle_bg_pink.png)' : 'url(/assets/dark_leaf.jpg)',
         backgroundRepeat: 'repeat',
         backgroundSize: 'auto',
       }}
     >
       {/* Header */}
       <div className="sticky top-0 z-10">
-        <div className="bg-white">
+        <div className="bg-white dark:bg-tppdarkgray">
           <CommonHeader />
         </div>
         
         {/* Back to Shop Button - At very left edge */}
-        <div className="px-4 py-3">
+        <div className="px-4 py-3 bg-white dark:bg-tppdarkgray border-b border-slate-200 dark:border-tppdarkwhite/10">
           <button
             onClick={handleGoBack}
-            className="flex items-center gap-2 text-slate-600 hover:text-tpppink transition-colors font-medium text-sm group"
+            className="flex items-center gap-2 text-slate-600 dark:text-tppdarkwhite/70 hover:text-tpppink dark:hover:text-tppdarkwhite transition-colors font-medium text-sm group"
           >
             <ArrowLeft 
               size={18} 
@@ -790,16 +792,16 @@ const Checkout = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4">
         {/* Page Title */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-tppslate">Checkout</h1>
+        <div className="mb-6 pt-6">
+          <h1 className="text-3xl font-bold text-tppslate dark:text-tppdarkwhite">Checkout</h1>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg flex items-start gap-3">
-            <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg flex items-start gap-3">
+            <AlertCircle className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" size={20} />
             <div>
-              <p className="text-red-800 font-medium">Error loading checkout</p>
-              <p className="text-red-700 text-sm">{error}</p>
+              <p className="text-red-800 dark:text-red-300 font-medium">Error loading checkout</p>
+              <p className="text-red-700 dark:text-red-400 text-sm">{error}</p>
             </div>
           </div>
         )}

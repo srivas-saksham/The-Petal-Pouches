@@ -3,10 +3,8 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Package, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
-// Import Swiper React components
 import { Swiper, SwiperSlide } from 'swiper/react';
 
-// Import Swiper styles
 import 'swiper/css';
 
 /**
@@ -19,10 +17,8 @@ import 'swiper/css';
  * - Smooth transitions and loading states
  */
 const BundleImageGallery = ({ bundle, isOutOfStock }) => {
-  // Process images: use new images array or fallback to legacy img_url
   const images = useMemo(() => {
     if (bundle?.images && Array.isArray(bundle.images) && bundle.images.length > 0) {
-      // Sort by display_order and prioritize primary image
       return [...bundle.images].sort((a, b) => {
         if (a.is_primary) return -1;
         if (b.is_primary) return 1;
@@ -30,7 +26,6 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
       });
     }
     
-    // Fallback to legacy single image
     if (bundle?.img_url) {
       return [{ 
         id: 'legacy', 
@@ -47,11 +42,9 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
   const [imageLoading, setImageLoading] = useState(true);
   const carouselRef = useRef(null);
   
-  // Swiper instances for mobile
   const [mainSwiperInstance, setMainSwiperInstance] = useState(null);
   const [thumbSwiperInstance, setThumbSwiperInstance] = useState(null);
 
-  // Drag scroll state (for desktop)
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -61,20 +54,14 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
   const currentImage = images[selectedIndex] || null;
   const hasMultipleImages = images.length > 1;
 
-  // Thumbnail settings
-  const THUMBNAIL_WIDTH = 80; // 80px per thumbnail
-  const THUMBNAIL_GAP = 8; // 8px gap
+  const THUMBNAIL_WIDTH = 80;
+  const THUMBNAIL_GAP = 8;
 
-  // ===========================
-  // SWIPER HANDLERS (MOBILE)
-  // ===========================
-  
   const handleMainSlideChange = (swiper) => {
     const index = hasMultipleImages ? swiper.realIndex : swiper.activeIndex;
     setSelectedIndex(index);
     setImageLoading(false);
     
-    // Sync thumbnail swiper
     if (thumbSwiperInstance) {
       thumbSwiperInstance.slideToLoop(index);
     }
@@ -84,17 +71,11 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
     setImageLoading(true);
     setSelectedIndex(index);
     
-    // Sync main swiper
     if (mainSwiperInstance) {
       mainSwiperInstance.slideToLoop(index);
     }
   };
 
-  // ===========================
-  // DESKTOP SCROLL HANDLERS
-  // ===========================
-
-  // Update scroll button visibility
   const updateScrollButtons = () => {
     if (!carouselRef.current) return;
     
@@ -103,7 +84,6 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
     setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1);
   };
 
-  // Initialize scroll buttons on mount and when images change
   useEffect(() => {
     updateScrollButtons();
     
@@ -113,7 +93,6 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, [images]);
 
-  // Handle image selection (desktop)
   const handleThumbnailClick = (index) => {
     if (index !== selectedIndex && !isDragging) {
       setImageLoading(true);
@@ -121,22 +100,19 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
     }
   };
 
-  // Navigate to previous image (desktop)
   const handlePrevious = () => {
     setImageLoading(true);
     setSelectedIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
   };
 
-  // Navigate to next image (desktop)
   const handleNext = () => {
     setImageLoading(true);
     setSelectedIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
   };
 
-  // Scroll carousel left (desktop)
   const scrollCarouselLeft = () => {
     if (!carouselRef.current) return;
-    const scrollAmount = (THUMBNAIL_WIDTH + THUMBNAIL_GAP) * 3; // Scroll 3 thumbnails
+    const scrollAmount = (THUMBNAIL_WIDTH + THUMBNAIL_GAP) * 3;
     carouselRef.current.scrollBy({
       left: -scrollAmount,
       behavior: 'smooth'
@@ -144,10 +120,9 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
     setTimeout(updateScrollButtons, 300);
   };
 
-  // Scroll carousel right (desktop)
   const scrollCarouselRight = () => {
     if (!carouselRef.current) return;
-    const scrollAmount = (THUMBNAIL_WIDTH + THUMBNAIL_GAP) * 3; // Scroll 3 thumbnails
+    const scrollAmount = (THUMBNAIL_WIDTH + THUMBNAIL_GAP) * 3;
     carouselRef.current.scrollBy({
       left: scrollAmount,
       behavior: 'smooth'
@@ -155,10 +130,6 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
     setTimeout(updateScrollButtons, 300);
   };
 
-  // ===========================
-  // DRAG TO SCROLL HANDLERS (DESKTOP)
-  // ===========================
-  
   const handleMouseDown = (e) => {
     if (!carouselRef.current) return;
     setIsDragging(true);
@@ -172,7 +143,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
     if (!isDragging || !carouselRef.current) return;
     e.preventDefault();
     const x = e.pageX - carouselRef.current.offsetLeft;
-    const walk = (x - startX) * 1.5; // Multiply for faster scroll
+    const walk = (x - startX) * 1.5;
     carouselRef.current.scrollLeft = scrollLeft - walk;
   };
 
@@ -193,7 +164,6 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
     }
   };
 
-  // Touch support for mobile (desktop carousel)
   const handleTouchStart = (e) => {
     if (!carouselRef.current) return;
     setIsDragging(true);
@@ -213,7 +183,6 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
     updateScrollButtons();
   };
 
-  // Handle keyboard navigation for main image (desktop)
   useEffect(() => {
     if (!hasMultipleImages) return;
 
@@ -227,7 +196,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
   }, [hasMultipleImages, selectedIndex]);
 
   return (
-    <div className="relative bg-white flex flex-col w-full max-w-full overflow-hidden">
+    <div className="relative bg-white dark:bg-tppdark flex flex-col w-full max-w-full overflow-hidden">
       
       {/* ========================================== */}
       {/* MOBILE: SWIPER MAIN IMAGE GALLERY */}
@@ -236,7 +205,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
         
         {/* Loading Skeleton */}
         {imageLoading && (
-          <div className="absolute inset-0 bg-slate-100 animate-pulse z-10" />
+          <div className="absolute inset-0 bg-slate-100 dark:bg-tppdarkwhite/10 animate-pulse z-10" />
         )}
 
         {currentImage ? (
@@ -254,7 +223,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
                 <img
                   src={image.img_url}
                   alt={`${bundle.title} - Image ${index + 1}`}
-                  className={`w-full h-full object-cover bg-white ${
+                  className={`w-full h-full object-cover bg-white dark:bg-tppdark ${
                     isOutOfStock ? 'grayscale opacity-60' : ''
                   }`}
                   onError={(e) => {
@@ -265,9 +234,8 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
             ))}
           </Swiper>
         ) : (
-          // Fallback when no images
-          <div className="w-full h-full flex items-center justify-center bg-slate-50">
-            <Package size={48} className="text-slate-300" />
+          <div className="w-full h-full flex items-center justify-center bg-slate-50 dark:bg-tppdarkgray">
+            <Package size={48} className="text-slate-300 dark:text-tppdarkwhite/20" />
           </div>
         )}
 
@@ -301,7 +269,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
         
         {/* Loading Skeleton */}
         {imageLoading && (
-          <div className="absolute inset-0 bg-slate-100 animate-pulse" />
+          <div className="absolute inset-0 bg-slate-100 dark:bg-tppdarkwhite/10 animate-pulse" />
         )}
 
         {/* Image Display - OBJECT-CONTAIN to maintain aspect ratio */}
@@ -309,7 +277,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
           <img
             src={currentImage.img_url}
             alt={`${bundle.title} - Image ${selectedIndex + 1}`}
-            className={`w-full h-full object-cover bg-white transition-opacity duration-300 ${
+            className={`w-full h-full object-cover bg-white dark:bg-tppdark transition-opacity duration-300 ${
               isOutOfStock ? 'grayscale opacity-60' : ''
             } ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
             onLoad={() => setImageLoading(false)}
@@ -319,9 +287,8 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
             }}
           />
         ) : (
-          // Fallback when no images
-          <div className="w-full h-full flex items-center justify-center bg-slate-50">
-            <Package size={48} className="md:w-16 md:h-16 text-slate-300" />
+          <div className="w-full h-full flex items-center justify-center bg-slate-50 dark:bg-tppdarkgray">
+            <Package size={48} className="md:w-16 md:h-16 text-slate-300 dark:text-tppdarkwhite/20" />
           </div>
         )}
 
@@ -330,18 +297,18 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
           <>
             <button
               onClick={handlePrevious}
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group"
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/95 dark:bg-tppdark hover:bg-white dark:hover:bg-tppdarkgray rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group"
               aria-label="Previous image"
             >
-              <ChevronLeft size={20} className="text-slate-700 group-hover:text-tpppink transition-colors" />
+              <ChevronLeft size={20} className="text-slate-700 dark:text-tppdarkwhite/60 group-hover:text-tpppink dark:group-hover:text-tppdarkwhite transition-colors" />
             </button>
             
             <button
               onClick={handleNext}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group"
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/95 dark:bg-tppdark hover:bg-white dark:hover:bg-tppdarkgray rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group"
               aria-label="Next image"
             >
-              <ChevronRight size={20} className="text-slate-700 group-hover:text-tpppink transition-colors" />
+              <ChevronRight size={20} className="text-slate-700 dark:text-tppdarkwhite/60 group-hover:text-tpppink dark:group-hover:text-tppdarkwhite transition-colors" />
             </button>
           </>
         )}
@@ -373,7 +340,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
       {/* MOBILE: SWIPER THUMBNAIL GALLERY */}
       {/* ========================================== */}
       {hasMultipleImages && (
-        <div className="md:hidden border-t border-slate-200 bg-slate-50 p-2 relative max-w-full overflow-hidden">
+        <div className="md:hidden border-t border-slate-200 dark:border-tppdarkwhite/10 bg-slate-50 dark:bg-tppdarkgray p-2 relative max-w-full overflow-hidden">
           <Swiper
             spaceBetween={8}
             slidesPerView="auto"
@@ -391,8 +358,8 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
                   onClick={() => handleThumbSlideClick(index)}
                   className={`relative w-full rounded-lg overflow-hidden border-2 transition-all ${
                     index === selectedIndex
-                      ? 'border-tpppink shadow-lg scale-105'
-                      : 'border-slate-200'
+                      ? 'border-tpppink dark:border-tppdarkwhite shadow-lg scale-105'
+                      : 'border-slate-200 dark:border-tppdarkwhite/10'
                   }`}
                   style={{ 
                     width: `${THUMBNAIL_WIDTH}px`, 
@@ -410,7 +377,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
                   
                   {/* Selected Indicator Overlay */}
                   {index === selectedIndex && (
-                    <div className="absolute inset-0 bg-tpppink/15 border-2 border-tpppink rounded-lg pointer-events-none" />
+                    <div className="absolute inset-0 bg-tpppink/15 border-2 border-tpppink dark:border-tppdarkwhite rounded-lg pointer-events-none" />
                   )}
                 </button>
               </SwiperSlide>
@@ -423,16 +390,16 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
       {/* DESKTOP: ORIGINAL THUMBNAIL CAROUSEL */}
       {/* ========================================== */}
       {hasMultipleImages && (
-        <div className="hidden md:block border-t border-slate-200 bg-slate-50 p-4 relative max-w-full overflow-hidden">
+        <div className="hidden md:block border-t border-slate-200 dark:border-tppdarkwhite/10 bg-slate-50 dark:bg-tppdarkgray p-4 relative max-w-full overflow-hidden">
           
           {/* Left Chevron - Positioned absolutely over carousel */}
           {canScrollLeft && (
             <button
               onClick={scrollCarouselLeft}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 bg-white hover:bg-slate-50 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group border-2 border-slate-200"
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 bg-white dark:bg-tppdark hover:bg-slate-50 dark:hover:bg-tppdarkwhite/5 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group border-2 border-slate-200 dark:border-tppdarkwhite/10"
               aria-label="Scroll thumbnails left"
             >
-              <ChevronLeft size={18} className="text-slate-600 group-hover:text-tpppink transition-colors" />
+              <ChevronLeft size={18} className="text-slate-600 dark:text-tppdarkwhite/50 group-hover:text-tpppink dark:group-hover:text-tppdarkwhite/70 transition-colors" />
             </button>
           )}
 
@@ -442,8 +409,8 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
             className="flex gap-2 overflow-x-auto overflow-y-hidden scrollbar-hide select-none max-w-full"
             style={{ 
               cursor: isDragging ? 'grabbing' : 'grab',
-              scrollbarWidth: 'none', // Firefox
-              msOverflowStyle: 'none' // IE/Edge
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
             }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
@@ -460,13 +427,13 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
                 onClick={() => handleThumbnailClick(index)}
                 className={`relative flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${
                   index === selectedIndex
-                    ? 'border-tpppink shadow-lg scale-105'
-                    : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
+                    ? 'border-tpppink dark:border-tppdarkwhite shadow-lg scale-105'
+                    : 'border-slate-200 dark:border-tppdarkwhite/10 hover:border-slate-300 dark:hover:border-tppdarkwhite/10 hover:shadow-md'
                 }`}
                 style={{ 
                   width: `${THUMBNAIL_WIDTH}px`, 
                   height: `${THUMBNAIL_WIDTH}px`,
-                  pointerEvents: isDragging ? 'none' : 'auto' // Prevent click while dragging
+                  pointerEvents: isDragging ? 'none' : 'auto'
                 }}
                 aria-label={`View image ${index + 1}`}
               >
@@ -480,7 +447,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
                 
                 {/* Selected Indicator Overlay */}
                 {index === selectedIndex && (
-                  <div className="absolute inset-0 bg-tpppink/15 border-2 border-tpppink rounded-lg pointer-events-none" />
+                  <div className="absolute inset-0 bg-tpppink/15 border-2 border-tpppink dark:border-tppdarkwhite rounded-lg pointer-events-none" />
                 )}
               </button>
             ))}
@@ -490,10 +457,10 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
           {canScrollRight && (
             <button
               onClick={scrollCarouselRight}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 bg-white hover:bg-slate-50 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group border-2 border-slate-200"
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 bg-white dark:bg-tppdark hover:bg-slate-50 dark:hover:bg-tppdarkwhite/5 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group border-2 border-slate-200 dark:border-tppdarkwhite/10"
               aria-label="Scroll thumbnails right"
             >
-              <ChevronRight size={18} className="text-slate-600 group-hover:text-tpppink transition-colors" />
+              <ChevronRight size={18} className="text-slate-600 dark:text-tppdarkwhite/50 group-hover:text-tpppink dark:group-hover:text-tppdarkwhite/70 transition-colors" />
             </button>
           )}
         </div>

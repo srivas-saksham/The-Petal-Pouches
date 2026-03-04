@@ -343,12 +343,12 @@ const CouponCard = ({
   };
 
   return (
-    <div className="bg-white rounded-xl border-2 border-slate-200 overflow-hidden">
+    <div className="bg-white dark:bg-tppdarkgray rounded-xl border-2 border-slate-200 dark:border-tppdarkwhite/10 overflow-hidden">
       {/* Header */}
-      <div className="bg-tpppink px-5 py-3.5 border-b-2 border-tpppink/20">
+      <div className="bg-tpppink dark:bg-tppdarkwhite/10 px-5 py-3.5 border-b-2 border-tpppink/20 dark:border-tppdarkwhite/10">
         <div className="flex items-center gap-2">
-          <Gift size={18} className="text-white" strokeWidth={2.5} />
-          <h3 className="text-base font-bold text-white">Apply Coupon</h3>
+          <Gift size={18} className="text-white dark:text-tppdarkwhite" strokeWidth={2.5} />
+          <h3 className="text-base font-bold text-white dark:text-tppdarkwhite">Apply Coupon</h3>
         </div>
       </div>
 
@@ -357,31 +357,31 @@ const CouponCard = ({
         
         {/* Applied Coupon State */}
         {appliedCoupon ? (
-          <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-500 rounded-xl">
+          <div className="p-4 bg-gradient-to-br from-green-50 dark:from-green-900/20 to-emerald-50 dark:to-emerald-900/10 border-2 border-green-500 dark:border-green-500/50 rounded-xl">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
                 <Check size={20} className="text-white" strokeWidth={3} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-green-600 uppercase tracking-wide mb-0.5">
+                <p className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wide mb-0.5">
                   Coupon Applied
                 </p>
-                <p className="text-lg font-bold text-green-800 font-mono mb-1">
+                <p className="text-lg font-bold text-green-800 dark:text-green-300 font-mono mb-1">
                   {appliedCoupon.code}
                 </p>
                 {appliedCoupon.description && (
-                  <p className="text-sm text-green-700 mb-2">
+                  <p className="text-sm text-green-700 dark:text-green-400 mb-2">
                     {appliedCoupon.description}
                   </p>
                 )}
-                <p className="text-base font-bold text-green-800">
+                <p className="text-base font-bold text-green-800 dark:text-green-300">
                   {formatSavingsText(appliedCoupon.discount)}
                 </p>
               </div>
               <button
                 onClick={handleRemoveCoupon}
                 disabled={disabled}
-                className="text-green-700 hover:text-red-600 transition-colors disabled:opacity-50 p-1.5 hover:bg-red-50 rounded-lg flex-shrink-0"
+                className="text-green-700 dark:text-green-400 hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50 p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg flex-shrink-0"
                 title="Remove coupon"
               >
                 <X size={18} strokeWidth={2.5} />
@@ -400,12 +400,12 @@ const CouponCard = ({
                 onChange={handleInputChange}
                 disabled={validating || disabled}
                 onKeyPress={(e) => e.key === 'Enter' && handleApplyCoupon()}
-                className="flex-1 px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink/50 focus:border-tpppink disabled:bg-slate-50 disabled:text-slate-400 uppercase font-mono text-sm font-bold placeholder:normal-case placeholder:font-normal transition-all"
+                className="flex-1 px-4 py-2.5 border-2 border-slate-200 dark:border-tppdarkwhite/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-tpppink/50 dark:focus:ring-tppdarkwhite/30 focus:border-tpppink dark:focus:border-tppdarkwhite/50 disabled:bg-slate-50 dark:disabled:bg-tppdark/30 disabled:text-slate-400 dark:disabled:text-tppdarkwhite/30 uppercase font-mono text-sm font-bold placeholder:normal-case placeholder:font-normal bg-white dark:bg-tppdark/30 text-tppslate dark:text-tppdarkwhite transition-all"
               />
               <button
                 onClick={handleApplyCoupon}
                 disabled={!couponInput.trim() || validating || disabled}
-                className="px-5 py-2.5 bg-tpppink text-white rounded-lg font-bold hover:bg-tpppink/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 whitespace-nowrap active:scale-95"
+                className="px-5 py-2.5 bg-tpppink dark:bg-tppdarkwhite text-white dark:text-tppdark rounded-lg font-bold hover:bg-tpppink/90 dark:hover:bg-tppdarkwhite/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 whitespace-nowrap active:scale-95"
               >
                 {validating ? (
                   <>
@@ -423,9 +423,9 @@ const CouponCard = ({
 
             {/* Error Message */}
             {error && (
-              <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded-lg flex items-start gap-2">
-                <AlertCircle size={16} className="text-red-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-700 font-medium">{error}</p>
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg flex items-start gap-2">
+                <AlertCircle size={16} className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700 dark:text-red-300 font-medium">{error}</p>
               </div>
             )}
 
@@ -434,11 +434,11 @@ const CouponCard = ({
               <div>
                 <button
                   onClick={() => setShowAvailableCoupons(!showAvailableCoupons)}
-                  className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-lg hover:border-tpppink/50 hover:bg-slate-100 transition-all flex items-center justify-between group"
+                  className="w-full p-3 bg-slate-50 dark:bg-tppdark/30 border-2 border-slate-200 dark:border-tppdarkwhite/10 rounded-lg hover:border-tpppink/50 dark:hover:border-tppdarkwhite/30 hover:bg-slate-100 dark:hover:bg-tppdark/50 transition-all flex items-center justify-between group"
                 >
                   <div className="flex items-center gap-2">
-                    <Sparkles size={16} className="text-tpppink" />
-                    <span className="text-sm font-bold text-slate-700">
+                    <Sparkles size={16} className="text-tpppink dark:text-tppdarkwhite/70" />
+                    <span className="text-sm font-bold text-slate-700 dark:text-tppdarkwhite">
                       {categorizedCoupons.eligible.length > 0 
                         ? `${categorizedCoupons.eligible.length} Offer${categorizedCoupons.eligible.length !== 1 ? 's' : ''} Available`
                         : `${categorizedCoupons.total} Offer${categorizedCoupons.total !== 1 ? 's' : ''}`}
@@ -446,12 +446,12 @@ const CouponCard = ({
                   </div>
                   <div className="flex items-center gap-2">
                     {categorizedCoupons.eligible.length > 0 && (
-                      <span className="px-2 py-0.5 bg-tpppink text-white rounded-full text-xs font-bold">
+                      <span className="px-2 py-0.5 bg-tpppink dark:bg-tppdarkwhite text-white dark:text-tppdark rounded-full text-xs font-bold">
                         {categorizedCoupons.eligible.length}
                       </span>
                     )}
                     <svg 
-                      className={`w-4 h-4 text-slate-600 transition-transform ${showAvailableCoupons ? 'rotate-180' : ''}`}
+                      className={`w-4 h-4 text-slate-600 dark:text-tppdarkwhite/50 transition-transform ${showAvailableCoupons ? 'rotate-180' : ''}`}
                       fill="none" 
                       viewBox="0 0 24 24" 
                       stroke="currentColor"
@@ -467,8 +467,8 @@ const CouponCard = ({
                   <div className="mt-3 space-y-2 max-h-[400px] overflow-y-auto pr-1">
                     {loadingCoupons ? (
                       <div className="p-8 text-center">
-                        <Loader size={24} className="animate-spin mx-auto text-tpppink mb-2" />
-                        <p className="text-sm text-slate-500">Loading offers...</p>
+                        <Loader size={24} className="animate-spin mx-auto text-tpppink dark:text-tppdarkwhite/60 mb-2" />
+                        <p className="text-sm text-slate-500 dark:text-tppdarkwhite/40">Loading offers...</p>
                       </div>
                     ) : (
                       <>
@@ -481,30 +481,30 @@ const CouponCard = ({
                               key={coupon.id}
                               onClick={() => handleApplyCouponFromList(coupon)}
                               disabled={disabled}
-                              className="w-full p-3.5 border-2 border-tpppink/30 bg-white hover:bg-tpppink/5 hover:border-tpppink rounded-lg text-left transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed group"
+                              className="w-full p-3.5 border-2 border-tpppink/30 dark:border-tppdarkwhite/20 bg-white dark:bg-tppdark/30 hover:bg-tpppink/5 dark:hover:bg-tppdarkwhite/5 hover:border-tpppink dark:hover:border-tppdarkwhite/40 rounded-lg text-left transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed group"
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-1">
-                                    <p className="text-sm font-bold text-tpppink font-mono uppercase">
+                                    <p className="text-sm font-bold text-tpppink dark:text-tppdarkwhite font-mono uppercase">
                                       {coupon.code}
                                     </p>
                                     {coupon.coupon_type === 'bogo' && (
-                                      <span className="px-1.5 py-0.5 bg-tpppink text-white rounded text-[10px] font-bold uppercase">
+                                      <span className="px-1.5 py-0.5 bg-tpppink dark:bg-tppdarkwhite text-white dark:text-tppdark rounded text-[10px] font-bold uppercase">
                                         BOGO
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-xs text-slate-600 mb-1.5 line-clamp-1">
+                                  <p className="text-xs text-slate-600 dark:text-tppdarkwhite/50 mb-1.5 line-clamp-1">
                                     {coupon.description}
                                   </p>
-                                  <p className="text-xs font-semibold text-slate-500 flex items-center gap-1">
-                                    <Check size={12} className="text-tpppink" />
+                                  <p className="text-xs font-semibold text-slate-500 dark:text-tppdarkwhite/40 flex items-center gap-1">
+                                    <Check size={12} className="text-tpppink dark:text-tppdarkwhite/60" />
                                     {eligibility.message}
                                   </p>
                                 </div>
 
-                                <div className="px-3 py-1.5 rounded-lg bg-tpppink text-white text-xs font-bold whitespace-nowrap flex-shrink-0">
+                                <div className="px-3 py-1.5 rounded-lg bg-tpppink dark:bg-tppdarkwhite text-white dark:text-tppdark text-xs font-bold whitespace-nowrap flex-shrink-0">
                                   {getCouponDisplayValue(coupon)}
                                 </div>
                               </div>
@@ -517,7 +517,7 @@ const CouponCard = ({
                           <>
                             {categorizedCoupons.eligible.length > 0 && (
                               <div className="pt-2 pb-1">
-                                <div className="h-px bg-slate-200" />
+                                <div className="h-px bg-slate-200 dark:bg-tppdarkwhite/10" />
                               </div>
                             )}
                             
@@ -527,30 +527,30 @@ const CouponCard = ({
                               return (
                                 <div
                                   key={coupon.id}
-                                  className="p-3.5 border-2 border-slate-200 bg-slate-50 rounded-lg opacity-60 cursor-not-allowed"
+                                  className="p-3.5 border-2 border-slate-200 dark:border-tppdarkwhite/10 bg-slate-50 dark:bg-tppdark/20 rounded-lg opacity-60 cursor-not-allowed"
                                 >
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2 mb-1">
-                                        <Lock size={14} className="text-slate-400 flex-shrink-0" />
-                                        <p className="text-sm font-bold text-slate-600 font-mono uppercase">
+                                        <Lock size={14} className="text-slate-400 dark:text-tppdarkwhite/30 flex-shrink-0" />
+                                        <p className="text-sm font-bold text-slate-600 dark:text-tppdarkwhite/50 font-mono uppercase">
                                           {coupon.code}
                                         </p>
                                         {coupon.coupon_type === 'bogo' && (
-                                          <span className="px-1.5 py-0.5 bg-slate-300 text-slate-600 rounded text-[10px] font-bold uppercase">
+                                          <span className="px-1.5 py-0.5 bg-slate-300 dark:bg-tppdarkwhite/20 text-slate-600 dark:text-tppdarkwhite/50 rounded text-[10px] font-bold uppercase">
                                             BOGO
                                           </span>
                                         )}
                                       </div>
-                                      <p className="text-xs text-slate-500 mb-1.5 line-clamp-1">
+                                      <p className="text-xs text-slate-500 dark:text-tppdarkwhite/40 mb-1.5 line-clamp-1">
                                         {coupon.description}
                                       </p>
-                                      <p className="text-xs font-semibold text-slate-500 bg-slate-100 inline-block px-2 py-0.5 rounded">
+                                      <p className="text-xs font-semibold text-slate-500 dark:text-tppdarkwhite/30 bg-slate-100 dark:bg-tppdark/40 inline-block px-2 py-0.5 rounded">
                                         {eligibility.message}
                                       </p>
                                     </div>
 
-                                    <div className="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-600 text-xs font-bold whitespace-nowrap flex-shrink-0">
+                                    <div className="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-tppdarkwhite/10 text-slate-600 dark:text-tppdarkwhite/40 text-xs font-bold whitespace-nowrap flex-shrink-0">
                                       {getCouponDisplayValue(coupon)}
                                     </div>
                                   </div>

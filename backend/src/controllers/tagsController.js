@@ -85,7 +85,8 @@ const getTagsWithCounts = async (req, res) => {
       min_price = '',
       max_price = '',
       in_stock = '',
-      type = 'all'
+      type = 'all',
+      gender = 'women'
     } = req.query;
 
     console.log('📊 Get tags with counts - CONTEXT-AWARE');
@@ -102,7 +103,9 @@ const getTagsWithCounts = async (req, res) => {
         .from('Bundles')
         .select('tags')
         .eq('is_active', true)
-        .not('tags', 'is', null);
+        .not('tags', 'is', null)
+        .or(gender === 'men' ? 'gender.eq.men,gender.eq.neutral,gender.is.null' : 'gender.eq.women,gender.eq.neutral,gender.is.null');
+        
 
       // Apply filters to bundles
       if (tags && tags.trim()) {
@@ -150,7 +153,8 @@ const getTagsWithCounts = async (req, res) => {
       let productQuery = supabase
         .from('Products')
         .select('tags')
-        .not('tags', 'is', null);
+        .not('tags', 'is', null)
+        .or(gender === 'men' ? 'gender.eq.men,gender.eq.neutral,gender.is.null' : 'gender.eq.women,gender.eq.neutral,gender.is.null');
 
       // Apply filters to products
       if (tags && tags.trim()) {

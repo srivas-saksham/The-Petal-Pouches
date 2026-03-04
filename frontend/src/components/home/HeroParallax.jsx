@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useBrand } from '../../context/BrandContext';
 
 /**
  * HeroParallax Component - MOBILE-ONLY OPTIMIZATIONS
@@ -18,6 +19,7 @@ const HeroParallax = () => {
   const heroRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
   const navigate = useNavigate();
+  const { setBrandMode } = useBrand();
 
   // Scroll-based parallax transforms
   const { scrollYProgress } = useScroll({
@@ -106,12 +108,7 @@ const HeroParallax = () => {
 
           {/* Secondary CTA */}
           <motion.button
-            onClick={() => {
-              const quizSection = document.getElementById('gift-quiz-section');
-              if (quizSection) {
-                quizSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }
-            }}
+            onClick={() => setBrandMode('masculine')}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.98 }}
             className="px-4 py-3 md:px-8 md:py-4 bg-white/90 backdrop-blur-sm text-tppslate rounded-full text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2 border border-tppgrey/30 hover:bg-white transition-colors"
@@ -129,9 +126,7 @@ const HeroParallax = () => {
             }}
           >
             <Sparkles size={16} className="md:w-[18px] md:h-[18px]" />
-            <span>
-              Take Gift Quiz
-            </span>
+            <span>Shop for Him</span>
           </motion.button>
         </motion.div>
       </motion.div>

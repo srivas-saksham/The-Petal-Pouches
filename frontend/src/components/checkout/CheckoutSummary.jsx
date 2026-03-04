@@ -92,21 +92,21 @@ const CheckoutSummary = ({
   return (
     <div className="flex flex-col-reverse md:flex-col space-y-4 space-y-reverse md:space-y-4 md:space-y-0 gap-4">
       {/* Order Summary Card */}
-      <div className="bg-white rounded-lg shadow border border-slate-200">
+      <div className="bg-white dark:bg-tppdarkgray rounded-lg shadow border border-slate-200 dark:border-tppdarkwhite/10">
         {/* Header */}
-        <div className="px-6 py-3 border-b border-slate-200">
-          <h2 className="text-base font-bold text-slate-900">Order Summary</h2>
+        <div className="px-6 py-3 border-b border-slate-200 dark:border-tppdarkwhite/10">
+          <h2 className="text-base font-bold text-slate-900 dark:text-tppdarkwhite">Order Summary</h2>
         </div>
 
         {/* Price Breakdown */}
         <div className="px-6 py-4 space-y-2.5">
           {/* Subtotal */}
           <div className="flex justify-between text-sm">
-            <span className="text-slate-600">Subtotal</span>
+            <span className="text-slate-600 dark:text-tppdarkwhite/60">Subtotal</span>
             {refreshingTotals ? (
-              <Loader size={14} className="animate-spin text-tpppink" />
+              <Loader size={14} className="animate-spin text-tpppink dark:text-tppdarkwhite/70" />
             ) : (
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-slate-900 dark:text-tppdarkwhite">
                 {formatBundlePrice(subtotal)}
               </span>
             )}
@@ -115,20 +115,20 @@ const CheckoutSummary = ({
           {/* Delivery */}
           <div className="flex justify-between text-sm">
             <div className="flex items-center gap-1">
-              <Truck size={14} className={deliveryMode === 'express' ? "text-amber-600" : "text-green-600"} />
-              <span className="text-slate-600">
+              <Truck size={14} className={deliveryMode === 'express' ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"} />
+              <span className="text-slate-600 dark:text-tppdarkwhite/60">
                 {deliveryMode === 'express' ? "Express" : "Standard"} Delivery
               </span>
             </div>
             {/* ⭐ UPDATED: Show loading when EITHER cart OR delivery is calculating */}
             {refreshingTotals || isDeliveryCalculating ? (
-              <Loader size={14} className="animate-spin text-tpppink" />
+              <Loader size={14} className="animate-spin text-tpppink dark:text-tppdarkwhite/70" />
             ) : expressCharge > 0 ? (
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-slate-900 dark:text-tppdarkwhite">
                 {formatBundlePrice(expressCharge)}
               </span>
             ) : (
-              <span className="font-semibold text-green-600">FREE</span>
+              <span className="font-semibold text-green-600 dark:text-green-400">FREE</span>
             )}
           </div>
 
@@ -136,25 +136,25 @@ const CheckoutSummary = ({
           {discount > 0 && (
             <div className="flex justify-between text-sm">
               <div className="flex items-center gap-1">
-                <Gift size={14} className="text-green-600" />
-                <span className="text-green-600 font-medium">Discount</span>
+                <Gift size={14} className="text-green-600 dark:text-green-400" />
+                <span className="text-green-600 dark:text-green-400 font-medium">Discount</span>
               </div>
-              <span className="font-semibold text-green-600">
+              <span className="font-semibold text-green-600 dark:text-green-400">
                 -{formatBundlePrice(discount)}
               </span>
             </div>
           )}
 
           {/* Divider */}
-          <div className="border-t border-slate-200 pt-2.5 mt-2.5"></div>
+          <div className="border-t border-slate-200 dark:border-tppdarkwhite/10 pt-2.5 mt-2.5"></div>
 
           {/* Total */}
           <div className="flex justify-between items-center">
-            <span className="text-base font-bold text-slate-900">Total</span>
+            <span className="text-base font-bold text-slate-900 dark:text-tppdarkwhite">Total</span>
             {refreshingTotals ? (
-              <Loader size={18} className="animate-spin text-tpppink" />
+              <Loader size={18} className="animate-spin text-tpppink dark:text-tppdarkwhite/70" />
             ) : (
-              <span className="text-xl font-bold text-tpppink">
+              <span className="text-xl font-bold text-tpppink dark:text-tppdarkwhite">
                 {formatBundlePrice(total)}
               </span>
             )}
@@ -172,8 +172,8 @@ const CheckoutSummary = ({
               transition-all duration-200
               flex items-center justify-center gap-2
               ${placingOrder || !selectedAddress || hasPendingChanges  // ⭐ UPDATED
-                ? 'bg-slate-300 cursor-not-allowed'
-                : 'bg-tpppink hover:bg-tpppink/90 shadow-md hover:shadow-lg active:scale-[0.98]'
+                ? 'bg-slate-300 dark:bg-tppdarkwhite/20 cursor-not-allowed text-slate-500 dark:text-tppdarkwhite/40'
+                : 'bg-tpppink dark:bg-tppdarkwhite dark:text-tppdark hover:bg-tpppink/90 dark:hover:bg-tppdarkwhite/90 shadow-md hover:shadow-lg active:scale-[0.98]'
               }
             `}
           >
@@ -197,26 +197,26 @@ const CheckoutSummary = ({
 
           {/* Update the warning message */}
           {!selectedAddress && !hasPendingChanges && (
-            <p className="text-xs text-amber-600 text-center">
+            <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
               Please select a delivery address
             </p>
           )}
           
           {/* ⭐ NEW: Show updating message */}
           {hasPendingChanges && (
-            <p className="text-xs text-blue-600 text-center">
+            <p className="text-xs text-blue-600 dark:text-blue-400 text-center">
               Updating cart totals...
             </p>
           )}
 
           {/* Payment Methods */}
-          <div className="border-t border-slate-200 pt-3">
-            <p className="text-xs text-slate-500 text-center mb-1">We Accept</p>
+          <div className="border-t border-slate-200 dark:border-tppdarkwhite/10 pt-3">
+            <p className="text-xs text-slate-500 dark:text-tppdarkwhite/40 text-center mb-1">We Accept</p>
             <PaymentMethodIcons />
           </div>
 
           {/* Security */}
-          <div className="font-inter flex items-center justify-center gap-1.5 text-xs text-green-600">
+          <div className="font-inter flex items-center justify-center gap-1.5 text-xs text-green-600 dark:text-green-400">
             <span>Secure payment via Razorpay</span>
           </div>
         </div>

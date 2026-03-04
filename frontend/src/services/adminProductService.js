@@ -88,6 +88,11 @@ export const createProduct = async (productData) => {
       formData.append('is_sellable', productData.is_sellable);
     }
 
+    // ✅ Gender
+    if (productData.gender !== undefined) {
+      formData.append('gender', productData.gender);
+    }
+
     // Append images
     if (productData.images && productData.images.length > 0) {
       productData.images.forEach((image) => {
@@ -156,6 +161,11 @@ export const updateProduct = async (productId, productData) => {
     // 🔒 NEW: Append is_sellable flag
     if (productData.is_sellable !== undefined) {
       formData.append('is_sellable', productData.is_sellable);
+    }
+
+    // ✅ Gender
+    if (productData.gender !== undefined) {
+      formData.append('gender', productData.gender);
     }
 
     // Append images

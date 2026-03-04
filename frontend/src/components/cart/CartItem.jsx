@@ -1,25 +1,10 @@
 // frontend/src/components/cart/CartItem.jsx
-// WITH DEBOUNCED QUANTITY UPDATES + STRICT STOCK VALIDATION + SILENT REFRESH
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Minus, Plus, Trash2, Loader, ShoppingBag } from 'lucide-react';
 import { updateCartItem, removeFromCart } from '../../services/cartService';
 import { useCart } from '../../hooks/useCart';
 import { useToast } from '../../hooks/useToast';
 
-/**
- * CartItem Component
- * Single cart item with debounced quantity controls + strict stock validation
- * 
- * @param {Object} item - Cart item data
- * @param {string} item.id - Cart item ID
- * @param {string} item.title - Bundle title
- * @param {string} item.image_url - Bundle image
- * @param {number} item.price - Unit price
- * @param {number} item.quantity - Current quantity
- * @param {number} item.item_total - Total price (price * quantity)
- * @param {number} item.stock_limit - Maximum stock available
- */
 const CartItem = ({ item }) => {
   const [removing, setRemoving] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -27,34 +12,26 @@ const CartItem = ({ item }) => {
   const { refreshCart } = useCart();
   const toast = useToast();
 
-  // Local quantity for immediate UI updates
   const [localQuantity, setLocalQuantity] = useState(item.quantity);
-  
-  // Track pending quantity to sync with server
   const [pendingQuantity, setPendingQuantity] = useState(null);
   const debounceTimerRef = useRef(null);
 
-  // Sync local quantity when prop changes
   useEffect(() => {
     setLocalQuantity(item.quantity);
   }, [item.quantity]);
 
-  // Debounced update to server with SILENT REFRESH
   useEffect(() => {
     if (pendingQuantity === null) return;
 
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
     debounceTimerRef.current = setTimeout(async () => {
       setUpdating(true);
-
       try {
         if (pendingQuantity === 0) {
           const result = await removeFromCart(item.id);
           if (result.success) {
-            await refreshCart(true); // ✅ Silent refresh - only totals update
+            await refreshCart(true);
             toast.success('Item removed from cart');
           } else {
             setLocalQuantity(item.quantity);
@@ -62,9 +39,7 @@ const CartItem = ({ item }) => {
           }
         } else {
           const result = await updateCartItem(item.id, pendingQuantity, item.stock_limit);
-          
           if (result.success) {
-            // ✅ Silent refresh after successful update - only totals reload
             await refreshCart(true);
           } else {
             setLocalQuantity(item.quantity);
@@ -79,55 +54,38 @@ const CartItem = ({ item }) => {
         setUpdating(false);
         setPendingQuantity(null);
       }
-    }, 800); // 800ms debounce delay
+    }, 800);
 
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
+    return () => { if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current); };
   }, [pendingQuantity, item.id, item.quantity, item.stock_limit, refreshCart, toast]);
 
-  // Format currency
-  const formatPrice = (price) => {
-    return `₹${price.toLocaleString('en-IN')}`;
-  };
+  const formatPrice = (price) => `₹${price.toLocaleString('en-IN')}`;
 
-  // Handle quantity increment (STRICT VALIDATION)
   const handleIncrement = () => {
-    // STRICT: Validate stock limit BEFORE updating local state
     if (item.stock_limit && localQuantity >= item.stock_limit) {
       alert(`Maximum ${item.stock_limit} units allowed per bundle`);
       return;
     }
-
     const newQuantity = localQuantity + 1;
     setLocalQuantity(newQuantity);
     setPendingQuantity(newQuantity);
   };
 
-  // Handle quantity decrement
   const handleDecrement = () => {
     if (localQuantity <= 0) return;
-
     const newQuantity = localQuantity - 1;
     setLocalQuantity(newQuantity);
     setPendingQuantity(newQuantity);
   };
 
-  // Handle remove item click
-  const handleRemoveClick = () => {
-    setShowConfirm(true);
-  };
+  const handleRemoveClick = () => setShowConfirm(true);
 
-  // Handle confirmed removal
   const handleConfirmRemove = async () => {
     setRemoving(true);
     try {
       const result = await removeFromCart(item.id);
-      
       if (result.success) {
-        await refreshCart(); // Full refresh when removing
+        await refreshCart();
         toast.success('Item removed from cart');
       } else {
         toast.error(result.error || 'Failed to remove item');
@@ -141,63 +99,55 @@ const CartItem = ({ item }) => {
     }
   };
 
-  // Handle cancel removal
-  const handleCancelRemove = () => {
-    setShowConfirm(false);
-  };
+  const handleCancelRemove = () => setShowConfirm(false);
 
   return (
-    <div className={`p-4 border-b border-slate-100 transition-opacity ${
+    <div className={`p-4 border-b border-slate-100 dark:border-tppdarkwhite/10 transition-opacity ${
       removing ? 'opacity-50' : 'opacity-100'
     }`}>
       <div className="flex gap-3">
-        {/* Item Image */}
-        <div className="flex-shrink-0 w-20 h-20 bg-slate-100 rounded-lg overflow-hidden">
+
+        {/* Image */}
+        <div className="flex-shrink-0 w-20 h-20 bg-slate-100 dark:bg-tppdark rounded-lg overflow-hidden">
           {item.image_url ? (
             <img
               src={item.image_url}
               alt={item.title}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.target.src = '/placeholder-bundle.png';
-              }}
+              className="w-full h-full object-cover dark:opacity-90"
+              onError={(e) => { e.target.src = '/placeholder-bundle.png'; }}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-400">
+            <div className="w-full h-full flex items-center justify-center text-slate-400 dark:text-tppdarkwhite/30">
               <ShoppingBag size={24} />
             </div>
           )}
         </div>
 
-        {/* Item Details */}
+        {/* Details */}
         <div className="flex-1 min-w-0">
-          {/* Title */}
-          <h4 className="text-sm font-semibold text-slate-900 mb-1 line-clamp-2">
+          <h4 className="text-sm font-semibold text-slate-900 dark:text-tppdarkwhite mb-1 line-clamp-2">
             {item.title}
           </h4>
-          
-          {/* Item Type Badge - OPTIONAL */}
+
           {item.item_type === 'product' && (
-            <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded mb-1">
+            <span className="inline-block px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium rounded mb-1">
               Individual Product
             </span>
           )}
 
-          {/* Price */}
-          <p className="text-sm font-bold text-tpppink mb-2">
+          <p className="text-sm font-bold text-tpppink dark:text-tppdarkwhite mb-2">
             {formatPrice(item.price)}
-            <span className="text-xs text-slate-500 font-normal ml-1">
+            <span className="text-xs text-slate-500 dark:text-tppdarkwhite/40 font-normal ml-1">
               × {localQuantity}
             </span>
           </p>
 
           {/* Quantity Controls */}
           <div className="flex items-center gap-3">
-            {/* Quantity Adjuster */}
-            <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1 relative">
-              {/* Syncing Indicator */}
+            <div className="flex items-center gap-2 bg-slate-100 dark:bg-tppdark rounded-lg p-1 relative">
+
               {updating && (
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10 shadow-lg">
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-700 dark:bg-tppdarkgray text-white dark:text-tppdarkwhite text-xs px-2 py-1 rounded whitespace-nowrap z-10 shadow-lg">
                   Syncing...
                 </div>
               )}
@@ -205,23 +155,20 @@ const CartItem = ({ item }) => {
               <button
                 onClick={handleDecrement}
                 disabled={updating || localQuantity <= 0}
-                className="w-7 h-7 flex items-center justify-center rounded hover:bg-white
-                  transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-7 h-7 flex items-center justify-center rounded hover:bg-white dark:hover:bg-tppdarkgray transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 aria-label="Decrease quantity"
               >
-                <Minus size={14} className="text-slate-600" />
+                <Minus size={14} className="text-slate-600 dark:text-tppdarkwhite/70" />
               </button>
 
               <div className="relative min-w-[32px] text-center">
-                <span className="text-sm font-semibold text-slate-900">
+                <span className="text-sm font-semibold text-slate-900 dark:text-tppdarkwhite">
                   {updating ? (
-                    <Loader size={14} className="animate-spin mx-auto" />
+                    <Loader size={14} className="animate-spin mx-auto text-tpppink dark:text-tppdarkwhite" />
                   ) : (
                     localQuantity
                   )}
                 </span>
-                
-                {/* Pending dot indicator */}
                 {pendingQuantity !== null && !updating && (
                   <div className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
                 )}
@@ -230,22 +177,19 @@ const CartItem = ({ item }) => {
               <button
                 onClick={handleIncrement}
                 disabled={updating || (item.stock_limit && localQuantity >= item.stock_limit)}
-                className="w-7 h-7 flex items-center justify-center rounded hover:bg-white
-                  transition-colors disabled:opacity-40 disabled:cursor-not-allowed
-                  disabled:hover:bg-slate-100"
+                className="w-7 h-7 flex items-center justify-center rounded hover:bg-white dark:hover:bg-tppdarkgray transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 aria-label="Increase quantity"
               >
-                <Plus size={14} className="text-slate-600" />
+                <Plus size={14} className="text-slate-600 dark:text-tppdarkwhite/70" />
               </button>
             </div>
 
-            {/* Remove Button / Confirm Button */}
+            {/* Remove / Confirm */}
             {!showConfirm ? (
               <button
                 onClick={handleRemoveClick}
                 disabled={removing || updating}
-                className="text-slate-400 hover:text-red-600 transition-colors
-                  disabled:opacity-40 disabled:cursor-not-allowed"
+                className="text-slate-400 dark:text-tppdarkwhite/30 hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 aria-label="Remove item"
                 title="Remove from cart"
               >
@@ -260,22 +204,15 @@ const CartItem = ({ item }) => {
                 <button
                   onClick={handleConfirmRemove}
                   disabled={removing}
-                  className="bg-tpppink hover:bg-tpppink/90 text-white text-xs font-semibold 
-                    px-3 py-1.5 rounded transition-colors disabled:opacity-40 
-                    disabled:cursor-not-allowed whitespace-nowrap"
+                  className="bg-tpppink dark:bg-tppdarkwhite hover:bg-tpppink/90 dark:hover:bg-tppdarkwhite/90 text-white dark:text-tppdark text-xs font-semibold px-3 py-1.5 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                   aria-label="Confirm removal"
                 >
-                  {removing ? (
-                    <Loader size={14} className="animate-spin" />
-                  ) : (
-                    'Confirm'
-                  )}
+                  {removing ? <Loader size={14} className="animate-spin" /> : 'Confirm'}
                 </button>
                 <button
                   onClick={handleCancelRemove}
                   disabled={removing}
-                  className="text-slate-500 hover:text-slate-700 text-xs font-medium
-                    disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="text-slate-500 dark:text-tppdarkwhite/50 hover:text-slate-700 dark:hover:text-tppdarkwhite text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed"
                   aria-label="Cancel removal"
                 >
                   Cancel
@@ -284,9 +221,8 @@ const CartItem = ({ item }) => {
             )}
           </div>
 
-          {/* Stock Limit Warning */}
           {item.stock_limit && localQuantity >= item.stock_limit && (
-            <p className="text-xs text-slate-500 mt-1.5">
+            <p className="text-xs text-slate-500 dark:text-tppdarkwhite/40 mt-1.5">
               Only {item.stock_limit} items in stock
             </p>
           )}
@@ -294,7 +230,7 @@ const CartItem = ({ item }) => {
 
         {/* Item Total */}
         <div className="flex-shrink-0 text-right">
-          <p className="text-sm font-bold text-slate-900">
+          <p className="text-sm font-bold text-slate-900 dark:text-tppdarkwhite">
             {formatPrice(item.price * localQuantity)}
           </p>
         </div>

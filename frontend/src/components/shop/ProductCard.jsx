@@ -333,18 +333,15 @@ const ProductCard = ({ product, onQuickView }) => {
   // ===========================
 
   return (
-    <div className={`bg-white rounded-lg border border-tppgrey shadow-sm hover:shadow-md hover:border-tppslate/60 transition-all duration-200 overflow-hidden group ${isInCart ? 'border-2 border-tpppink' : ''}`}>
+    <div className={`bg-white dark:bg-tppdarkgray rounded-lg border border-tppgrey dark:border-tppdarkwhite/10 shadow-sm hover:shadow-md hover:border-tppslate/60 dark:hover:border-tppdarkwhite/20 transition-all duration-200 overflow-hidden group ${isInCart ? 'border-2 border-tpppink dark:border-tppdarkwhite/40' : ''}`}>
       
-      {/* ===========================
-          IMAGE SECTION WITH GALLERY & SWIPER
-          =========================== */}
       <Link 
         to={`/shop/products/${product.id}`} 
-        className="block relative aspect-square overflow-hidden bg-tpppeach/10"
+        className="block relative aspect-square overflow-hidden bg-tpppeach/10 dark:bg-tppdark/50"
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
       >
-        {/* MOBILE: Swiper Gallery with Touch Gestures */}
+        {/* MOBILE: Swiper */}
         <div className="md:hidden w-full h-full">
           {images.length > 0 ? (
             <Swiper
@@ -361,31 +358,25 @@ const ProductCard = ({ product, onQuickView }) => {
                   <img
                     src={image.img_url}
                     alt={`${product.title} - Image ${index + 1}`}
-                    className={`w-full h-full object-cover ${
-                      isOutOfStock ? 'grayscale opacity-60' : ''
-                    }`}
-                    onError={(e) => {
-                      e.target.src = '/placeholder-product.png';
-                    }}
+                    className={`w-full h-full object-cover ${isOutOfStock ? 'grayscale opacity-60' : ''}`}
+                    onError={(e) => { e.target.src = '/placeholder-product.png'; }}
                   />
                 </SwiperSlide>
               ))}
             </Swiper>
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-slate-50">
-              <Package size={48} className="text-slate-300" />
+            <div className="w-full h-full flex items-center justify-center bg-slate-50 dark:bg-tppdark">
+              <Package size={48} className="text-slate-300 dark:text-tppdarkwhite/20" />
             </div>
           )}
         </div>
 
-        {/* DESKTOP: Original Image Display with Hover Navigation */}
+        {/* DESKTOP: Hover Navigation */}
         <div className="hidden md:block w-full h-full">
-          {/* Loading Skeleton */}
           {!imageLoaded && (
-            <div className="absolute inset-0 bg-tppgrey/10 animate-pulse" />
+            <div className="absolute inset-0 bg-tppgrey/10 dark:bg-tppdarkwhite/5 animate-pulse" />
           )}
           
-          {/* Current Image Display */}
           {currentImage ? (
             <img
               key={`${product.id}-${currentImageIndex}`}
@@ -395,66 +386,55 @@ const ProductCard = ({ product, onQuickView }) => {
                 imageLoaded ? 'opacity-100' : 'opacity-0'
               } ${isOutOfStock ? 'grayscale opacity-60' : 'group-hover:scale-105'}`}
               onLoad={() => setImageLoaded(true)}
-              onError={(e) => {
-                e.target.src = '/placeholder-product.png';
-                setImageLoaded(true);
-              }}
+              onError={(e) => { e.target.src = '/placeholder-product.png'; setImageLoaded(true); }}
             />
           ) : (
-            // Fallback when no images exist
-            <div className="w-full h-full flex items-center justify-center bg-slate-50">
-              <Package size={48} className="md:w-16 md:h-16 text-slate-300" />
+            <div className="w-full h-full flex items-center justify-center bg-slate-50 dark:bg-tppdark">
+              <Package size={48} className="md:w-16 md:h-16 text-slate-300 dark:text-tppdarkwhite/20" />
             </div>
           )}
 
-          {/* Navigation Arrows - DESKTOP ONLY: Show on hover */}
           {hasMultipleImages && !isOutOfStock && (
             <>
-              {/* Left Arrow */}
               <button
                 onClick={handlePreviousImage}
-                className={`absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group/arrow z-20 ${
+                className={`absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/95 dark:bg-tppdarkgray/95 hover:bg-white dark:hover:bg-tppdarkgray rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group/arrow z-20 ${
                   isHovering ? 'opacity-100' : 'opacity-0'
                 }`}
                 aria-label="Previous image"
               >
-                <ChevronLeft size={16} className="text-slate-700 group-hover/arrow:text-tpppink transition-colors" />
+                <ChevronLeft size={16} className="text-slate-700 dark:text-tppdarkwhite group-hover/arrow:text-tpppink dark:group-hover/arrow:text-tppdarkwhite/80 transition-colors" />
               </button>
               
-              {/* Right Arrow */}
               <button
                 onClick={handleNextImage}
-                className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/95 hover:bg-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group/arrow z-20 ${
+                className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/95 dark:bg-tppdarkgray/95 hover:bg-white dark:hover:bg-tppdarkgray rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 group/arrow z-20 ${
                   isHovering ? 'opacity-100' : 'opacity-0'
                 }`}
                 aria-label="Next image"
               >
-                <ChevronRight size={16} className="text-slate-700 group-hover/arrow:text-tpppink transition-colors" />
+                <ChevronRight size={16} className="text-slate-700 dark:text-tppdarkwhite group-hover/arrow:text-tpppink dark:group-hover/arrow:text-tppdarkwhite/80 transition-colors" />
               </button>
             </>
           )}
         </div>
 
-        {/* Dot Indicators - MOBILE: Always visible, DESKTOP: Show on hover */}
+        {/* Dots */}
         {hasMultipleImages && (
           <>
-            {/* Mobile: Manual dot indicators */}
             <div className="md:hidden absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 px-1.5 py-1 bg-black/60 backdrop-blur-sm rounded-full z-20">
               {images.map((_, index) => (
                 <button
                   key={index}
                   onClick={(e) => handleDotClick(e, index)}
                   className={`transition-all duration-200 rounded-full ${
-                    index === currentImageIndex
-                      ? 'w-1.5 h-1 bg-white'
-                      : 'w-1 h-1 bg-white/50 active:bg-white/75'
+                    index === currentImageIndex ? 'w-1.5 h-1 bg-white' : 'w-1 h-1 bg-white/50 active:bg-white/75'
                   }`}
                   aria-label={`Go to image ${index + 1}`}
                 />
               ))}
             </div>
             
-            {/* Desktop: Custom dot indicators */}
             <div className={`hidden md:flex absolute bottom-3 left-1/2 -translate-x-1/2 items-center gap-1.5 px-2 py-1.5 bg-black/60 backdrop-blur-sm rounded-full z-20 transition-opacity duration-200 ${
               isHovering ? 'opacity-100' : 'opacity-0'
             }`}>
@@ -463,9 +443,7 @@ const ProductCard = ({ product, onQuickView }) => {
                   key={index}
                   onClick={(e) => handleDotClick(e, index)}
                   className={`transition-all duration-200 rounded-full ${
-                    index === currentImageIndex
-                      ? 'w-2 h-1 bg-white'
-                      : 'w-1 h-1 bg-white/50 hover:bg-white/75'
+                    index === currentImageIndex ? 'w-2 h-1 bg-white' : 'w-1 h-1 bg-white/50 hover:bg-white/75'
                   }`}
                   aria-label={`Go to image ${index + 1}`}
                 />
@@ -474,7 +452,6 @@ const ProductCard = ({ product, onQuickView }) => {
           </>
         )}
 
-        {/* Out of Stock Badge - Responsive */}
         {isOutOfStock && (
           <div className="font-inter absolute top-1 md:top-2 left-1 md:left-2 bg-red-500 text-white text-[10px] md:text-xs font-bold px-2 md:px-3 py-1 md:py-1.5 rounded-md flex items-center gap-0.5 md:gap-1 shadow-lg z-10">
             <XCircle size={10} className="md:w-3.5 md:h-3.5" />
@@ -482,12 +459,11 @@ const ProductCard = ({ product, onQuickView }) => {
           </div>
         )}
 
-        {/* Quick View on Hover - Desktop Only */}
         {!isOutOfStock && (
-          <div className="hidden md:flex absolute inset-0 bg-tppslate/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 items-end justify-end p-2 z-10">
+          <div className="hidden md:flex absolute inset-0 bg-tppslate/20 dark:bg-tppdark/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 items-end justify-end p-2 z-10">
             <button
               onClick={handleQuickView}
-              className="bg-tpppink text-white hover:bg-tpppink/90 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors shadow-sm"
+              className="bg-tpppink dark:bg-tppdarkwhite text-white dark:text-tppdark hover:bg-tpppink/90 dark:hover:bg-tppdarkwhite/90 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors shadow-sm"
             >
               <Eye size={16} />
             </button>
@@ -495,19 +471,15 @@ const ProductCard = ({ product, onQuickView }) => {
         )}
       </Link>
 
-      {/* ===========================
-          CONTENT SECTION - RESPONSIVE
-          =========================== */}
+      {/* CONTENT */}
       <div className="p-2 md:p-3">
         
-        {/* Title - Responsive text sizing */}
         <Link to={`/shop/products/${product.id}`}>
-          <h3 className="text-[13px] leading-[1.3] md:text-sm md:leading-[1.4] font-semibold text-tppslate mb-1 md:mb-2 hover:text-tpppink transition-colors">
+          <h3 className="text-[13px] leading-[1.3] md:text-sm md:leading-[1.4] font-semibold text-tppslate dark:text-tppdarkwhite mb-1 md:mb-2 hover:text-tpppink dark:hover:text-tppdarkwhite/80 transition-colors">
             {product.title}
           </h3>
         </Link>
 
-        {/* Rating - Responsive */}
         <div className="flex items-center gap-1 md:gap-1.5 mb-1 md:mb-2">
           <div className="flex items-center gap-0.5">
             {[1, 2, 3, 4, 5].map((star) => (
@@ -519,43 +491,41 @@ const ProductCard = ({ product, onQuickView }) => {
                     ? 'fill-amber-400 text-amber-400'
                     : star === Math.ceil(ratingInfo.rating) && ratingInfo.rating % 1 !== 0
                     ? 'fill-amber-400/50 text-amber-400'
-                    : 'fill-slate-200 text-slate-200'
+                    : 'fill-slate-200 dark:fill-tppdarkwhite/20 text-slate-200 dark:text-tppdarkwhite/20'
                 }`}
               />
             ))}
           </div>
-          <span className="text-[10px] md:text-xs font-medium text-tppslate">
+          <span className="text-[10px] md:text-xs font-medium text-tppslate dark:text-tppdarkwhite/70">
             {formatRating(ratingInfo.rating)}
           </span>
           {ratingInfo.count > 0 && (
-            <span className="text-[9px] md:text-xs text-slate-400">
+            <span className="text-[9px] md:text-xs text-slate-400 dark:text-tppdarkwhite/40">
               ({ratingInfo.count})
             </span>
           )}
         </div>
 
-        {/* Price & Stock Section - Responsive */}
         <div className="mb-2 md:mb-3">
           {isOutOfStock ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs md:text-sm font-bold text-red-600">
+              <span className="text-xs md:text-sm font-bold text-red-600 dark:text-red-400">
                 Currently Unavailable
               </span>
             </div>
           ) : (
             <>
               <div className="flex items-baseline gap-1 md:gap-2">
-                <span className="text-lg md:text-2xl font-bold text-tpppink">
+                <span className="text-lg md:text-2xl font-bold text-tpppink dark:text-tppdarkwhite">
                   ₹{product.price}
                 </span>
-                <span className="text-[9px] md:text-xs font-medium text-green-600">
+                <span className="text-[9px] md:text-xs font-medium text-green-600 dark:text-green-400">
                   • In Stock
                 </span>
               </div>
               
-              {/* Low Stock Warning - Responsive */}
               {isLowStock && (
-                <div className="mt-1 md:mt-1.5 flex items-center gap-0.5 md:gap-1 text-[9px] md:text-xs text-amber-600 bg-amber-50 px-1.5 md:px-2 py-0.5 md:py-1 rounded">
+                <div className="mt-1 md:mt-1.5 flex items-center gap-0.5 md:gap-1 text-[9px] md:text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 md:px-2 py-0.5 md:py-1 rounded">
                   <AlertTriangle size={10} className="md:w-3 md:h-3 flex-shrink-0" />
                   <span className="font-medium">Only {stockLimit} left!</span>
                 </div>
@@ -564,7 +534,6 @@ const ProductCard = ({ product, onQuickView }) => {
           )}
         </div>
         
-        {/* Action Buttons - Responsive */}
         {!isInCart ? (
           <div className="flex gap-1 md:gap-2">
             <button
@@ -572,10 +541,10 @@ const ProductCard = ({ product, onQuickView }) => {
               disabled={adding || isOutOfStock}
               className={`flex-1 flex items-center justify-center gap-1 md:gap-1.5 py-1.5 md:py-2 rounded-lg font-semibold text-[10px] md:text-sm transition-all ${
                 isOutOfStock
-                  ? 'bg-red-100 text-red-600 cursor-not-allowed border border-red-300'
+                  ? 'bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 cursor-not-allowed border border-red-300 dark:border-red-700'
                   : adding
-                  ? 'bg-tpppink/70 text-white cursor-wait'
-                  : 'bg-tpppink text-white hover:bg-tpppink/90 active:scale-95'
+                  ? 'bg-tpppink/70 dark:bg-tppdarkwhite/70 text-white dark:text-tppdark cursor-wait'
+                  : 'bg-tpppink dark:bg-tppdarkwhite text-white dark:text-tppdark hover:bg-tpppink/90 dark:hover:bg-tppdarkwhite/90 active:scale-95'
               }`}
             >
               {isOutOfStock ? (
@@ -586,7 +555,7 @@ const ProductCard = ({ product, onQuickView }) => {
                 </>
               ) : adding ? (
                 <>
-                  <div className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 border-2 border-white dark:border-tppdark border-t-transparent rounded-full animate-spin" />
                   <span className="text-[9px] md:text-xs">Adding...</span>
                 </>
               ) : (
@@ -598,11 +567,10 @@ const ProductCard = ({ product, onQuickView }) => {
               )}
             </button>
 
-            {/* Mobile Quick View */}
             {!isOutOfStock && (
               <button
                 onClick={handleQuickView}
-                className="md:hidden flex items-center justify-center w-8 py-1.5 rounded-lg border border-tpppink text-tpppink hover:bg-tpppink/10 transition-colors"
+                className="md:hidden flex items-center justify-center w-8 py-1.5 rounded-lg border border-tpppink dark:border-tppdarkwhite text-tpppink dark:text-tppdarkwhite hover:bg-tpppink/10 dark:hover:bg-tppdarkwhite/10 transition-colors"
               >
                 <Eye size={14} />
               </button>
@@ -610,56 +578,48 @@ const ProductCard = ({ product, onQuickView }) => {
           </div>
         ) : (
           <div className="space-y-1 md:space-y-2">
-            {/* Quantity Row - Responsive */}
             <div className="flex items-center gap-1 md:gap-1.5 relative">
-              {/* Syncing Indicator - Responsive */}
               {updating && (
-                <div className="absolute -top-4 md:-top-5 left-1/2 -translate-x-1/2 bg-tppslate text-white text-[9px] md:text-xs px-1.5 md:px-2 py-0.5 rounded whitespace-nowrap z-10">
+                <div className="absolute -top-4 md:-top-5 left-1/2 -translate-x-1/2 bg-tppslate dark:bg-tppdarkgray text-white dark:text-tppdarkwhite text-[9px] md:text-xs px-1.5 md:px-2 py-0.5 rounded whitespace-nowrap z-10">
                   Syncing...
                 </div>
               )}
 
-              {/* Decrease - Responsive */}
               <button
                 onClick={handleDecrement}
                 disabled={updating || localQuantity <= 0}
                 className={`flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded border transition-all ${
                   updating || localQuantity <= 0
-                    ? 'border-tppgrey text-tppslate/40 cursor-not-allowed'
-                    : 'border-tpppink text-tpppink hover:bg-tpppink/10 active:scale-95'
+                    ? 'border-tppgrey dark:border-tppdarkwhite/20 text-tppslate/40 dark:text-tppdarkwhite/20 cursor-not-allowed'
+                    : 'border-tpppink dark:border-tppdarkwhite text-tpppink dark:text-tppdarkwhite hover:bg-tpppink/10 dark:hover:bg-tppdarkwhite/10 active:scale-95'
                 }`}
               >
                 <Minus size={10} className="md:w-3.5 md:h-3.5" />
               </button>
 
-              {/* Quantity Display - Responsive */}
-              <div className="flex-1 flex items-center justify-center gap-1 md:gap-1.5 bg-green-50 border border-green-600 rounded py-1 md:py-1.5 px-1.5 md:px-2 relative">
-                <Check size={10} className="md:w-3 md:h-3 stroke-[3] text-green-700" />
-                <span className="text-[10px] md:text-xs font-semibold text-green-700">
+              <div className="flex-1 flex items-center justify-center gap-1 md:gap-1.5 bg-green-50 dark:bg-green-900/20 border border-green-600 dark:border-green-500 rounded py-1 md:py-1.5 px-1.5 md:px-2 relative">
+                <Check size={10} className="md:w-3 md:h-3 stroke-[3] text-green-700 dark:text-green-400" />
+                <span className="text-[10px] md:text-xs font-semibold text-green-700 dark:text-green-400">
                   {localQuantity}
                 </span>
-                
-                {/* Pending dot - Responsive */}
                 {pendingQuantity !== null && (
                   <div className="absolute top-0.5 right-0.5 w-1 h-1 md:w-1.5 md:h-1.5 bg-amber-500 rounded-full animate-pulse" />
                 )}
               </div>
 
-              {/* Increase - Responsive */}
               <button
                 onClick={handleIncrement}
                 disabled={updating || (stockLimit && localQuantity >= stockLimit)}
                 className={`flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded border transition-all ${
                   updating || (stockLimit && localQuantity >= stockLimit)
-                    ? 'border-tppgrey text-tppslate/40 cursor-not-allowed'
-                    : 'border-tpppink text-tpppink hover:bg-tpppink/10 active:scale-95'
+                    ? 'border-tppgrey dark:border-tppdarkwhite/20 text-tppslate/40 dark:text-tppdarkwhite/20 cursor-not-allowed'
+                    : 'border-tpppink dark:border-tppdarkwhite text-tpppink dark:text-tppdarkwhite hover:bg-tpppink/10 dark:hover:bg-tppdarkwhite/10 active:scale-95'
                 }`}
               >
                 <Plus size={10} className="md:w-3.5 md:h-3.5" />
               </button>
             </div>
 
-            {/* Remove / Checkout Buttons - Responsive */}
             {!showRemoveConfirm ? (
               <div className='flex items-center gap-1 md:gap-2'>
                 <button
@@ -667,8 +627,8 @@ const ProductCard = ({ product, onQuickView }) => {
                   disabled={updating}
                   className={`w-full flex items-center justify-center gap-1 md:gap-1.5 py-1 md:py-1.5 rounded border font-medium text-[9px] md:text-xs transition-all ${
                     updating
-                      ? 'border-tppgrey text-tppslate/40 cursor-not-allowed'
-                      : 'border-red-500 text-red-600 hover:bg-red-50 active:scale-95'
+                      ? 'border-tppgrey dark:border-tppdarkwhite/20 text-tppslate/40 dark:text-tppdarkwhite/20 cursor-not-allowed'
+                      : 'border-red-500 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-95'
                   }`}
                 >
                   <Trash2 size={9} className="md:w-3 md:h-3" />
@@ -679,8 +639,8 @@ const ProductCard = ({ product, onQuickView }) => {
                   disabled={updating}
                   className={`w-full flex items-center justify-center gap-1 md:gap-1.5 py-1 md:py-1.5 rounded border font-medium text-[9px] md:text-xs transition-all ${
                     updating
-                      ? 'border-tppgrey bg-slate-100 text-tppslate/40 cursor-not-allowed'
-                      : 'border-tpppink bg-tpppink text-white hover:bg-tpppink/90 active:scale-95'
+                      ? 'border-tppgrey dark:border-tppdarkwhite/20 bg-slate-100 dark:bg-tppdarkgray text-tppslate/40 dark:text-tppdarkwhite/20 cursor-not-allowed'
+                      : 'border-tpppink dark:border-tppdarkwhite bg-tpppink dark:bg-tppdarkwhite text-white dark:text-tppdark hover:bg-tpppink/90 dark:hover:bg-tppdarkwhite/90 active:scale-95'
                   }`}
                 >
                   Checkout
@@ -703,7 +663,7 @@ const ProductCard = ({ product, onQuickView }) => {
                 <button
                   onClick={handleCancelRemove}
                   disabled={updating}
-                  className="px-2 md:px-3 py-1 md:py-1.5 text-slate-500 hover:text-slate-700 text-[9px] md:text-xs font-medium disabled:opacity-40"
+                  className="px-2 md:px-3 py-1 md:py-1.5 text-slate-500 dark:text-tppdarkwhite/50 hover:text-slate-700 dark:hover:text-tppdarkwhite text-[9px] md:text-xs font-medium disabled:opacity-40"
                 >
                   Cancel
                 </button>

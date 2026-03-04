@@ -2,31 +2,29 @@
 
 import api, { apiRequest } from './api';
 
-/**
- * Fetch random items (5-8) regardless of quiz answers
- * @param {Object} quizAnswers - User's quiz answers (ignored for now)
- * @returns {Promise<Object>} - { success, data: [items], error }
- */
-export const fetchQuizMatches = async (quizAnswers) => {
+export const fetchQuizMatches = async (quizAnswers, gender = 'female') => {
   try {
     console.log('🎯 Fetching random quiz matches (5-8 items)...');
     console.log('📝 Quiz answers (not used currently):', quizAnswers);
+    console.log('⚧ Gender filter:', gender);
     
-    // Generate random count between 5-8
-    const randomCount = Math.floor(Math.random() * 4) + 5; // 5, 6, 7, or 8
+    const randomCount = Math.floor(Math.random() * 4) + 5;
     
     console.log(`🎲 Randomly selected to show ${randomCount} items`);
     
-    // Build simple params to fetch all items
+    // ✅ FIX: Map 'male'/'female' → 'men'/'women' to match DB values
+    const genderParam = gender === 'male' ? 'men' : 'women';
+
     const params = {
-      type: 'all', // Both products and bundles
+      type: 'all',
       page: 1,
-      limit: 100, // Fetch plenty to randomize from
+      limit: 100,
       sort: 'created_at',
-      order: 'desc'
+      order: 'desc',
+      gender: genderParam,
     };
     
-    console.log('📡 Fetching from shop API...');
+    console.log('📡 Fetching from shop API with gender:', genderParam);
     
     const response = await apiRequest(() => 
       api.get('/api/shop/items', { params })
@@ -47,7 +45,6 @@ export const fetchQuizMatches = async (quizAnswers) => {
       };
     }
     
-    // Shuffle and pick random items
     const shuffledItems = shuffleArray([...allItems]);
     const randomItems = shuffledItems.slice(0, Math.min(randomCount, shuffledItems.length));
     
@@ -62,7 +59,7 @@ export const fetchQuizMatches = async (quizAnswers) => {
       data: randomItems,
       metadata: {
         totalItems: randomItems.length,
-        randomCount: randomCount,
+        randomCount,
         availableItems: allItems.length
       }
     };
@@ -77,10 +74,6 @@ export const fetchQuizMatches = async (quizAnswers) => {
   }
 };
 
-/**
- * Fisher-Yates shuffle algorithm
- * Returns a new shuffled array
- */
 function shuffleArray(array) {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -90,16 +83,12 @@ function shuffleArray(array) {
   return shuffled;
 }
 
-/**
- * Save quiz results for analytics (optional)
- */
 export const saveQuizResults = async (quizAnswers, matchedItems) => {
   try {
     console.log('📊 Quiz completed:', {
       answers: quizAnswers,
       randomItemsShown: matchedItems.slice(0, 3).map(m => m.item.id)
     });
-    
     return { success: true };
   } catch (error) {
     console.error('Error saving quiz results:', error);

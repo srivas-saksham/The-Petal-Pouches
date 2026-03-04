@@ -192,6 +192,7 @@ C:\Projects_External\The Petal Pouches\docx\References\Product Images Reference\
 C:\Projects_External\The Petal Pouches\docx\References\Product Images Reference\16.jpeg
 C:\Projects_External\The Petal Pouches\docx\References\Product Images Reference\17.jpeg
 C:\Projects_External\The Petal Pouches\docx\References\Product Images Reference\18.jpeg
+C:\Projects_External\The Petal Pouches\docx\References\Stamp & Display Card References\Cute Ghost.png
 C:\Projects_External\The Petal Pouches\docx\References\Stamp & Display Card References\Display Card Heart Small.png
 C:\Projects_External\The Petal Pouches\docx\References\Stamp & Display Card References\Display Card Light Brown Rizara.png
 C:\Projects_External\The Petal Pouches\docx\References\Stamp & Display Card References\Display Card Square Small Rizara.png
@@ -200,6 +201,8 @@ C:\Projects_External\The Petal Pouches\docx\References\Stamp & Display Card Refe
 C:\Projects_External\The Petal Pouches\docx\References\Stamp & Display Card References\Display Card White Rizara.png
 C:\Projects_External\The Petal Pouches\docx\References\Stamp & Display Card References\DisplayCardHeartSmall.jpeg
 C:\Projects_External\The Petal Pouches\docx\References\Stamp & Display Card References\DisplayCardValentinesSquareBabyPink.jpeg
+C:\Projects_External\The Petal Pouches\docx\References\Stamp & Display Card References\Open Me and enjoy the gift inside! Border.png
+C:\Projects_External\The Petal Pouches\docx\References\Stamp & Display Card References\Open Me and enjoy the gift inside!.png
 C:\Projects_External\The Petal Pouches\docx\References\Stamp & Display Card References\Rizara Italinanno Brown Paper.png
 C:\Projects_External\The Petal Pouches\docx\References\Stamp & Display Card References\Rizara Italinanno Light Brown Paper.png
 C:\Projects_External\The Petal Pouches\docx\References\Stamp & Display Card References\Rizara Italinanno White Paper.png
@@ -233,8 +236,10 @@ C:\Projects_External\The Petal Pouches\frontend\public\assets\exp_gallery\img1.j
 C:\Projects_External\The Petal Pouches\frontend\public\assets\exp_gallery\img2.jpeg
 C:\Projects_External\The Petal Pouches\frontend\public\assets\exp_gallery\img3.jpeg
 C:\Projects_External\The Petal Pouches\frontend\public\assets\exp_gallery\img4.jpeg
-C:\Projects_External\The Petal Pouches\frontend\public\assets\exp_gallery\img5.jpeg
+C:\Projects_External\The Petal Pouches\frontend\public\assets\exp_gallery\img5.png
 C:\Projects_External\The Petal Pouches\frontend\public\assets\exp_gallery\img6.jpeg
+C:\Projects_External\The Petal Pouches\frontend\public\assets\exp_gallery\img7.jpeg
+C:\Projects_External\The Petal Pouches\frontend\public\assets\exp_gallery\img8.jpeg
 C:\Projects_External\The Petal Pouches\frontend\public\assets\login_illustrations\girl_illustration_1.jfif
 C:\Projects_External\The Petal Pouches\frontend\public\assets\login_illustrations\girl_illustration_1.png
 C:\Projects_External\The Petal Pouches\frontend\public\assets\login_illustrations\girl_illustration_2.jfif
@@ -244,6 +249,10 @@ C:\Projects_External\The Petal Pouches\frontend\public\assets\login_illustration
 C:\Projects_External\The Petal Pouches\frontend\public\assets\login_illustrations\girl_illustration_4.png
 C:\Projects_External\The Petal Pouches\frontend\public\assets\login_illustrations\girl_illustration_5.jfif
 C:\Projects_External\The Petal Pouches\frontend\public\assets\login_illustrations\girl_illustration_5.png
+C:\Projects_External\The Petal Pouches\frontend\public\assets\login_illustrations\man_illustration_1.jpeg
+C:\Projects_External\The Petal Pouches\frontend\public\assets\login_illustrations\man_illustration_1.jpg
+C:\Projects_External\The Petal Pouches\frontend\public\assets\login_illustrations\man_illustration_2.jpeg
+C:\Projects_External\The Petal Pouches\frontend\public\assets\login_illustrations\man_illustration_2.jpg
 C:\Projects_External\The Petal Pouches\frontend\public\assets\diagonal_lines.png
 C:\Projects_External\The Petal Pouches\frontend\public\assets\doodle_bg.png
 C:\Projects_External\The Petal Pouches\frontend\public\assets\doodle_bg_f.png
@@ -251,6 +260,7 @@ C:\Projects_External\The Petal Pouches\frontend\public\assets\doodle_bg_grey.png
 C:\Projects_External\The Petal Pouches\frontend\public\assets\doodle_bg_pink.png
 C:\Projects_External\The Petal Pouches\frontend\public\assets\flower_doodle_grey.png
 C:\Projects_External\The Petal Pouches\frontend\public\assets\girl_bw_gifts_red_trans.png
+C:\Projects_External\The Petal Pouches\frontend\public\assets\hero-men.jpg
 C:\Projects_External\The Petal Pouches\frontend\public\assets\hero-video-poster.jpg
 C:\Projects_External\The Petal Pouches\frontend\public\assets\hero-video-poster2.jpg
 C:\Projects_External\The Petal Pouches\frontend\public\assets\Italianno Font.zip
@@ -368,6 +378,7 @@ C:\Projects_External\The Petal Pouches\frontend\src\components\checkout\Checkout
 C:\Projects_External\The Petal Pouches\frontend\src\components\checkout\CouponCard.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\checkout\DeliveryDetailsCard.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\common\CommonHeader.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\components\common\CouponMarquee.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\common\SmartBundleSearch.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\faqs\faqData.js
 C:\Projects_External\The Petal Pouches\frontend\src\components\faqs\FAQHeader.jsx
@@ -379,6 +390,7 @@ C:\Projects_External\The Petal Pouches\frontend\src\components\home\Circular3DCa
 C:\Projects_External\The Petal Pouches\frontend\src\components\home\ExperienceGallery.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\home\GiftQuizModule.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\home\HeroParallax.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\components\home\HeroParallaxMen.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\home\HomeFooter.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\home\HomeLayout.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\home\UnboxingReel.jsx
@@ -443,9 +455,11 @@ C:\Projects_External\The Petal Pouches\frontend\src\components\user\profile\Prof
 C:\Projects_External\The Petal Pouches\frontend\src\components\user\profile\SecuritySettingsCard.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\components\user\ProtectedCustomerRoute.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\context\AdminAuthContext.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\context\BrandContext.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\context\CartContext.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\context\ToastContext.jsx
 C:\Projects_External\The Petal Pouches\frontend\src\context\UserAuthContext.jsx
+C:\Projects_External\The Petal Pouches\frontend\src\data\featuredCoupons.js
 C:\Projects_External\The Petal Pouches\frontend\src\hooks\useBundleCart.js
 C:\Projects_External\The Petal Pouches\frontend\src\hooks\useBundleDetail.js
 C:\Projects_External\The Petal Pouches\frontend\src\hooks\useBundleFilters.js

@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom';
 import { Mail, MapPin, Phone, Instagram, Facebook, Twitter } from 'lucide-react';
 import CommonHeader from '../common/CommonHeader';
 import CouponMarquee from '../common/CouponMarquee';
+import { useBrand } from '../../context/BrandContext';
+
 /**
  * HomeLayout Component
  * 
@@ -15,6 +17,8 @@ import CouponMarquee from '../common/CouponMarquee';
  * - Clean, minimal design
  */
 const HomeLayout = ({ children }) => {
+  const { brandMode } = useBrand();
+
   const [scrollProgress, setScrollProgress] = React.useState(0);
 
   React.useEffect(() => {
@@ -34,7 +38,7 @@ const HomeLayout = ({ children }) => {
       
       {/* Subtle Scroll Progress Bar */}
       <motion.div
-        className="fixed top-0 left-0 h-0.5 bg-tpppink z-[60]"
+        className="fixed top-0 left-0 h-0.5 bg-tpppink dark:bg-tppdarkwhite z-[60]"
         style={{ 
           width: `${scrollProgress}%`,
           boxShadow: '0 1px 4px rgba(217, 86, 105, 0.3)',
@@ -45,7 +49,8 @@ const HomeLayout = ({ children }) => {
       <CommonHeader />
 
       {/* ⭐ NEW: Coupon Marquee - Shows below header */}
-      <CouponMarquee />
+      {brandMode === 'feminine' && <CouponMarquee />}
+      
       {/* Main Content */}
       <main>
         {children}

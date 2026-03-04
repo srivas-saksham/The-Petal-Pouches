@@ -12,37 +12,33 @@ import SEO from '../../components/seo/SEO';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
-// ==================== SKELETON COMPONENTS ====================
-
 const ProfileHeaderSkeleton = () => (
-  <div className="bg-white border border-tppslate/10 rounded-lg p-4 animate-pulse">
+  <div className="bg-white dark:bg-tppdarkgray border border-tppslate/10 dark:border-tppdarkwhite/10 rounded-lg p-4 animate-pulse">
     <div className="flex flex-col sm:flex-row items-center gap-4">
-      <div className="w-20 h-20 bg-tppslate/10 rounded-full" />
+      <div className="w-20 h-20 bg-tppslate/10 dark:bg-tppdarkwhite/10 rounded-full" />
       <div className="flex-1 space-y-2 text-center sm:text-left">
-        <div className="h-5 bg-tppslate/10 rounded w-40 mx-auto sm:mx-0" />
-        <div className="h-4 bg-tppslate/10 rounded w-56 mx-auto sm:mx-0" />
+        <div className="h-5 bg-tppslate/10 dark:bg-tppdarkwhite/10 rounded w-40 mx-auto sm:mx-0" />
+        <div className="h-4 bg-tppslate/10 dark:bg-tppdarkwhite/10 rounded w-56 mx-auto sm:mx-0" />
       </div>
     </div>
   </div>
 );
 
 const CardSkeleton = () => (
-  <div className="bg-white border border-tppslate/10 rounded-lg overflow-hidden animate-pulse">
-    <div className="px-4 py-3 border-b border-tppslate/10">
-      <div className="h-4 bg-tppslate/10 rounded w-32" />
+  <div className="bg-white dark:bg-tppdarkgray border border-tppslate/10 dark:border-tppdarkwhite/10 rounded-lg overflow-hidden animate-pulse">
+    <div className="px-4 py-3 border-b border-tppslate/10 dark:border-tppdarkwhite/10">
+      <div className="h-4 bg-tppslate/10 dark:bg-tppdarkwhite/10 rounded w-32" />
     </div>
     <div className="p-4 space-y-4">
       {[1, 2, 3].map((i) => (
         <div key={i}>
-          <div className="h-3 bg-tppslate/10 rounded w-20 mb-2" />
-          <div className="h-10 bg-tppslate/10 rounded" />
+          <div className="h-3 bg-tppslate/10 dark:bg-tppdarkwhite/10 rounded w-20 mb-2" />
+          <div className="h-10 bg-tppslate/10 dark:bg-tppdarkwhite/10 rounded" />
         </div>
       ))}
     </div>
   </div>
 );
-
-// ==================== MAIN COMPONENT ====================
 
 export default function Profile() {
   const [loading, setLoading] = useState(true);
@@ -51,7 +47,6 @@ export default function Profile() {
   const toast = useToast();
   const navigate = useNavigate();
 
-  // ✅ FIX: Fetch fresh user data if created_at is missing
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (user && !user.created_at) {
@@ -59,7 +54,6 @@ export default function Profile() {
           const response = await fetch(`${API_URL}/api/auth/me`, {
             headers: getAuthHeader()
           });
-
           if (response.ok) {
             const data = await response.json();
             if (data.success && data.data.user) {
@@ -70,16 +64,13 @@ export default function Profile() {
           console.error('Failed to refresh user profile:', error);
         }
       }
-      
       setTimeout(() => setLoading(false), 600);
     };
-
     fetchUserProfile();
-  }, [user?.id]); // Only run when user ID changes
+  }, [user?.id]);
 
   const handleLogout = async () => {
     if (!confirm('Are you sure you want to logout?')) return;
-
     setIsLoggingOut(true);
     try {
       await logout();
@@ -93,87 +84,68 @@ export default function Profile() {
 
   return (
     <>
-    <SEO
-      title="My Profile"
-      description="Manage your account information and preferences"
-      canonical="https://www.rizara.in/user/profile"
-      noindex={true}
-    />
+      <SEO
+        title="My Profile"
+        description="Manage your account information and preferences"
+        canonical="https://www.rizara.in/user/profile"
+        noindex={true}
+      />
 
-    <div className="mx-auto px-4">
-      {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-tppslate flex items-center gap-3">
-          <UserIcon className="w-7 h-7 text-tpppink" />
-          My Profile
-        </h1>
-        <p className="text-sm text-tppslate/80 mt-1">
-          Manage your account settings and preferences
-        </p>
-      </div>
-
-      {/* Profile Header */}
-      {loading ? (
-        <ProfileHeaderSkeleton />
-      ) : (
-        <ProfileHeader user={user} />
-      )}
-
-      {/* Main Content - Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
-        {/* Personal Information - Wider (2 columns) */}
-        <div className="lg:col-span-2">
-          {loading ? (
-            <CardSkeleton />
-          ) : (
-            <ProfileInfoCard user={user} onUpdate={updateUser} />
-          )}
+      <div className="mx-auto px-4">
+        {/* Page Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-tppslate dark:text-tppdarkwhite flex items-center gap-3">
+            <UserIcon className="w-7 h-7 text-tpppink dark:text-tppdarkwhite" />
+            My Profile
+          </h1>
+          <p className="text-sm text-tppslate/80 dark:text-tppdarkwhite/60 mt-1">
+            Manage your account settings and preferences
+          </p>
         </div>
 
-        {/* Security Settings - Sidebar */}
-        <div className="space-y-4">
-          {loading ? (
-            <>
-              <CardSkeleton />
-              <CardSkeleton />
-            </>
-          ) : (
-            <>
-              <SecuritySettingsCard />
+        {/* Profile Header */}
+        {loading ? <ProfileHeaderSkeleton /> : <ProfileHeader user={user} />}
 
-              {/* Logout Card */}
-              <div className="bg-white border border-tppslate/10 rounded-lg overflow-hidden">
-                <div className="px-4 py-3 border-b border-tppslate/10">
-                  <h3 className="text-sm font-bold text-tppslate">Account Actions</h3>
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+          <div className="lg:col-span-2">
+            {loading ? <CardSkeleton /> : <ProfileInfoCard user={user} onUpdate={updateUser} />}
+          </div>
+
+          <div className="space-y-4">
+            {loading ? (
+              <><CardSkeleton /><CardSkeleton /></>
+            ) : (
+              <>
+                <SecuritySettingsCard />
+
+                {/* Logout Card */}
+                <div className="bg-white dark:bg-tppdarkgray border border-tppslate/10 dark:border-tppdarkwhite/10 rounded-lg overflow-hidden">
+                  <div className="px-4 py-3 border-b border-tppslate/10 dark:border-tppdarkwhite/10">
+                    <h3 className="text-sm font-bold text-tppslate dark:text-tppdarkwhite">Account Actions</h3>
+                  </div>
+                  <div className="p-4">
+                    <button
+                      onClick={handleLogout}
+                      disabled={isLoggingOut}
+                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold text-white bg-red-600 dark:bg-red-500 rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isLoggingOut ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" />Logging out...</>
+                      ) : (
+                        <><LogOut className="w-4 h-4" />Logout</>
+                      )}
+                    </button>
+                    <p className="text-xs text-tppslate/50 dark:text-tppdarkwhite/30 mt-2 text-center">
+                      Sign out from this device
+                    </p>
+                  </div>
                 </div>
-                <div className="p-4">
-                  <button
-                    onClick={handleLogout}
-                    disabled={isLoggingOut}
-                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isLoggingOut ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Logging out...
-                      </>
-                    ) : (
-                      <>
-                        <LogOut className="w-4 h-4" />
-                        Logout
-                      </>
-                    )}
-                  </button>
-                  <p className="text-xs text-tppslate/50 mt-2 text-center">
-                    Sign out from this device
-                  </p>
-                </div>
-              </div>
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </div>
     </>
   );
 }

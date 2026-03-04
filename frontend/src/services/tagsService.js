@@ -50,6 +50,7 @@ export const getTagsWithCounts = async (filterContext = {}) => {
   if (filterContext.max_price) params.append('max_price', filterContext.max_price);
   if (filterContext.in_stock) params.append('in_stock', filterContext.in_stock);
   if (filterContext.type) params.append('type', filterContext.type); // 🆕 NEW: Add type filter
+  if (filterContext.gender) params.append('gender', filterContext.gender);
   
   return apiRequest(() =>
     api.get(`/api/tags/with-counts${params.toString() ? `?${params}` : ''}`)

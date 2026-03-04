@@ -37,41 +37,30 @@ const ShopFiltersBar = ({
   const hasMoreTags = availableTags.length > 3;
 
   return (
-    <div className="sticky top-12 lg:top-16 z-20 bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm">
+    <div className="sticky top-12 lg:top-16 z-20 bg-white/95 dark:bg-tppdark/95 backdrop-blur-sm border-b border-slate-200 dark:border-tppdarkwhite/10 shadow-sm">
       
-      {/* ⭐ MOBILE LAYOUT */}
+      {/* MOBILE LAYOUT */}
       <div className="lg:hidden px-3 py-2">
         
-        {/* Row 1: Type Tabs + Filter Button */}
         <div className="flex items-center justify-between gap-2 mb-2">
-          {/* Type Tabs - ANIMATED */}
           {onTypeChange && (
-            <div className="relative flex items-center gap-1 bg-slate-100 rounded-lg p-0.5 flex-1">
-              {/* Animated Background */}
+            <div className="relative flex items-center gap-1 bg-slate-100 dark:bg-tppdarkgray rounded-lg p-0.5 flex-1">
               <motion.div
                 layoutId="mobile-tab-indicator"
-                className="absolute bg-tpppink rounded shadow-sm"
+                className="absolute bg-tpppink dark:bg-tppdarkwhite rounded shadow-sm"
                 style={{ height: 'calc(100% - 4px)', top: '2px' }}
                 initial={false}
-                transition={{
-                  type: "spring",
-                  stiffness: 400,
-                  damping: 30,
-                  mass: 0.8
-                }}
+                transition={{ type: "spring", stiffness: 400, damping: 30, mass: 0.8 }}
                 animate={{
                   left: itemType === 'all' ? '2px' : itemType === 'products' ? 'calc(33.333% + 1px)' : 'calc(66.666%)',
                   width: 'calc(33.333% - 4px)'
                 }}
               />
               
-              {/* Tab Buttons */}
               <button
                 onClick={() => onTypeChange('all')}
                 className={`relative z-10 flex-1 px-2 py-1.5 rounded text-[11px] font-bold transition-colors duration-200 active:scale-95 ${
-                  itemType === 'all'
-                    ? 'text-white'
-                    : 'text-slate-600'
+                  itemType === 'all' ? 'text-white dark:text-tppdark' : 'text-slate-600 dark:text-tppdarkwhite/60'
                 }`}
               >
                 ALL
@@ -79,9 +68,7 @@ const ShopFiltersBar = ({
               <button
                 onClick={() => onTypeChange('products')}
                 className={`relative z-10 flex-1 px-2 py-1.5 rounded text-[11px] font-bold transition-colors duration-200 active:scale-95 ${
-                  itemType === 'products'
-                    ? 'text-white'
-                    : 'text-slate-600'
+                  itemType === 'products' ? 'text-white dark:text-tppdark' : 'text-slate-600 dark:text-tppdarkwhite/60'
                 }`}
               >
                 SIGNATURES
@@ -89,9 +76,7 @@ const ShopFiltersBar = ({
               <button
                 onClick={() => onTypeChange('bundles')}
                 className={`relative z-10 flex-1 px-2 py-1.5 rounded text-[11px] font-bold transition-colors duration-200 active:scale-95 ${
-                  itemType === 'bundles'
-                    ? 'text-white'
-                    : 'text-slate-600'
+                  itemType === 'bundles' ? 'text-white dark:text-tppdark' : 'text-slate-600 dark:text-tppdarkwhite/60'
                 }`}
               >
                 HAMPERS
@@ -99,16 +84,15 @@ const ShopFiltersBar = ({
             </div>
           )}
 
-          {/* Filter Button */}
           {onOpenFilters && (
             <button
               onClick={onOpenFilters}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-tpppink text-white rounded-lg text-[10px] font-bold shadow-sm active:scale-95 transition-transform relative"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-tpppink dark:bg-tppdarkwhite text-white dark:text-tppdark rounded-lg text-[10px] font-bold shadow-sm active:scale-95 transition-transform relative"
             >
               <Filter size={14} />
               Filters
               {hasActiveFilters && (
-                <span className="absolute -top-1 -right-1 bg-white text-tpppink rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold border border-tpppink shadow-sm">
+                <span className="absolute -top-1 -right-1 bg-white dark:bg-tppdark text-tpppink dark:text-tppdarkwhite rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold border border-tpppink dark:border-tppdarkwhite shadow-sm">
                   !
                 </span>
               )}
@@ -116,7 +100,6 @@ const ShopFiltersBar = ({
           )}
         </div>
 
-        {/* Row 2: Top 3 Tags */}
         {!loading && availableTags.length > 0 && (
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
             {visibleTags.map((tag) => {
@@ -127,13 +110,13 @@ const ShopFiltersBar = ({
                   onClick={() => onTagClick(tag.name)}
                   className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold transition-all active:scale-95 ${
                     isSelected 
-                      ? 'bg-tpppink text-white shadow-sm' 
-                      : 'bg-white text-slate-700 border border-slate-300 hover:border-tpppink hover:text-tpppink'
+                      ? 'bg-tpppink dark:bg-tppdarkwhite text-white dark:text-tppdark shadow-sm' 
+                      : 'bg-white dark:bg-tppdarkgray text-slate-700 dark:text-tppdarkwhite/70 border border-slate-300 dark:border-tppdarkwhite/20 hover:border-tpppink dark:hover:border-tppdarkwhite hover:text-tpppink dark:hover:text-tppdarkwhite'
                   }`}
                 >
                   {tag.label}
                   <span className={`text-[9px] px-1 py-0.5 rounded-full ${
-                    isSelected ? 'bg-white/30' : 'bg-slate-100'
+                    isSelected ? 'bg-white/30 dark:bg-tppdark/30' : 'bg-slate-100 dark:bg-tppdarkwhite/10'
                   }`}>
                     {tag.count}
                   </span>
@@ -141,31 +124,28 @@ const ShopFiltersBar = ({
               );
             })}
             
-            {/* Show All Button */}
             {hasMoreTags && !showAllTags && (
               <button
                 onClick={() => setShowAllTags(true)}
-                className="flex-shrink-0 text-[10px] font-bold px-2 py-1 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200 active:scale-95 transition-all"
+                className="flex-shrink-0 text-[10px] font-bold px-2 py-1 bg-slate-100 dark:bg-tppdarkgray text-slate-600 dark:text-tppdarkwhite/60 rounded-full hover:bg-slate-200 dark:hover:bg-tppdarkwhite/10 active:scale-95 transition-all"
               >
                 +{availableTags.length - 3} more
               </button>
             )}
 
-            {/* Show Less Button */}
             {showAllTags && (
               <button
                 onClick={() => setShowAllTags(false)}
-                className="flex-shrink-0 text-[10px] font-bold px-2 py-1 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200 active:scale-95 transition-all"
+                className="flex-shrink-0 text-[10px] font-bold px-2 py-1 bg-slate-100 dark:bg-tppdarkgray text-slate-600 dark:text-tppdarkwhite/60 rounded-full hover:bg-slate-200 dark:hover:bg-tppdarkwhite/10 active:scale-95 transition-all"
               >
                 Show Less
               </button>
             )}
 
-            {/* Clear All */}
             {selectedTags.length > 0 && (
               <button
                 onClick={() => onTagClick(null)}
-                className="flex-shrink-0 flex items-center gap-1 text-[10px] font-bold px-2 py-1 bg-red-100 text-red-600 rounded-full hover:bg-red-200 active:scale-95 transition-all"
+                className="flex-shrink-0 flex items-center gap-1 text-[10px] font-bold px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-full hover:bg-red-200 dark:hover:bg-red-900/30 active:scale-95 transition-all"
               >
                 <X size={10} />
                 Clear
@@ -174,61 +154,33 @@ const ShopFiltersBar = ({
           </div>
         )}
 
-        {/* Loading State */}
         {loading && (
           <div className="flex gap-1.5">
             {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="flex-shrink-0 h-7 w-20 bg-slate-100 rounded-full animate-pulse"
-              />
+              <div key={i} className="flex-shrink-0 h-7 w-20 bg-slate-100 dark:bg-tppdarkwhite/10 rounded-full animate-pulse" />
             ))}
           </div>
         )}
       </div>
 
-      {/* ⭐ DESKTOP LAYOUT */}
+      {/* DESKTOP LAYOUT */}
       <div className="hidden lg:block px-6 py-3">
         <div className="flex items-center gap-3">
           
-          {/* Type Toggle - Desktop - ANIMATED */}
           {onTypeChange && (
-            <div className="relative flex items-center gap-1 bg-white backdrop-blur-md rounded-lg p-1 border-2 border-slate-200 shadow-md flex-shrink-0">
-              {/* Animated Background - Desktop with Layout Animation */}
-              {itemType === 'all' && (
-                <motion.div
-                  layoutId="desktop-tab-bg"
-                  className="absolute bg-tpppink rounded-md shadow-sm inset-y-1"
-                  initial={false}
-                  transition={{
-                    type: "spring",
-                    stiffness: 380,
-                    damping: 28,
-                    mass: 0.6
-                  }}
-                />
-              )}
-              
-              {/* Tab Buttons - Desktop */}
+            <div className="relative flex items-center gap-1 bg-white dark:bg-tppdarkgray backdrop-blur-md rounded-lg p-1 border-2 border-slate-200 dark:border-tppdarkwhite/10 shadow-md flex-shrink-0">
               <button
                 onClick={() => onTypeChange('all')}
                 className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors duration-200 ${
-                  itemType === 'all'
-                    ? 'text-white'
-                    : 'text-slate-600'
+                  itemType === 'all' ? 'text-white dark:text-tppdark' : 'text-slate-600 dark:text-tppdarkwhite/60'
                 }`}
               >
                 {itemType === 'all' && (
                   <motion.div
                     layoutId="desktop-tab-bg"
-                    className="absolute inset-0 bg-tpppink rounded-md shadow-sm"
+                    className="absolute inset-0 bg-tpppink dark:bg-tppdarkwhite rounded-md shadow-sm"
                     initial={false}
-                    transition={{
-                      type: "spring",
-                      stiffness: 380,
-                      damping: 28,
-                      mass: 0.6
-                    }}
+                    transition={{ type: "spring", stiffness: 380, damping: 28, mass: 0.6 }}
                   />
                 )}
                 <Box size={14} className="relative z-10" />
@@ -237,22 +189,15 @@ const ShopFiltersBar = ({
               <button
                 onClick={() => onTypeChange('products')}
                 className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors duration-200 ${
-                  itemType === 'products'
-                    ? 'text-white'
-                    : 'text-slate-600'
+                  itemType === 'products' ? 'text-white dark:text-tppdark' : 'text-slate-600 dark:text-tppdarkwhite/60'
                 }`}
               >
                 {itemType === 'products' && (
                   <motion.div
                     layoutId="desktop-tab-bg"
-                    className="absolute inset-0 bg-tpppink rounded-md shadow-sm"
+                    className="absolute inset-0 bg-tpppink dark:bg-tppdarkwhite rounded-md shadow-sm"
                     initial={false}
-                    transition={{
-                      type: "spring",
-                      stiffness: 380,
-                      damping: 28,
-                      mass: 0.6
-                    }}
+                    transition={{ type: "spring", stiffness: 380, damping: 28, mass: 0.6 }}
                   />
                 )}
                 <Signature size={14} className="relative z-10" />
@@ -261,22 +206,15 @@ const ShopFiltersBar = ({
               <button
                 onClick={() => onTypeChange('bundles')}
                 className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors duration-200 ${
-                  itemType === 'bundles'
-                    ? 'text-white'
-                    : 'text-slate-600'
+                  itemType === 'bundles' ? 'text-white dark:text-tppdark' : 'text-slate-600 dark:text-tppdarkwhite/60'
                 }`}
               >
                 {itemType === 'bundles' && (
                   <motion.div
                     layoutId="desktop-tab-bg"
-                    className="absolute inset-0 bg-tpppink rounded-md shadow-sm"
+                    className="absolute inset-0 bg-tpppink dark:bg-tppdarkwhite rounded-md shadow-sm"
                     initial={false}
-                    transition={{
-                      type: "spring",
-                      stiffness: 380,
-                      damping: 28,
-                      mass: 0.6
-                    }}
+                    transition={{ type: "spring", stiffness: 380, damping: 28, mass: 0.6 }}
                   />
                 )}
                 <PackageOpen size={14} className="relative z-10" />
@@ -285,7 +223,6 @@ const ShopFiltersBar = ({
             </div>
           )}
 
-          {/* Tags Pills - Desktop */}
           <div className="flex-1 overflow-x-auto scrollbar-hide">
             {!loading && availableTags.length > 0 ? (
               <div className="flex items-center gap-1.5">
@@ -299,8 +236,8 @@ const ShopFiltersBar = ({
                         flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold
                         transition-all whitespace-nowrap shadow-md backdrop-blur-md
                         ${isSelected 
-                          ? 'bg-tpppink text-white border-2 border-tpppink' 
-                          : 'bg-white text-slate-700 border-2 border-slate-300 hover:border-tpppink hover:text-tpppink hover:bg-pink-50 hover:shadow-lg'
+                          ? 'bg-tpppink dark:bg-tppdarkwhite text-white dark:text-tppdark border-2 border-tpppink dark:border-tppdarkwhite' 
+                          : 'bg-white dark:bg-tppdarkgray text-slate-700 dark:text-tppdarkwhite/70 border-2 border-slate-300 dark:border-tppdarkwhite/20 hover:border-tpppink dark:hover:border-tppdarkwhite hover:text-tpppink dark:hover:text-tppdarkwhite hover:bg-pink-50 dark:hover:bg-tppdarkwhite/5 hover:shadow-lg'
                         }
                       `}
                     >
@@ -308,8 +245,8 @@ const ShopFiltersBar = ({
                       <span className={`
                         text-[10px] font-bold px-1.5 py-0.5 rounded-full
                         ${isSelected 
-                          ? 'bg-white/30 text-white' 
-                          : 'bg-slate-100 text-slate-600'
+                          ? 'bg-white/30 dark:bg-tppdark/30 text-white dark:text-tppdarkwhite' 
+                          : 'bg-slate-100 dark:bg-tppdarkwhite/10 text-slate-600 dark:text-tppdarkwhite/50'
                         }
                       `}>
                         {tag.count}
@@ -321,9 +258,9 @@ const ShopFiltersBar = ({
                 {selectedTags.length > 0 && (
                   <button
                     onClick={() => onTagClick(null)}
-                    className="flex-shrink-0 text-xs text-white font-bold px-3 py-1.5 whitespace-nowrap 
-                      bg-tpppink backdrop-blur-md rounded-full shadow-md border-2 border-tpppink 
-                      hover:bg-tpppink/90 hover:shadow-lg transition-all"
+                    className="flex-shrink-0 text-xs text-white dark:text-tppdark font-bold px-3 py-1.5 whitespace-nowrap 
+                      bg-tpppink dark:bg-tppdarkwhite backdrop-blur-md rounded-full shadow-md border-2 border-tpppink dark:border-tppdarkwhite 
+                      hover:bg-tpppink/90 dark:hover:bg-tppdarkwhite/90 hover:shadow-lg transition-all"
                   >
                     Clear all
                   </button>
@@ -332,23 +269,19 @@ const ShopFiltersBar = ({
             ) : loading ? (
               <div className="flex gap-1.5">
                 {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="flex-shrink-0 h-8 w-20 bg-white backdrop-blur-md rounded-full animate-pulse shadow-md border-2 border-slate-200"
-                  />
+                  <div key={i} className="flex-shrink-0 h-8 w-20 bg-white dark:bg-tppdarkgray backdrop-blur-md rounded-full animate-pulse shadow-md border-2 border-slate-200 dark:border-tppdarkwhite/10" />
                 ))}
               </div>
             ) : null}
           </div>
 
-          {/* Grid Layout Switcher - Desktop Only */}
-          <div className="flex items-center gap-1 bg-slate-100 rounded-md p-0.5 border border-slate-200 flex-shrink-0">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-tppdarkgray rounded-md p-0.5 border border-slate-200 dark:border-tppdarkwhite/10 flex-shrink-0">
             <button
               onClick={() => onLayoutChange('4')}
               className={`p-1.5 rounded transition-all ${
                 layoutMode === '4'
-                  ? 'bg-white text-tpppink shadow-sm border border-tpppink'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                  ? 'bg-white dark:bg-tppdark text-tpppink dark:text-tppdarkwhite shadow-sm border border-tpppink dark:border-tppdarkwhite'
+                  : 'text-slate-500 dark:text-tppdarkwhite/40 hover:text-slate-700 dark:hover:text-tppdarkwhite hover:bg-white/50 dark:hover:bg-tppdarkwhite/5'
               }`}
               title="4 Column Layout"
               aria-label="4 Column Layout"
@@ -359,8 +292,8 @@ const ShopFiltersBar = ({
               onClick={() => onLayoutChange('5')}
               className={`p-1.5 rounded transition-all ${
                 layoutMode === '5'
-                  ? 'bg-white text-tpppink shadow-sm border border-tpppink'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                  ? 'bg-white dark:bg-tppdark text-tpppink dark:text-tppdarkwhite shadow-sm border border-tpppink dark:border-tppdarkwhite'
+                  : 'text-slate-500 dark:text-tppdarkwhite/40 hover:text-slate-700 dark:hover:text-tppdarkwhite hover:bg-white/50 dark:hover:bg-tppdarkwhite/5'
               }`}
               title="5 Column Layout"
               aria-label="5 Column Layout"
@@ -371,8 +304,8 @@ const ShopFiltersBar = ({
               onClick={() => onLayoutChange('6')}
               className={`p-1.5 rounded transition-all ${
                 layoutMode === '6'
-                  ? 'bg-white text-tpppink shadow-sm border border-tpppink'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                  ? 'bg-white dark:bg-tppdark text-tpppink dark:text-tppdarkwhite shadow-sm border border-tpppink dark:border-tppdarkwhite'
+                  : 'text-slate-500 dark:text-tppdarkwhite/40 hover:text-slate-700 dark:hover:text-tppdarkwhite hover:bg-white/50 dark:hover:bg-tppdarkwhite/5'
               }`}
               title="6 Column Layout"
               aria-label="6 Column Layout"
@@ -384,13 +317,8 @@ const ShopFiltersBar = ({
       </div>
 
       <style jsx>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
     </div>
   );

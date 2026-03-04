@@ -8,6 +8,8 @@ import { UserAuthProvider } from './context/UserAuthContext';
 import { CartProvider } from './context/CartContext';
 import { ToastProvider } from './context/ToastContext';
 import { CartSidebarProvider } from './hooks/useCartSidebar';
+import { BrandProvider } from './context/BrandContext';
+import BrandTransitionOverlay from './components/common/BrandTransitionOverlay';
 import ProtectedRoute from './components/admin/ProtectedRoute';
 import ProtectedCustomerRoute from './components/user/ProtectedCustomerRoute';
 import useScrollRestoration from './hooks/useScrollRestoration';
@@ -22,6 +24,7 @@ import Home from './pages/Home';
 import Shop from './pages/ShopNew';
 import BundleDetailPage from './pages/BundleDetailPage';
 import FAQPage from './pages/FAQPage';
+import HomeFooter from './components/home/HomeFooter';
 
 // Policy Pages
 import PrivacyPolicy from './pages/policies/PrivacyPolicy';
@@ -78,116 +81,106 @@ function App() {
               <CartProvider>
                 {/* ✅ CartSidebarProvider wraps app for global cart sidebar */}
                 <CartSidebarProvider>
-                  <Routes>
-                    {/* ==================== PUBLIC ROUTES ==================== */}
-                    
-                    {/* Home Landing Page */}
-                    <Route path="/" element={<Home />} />
-                    
-                    {/* Shop Pages */}
-                    <Route path="/shop" element={<Shop />} />
-                    <Route path="/shop/bundles/:id" element={<BundleDetailPage />} />
-                    <Route path="/shop/products/:id" element={<BundleDetailPage />} />
-                    
-                    {/* FAQ Page */}
-                    <Route path="/faqs" element={<FAQPage />} />
+                  {/* ✅ BrandProvider wraps all routes for global brand mode */}
+                  <BrandProvider>
+                  <BrandTransitionOverlay />
+                    <Routes>
+                      {/* ==================== PUBLIC ROUTES ==================== */}
+                      
+                      {/* Home Landing Page */}
+                      <Route path="/" element={<Home />} />
+                      
+                      {/* Shop Pages */}
+                      <Route path="/shop" element={<Shop />} />
+                      <Route path="/shop/bundles/:id" element={<BundleDetailPage />} />
+                      <Route path="/shop/products/:id" element={<BundleDetailPage />} />
+                      
+                      {/* FAQ Page */}
+                      <Route path="/faqs" element={<FAQPage />} />
 
-                    {/* ==================== POLICY PAGES (PUBLIC - NO AUTH REQUIRED) ==================== */}
-                    
-                    {/* Privacy Policy */}
-                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-                    
-                    {/* Terms & Conditions */}
-                    <Route path="/terms-and-conditions" element={<TermsConditions />} />
-                    
-                    {/* Refund & Cancellation Policy */}
-                    <Route path="/refund-policy" element={<RefundPolicy />} />
-                    
-                    {/* Shipping & Delivery Policy */}
-                    <Route path="/shipping-policy" element={<ShippingPolicy />} />
-                    
-                    {/* Contact Us */}
-                    <Route path="/contact-us" element={<ContactUs />} />
-                    
-                    {/* ==================== USER/CUSTOMER AUTH ROUTES ==================== */}
-                    
-                    {/* User Authentication */}
-                    <Route path="/login" element={<UserLogin />} />
-                    <Route path="/register" element={<UserRegister />} />
-                    <Route path="/forgot-password" element={<ForgotPassword />} />
-                    
-                    {/* ==================== CHECKOUT ROUTE (Public but Protected) ==================== */}
-                    
-                    <Route
-                      path="/checkout"
-                      element={
-                        <ProtectedCustomerRoute>
-                          <Checkout />
-                        </ProtectedCustomerRoute>
-                      }
-                    />
+                      {/* ==================== POLICY PAGES (PUBLIC - NO AUTH REQUIRED) ==================== */}
+                      
+                      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                      <Route path="/terms-and-conditions" element={<TermsConditions />} />
+                      <Route path="/refund-policy" element={<RefundPolicy />} />
+                      <Route path="/shipping-policy" element={<ShippingPolicy />} />
+                      <Route path="/contact-us" element={<ContactUs />} />
+                      
+                      {/* ==================== USER/CUSTOMER AUTH ROUTES ==================== */}
+                      
+                      <Route path="/login" element={<UserLogin />} />
+                      <Route path="/register" element={<UserRegister />} />
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
+                      
+                      {/* ==================== CHECKOUT ROUTE (Public but Protected) ==================== */}
+                      
+                      <Route
+                        path="/checkout"
+                        element={
+                          <ProtectedCustomerRoute>
+                            <Checkout />
+                          </ProtectedCustomerRoute>
+                        }
+                      />
 
-                    {/* ==================== ORDER SUCCESS ROUTE (Protected) ==================== */}
-                    
-                    {/* Order Success Page - Shows after successful order placement */}
-                    <Route
-                      path="/order-success/:orderId"
-                      element={
-                        <ProtectedCustomerRoute>
-                          <OrderSuccess />
-                        </ProtectedCustomerRoute>
-                      }
-                    />
-                    
-                    {/* ==================== PROTECTED USER ROUTES ==================== */}
-                    
-                    {/* Protected User Dashboard & Settings */}
-                    <Route
-                      path="/user/*"
-                      element={
-                        <ProtectedCustomerRoute>
-                          <UserRoutes />
-                        </ProtectedCustomerRoute>
-                      }
-                    />
+                      {/* ==================== ORDER SUCCESS ROUTE (Protected) ==================== */}
+                      
+                      <Route
+                        path="/order-success/:orderId"
+                        element={
+                          <ProtectedCustomerRoute>
+                            <OrderSuccess />
+                          </ProtectedCustomerRoute>
+                        }
+                      />
+                      
+                      {/* ==================== PROTECTED USER ROUTES ==================== */}
+                      
+                      <Route
+                        path="/user/*"
+                        element={
+                          <ProtectedCustomerRoute>
+                            <UserRoutes />
+                          </ProtectedCustomerRoute>
+                        }
+                      />
 
-                    {/* Individual Order Details Route (Protected) */}
-                    <Route
-                      path="/user/orders/:orderId"
-                      element={
-                        <ProtectedCustomerRoute>
-                          <OrderDetails />
-                        </ProtectedCustomerRoute>
-                      }
-                    />
+                      <Route
+                        path="/user/orders/:orderId"
+                        element={
+                          <ProtectedCustomerRoute>
+                            <OrderDetails />
+                          </ProtectedCustomerRoute>
+                        }
+                      />
 
-                    {/* ==================== ADMIN AUTH ROUTES ==================== */}
-                    
-                    {/* Admin Login */}
-                    <Route path="/admin/login" element={<AdminLogin />} />
-                    
-                    {/* ==================== PROTECTED ADMIN ROUTES ==================== */}
-                    
-                    {/* Protected Admin Dashboard & Management */}
-                    <Route
-                      path="/admin/*"
-                      element={
-                        <ProtectedRoute>
-                          <AdminRoutes />
-                        </ProtectedRoute>
-                      }
-                    />
+                      {/* ==================== ADMIN AUTH ROUTES ==================== */}
+                      
+                      <Route path="/admin/login" element={<AdminLogin />} />
+                      
+                      {/* ==================== PROTECTED ADMIN ROUTES ==================== */}
+                      
+                      <Route
+                        path="/admin/*"
+                        element={
+                          <ProtectedRoute>
+                            <AdminRoutes />
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    {/* OAuth Callback */}
-                    <Route path="/auth/callback" element={<OAuthCallback />} />
+                      {/* OAuth Callback */}
+                      <Route path="/auth/callback" element={<OAuthCallback />} />
 
-                    {/* ==================== 404 - CATCH ALL ==================== */}
-                    
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Routes>
+                      {/* ==================== 404 - CATCH ALL ==================== */}
+                      
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
 
-                  {/* ✅ Global Cart Sidebar - Renders on top of everything */}
-                  <CartSidebar />
+                    {/* ✅ Global Cart Sidebar - Renders on top of everything */}
+                    <CartSidebar />
+                    <HomeFooter />
+                  </BrandProvider>
                 </CartSidebarProvider>
               </CartProvider>
             </UserAuthProvider>

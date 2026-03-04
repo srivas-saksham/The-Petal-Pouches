@@ -208,7 +208,7 @@ const CheckoutForm = ({ showModal, onCloseModal, onAddressSelect }) => {
 
       {/* Modal - Slides from bottom-right corner for BOTH mobile & desktop */}
       <div
-        className={`fixed right-0 bottom-0 bg-white shadow-2xl z-[110]
+        className={`fixed right-0 bottom-0 bg-white dark:bg-tppdarkgray shadow-2xl z-[110]
           flex flex-col will-change-transform rounded-t-2xl
           w-full sm:w-[520px] h-[80dvh]
           transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
@@ -218,16 +218,16 @@ const CheckoutForm = ({ showModal, onCloseModal, onAddressSelect }) => {
         aria-modal="true"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white flex-shrink-0 rounded-t-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-tppdarkwhite/10 bg-white dark:bg-tppdarkgray flex-shrink-0 rounded-t-2xl">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-tpppink to-tpppeach rounded-lg flex items-center justify-center shadow-md">
               <MapPin size={20} className="text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-tppslate">
+              <h2 className="text-lg font-bold text-tppslate dark:text-tppdarkwhite">
                 Add New Address
               </h2>
-              <p className="text-xs text-tppslate/60">
+              <p className="text-xs text-tppslate/60 dark:text-tppdarkwhite/40">
                 Add a new delivery address
               </p>
             </div>
@@ -236,15 +236,15 @@ const CheckoutForm = ({ showModal, onCloseModal, onAddressSelect }) => {
           {/* Close Button */}
           <button
             onClick={handleClose}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-tppdark/50 rounded-lg transition-colors"
             aria-label="Close form"
           >
-            <X size={20} className="text-slate-600" />
+            <X size={20} className="text-slate-600 dark:text-tppdarkwhite/60" />
           </button>
         </div>
 
         {/* Form Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto bg-tppslate/10">
+        <div className="flex-1 overflow-y-auto bg-tppslate/10 dark:bg-tppdark/30">
           <div className="p-6">
             {/* Notifications */}
             <AddressNotifications
@@ -258,7 +258,7 @@ const CheckoutForm = ({ showModal, onCloseModal, onAddressSelect }) => {
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Address Line 1 */}
               <div>
-                <label htmlFor="line1" className="block text-sm font-medium text-tppslate mb-1">
+                <label htmlFor="line1" className="block text-sm font-medium text-tppslate dark:text-tppdarkwhite/80 mb-1">
                   Address Line 1 <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -268,16 +268,16 @@ const CheckoutForm = ({ showModal, onCloseModal, onAddressSelect }) => {
                   value={formData.line1}
                   onChange={handleChange}
                   placeholder="House/Flat No., Building Name"
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
-                    errors.line1 ? 'border-red-300' : 'border-tppslate/30'
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink dark:focus:ring-tppdarkwhite/50 focus:border-transparent transition-colors bg-white dark:bg-tppdark/50 text-tppslate dark:text-tppdarkwhite placeholder:text-slate-400 dark:placeholder:text-tppdarkwhite/30 ${
+                    errors.line1 ? 'border-red-300 dark:border-red-500/50' : 'border-tppslate/30 dark:border-tppdarkwhite/20'
                   }`}
                 />
-                {errors.line1 && <p className="mt-1 text-xs text-red-600">{errors.line1}</p>}
+                {errors.line1 && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.line1}</p>}
               </div>
 
               {/* Address Line 2 */}
               <div>
-                <label htmlFor="line2" className="block text-sm font-medium text-tppslate mb-1">
+                <label htmlFor="line2" className="block text-sm font-medium text-tppslate dark:text-tppdarkwhite/80 mb-1">
                   Address Line 2
                 </label>
                 <input
@@ -287,13 +287,13 @@ const CheckoutForm = ({ showModal, onCloseModal, onAddressSelect }) => {
                   value={formData.line2}
                   onChange={handleChange}
                   placeholder="Street Name, Area"
-                  className="w-full px-4 py-2 border border-tppslate/30 rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors"
+                  className="w-full px-4 py-2 border border-tppslate/30 dark:border-tppdarkwhite/20 rounded-lg focus:ring-2 focus:ring-tpppink dark:focus:ring-tppdarkwhite/50 focus:border-transparent transition-colors bg-white dark:bg-tppdark/50 text-tppslate dark:text-tppdarkwhite placeholder:text-slate-400 dark:placeholder:text-tppdarkwhite/30"
                 />
               </div>
 
               {/* Landmark */}
               <div>
-                <label htmlFor="landmark" className="block text-sm font-medium text-tppslate mb-1">
+                <label htmlFor="landmark" className="block text-sm font-medium text-tppslate dark:text-tppdarkwhite/80 mb-1">
                   Landmark
                 </label>
                 <input
@@ -303,14 +303,14 @@ const CheckoutForm = ({ showModal, onCloseModal, onAddressSelect }) => {
                   value={formData.landmark}
                   onChange={handleChange}
                   placeholder="Near famous landmark"
-                  className="w-full px-4 py-2 border border-tppslate/30 rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors"
+                  className="w-full px-4 py-2 border border-tppslate/30 dark:border-tppdarkwhite/20 rounded-lg focus:ring-2 focus:ring-tpppink dark:focus:ring-tppdarkwhite/50 focus:border-transparent transition-colors bg-white dark:bg-tppdark/50 text-tppslate dark:text-tppdarkwhite placeholder:text-slate-400 dark:placeholder:text-tppdarkwhite/30"
                 />
               </div>
 
               {/* City and State */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="city" className="block text-sm font-medium text-tppslate mb-1">
+                  <label htmlFor="city" className="block text-sm font-medium text-tppslate dark:text-tppdarkwhite/80 mb-1">
                     City <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -320,15 +320,15 @@ const CheckoutForm = ({ showModal, onCloseModal, onAddressSelect }) => {
                     value={formData.city}
                     onChange={handleChange}
                     placeholder="City"
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
-                      errors.city ? 'border-red-300' : 'border-tppslate/30'
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink dark:focus:ring-tppdarkwhite/50 focus:border-transparent transition-colors bg-white dark:bg-tppdark/50 text-tppslate dark:text-tppdarkwhite placeholder:text-slate-400 dark:placeholder:text-tppdarkwhite/30 ${
+                      errors.city ? 'border-red-300 dark:border-red-500/50' : 'border-tppslate/30 dark:border-tppdarkwhite/20'
                     }`}
                   />
-                  {errors.city && <p className="mt-1 text-xs text-red-600">{errors.city}</p>}
+                  {errors.city && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.city}</p>}
                 </div>
 
                 <div>
-                  <label htmlFor="state" className="block text-sm font-medium text-tppslate mb-1">
+                  <label htmlFor="state" className="block text-sm font-medium text-tppslate dark:text-tppdarkwhite/80 mb-1">
                     State <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -338,18 +338,18 @@ const CheckoutForm = ({ showModal, onCloseModal, onAddressSelect }) => {
                     value={formData.state}
                     onChange={handleChange}
                     placeholder="State"
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
-                      errors.state ? 'border-red-300' : 'border-tppslate/30'
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink dark:focus:ring-tppdarkwhite/50 focus:border-transparent transition-colors bg-white dark:bg-tppdark/50 text-tppslate dark:text-tppdarkwhite placeholder:text-slate-400 dark:placeholder:text-tppdarkwhite/30 ${
+                      errors.state ? 'border-red-300 dark:border-red-500/50' : 'border-tppslate/30 dark:border-tppdarkwhite/20'
                     }`}
                   />
-                  {errors.state && <p className="mt-1 text-xs text-red-600">{errors.state}</p>}
+                  {errors.state && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.state}</p>}
                 </div>
               </div>
 
               {/* Zip Code and Country */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="zip_code" className="block text-sm font-medium text-tppslate mb-1">
+                  <label htmlFor="zip_code" className="block text-sm font-medium text-tppslate dark:text-tppdarkwhite/80 mb-1">
                     Postal Code <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -360,17 +360,17 @@ const CheckoutForm = ({ showModal, onCloseModal, onAddressSelect }) => {
                     onChange={handleChange}
                     placeholder="110001"
                     maxLength="6"
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
-                      errors.zip_code || errors.postal ? 'border-red-300' : 'border-tppslate/30'
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink dark:focus:ring-tppdarkwhite/50 focus:border-transparent transition-colors bg-white dark:bg-tppdark/50 text-tppslate dark:text-tppdarkwhite placeholder:text-slate-400 dark:placeholder:text-tppdarkwhite/30 ${
+                      errors.zip_code || errors.postal ? 'border-red-300 dark:border-red-500/50' : 'border-tppslate/30 dark:border-tppdarkwhite/20'
                     }`}
                   />
                   {(errors.zip_code || errors.postal) && (
-                    <p className="mt-1 text-xs text-red-600">{errors.zip_code || errors.postal}</p>
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.zip_code || errors.postal}</p>
                   )}
                 </div>
 
                 <div>
-                  <label htmlFor="country" className="block text-sm font-medium text-tppslate mb-1">
+                  <label htmlFor="country" className="block text-sm font-medium text-tppslate dark:text-tppdarkwhite/80 mb-1">
                     Country <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -380,17 +380,17 @@ const CheckoutForm = ({ showModal, onCloseModal, onAddressSelect }) => {
                     value={formData.country}
                     onChange={handleChange}
                     placeholder="India"
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
-                      errors.country ? 'border-red-300' : 'border-tppslate/30'
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink dark:focus:ring-tppdarkwhite/50 focus:border-transparent transition-colors bg-white dark:bg-tppdark/50 text-tppslate dark:text-tppdarkwhite placeholder:text-slate-400 dark:placeholder:text-tppdarkwhite/30 ${
+                      errors.country ? 'border-red-300 dark:border-red-500/50' : 'border-tppslate/30 dark:border-tppdarkwhite/20'
                     }`}
                   />
-                  {errors.country && <p className="mt-1 text-xs text-red-600">{errors.country}</p>}
+                  {errors.country && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.country}</p>}
                 </div>
               </div>
 
               {/* Phone Number */}
               <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-tppslate mb-1">
+                <label htmlFor="phone" className="block text-sm font-medium text-tppslate dark:text-tppdarkwhite/80 mb-1">
                   Phone Number <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -401,24 +401,24 @@ const CheckoutForm = ({ showModal, onCloseModal, onAddressSelect }) => {
                   onChange={handleChange}
                   placeholder="10-digit mobile number"
                   maxLength="10"
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink focus:border-transparent transition-colors ${
-                    errors.phone ? 'border-red-300' : 'border-tppslate/30'
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-tpppink dark:focus:ring-tppdarkwhite/50 focus:border-transparent transition-colors bg-white dark:bg-tppdark/50 text-tppslate dark:text-tppdarkwhite placeholder:text-slate-400 dark:placeholder:text-tppdarkwhite/30 ${
+                    errors.phone ? 'border-red-300 dark:border-red-500/50' : 'border-tppslate/30 dark:border-tppdarkwhite/20'
                   }`}
                 />
-                {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone}</p>}
+                {errors.phone && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.phone}</p>}
               </div>
 
               {/* Set as Default */}
-              <div className="flex items-center gap-2 p-4 bg-tppslate/5 rounded-lg">
+              <div className="flex items-center gap-2 p-4 bg-tppslate/5 dark:bg-tppdark/30 rounded-lg">
                 <input
                   type="checkbox"
                   id="is_default"
                   name="is_default"
                   checked={formData.is_default}
                   onChange={handleChange}
-                  className="w-4 h-4 text-tpppink border-tppslate/30 rounded focus:ring-tpppink"
+                  className="w-4 h-4 text-tpppink dark:accent-tppdarkwhite border-tppslate/30 dark:border-tppdarkwhite/20 rounded focus:ring-tpppink dark:focus:ring-tppdarkwhite/50"
                 />
-                <label htmlFor="is_default" className="text-sm text-tppslate cursor-pointer">
+                <label htmlFor="is_default" className="text-sm text-tppslate dark:text-tppdarkwhite/70 cursor-pointer">
                   Set as default address
                 </label>
               </div>
@@ -427,14 +427,14 @@ const CheckoutForm = ({ showModal, onCloseModal, onAddressSelect }) => {
         </div>
 
         {/* Footer - Action Buttons */}
-        <div className="border-t border-slate-200 bg-white flex-shrink-0 p-4 space-y-2">
+        <div className="border-t border-slate-200 dark:border-tppdarkwhite/10 bg-white dark:bg-tppdarkgray flex-shrink-0 p-4 space-y-2">
           {/* Submit Button */}
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full py-3.5 bg-tpppink hover:bg-tpppink/90 text-white rounded-lg
+            className="w-full py-3.5 bg-tpppink dark:bg-tppdarkwhite hover:bg-tpppink/90 dark:hover:bg-tppdarkwhite/90 text-white dark:text-tppdark rounded-lg
               font-semibold transition-all shadow-md hover:shadow-lg
-              flex items-center justify-center gap-2 disabled:bg-tppslate/30 
+              flex items-center justify-center gap-2 disabled:bg-tppslate/30 dark:disabled:bg-tppdarkwhite/20
               disabled:cursor-not-allowed"
           >
             {loading ? (
@@ -451,8 +451,8 @@ const CheckoutForm = ({ showModal, onCloseModal, onAddressSelect }) => {
           <button
             onClick={handleClose}
             disabled={loading}
-            className="w-full py-3 border-2 border-slate-200 hover:border-slate-300 
-              text-slate-700 rounded-lg font-medium transition-all hover:bg-slate-50
+            className="w-full py-3 border-2 border-slate-200 dark:border-tppdarkwhite/20 hover:border-slate-300 dark:hover:border-tppdarkwhite/40
+              text-slate-700 dark:text-tppdarkwhite/70 rounded-lg font-medium transition-all hover:bg-slate-50 dark:hover:bg-tppdark/30
               disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
