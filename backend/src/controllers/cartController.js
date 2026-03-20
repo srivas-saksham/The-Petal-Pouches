@@ -21,7 +21,8 @@ const CartController = {
    * @param {string} sessionId - Guest session UUID
    * @returns {Object} Cart object
    */
-  getOrCreateCart: async (userId, sessionId) => {
+  // WITH THIS:
+getOrCreateCart: async (userId, sessionId) => {
     try {
       // ✅ SECURITY: Validate inputs
       if (!userId && !sessionId) {
@@ -42,9 +43,13 @@ const CartController = {
       }
 
       // Build query based on auth type
+      // ✅ FIX: Use .limit(1) + .maybeSingle() instead of .single()
+      // .single() throws if 0 OR 2+ rows found — causes race condition creating duplicate carts
+      // .maybeSingle() safely returns null if not found, no error thrown
       let query = supabase
         .from(TABLES.CARTS)
-        .select('id, user_id, session_id, expires_at');
+        .select('id, user_id, session_id, expires_at')
+        .limit(1); // ✅ Never errors on multiple rows — picks first one safely
 
       if (userId) {
         query = query.eq('user_id', userId);
@@ -55,7 +60,7 @@ const CartController = {
           .gt('expires_at', new Date().toISOString());
       }
 
-      const { data: existingCart, error: fetchError } = await query.single();
+      const { data: existingCart, error: fetchError } = await query.maybeSingle();
 
       // Return existing cart if found
       if (existingCart && !fetchError) {
@@ -68,7 +73,7 @@ const CartController = {
         }
       }
 
-      // Create new cart
+      // Create new cart — only reached if truly no cart exists
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7); // 7-day expiration
 

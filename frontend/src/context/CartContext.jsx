@@ -130,21 +130,24 @@ export function CartProvider({ children }) {
     setError(null);
   }, []);
 
+  // WITH THIS:
   // Initial cart load on mount
   useEffect(() => {
     fetchCart();
   }, [fetchCart]);
 
-  // ✅ NEW: Reload cart when user logs in/out
+  // ✅ FIX: Only handle LOGIN and LOGOUT transitions here
+  // The mount effect above already handles initial load on page open
+  // Adding fetchCart() on isAuthenticated === true here caused a double
+  // concurrent call → race condition → duplicate carts being created
   useEffect(() => {
-    if (isAuthenticated) {
-      console.log('🔐 User logged in, refreshing cart');
-      fetchCart();
-    } else if (isAuthenticated === false) {
-      // User just logged out
+    // isAuthenticated starts as undefined while resolving, then becomes true/false
+    // We only act on the false case (logout) — login cart refresh is
+    // handled by the merge flow in userAuthService after login succeeds
+    if (isAuthenticated === false) {
       console.log('🚪 User logged out, clearing and refreshing cart');
       clearCartState();
-      // Refresh to get new guest cart
+      // Small delay ensures clearCartState completes before fetching guest cart
       setTimeout(() => fetchCart(), 100);
     }
   }, [isAuthenticated, fetchCart, clearCartState]);
