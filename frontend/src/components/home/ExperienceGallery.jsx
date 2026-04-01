@@ -225,7 +225,7 @@ const ExperienceGallery = () => {
           transition={{ delay: 0.1 }}
           className="text-4xl md:text-5xl text-tppslate mb-3"
         >
-          Surprise a Loved One ♡
+          Surprise your Loved One ♡
         </motion.h2>
         
         <motion.p

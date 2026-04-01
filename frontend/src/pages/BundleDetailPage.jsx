@@ -77,7 +77,7 @@ const BundleDetailPage = () => {
     }
   }, [item]);
 
-  const stockLimit = item?.stock_limit || item?.stock;
+  const stockLimit = item?.stock_limit ?? item?.stock;
   const isLowStock = stockLimit && stockLimit > 0 && stockLimit < 5;
   const isOutOfStock = stockLimit === 0 || stockLimit === null;
   const items = item?.items || [];

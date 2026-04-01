@@ -56,7 +56,7 @@ export default function ContactUs() {
                   </div>
                   <p className="text-sm sm:text-base text-gray-700 dark:text-tppdarkwhite/60 mb-2">Customer support hotline:</p>
                   <a href="tel:+919876543210" className="text-blue-600 dark:text-tppdarkwhite hover:opacity-80 font-semibold text-base sm:text-lg">
-                    +91 98765 43210
+                    +91 92177 91695
                   </a>
                   <p className="text-xs sm:text-sm text-gray-500 dark:text-tppdarkwhite/40 mt-2">Mon-Sat: 10:00 AM - 7:00 PM IST</p>
                 </div>
