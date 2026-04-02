@@ -242,7 +242,7 @@ const BundleDetailPage = () => {
             <div className="space-y-4 md:space-y-0">
 
               {/* CONTAINER 1: Product Details */}
-              <div className="bg-white dark:bg-tppdarkgray rounded-lg border border-slate-200 dark:border-tppdarkwhite/10 shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-tppdarkgray rounded-lg border border-slate-200 dark:border-tppdarkwhite/10 shadow-sm">
                 <div className="grid md:grid-cols-1 lg:grid-cols-[45%_55%]">
                   <BundleImageGallery bundle={item} isOutOfStock={isOutOfStock} />
                   <div className="p-3 md:p-6 md:border-l border-slate-200 dark:border-tppdarkwhite/10">

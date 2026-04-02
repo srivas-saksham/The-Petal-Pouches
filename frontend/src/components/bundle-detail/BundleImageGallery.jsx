@@ -41,7 +41,8 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [imageLoading, setImageLoading] = useState(true);
   const carouselRef = useRef(null);
-  
+  const mouseDownTime = useRef(0);
+
   const [mainSwiperInstance, setMainSwiperInstance] = useState(null);
   const [thumbSwiperInstance, setThumbSwiperInstance] = useState(null);
 
@@ -94,11 +95,12 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
   }, [images]);
 
   const handleThumbnailClick = (index) => {
-    if (index !== selectedIndex && !isDragging) {
+    const holdDuration = Date.now() - mouseDownTime.current;
+    if (index !== selectedIndex && holdDuration < 200) {
       setImageLoading(true);
       setSelectedIndex(index);
     }
-  };
+  }
 
   const handlePrevious = () => {
     setImageLoading(true);
@@ -132,7 +134,8 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
 
   const handleMouseDown = (e) => {
     if (!carouselRef.current) return;
-    setIsDragging(true);
+    mouseDownTime.current = Date.now();
+    setIsDragging(true); // immediately enable drag tracking
     setStartX(e.pageX - carouselRef.current.offsetLeft);
     setScrollLeft(carouselRef.current.scrollLeft);
     carouselRef.current.style.cursor = 'grabbing';
@@ -149,10 +152,18 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
 
   const handleMouseUp = () => {
     if (!carouselRef.current) return;
-    setIsDragging(false);
+    const holdDuration = Date.now() - mouseDownTime.current;
     carouselRef.current.style.cursor = 'grab';
     carouselRef.current.style.userSelect = 'auto';
     updateScrollButtons();
+    
+    if (holdDuration < 200) {
+      // It was a quick click — don't treat as drag
+      setIsDragging(false);
+    } else {
+      // It was a hold/drag — keep blocking clicks briefly then reset
+      setTimeout(() => setIsDragging(false), 0);
+    }
   };
 
   const handleMouseLeave = () => {
@@ -196,7 +207,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
   }, [hasMultipleImages, selectedIndex]);
 
   return (
-    <div className="relative bg-white dark:bg-tppdark flex flex-col w-full max-w-full overflow-hidden">
+    <div className="relative bg-white dark:bg-tppdark flex flex-col w-full max-w-full overflow-hidden lg:sticky lg:top-24 lg:self-start">
       
       {/* ========================================== */}
       {/* MOBILE: SWIPER MAIN IMAGE GALLERY */}
@@ -433,7 +444,6 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
                 style={{ 
                   width: `${THUMBNAIL_WIDTH}px`, 
                   height: `${THUMBNAIL_WIDTH}px`,
-                  pointerEvents: isDragging ? 'none' : 'auto'
                 }}
                 aria-label={`View image ${index + 1}`}
               >

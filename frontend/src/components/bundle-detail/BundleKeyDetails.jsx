@@ -31,9 +31,9 @@ const BundleKeyDetails = ({
 
   return (
     <div className="space-y-6 py-4">
-
+      
       <div>
-        <h1 className="text-3xl font-bold text-tppslate dark:text-tppdarkwhite leading-tight">{bundle.title}</h1>
+        <h1 className="md:text-3xl text-2xl font-bold text-tppslate dark:text-tppdarkwhite bg-tpppink/10 dark:bg-tppdarkwhite/10 p-2 m-0 rounded-lg leading-tight">{bundle.title}</h1>
       </div>
 
       {bundle.description && (
