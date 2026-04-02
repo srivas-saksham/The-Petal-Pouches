@@ -234,9 +234,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
                 <img
                   src={image.img_url}
                   alt={`${bundle.title} - Image ${index + 1}`}
-                  className={`w-full h-full object-cover bg-white dark:bg-tppdark ${
-                    isOutOfStock ? 'grayscale opacity-60' : ''
-                  }`}
+                  className={`w-full h-full object-cover bg-white dark:bg-tppdark`}
                   onError={(e) => {
                     e.target.src = '/placeholder-bundle.png';
                   }}
@@ -261,7 +259,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
         {isOutOfStock && (
           <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-md shadow-lg flex items-center gap-1 z-20">
             <AlertCircle size={12} />
-            OUT OF STOCK
+            SOLD OUT
           </div>
         )}
 
@@ -288,9 +286,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
           <img
             src={currentImage.img_url}
             alt={`${bundle.title} - Image ${selectedIndex + 1}`}
-            className={`w-full h-full object-cover bg-white dark:bg-tppdark transition-opacity duration-300 ${
-              isOutOfStock ? 'grayscale opacity-60' : ''
-            } ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+            className={`w-full h-full object-cover bg-white dark:bg-tppdark transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
             onLoad={() => setImageLoading(false)}
             onError={(e) => {
               e.target.src = '/placeholder-bundle.png';
@@ -335,7 +331,7 @@ const BundleImageGallery = ({ bundle, isOutOfStock }) => {
         {isOutOfStock && (
           <div className="absolute top-4 left-4 bg-red-500 text-white text-sm font-bold px-4 py-2 rounded-md shadow-lg flex items-center gap-2 ">
             <AlertCircle size={16} />
-            OUT OF STOCK
+            SOLD OUT
           </div>
         )}
 

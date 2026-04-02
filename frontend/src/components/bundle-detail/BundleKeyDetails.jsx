@@ -51,13 +51,13 @@ const BundleKeyDetails = ({
         </div>
         <div className="flex items-center gap-2 text-sm">
           {isOutOfStock ? (
-            <><div className="w-2 h-2 rounded-full bg-red-500" /><span className="text-red-600 dark:text-red-400 font-bold">Out of Stock</span></>
+            <><div className="w-2 h-2 rounded-full bg-red-500" /><span className="text-red-600 dark:text-red-400 font-bold">Sold Out</span></>
           ) : (
             <><div className="w-2 h-2 rounded-full bg-green-500" /><span className="text-green-600 dark:text-green-400 font-bold">In Stock</span></>
           )}
         </div>
         <p className="text-md text-tppslate/50 dark:text-tppdarkwhite/30 leading-relaxed mb-3">*inclusive of all tax, and shipping charges.</p>
-        {isLowStock && (
+        {!!isLowStock && (
           <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/10 px-3 py-2 rounded-lg border border-amber-200 dark:border-amber-500/30 mb-3">
             <AlertTriangle size={14} className="flex-shrink-0" />
             <span className="font-bold">Only {stockLimit} left in stock!</span>
@@ -99,7 +99,7 @@ const BundleKeyDetails = ({
                   <Plus size={16} />
                 </button>
               </div>
-              {showMaxLimitMessage && <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mt-2">Maximum {stockLimit} units allowed</p>}
+              {!!showMaxLimitMessage && <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mt-2">Maximum {stockLimit} units allowed</p>}
             </div>
             <button
               onClick={onAddToCart} disabled={adding || isOutOfStock}
@@ -109,7 +109,15 @@ const BundleKeyDetails = ({
                   : 'bg-tpppink dark:bg-tppdarkwhite text-white dark:text-tppdark hover:bg-tppslate dark:hover:bg-tppdarkwhite/90 hover:shadow-lg active:scale-[0.98] border border-tpppink dark:border-tppdarkwhite hover:border-tppslate dark:hover:border-tppdarkwhite/90'
               }`}
             >
-              {adding ? <><div className="w-4 h-4 border-2 border-white dark:border-tppdark border-t-transparent rounded-full animate-spin" />Adding...</> : <><ShoppingCart size={16} />Add to Cart</>}
+              {adding ? <>
+              <div className="w-4 h-4 border-2 border-white dark:border-tppdark border-t-transparent rounded-full animate-spin" />
+                Adding...
+              </> 
+              : 
+              <>
+                <ShoppingCart size={16} />
+                  {isOutOfStock ? 'Sold Out - Out of Stock' : 'Add to Cart'}
+              </>}
             </button>
           </div>
         ) : (

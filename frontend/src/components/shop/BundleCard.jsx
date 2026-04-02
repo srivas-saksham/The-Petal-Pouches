@@ -471,7 +471,7 @@ const BundleCard = ({ bundle, onQuickView }) => {
         {isOutOfStock && (
           <div className="font-inter absolute top-1 md:top-2 left-1 md:left-2 bg-red-500 text-white text-[10px] md:text-xs font-bold px-2 md:px-3 py-1 md:py-1.5 rounded-md flex items-center gap-0.5 md:gap-1 shadow-lg z-10">
             <XCircle size={10} className="md:w-3.5 md:h-3.5" />
-            OUT OF STOCK
+            SOLD OUT
           </div>
         )}
 
@@ -573,8 +573,8 @@ const BundleCard = ({ bundle, onQuickView }) => {
               {isOutOfStock ? (
                 <>
                   <XCircle size={10} className="md:w-3.5 md:h-3.5" />
-                  <span className="hidden md:inline">Out of Stock</span>
-                  <span className="md:hidden">Out of Stock</span>
+                  <span className="hidden md:inline">Sold Out</span>
+                  <span className="md:hidden">Sold Out</span>
                 </>
               ) : adding ? (
                 <>

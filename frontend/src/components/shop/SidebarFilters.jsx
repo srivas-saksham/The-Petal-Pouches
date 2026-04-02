@@ -101,7 +101,7 @@ const SidebarFilters = ({
   );
 
   return (
-    <div className="w-full h-full bg-white dark:bg-tppdarkgray flex flex-col overflow-hidden">
+    <div className="w-full bg-white dark:bg-tppdarkgray flex flex-col overflow-hidden rounded-lg border border-slate-200 dark:border-tppdarkwhite/10">
       
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         

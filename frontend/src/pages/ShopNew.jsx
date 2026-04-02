@@ -30,6 +30,8 @@ const BundleShop = () => {
   const [isFiltersBarVisible, setIsFiltersBarVisible] = useState(true);
   const lastScrollY = useRef(0);
   const scrollThreshold = 50;
+  const sidebarRef = useRef(null);
+  const [sidebarStyle, setSidebarStyle] = useState({});
 
   const [layoutMode, setLayoutMode] = useState(() => {
     return localStorage.getItem('bundleLayoutMode') || '4';
@@ -57,6 +59,45 @@ const BundleShop = () => {
   useEffect(() => {
     localStorage.setItem('bundleLayoutMode', layoutMode);
   }, [layoutMode]);
+
+  const sidebarTopRef = useRef(0);      // tracks current translateY offset
+
+  useEffect(() => {
+    const sidebar = sidebarRef.current;
+    if (!sidebar) return;
+
+    // Apply GPU-composited transform instead of top — zero reflow
+    sidebar.style.willChange = 'transform';
+    sidebar.style.position = 'sticky';
+    sidebar.style.top = '0px';
+
+    const onScroll = () => {
+      const currentScrollY = window.scrollY;
+      const delta = currentScrollY - lastScrollY.current;
+      lastScrollY.current = currentScrollY;
+
+      const sidebarHeight = sidebar.offsetHeight;
+      const viewportHeight = window.innerHeight;
+
+      // If sidebar fits in viewport, no need to do anything
+      if (sidebarHeight <= viewportHeight) {
+        sidebar.style.transform = 'translateY(0px)';
+        return;
+      }
+
+      const maxOffset = -(sidebarHeight - viewportHeight); // negative max scroll up
+      
+      // Shift sidebar by delta — clamped between maxOffset and 0
+      let newTop = sidebarTopRef.current - delta;
+      newTop = Math.min(0, Math.max(maxOffset, newTop));
+      
+      sidebarTopRef.current = newTop;
+      sidebar.style.transform = `translateY(${newTop}px)`;
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   // ⭐ SCROLL DETECTION FOR HIDE/SHOW FILTERS BAR
   useEffect(() => {
@@ -356,7 +397,11 @@ const BundleShop = () => {
             )}
           </div>
 
-          <div className="hidden lg:block flex-shrink-0 py-6 pr-6">
+          <div
+            ref={sidebarRef}
+            style={sidebarStyle}
+            className="hidden lg:block flex-shrink-0 py-6 pr-6 self-start"
+          >
             <SidebarFilters
               filters={{
                 search: filters.search,
