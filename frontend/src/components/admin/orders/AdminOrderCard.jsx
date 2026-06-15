@@ -617,7 +617,8 @@ export default function AdminOrderCard({ order, onViewOrder, onStatusUpdate }) {
                 <option value="">Quick Update Status</option>
                 {order.status === 'pending' && <option value="confirmed">Confirm Order</option>}
                 {(order.status === 'pending' || order.status === 'confirmed') && <option value="processing">Start Processing</option>}
-                {order.status !== 'cancelled' && <option value="shipped">Mark as Shipped</option>}
+                {order.status !== 'cancelled' && <option value="in_transit">Mark as In Transit</option>}
+                {(order.status !== 'cancelled' && order.status !== 'pending' && order.status !== 'confirmed' && order.status !== 'processing') && <option value="shipped">Mark as Shipped</option>}
                 {order.status === 'shipped' && <option value="delivered">Mark as Delivered</option>}
                 {order.status !== 'shipped' && <option value="cancelled">Cancel Order</option>}
               </select>

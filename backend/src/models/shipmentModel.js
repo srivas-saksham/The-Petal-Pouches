@@ -250,6 +250,7 @@ const ShipmentModel = {
         .from('Shipments')
         .insert([{
           order_id: orderId,
+          pickup_location: process.env.DELHIVERY_PICKUP_LOCATION || 'Rizara_Store_S',
           status: 'pending_review',
           
           // Shipping details

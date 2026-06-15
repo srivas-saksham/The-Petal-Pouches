@@ -435,7 +435,11 @@ const AdminOrderController = {
       const { id } = req.params;
       const { status } = req.body;
 
-      const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+      const validStatuses = [
+        'pending', 'confirmed', 'processing', 'shipped',
+        'in_transit', 'out_for_delivery', 'delivered',
+        'failed', 'rto_initiated', 'rto_delivered', 'cancelled'
+      ];
       
       if (!validStatuses.includes(status)) {
         return res.status(400).json({

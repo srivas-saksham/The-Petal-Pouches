@@ -587,39 +587,48 @@ const CartModel = {
    */
   async checkStock(userId) {
     try {
-      // Get cart items with bundle info
       const { data: items, error } = await supabase
         .from('Cart_items')
         .select(`
           id,
           bundle_id,
+          product_id,
+          item_type,
           quantity,
-          Bundles!inner(
-            title,
-            stock_limit
-          )
+          Bundles(title, stock_limit),
+          Products(title, stock)
         `)
         .eq('user_id', userId);
 
       if (error) throw error;
 
-      const formattedItems = (items || []).map(item => ({
-        cart_item_id: item.id,
-        bundle_id: item.bundle_id,
-        cart_quantity: item.quantity,
-        available_stock: item.Bundles.stock_limit || 999,
-        bundle_title: item.Bundles.title,
-        in_stock: (item.Bundles.stock_limit || 999) >= item.quantity
-      }));
+      const formattedItems = (items || []).map(item => {
+        if (item.item_type === 'bundle' && item.Bundles) {
+          return {
+            cart_item_id: item.id,
+            bundle_id: item.bundle_id,
+            cart_quantity: item.quantity,
+            available_stock: item.Bundles.stock_limit ?? 999,
+            bundle_title: item.Bundles.title,
+            in_stock: (item.Bundles.stock_limit ?? 999) >= item.quantity
+          };
+        } else if (item.item_type === 'product' && item.Products) {
+          return {
+            cart_item_id: item.id,
+            product_id: item.product_id,
+            cart_quantity: item.quantity,
+            available_stock: item.Products.stock ?? 999,
+            bundle_title: item.Products.title,
+            in_stock: (item.Products.stock ?? 999) >= item.quantity
+          };
+        }
+        return null;
+      }).filter(Boolean);
 
       const allInStock = formattedItems.every(item => item.in_stock);
       const outOfStockItems = formattedItems.filter(item => !item.in_stock);
 
-      return {
-        all_in_stock: allInStock,
-        items: formattedItems,
-        out_of_stock_items: outOfStockItems
-      };
+      return { all_in_stock: allInStock, items: formattedItems, out_of_stock_items: outOfStockItems };
     } catch (error) {
       console.error('[CartModel] Error checking stock:', error);
       throw error;
