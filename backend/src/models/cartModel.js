@@ -28,15 +28,11 @@ const CartModel = {
         return existingCart;
       }
 
-      // Create new cart
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7);
-
       const { data: newCart, error: insertError } = await supabase
         .from('Carts')
         .insert([{
           user_id: userId,
-          expires_at: expiresAt.toISOString(),
+          expires_at: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])
@@ -90,7 +86,7 @@ const CartModel = {
         .from('Carts')
         .insert([{
           session_id: sessionId,
-          expires_at: expiresAt.toISOString(),
+          expires_at: expiresAt.toISOString(), // guest carts: 7-day expiry
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])
@@ -713,32 +709,6 @@ const CartModel = {
       
     } catch (error) {
       console.error('[CartModel] Error merging guest cart:', error);
-      throw error;
-    }
-  },
-
-  // ==================== CART CLEANUP ====================
-
-  /**
-   * Delete expired guest carts (cleanup job)
-   * @returns {Promise<number>} Number of carts deleted
-   */
-  async cleanupExpiredCarts() {
-    try {
-      const { data, error } = await supabase
-        .from('Carts')
-        .delete()
-        .not('session_id', 'is', null)
-        .lt('expires_at', new Date().toISOString())
-        .select();
-
-      if (error) throw error;
-
-      const count = data ? data.length : 0;
-      console.log(`[CartModel] Cleaned up ${count} expired guest carts`);
-      return count;
-    } catch (error) {
-      console.error('[CartModel] Error cleaning up carts:', error);
       throw error;
     }
   },

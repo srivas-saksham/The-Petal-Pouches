@@ -463,19 +463,15 @@ const CouponModel = {
    */
   async checkUserUsage(couponId, userId) {
     try {
-      // Join with Orders table to get user_id since Coupons_applied doesn't have it
-      const { data, error } = await supabase
+      const { count, error } = await supabase
         .from('Coupons_applied')
-        .select(`
-          *,
-          Orders!inner(user_id)
-        `)
+        .select('*', { count: 'exact', head: true })
         .eq('coupon_id', couponId)
-        .eq('Orders.user_id', userId);
+        .eq('user_id', userId);
 
       if (error) throw error;
 
-      return data?.length || 0;
+      return count || 0;
     } catch (error) {
       console.error('[CouponModel] Check user usage error:', error);
       throw error;

@@ -74,15 +74,20 @@ getOrCreateCart: async (userId, sessionId) => {
       }
 
       // Create new cart — only reached if truly no cart exists
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // 7-day expiration
+      // User carts: never expire. Guest carts: 7-day expiry (used for reuse lookup).
+      let expiresAtValue = null;
+      if (!userId && sessionId) {
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
+        expiresAtValue = expiresAt.toISOString();
+      }
 
       const { data: newCart, error: insertError } = await supabase
         .from(TABLES.CARTS)
         .insert([{
           user_id: userId || null,
           session_id: sessionId || null,
-          expires_at: expiresAt.toISOString(),
+          expires_at: expiresAtValue,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])
