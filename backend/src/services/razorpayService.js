@@ -56,7 +56,8 @@ class RazorpayService {
       const options = {
         amount: Math.round(amount * 100), // ✅ Convert rupees to paise (₹100 = 10000 paise)
         currency: this.currency,
-        receipt: orderId, // Your order ID for reference
+        // ✅ Bug 4 fix: only include receipt if orderId is a non-null string
+        ...(orderId ? { receipt: orderId } : {}),
         notes: {
           order_id: orderId,
           ...notes,
@@ -79,7 +80,12 @@ class RazorpayService {
       };
 
     } catch (error) {
-      console.error('❌ [Razorpay] Create order failed:', error);
+      console.error('❌ [Razorpay] Create order failed:', {
+        statusCode: error.statusCode,
+        description: error.error?.description,
+        message: error.message,
+        full: error
+      });
 
       // Handle Razorpay API errors
       if (error.statusCode === 401) {
@@ -90,7 +96,7 @@ class RazorpayService {
         throw new Error(`Razorpay validation error: ${error.error?.description || error.message}`);
       }
 
-      throw new Error(`Failed to create Razorpay order: ${error.message}`);
+      throw new Error(`Failed to create Razorpay order: ${error.error?.description || error.message || 'Unknown Razorpay error'}`);
     }
   }
 
@@ -195,6 +201,25 @@ class RazorpayService {
     } catch (error) {
       console.error('❌ [Razorpay] Webhook verification error:', error);
       return false;
+    }
+  }
+
+  // ==================== FETCH RAZORPAY ORDER ====================
+
+  /**
+   * Fetch a Razorpay order by its order ID (used by webhook fallback)
+   * @param {string} razorpayOrderId - Razorpay order ID (order_xxx)
+   * @returns {Promise<Object|null>} Razorpay order object including notes
+   */
+  async fetchRazorpayOrder(razorpayOrderId) {
+    try {
+      console.log(`📥 [Razorpay] Fetching order: ${razorpayOrderId}`);
+      const order = await this.razorpay.orders.fetch(razorpayOrderId);
+      console.log(`✅ [Razorpay] Order fetched: ${order.id}`);
+      return order;
+    } catch (error) {
+      console.error('❌ [Razorpay] Fetch order failed:', error.message);
+      return null;
     }
   }
 

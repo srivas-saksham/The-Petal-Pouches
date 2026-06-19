@@ -59,7 +59,10 @@ const OrderModel = {
         notes = null,
         gift_wrap = false,
         gift_message = null,
-        status = 'pending'
+        status = 'pending',
+        razorpay_order_id = null,     // ✅ Bug 1 fix
+        razorpay_payment_id = null,   // ✅ Bug 1 fix
+        razorpay_signature = null     // ✅ Bug 1 fix
       } = orderData;
 
       // Insert order with all fields including delivery_metadata
@@ -82,6 +85,9 @@ const OrderModel = {
           gift_wrap,
           gift_message,
           delivery_metadata: orderData.delivery_metadata || {}, // ✅ Store delivery metadata
+          razorpay_order_id,    // ✅ Bug 1 fix
+          razorpay_payment_id,  // ✅ Bug 1 fix
+          razorpay_signature,   // ✅ Bug 1 fix
           created_at: new Date().toISOString(),
           placed_at: new Date().toISOString()
         }])

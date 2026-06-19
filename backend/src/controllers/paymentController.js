@@ -281,7 +281,35 @@ const PaymentController = {
 
       console.log('✅ [Payment] Signature verified');
 
-      // ===== STEP 3: GET CART (REVALIDATE) =====
+      // ===== STEP 2.5: IDEMPOTENCY GUARD — prevent duplicate orders =====
+      // If an order already exists for this razorpay_payment_id, return it immediately.
+      // This handles double-submits, network retries, and webhook race conditions.
+      {
+        const supabaseIdempotency = require('../config/supabaseClient');
+        const { data: existingOrder } = await supabaseIdempotency
+          .from('Orders')
+          .select('id, payment_status, final_total')
+          .eq('razorpay_payment_id', razorpay_payment_id)
+          .single();
+
+        if (existingOrder) {
+          console.log(`ℹ️ [Payment] Order already exists for payment ${razorpay_payment_id} — returning existing order`);
+          return res.status(200).json({
+            success: true,
+            message: 'Payment already verified and order already exists',
+            data: {
+              order_id: existingOrder.id,
+              payment_id: razorpay_payment_id,
+              payment_record_id: null,
+              status: existingOrder.payment_status,
+              amount: existingOrder.final_total,
+              method: 'card',
+              discount: 0,
+              coupon_code: null
+            }
+          });
+        }
+      }
       const cartData = await CartModel.getCartWithItems(userId);
 
       if (!cartData.items || cartData.items.length === 0) {
@@ -710,15 +738,15 @@ const PaymentController = {
         try {
           switch (event) {
             case 'payment.captured':
-              await this.handlePaymentCaptured(eventPayload);
+              await PaymentController.handlePaymentCaptured(eventPayload);
               break;
 
             case 'payment.failed':
-              await this.handlePaymentFailed(eventPayload);
+              await PaymentController.handlePaymentFailed(eventPayload);
               break;
 
             case 'order.paid':
-              await this.handleOrderPaid(eventPayload);
+              await PaymentController.handleOrderPaid(eventPayload);
               break;
 
             default:
@@ -763,15 +791,132 @@ const PaymentController = {
 
       if (error || !order) {
         console.error(`❌ [Webhook] Order not found for Razorpay order: ${order_id}`);
-        console.error('🔍 [Webhook] This may be normal - webhook arrived before order creation');
-        console.error('📋 [Webhook] Webhook data for reconciliation:', JSON.stringify({
-          event: 'payment.captured',
-          razorpay_order_id: order_id,
-          razorpay_payment_id: payment_id,
-          amount: amount / 100,
-          status,
-          timestamp: new Date().toISOString()
-        }));
+        console.log(`🔄 [Webhook] Attempting fallback order creation from Razorpay notes...`);
+
+        // ===== BUG 2 FIX: FALLBACK ORDER CREATION FROM RAZORPAY NOTES =====
+        try {
+          // Fetch the Razorpay order to read notes.order_metadata
+          const rzpOrder = await razorpayService.fetchRazorpayOrder(order_id);
+          if (!rzpOrder || !rzpOrder.notes || !rzpOrder.notes.order_metadata) {
+            console.error(`❌ [Webhook] Cannot reconstruct order — no notes.order_metadata on Razorpay order ${order_id}`);
+            console.error('📋 [Webhook] Manual reconciliation required:', JSON.stringify({
+              event: 'payment.captured',
+              razorpay_order_id: order_id,
+              razorpay_payment_id: payment_id,
+              amount: amount / 100,
+              status,
+              timestamp: new Date().toISOString()
+            }));
+            return;
+          }
+
+          const meta = JSON.parse(rzpOrder.notes.order_metadata);
+          const userId = rzpOrder.notes.user_id;
+
+          if (!userId || !meta.address_id) {
+            console.error(`❌ [Webhook] Incomplete notes — cannot reconstruct order. userId=${userId}`);
+            return;
+          }
+
+          // Fetch address
+          const { data: address } = await supabase
+            .from('Addresses')
+            .select('*')
+            .eq('id', meta.address_id)
+            .single();
+
+          if (!address) {
+            console.error(`❌ [Webhook] Address not found: ${meta.address_id}`);
+            return;
+          }
+
+          // Fetch cart (may already be cleared — if so, we cannot reconstruct items)
+          const CartModel = require('../models/cartModel');
+          const cartData = await CartModel.getCartWithItems(userId);
+
+          if (!cartData.items || cartData.items.length === 0) {
+            console.error(`❌ [Webhook] Cart empty for user ${userId} — cannot reconstruct order items. Manual action required.`);
+            console.error('📋 [Webhook] Payment data for manual order creation:', JSON.stringify({
+              razorpay_order_id: order_id,
+              razorpay_payment_id: payment_id,
+              user_id: userId,
+              address_id: meta.address_id,
+              amount: amount / 100,
+              timestamp: new Date().toISOString()
+            }));
+            return;
+          }
+
+          const { calculateOrderTotals } = require('../utils/orderHelpers');
+          const deliveryMode = meta.delivery_metadata?.mode || 'surface';
+          const expressCharge = meta.delivery_metadata?.express_charge || 0;
+          const totals = calculateOrderTotals(cartData.items, deliveryMode, expressCharge);
+          const discount = meta.coupon_data?.discount || 0;
+
+          const orderDataToCreate = {
+            user_id: userId,
+            subtotal: totals.subtotal,
+            express_charge: totals.express_charge,
+            discount,
+            final_total: totals.total - discount,
+            shipping_address: {
+              line1: address.line1,
+              line2: address.line2,
+              city: address.city,
+              state: address.state,
+              country: address.country || 'India',
+              zip_code: address.zip_code,
+              phone: address.phone,
+              landmark: address.landmark
+            },
+            payment_method: 'online',
+            payment_status: 'paid',
+            notes: meta.notes || null,
+            gift_wrap: meta.gift_wrap || false,
+            gift_message: meta.gift_message || null,
+            bundle_type: 'mixed',
+            status: 'confirmed',
+            razorpay_order_id: order_id,
+            razorpay_payment_id: payment_id,
+            razorpay_signature: null, // not available in webhook payload
+            delivery_metadata: meta.delivery_metadata || {}
+          };
+
+          const orderItems = cartData.items.map(item => {
+            if (item.bundle_id) {
+              return { bundle_id: item.bundle_id, product_id: null, bundle_title: item.bundle_title, quantity: item.quantity, price: item.price, bundle_origin: item.bundle_origin || 'brand-bundle' };
+            } else if (item.product_id) {
+              return { bundle_id: null, product_id: item.product_id, bundle_title: item.bundle_title, quantity: item.quantity, price: item.price, bundle_origin: 'product' };
+            }
+          }).filter(Boolean);
+
+          const newOrder = await OrderModel.create(orderDataToCreate, orderItems);
+          console.log(`✅ [Webhook] Fallback order created: ${newOrder.id} for payment ${payment_id}`);
+
+          // Create payment record
+          const PaymentModel = require('../models/paymentModel');
+          try {
+            await PaymentModel.createPaymentRecord({
+              order_id: newOrder.id,
+              user_id: userId,
+              provider: 'Razorpay',
+              payment_id,
+              amount: amount / 100,
+              currency: 'INR',
+              status: 'captured',
+              is_success: true
+            });
+          } catch (pmErr) {
+            if (pmErr.code !== '23505') console.error('⚠️ [Webhook] Payment record error:', pmErr.message);
+          }
+
+          // Clear cart
+          await CartModel.clearCart(userId);
+          console.log(`✅ [Webhook] Cart cleared for user ${userId}`);
+
+        } catch (fallbackError) {
+          console.error('❌ [Webhook] Fallback order creation failed:', fallbackError.message);
+        }
         return;
       }
 
