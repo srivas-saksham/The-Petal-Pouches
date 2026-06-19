@@ -2,8 +2,9 @@
 
 /**
  * GIFT QUIZ CONFIGURATION - SIMPLIFIED TAG SYSTEM
- * 
+ *
  * Universal Tags Used: romantic, friendship, elegant, cute, meaningful, trendy, classic
+ * No emoji icons here — the UI maps option.value to a lucide-react icon instead.
  */
 
 export const QUIZ_QUESTIONS = [
@@ -18,52 +19,45 @@ export const QUIZ_QUESTIONS = [
     required: true,
     weight: 10,
     options: [
-      { 
-        value: 'birthday', 
-        label: 'Birthday', 
-        icon: '🎂', 
+      {
+        value: 'birthday',
+        label: 'Birthday',
         primaryTag: 'birthday',
         description: 'Celebrate another year around the sun'
       },
-      { 
-        value: 'anniversary', 
-        label: 'Anniversary', 
-        icon: '💕', 
+      {
+        value: 'anniversary',
+        label: 'Anniversary',
         primaryTag: 'anniversary',
         description: 'Mark a special milestone together'
       },
-      { 
-        value: 'valentine', 
-        label: "Valentine's Day", 
-        icon: '💝', 
+      {
+        value: 'valentine',
+        label: "Valentine's Day",
         primaryTag: 'valentine',
         description: 'Express your love and affection'
       },
-      { 
-        value: 'friendship-day', 
-        label: 'Friendship Day', 
-        icon: '👯‍♀️', 
+      {
+        value: 'friendship-day',
+        label: 'Friendship Day',
         primaryTag: 'friendship-day',
         description: 'Celebrate your bestie'
       },
-      { 
-        value: 'just-because', 
-        label: 'Just Because', 
-        icon: '✨', 
+      {
+        value: 'just-because',
+        label: 'Just Because',
         primaryTag: 'just-because',
         description: 'No reason needed for kindness'
       },
-      { 
-        value: 'congratulations', 
-        label: 'Congratulations', 
-        icon: '🎉', 
+      {
+        value: 'congratulations',
+        label: 'Congratulations',
         primaryTag: 'congratulations',
         description: 'Celebrate an achievement'
       },
-      { 
-        value: 'apology', 
-        label: 'Apology', 
-        icon: '🌹', 
+      {
+        value: 'apology',
+        label: 'Apology',
         primaryTag: 'apology',
         description: 'Make amends with a thoughtful gesture'
       },
@@ -81,38 +75,33 @@ export const QUIZ_QUESTIONS = [
     required: true,
     weight: 8,
     options: [
-      { 
-        value: 'romantic-partner', 
-        label: 'Romantic Partner', 
-        icon: '💑',
-        tags: ['valentine','romantic', 'meaningful'],
+      {
+        value: 'romantic-partner',
+        label: 'Romantic Partner',
+        tags: ['valentine', 'romantic', 'meaningful'],
         description: 'Your significant other'
       },
-      { 
-        value: 'best-friend', 
-        label: 'Best Friend', 
-        icon: '👯‍♀️',
+      {
+        value: 'best-friend',
+        label: 'Best Friend',
         tags: ['friendship', 'cute'],
         description: 'Your closest confidant'
       },
-      { 
-        value: 'mother', 
-        label: 'Mother', 
-        icon: '💐',
+      {
+        value: 'mother',
+        label: 'Mother',
         tags: ['elegant', 'meaningful'],
         description: 'The woman who gave you life'
       },
-      { 
-        value: 'sister', 
-        label: 'Sister', 
-        icon: '👭',
+      {
+        value: 'sister',
+        label: 'Sister',
         tags: ['friendship', 'trendy'],
         description: 'Your sister or sister-in-law'
       },
-      { 
-        value: 'colleague', 
-        label: 'Colleague', 
-        icon: '💼',
+      {
+        value: 'colleague',
+        label: 'Colleague',
         tags: ['elegant', 'classic'],
         description: 'A work associate'
       },
@@ -130,38 +119,33 @@ export const QUIZ_QUESTIONS = [
     required: true,
     weight: 7,
     options: [
-      { 
-        value: 'romantic-elegant', 
-        label: 'Romantic & Elegant', 
-        icon: '💎',
+      {
+        value: 'romantic-elegant',
+        label: 'Romantic & Elegant',
         tags: ['romantic', 'elegant'],
         description: 'Sophisticated and loving'
       },
-      { 
-        value: 'cute-playful', 
-        label: 'Cute & Playful', 
-        icon: '🎀',
+      {
+        value: 'cute-playful',
+        label: 'Cute & Playful',
         tags: ['cute', 'trendy'],
         description: 'Sweet and fun aesthetic'
       },
-      { 
-        value: 'classic-timeless', 
-        label: 'Classic & Timeless', 
-        icon: '👑',
+      {
+        value: 'classic-timeless',
+        label: 'Classic & Timeless',
         tags: ['classic', 'elegant'],
         description: 'Traditional and refined'
       },
-      { 
-        value: 'trendy-modern', 
-        label: 'Trendy & Modern', 
-        icon: '⚡',
+      {
+        value: 'trendy-modern',
+        label: 'Trendy & Modern',
         tags: ['trendy', 'cute'],
         description: 'Up-to-date and stylish'
       },
-      { 
-        value: 'meaningful-sentimental', 
-        label: 'Meaningful & Sentimental', 
-        icon: '💝',
+      {
+        value: 'meaningful-sentimental',
+        label: 'Meaningful & Sentimental',
         tags: ['meaningful', 'romantic'],
         description: 'Heartfelt and special'
       },
@@ -179,31 +163,27 @@ export const QUIZ_QUESTIONS = [
     required: true,
     weight: 5,
     options: [
-      { 
-        value: 'budget-friendly', 
-        label: 'Under ₹200', 
-        icon: '💰',
+      {
+        value: 'budget-friendly',
+        label: 'Under ₹200',
         priceRange: [0, 200],
         description: 'Thoughtful gifts on a budget'
       },
-      { 
-        value: 'moderate', 
-        label: '₹200 - ₹500', 
-        icon: '💵',
+      {
+        value: 'moderate',
+        label: '₹200 - ₹500',
         priceRange: [200, 500],
         description: 'Quality gifts at fair prices'
       },
-      { 
-        value: 'premium', 
-        label: '₹500 - ₹1,000', 
-        icon: '💳',
+      {
+        value: 'premium',
+        label: '₹500 - ₹1,000',
         priceRange: [500, 1000],
         description: 'Premium curated experiences'
       },
-      { 
-        value: 'luxury', 
-        label: 'Above ₹1,000', 
-        icon: '💎',
+      {
+        value: 'luxury',
+        label: 'Above ₹1,000',
         priceRange: [1000, 3000],
         description: 'Luxury gift collections'
       },
@@ -235,13 +215,13 @@ export const getQuestionByStep = (step) => {
  */
 export const validateAnswers = (answers) => {
   const errors = {};
-  
+
   QUIZ_QUESTIONS.forEach(question => {
     if (question.required && !answers[question.id]) {
       errors[question.id] = 'This question is required';
     }
   });
-  
+
   return {
     isValid: Object.keys(errors).length === 0,
     errors

@@ -1,8 +1,7 @@
-// frontend/src/components/home/GiftQuizModule.jsx - MOBILE OPTIMIZED
+// frontend/src/components/home/GiftQuizModule.jsx
 
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, useInView } from 'framer-motion';
-import { Sparkles, ArrowRight, Heart, Star } from 'lucide-react';
 import QuizContainer from './GiftQuiz/QuizContainer';
 import { useBrand } from '../../context/BrandContext';
 
@@ -105,74 +104,35 @@ const GiftQuizModule = ({ onAddToCart }) => {
         </motion.svg>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
 
-          {/* Left Column */}
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.8 }}
-            className="lg:pr-6 space-y-4 md:space-y-6"
-          >
-            <p className="hidden md:block text-xs sm:text-sm tracking-wider text-tpppink dark:text-tppdarkwhite/60 uppercase font-medium">
-              Not Sure What to Gift?
-            </p>
+        {/* Centered header — no left-column text, no paragraph */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.7 }}
+          className="text-center mb-8 md:mb-12 space-y-2"
+        >
+          <p className="text-xs sm:text-sm tracking-[0.18em] uppercase font-medium text-tpppink dark:text-tppdarkwhite/60">
+            Not Sure What to Gift?
+          </p>
+          <h2 className={
+            isMasculine
+              ? 'font-semibold tracking-tight text-4xl sm:text-5xl lg:text-6xl text-tppslate dark:text-tppdarkwhite'
+              : 'font-italianno text-5xl sm:text-6xl lg:text-7xl text-tppslate dark:text-tppdarkwhite leading-none'
+          }>
+            {isMasculine ? 'Find His Perfect Gift' : 'Find Her Perfect Gift'}
+          </h2>
+        </motion.div>
 
-            <h2 className="text-4xl md:text-4xl lg:text-5xl font-italianno text-tppslate dark:text-tppdarkwhite leading-tight text-center">
-              {isMasculine ? 'Find His Perfect Gift' : 'Find Her Perfect Gift'}
-            </h2>
-
-            <p className="hidden md:block text-sm sm:text-base text-tppslate/70 dark:text-tppdarkwhite/50 leading-relaxed font-light max-w-xl">
-              Answer a few quick questions about {isMasculine ? 'his' : 'her'} style, interests, and your relationship.
-              We'll recommend a beautifully curated gift box that {isMasculine ? 'he' : 'she'}'ll absolutely love.
-            </p>
-
-            <div className="hidden md:flex flex-wrap gap-4 sm:gap-6">
-              {[
-                { icon: Heart, label: 'Personalized' },
-                { icon: Sparkles, label: 'Quick & Easy' },
-                { icon: Star, label: 'Guaranteed Joy' },
-              ].map(({ icon: Icon, label }) => (
-                <div key={label} className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-full bg-tpppink/10 dark:bg-tppdarkwhite/10 flex items-center justify-center flex-shrink-0">
-                    <Icon size={16} className="text-tpppink dark:text-tppdarkwhite" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-medium text-tppslate dark:text-tppdarkwhite/70">{label}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="hidden lg:flex items-center gap-2 text-sm text-tppslate/60 dark:text-tppdarkwhite/40">
-              <ArrowRight size={16} className="text-tpppink dark:text-tppdarkwhite" />
-              <span className="font-light">Get started with the quiz on the right →</span>
-            </div>
-          </motion.div>
-
-          {/* Right Column */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="relative w-full"
-          >
-            <div className="relative w-full">
-              <motion.div
-                animate={{ y: [0, -10, 0], rotate: [0, 5, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="hidden md:block absolute -top-3 -right-3 w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-[#FFB5A0] to-[#FFC5D0] dark:from-tppdarkwhite/10 dark:to-tppdarkwhite/5 rounded-2xl opacity-80 shadow-lg z-0"
-              />
-              <motion.div
-                animate={{ y: [0, 10, 0], rotate: [0, -5, 0] }}
-                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                className="hidden md:block absolute -bottom-3 -left-3 w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-[#D4A5FF] to-[#E8C5FF] dark:from-tppdarkwhite/10 dark:to-tppdarkwhite/5 rounded-2xl opacity-70 shadow-lg z-0"
-              />
-              <div className="relative z-10 w-full">
-                <QuizContainer onAddToCart={onAddToCart} compact={true} />
-              </div>
-            </div>
-          </motion.div>
-        </div>
+        {/* Quiz — itself a two-column layout: questions left, live recommendation right */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.7, delay: 0.15 }}
+        >
+          <QuizContainer onAddToCart={onAddToCart} />
+        </motion.div>
 
         {/* Trust Badges */}
         <motion.div

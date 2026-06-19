@@ -51,7 +51,7 @@ const HomeFooter = () => {
               <h1 className="text-3xl lg:text-8xl font-italianno text-tpppink dark:text-tppdarkwhite hover:text-tpppink/80 dark:hover:text-tppdarkwhite/80 transition-colors">
                 Rizara
               </h1>
-              <span className="font-yatraone absolute -right-1 bottom-1 uppercase text-[16px] tracking-[0.35em] font-light text-tpppink dark:text-tppdarkwhite/80 pointer-events-none">
+              <span className="font-yatraone absolute -right-1 bottom-1 uppercase text-[7px] lg:text-[16px] tracking-[0.35em] font-light text-tpppink dark:text-tppdarkwhite/80 pointer-events-none">
                 {brandMode === 'feminine' ? 'Luxe' : 'Men'}
               </span>
             </Link>

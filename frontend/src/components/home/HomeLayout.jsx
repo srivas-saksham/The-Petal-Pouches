@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { Mail, MapPin, Phone, Instagram, Facebook, Twitter } from 'lucide-react';
 import CommonHeader from '../common/CommonHeader';
 import CouponMarquee from '../common/CouponMarquee';
+import ShippingBanner from '../common/ShippingBanner';
 import { useBrand } from '../../context/BrandContext';
 
 /**
@@ -35,7 +36,10 @@ const HomeLayout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-white">
-      
+
+      {/* Top Announcement Banner */}
+      <ShippingBanner />
+
       {/* Subtle Scroll Progress Bar */}
       <motion.div
         className="fixed top-0 left-0 h-0.5 bg-tpppink dark:bg-tppdarkwhite z-[60]"

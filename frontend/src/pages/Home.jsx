@@ -4,6 +4,8 @@ import HeroParallax from '../components/home/HeroParallax';
 import HeroParallaxMen from '../components/home/HeroParallaxMen';
 import ExperienceGallery from '../components/home/ExperienceGallery';
 import ExperienceGalleryMen from '../components/home/ExperienceGalleryMen';
+import FeaturedCollections from '../components/home/FeaturedCollections';
+import FeaturedCollectionsMen from '../components/home/FeaturedCollectionsMen';
 import WhatsTheOccasion from '../components/home/WhatsTheOccasion';
 import GiftQuizModule from '../components/home/GiftQuizModule';
 import HomeFooter from '../components/home/HomeFooter';
@@ -31,7 +33,8 @@ const Home = () => {
         {brandMode === 'masculine' ? <HeroParallaxMen /> : <HeroParallax />}
 
         {brandMode === 'masculine' ? <ExperienceGalleryMen /> : <ExperienceGallery />}
-        {brandMode === 'masculine' ? '' : <WhatsTheOccasion />}
+        {brandMode === 'masculine' ? <FeaturedCollectionsMen /> : <FeaturedCollections />}
+        {/* {brandMode === 'masculine' ? '' : <WhatsTheOccasion />} */}
         <GiftQuizModule />
 
       </HomeLayout>
